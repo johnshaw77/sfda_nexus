@@ -1,24 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { useAuthStore } from "@/store/auth";
-
-// 佈局組件
-import MainLayout from "@/layouts/MainLayout.vue";
-import AuthLayout from "@/layouts/AuthLayout.vue";
-import AdminLayout from "@/layouts/AdminLayout.vue";
-
-// 頁面組件
-import Login from "@/views/auth/Login.vue";
-import Register from "@/views/auth/Register.vue";
-import ForgotPassword from "@/views/auth/ForgotPassword.vue";
-
-import Dashboard from "@/views/dashboard/Dashboard.vue";
-import Chat from "@/views/chat/Chat.vue";
-import Settings from "@/views/settings/Settings.vue";
-
-import AdminDashboard from "@/views/admin/Dashboard.vue";
-import UserManagement from "@/views/admin/UserManagement.vue";
-import SystemSettings from "@/views/admin/SystemSettings.vue";
-import AuditLogs from "@/views/admin/AuditLogs.vue";
+import { useAuthStore } from "@/stores/auth";
 
 // 路由配置
 const routes = [
@@ -30,12 +11,16 @@ const routes = [
   // 認證相關路由
   {
     path: "/auth",
-    component: AuthLayout,
+    component: () => import("@/layouts/AuthLayout.vue"),
     children: [
+      {
+        path: "",
+        redirect: "/auth/login",
+      },
       {
         path: "login",
         name: "Login",
-        component: Login,
+        component: () => import("@/views/auth/components/Login.vue"),
         meta: {
           requiresGuest: true,
           title: "登入 - SFDA Nexus",
@@ -44,19 +29,10 @@ const routes = [
       {
         path: "register",
         name: "Register",
-        component: Register,
+        component: () => import("@/views/auth/components/Register.vue"),
         meta: {
           requiresGuest: true,
           title: "註冊 - SFDA Nexus",
-        },
-      },
-      {
-        path: "forgot-password",
-        name: "ForgotPassword",
-        component: ForgotPassword,
-        meta: {
-          requiresGuest: true,
-          title: "忘記密碼 - SFDA Nexus",
         },
       },
     ],
@@ -65,13 +41,13 @@ const routes = [
   // 主要應用路由
   {
     path: "/",
-    component: MainLayout,
+    component: () => import("@/layouts/MainLayout.vue"),
     meta: { requiresAuth: true },
     children: [
       {
         path: "dashboard",
         name: "Dashboard",
-        component: Dashboard,
+        component: () => import("@/views/dashboard/index.vue"),
         meta: {
           title: "儀表板 - SFDA Nexus",
           icon: "DashboardOutlined",
@@ -80,16 +56,25 @@ const routes = [
       {
         path: "chat",
         name: "Chat",
-        component: Chat,
+        component: () => import("@/views/chat/index.vue"),
         meta: {
           title: "聊天 - SFDA Nexus",
           icon: "MessageOutlined",
         },
       },
       {
+        path: "user",
+        name: "UserProfile",
+        component: () => import("@/views/user/index.vue"),
+        meta: {
+          title: "個人資料 - SFDA Nexus",
+          icon: "UserOutlined",
+        },
+      },
+      {
         path: "settings",
         name: "Settings",
-        component: Settings,
+        component: () => import("@/views/settings/index.vue"),
         meta: {
           title: "設置 - SFDA Nexus",
           icon: "SettingOutlined",
@@ -101,7 +86,7 @@ const routes = [
   // 管理員路由
   {
     path: "/admin",
-    component: AdminLayout,
+    component: () => import("@/layouts/AdminLayout.vue"),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
@@ -114,16 +99,34 @@ const routes = [
       {
         path: "dashboard",
         name: "AdminDashboard",
-        component: AdminDashboard,
+        component: () => import("@/views/admin/index.vue"),
         meta: {
           title: "管理儀表板 - SFDA Nexus",
           icon: "DashboardOutlined",
         },
       },
       {
+        path: "models",
+        name: "ModelManagement",
+        component: () => import("@/views/admin/models.vue"),
+        meta: {
+          title: "模型管理 - SFDA Nexus",
+          icon: "ApiOutlined",
+        },
+      },
+      {
+        path: "agents",
+        name: "AgentManagement",
+        component: () => import("@/views/admin/agents.vue"),
+        meta: {
+          title: "智能體管理 - SFDA Nexus",
+          icon: "RobotOutlined",
+        },
+      },
+      {
         path: "users",
         name: "UserManagement",
-        component: UserManagement,
+        component: () => import("@/views/admin/users.vue"),
         meta: {
           title: "用戶管理 - SFDA Nexus",
           icon: "UserOutlined",
@@ -132,19 +135,10 @@ const routes = [
       {
         path: "system",
         name: "SystemSettings",
-        component: SystemSettings,
+        component: () => import("@/views/admin/system.vue"),
         meta: {
           title: "系統設置 - SFDA Nexus",
           icon: "SettingOutlined",
-        },
-      },
-      {
-        path: "logs",
-        name: "AuditLogs",
-        component: AuditLogs,
-        meta: {
-          title: "審計日誌 - SFDA Nexus",
-          icon: "FileTextOutlined",
         },
       },
     ],

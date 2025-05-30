@@ -359,7 +359,7 @@ import {
   BgColorsOutlined,
   MessageOutlined,
 } from "@ant-design/icons-vue";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore } from "@/stores/auth";
 
 const authStore = useAuthStore();
 

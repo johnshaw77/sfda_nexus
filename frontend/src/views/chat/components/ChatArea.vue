@@ -257,8 +257,8 @@ import {
   SmileOutlined,
   SendOutlined,
 } from "@ant-design/icons-vue";
-import { useChatStore } from "@/store/chat";
-import { useWebSocketStore } from "@/store/websocket";
+import { useChatStore } from "@/stores/chat";
+import { useWebSocketStore } from "@/stores/websocket";
 import MessageBubble from "./MessageBubble.vue";
 
 // Store

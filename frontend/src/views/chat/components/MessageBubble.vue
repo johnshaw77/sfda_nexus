@@ -1,38 +1,34 @@
 <template>
-  <div 
-    class="message-bubble" 
-    :class="{ 
+  <div
+    class="message-bubble"
+    :class="{
       'user-message': message.role === 'user',
       'ai-message': message.role === 'assistant',
-      'system-message': message.role === 'system'
-    }"
-  >
+      'system-message': message.role === 'system',
+    }">
     <!-- 消息頭部信息 -->
     <div class="message-header">
       <div class="message-avatar">
-        <a-avatar 
-          v-if="message.role === 'user'" 
+        <a-avatar
+          v-if="message.role === 'user'"
           :size="32"
-          :style="{ backgroundColor: '#1890ff' }"
-        >
+          :style="{ backgroundColor: '#1890ff' }">
           <UserOutlined />
         </a-avatar>
-        <a-avatar 
-          v-else-if="message.role === 'assistant'" 
+        <a-avatar
+          v-else-if="message.role === 'assistant'"
           :size="32"
-          :style="{ backgroundColor: '#52c41a' }"
-        >
+          :style="{ backgroundColor: '#52c41a' }">
           <RobotOutlined />
         </a-avatar>
-        <a-avatar 
-          v-else 
+        <a-avatar
+          v-else
           :size="32"
-          :style="{ backgroundColor: '#faad14' }"
-        >
+          :style="{ backgroundColor: '#faad14' }">
           <InfoCircleOutlined />
         </a-avatar>
       </div>
-      
+
       <div class="message-info">
         <div class="message-sender">
           {{ getSenderName() }}
@@ -41,11 +37,15 @@
           {{ formatTime(message.created_at) }}
         </div>
       </div>
-      
+
       <!-- 消息操作按鈕 -->
       <div class="message-actions">
-        <a-dropdown :trigger="['click']" placement="bottomRight">
-          <a-button type="text" size="small">
+        <a-dropdown
+          :trigger="['click']"
+          placement="bottomRight">
+          <a-button
+            type="text"
+            size="small">
             <MoreOutlined />
           </a-button>
           <template #overlay>
@@ -54,7 +54,9 @@
                 <CopyOutlined />
                 複製消息
               </a-menu-item>
-              <a-menu-item v-if="message.role === 'assistant'" @click="handleRegenerateResponse">
+              <a-menu-item
+                v-if="message.role === 'assistant'"
+                @click="handleRegenerateResponse">
                 <ReloadOutlined />
                 重新生成
               </a-menu-item>
@@ -63,7 +65,9 @@
                 引用回覆
               </a-menu-item>
               <a-menu-divider />
-              <a-menu-item @click="handleDeleteMessage" class="danger-item">
+              <a-menu-item
+                @click="handleDeleteMessage"
+                class="danger-item">
                 <DeleteOutlined />
                 刪除消息
               </a-menu-item>
@@ -76,11 +80,15 @@
     <!-- 消息內容 -->
     <div class="message-content">
       <!-- 引用的消息 -->
-      <div v-if="message.quoted_message" class="quoted-message">
+      <div
+        v-if="message.quoted_message"
+        class="quoted-message">
         <div class="quote-header">
           <UserOutlined v-if="message.quoted_message.role === 'user'" />
           <RobotOutlined v-else />
-          <span>{{ message.quoted_message.role === 'user' ? '用戶' : 'AI助手' }}</span>
+          <span>{{
+            message.quoted_message.role === "user" ? "用戶" : "AI助手"
+          }}</span>
         </div>
         <div class="quote-content">
           {{ getQuotePreview(message.quoted_message.content) }}
@@ -90,25 +98,27 @@
       <!-- 主要內容 -->
       <div class="message-text">
         <!-- Markdown 渲染 -->
-        <div 
-          v-if="message.role === 'assistant'" 
+        <div
+          v-if="message.role === 'assistant'"
           class="markdown-content"
-          v-html="renderMarkdown(message.content)"
-        ></div>
+          v-html="renderMarkdown(message.content)"></div>
         <!-- 純文本 -->
-        <div v-else class="plain-text">
+        <div
+          v-else
+          class="plain-text">
           {{ message.content }}
         </div>
       </div>
 
       <!-- 附件 -->
-      <div v-if="message.attachments && message.attachments.length > 0" class="message-attachments">
-        <div 
-          v-for="attachment in message.attachments" 
+      <div
+        v-if="message.attachments && message.attachments.length > 0"
+        class="message-attachments">
+        <div
+          v-for="attachment in message.attachments"
           :key="attachment.id"
           class="attachment-item"
-          @click="handleViewAttachment(attachment)"
-        >
+          @click="handleViewAttachment(attachment)">
           <div class="attachment-icon">
             <FileOutlined v-if="attachment.type === 'file'" />
             <PictureOutlined v-else-if="attachment.type === 'image'" />
@@ -118,13 +128,17 @@
           </div>
           <div class="attachment-info">
             <div class="attachment-name">{{ attachment.name }}</div>
-            <div class="attachment-size">{{ formatFileSize(attachment.size) }}</div>
+            <div class="attachment-size">
+              {{ formatFileSize(attachment.size) }}
+            </div>
           </div>
         </div>
       </div>
 
       <!-- AI 模型信息 -->
-      <div v-if="message.role === 'assistant' && message.model_info" class="model-info">
+      <div
+        v-if="message.role === 'assistant' && message.model_info"
+        class="model-info">
         <a-tag :color="getModelColor(message.model_info.provider)">
           {{ message.model_info.name }}
         </a-tag>
@@ -135,17 +149,25 @@
     </div>
 
     <!-- 消息狀態 -->
-    <div v-if="showStatus" class="message-status">
-      <a-spin v-if="message.status === 'sending'" size="small" />
-      <CheckOutlined v-else-if="message.status === 'sent'" class="status-sent" />
-      <ExclamationCircleOutlined v-else-if="message.status === 'error'" class="status-error" />
+    <div
+      v-if="showStatus"
+      class="message-status">
+      <a-spin
+        v-if="message.status === 'sending'"
+        size="small" />
+      <CheckOutlined
+        v-else-if="message.status === 'sent'"
+        class="status-sent" />
+      <ExclamationCircleOutlined
+        v-else-if="message.status === 'error'"
+        class="status-error" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { computed } from "vue";
+import { message } from "ant-design-vue";
 import {
   UserOutlined,
   RobotOutlined,
@@ -160,76 +182,83 @@ import {
   VideoCameraOutlined,
   AudioOutlined,
   CheckOutlined,
-  ExclamationCircleOutlined
-} from '@ant-design/icons-vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
-import { useChatStore } from '@/store/chat'
+  ExclamationCircleOutlined,
+} from "@ant-design/icons-vue";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+import { useChatStore } from "@/stores/chat";
 
 // Props
 const props = defineProps({
   message: {
     type: Object,
-    required: true
+    required: true,
   },
   showStatus: {
     type: Boolean,
-    default: false
-  }
-})
+    default: false,
+  },
+});
 
 // Emits
-const emit = defineEmits(['quote-message', 'regenerate-response'])
+const emit = defineEmits(["quote-message", "regenerate-response"]);
 
 // Store
-const chatStore = useChatStore()
+const chatStore = useChatStore();
 
 // 計算屬性
 const getSenderName = () => {
   switch (props.message.role) {
-    case 'user':
-      return '用戶'
-    case 'assistant':
-      return props.message.agent_name || 'AI助手'
-    case 'system':
-      return '系統'
+    case "user":
+      return "用戶";
+    case "assistant":
+      return props.message.agent_name || "AI助手";
+    case "system":
+      return "系統";
     default:
-      return '未知'
+      return "未知";
   }
-}
+};
 
 // 方法
 const formatTime = (timestamp) => {
-  if (!timestamp) return ''
-  
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now - date
-  
+  if (!timestamp) return "";
+
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diff = now - date;
+
   // 今天
   if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
-    return date.toLocaleTimeString('zh-TW', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
+    return date.toLocaleTimeString("zh-TW", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
-  
+
   // 昨天
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
   if (date.getDate() === yesterday.getDate()) {
-    return '昨天 ' + date.toLocaleTimeString('zh-TW', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
+    return (
+      "昨天 " +
+      date.toLocaleTimeString("zh-TW", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    );
   }
-  
+
   // 更早
-  return date.toLocaleDateString('zh-TW') + ' ' + date.toLocaleTimeString('zh-TW', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  })
-}
+  return (
+    date.toLocaleDateString("zh-TW") +
+    " " +
+    date.toLocaleTimeString("zh-TW", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  );
+};
 
 const renderMarkdown = (content) => {
   try {
@@ -237,84 +266,84 @@ const renderMarkdown = (content) => {
     marked.setOptions({
       breaks: true,
       gfm: true,
-      highlight: function(code, lang) {
+      highlight: function (code, lang) {
         // 這裡可以集成代碼高亮庫，如 highlight.js
-        return `<pre><code class="language-${lang}">${code}</code></pre>`
-      }
-    })
-    
-    const html = marked(content)
-    return DOMPurify.sanitize(html)
+        return `<pre><code class="language-${lang}">${code}</code></pre>`;
+      },
+    });
+
+    const html = marked(content);
+    return DOMPurify.sanitize(html);
   } catch (error) {
-    console.error('Markdown 渲染失敗:', error)
-    return content
+    console.error("Markdown 渲染失敗:", error);
+    return content;
   }
-}
+};
 
 const getQuotePreview = (content) => {
-  return content.length > 100 ? content.substring(0, 100) + '...' : content
-}
+  return content.length > 100 ? content.substring(0, 100) + "..." : content;
+};
 
 const getModelColor = (provider) => {
   const colors = {
-    'ollama': 'blue',
-    'gemini': 'green',
-    'openai': 'purple',
-    'claude': 'orange'
-  }
-  return colors[provider] || 'default'
-}
+    ollama: "blue",
+    gemini: "green",
+    openai: "purple",
+    claude: "orange",
+  };
+  return colors[provider] || "default";
+};
 
 const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
 
 // 事件處理
 const handleCopyMessage = async () => {
   try {
-    await navigator.clipboard.writeText(props.message.content)
-    message.success('消息已複製到剪貼板')
+    await navigator.clipboard.writeText(props.message.content);
+    message.success("消息已複製到剪貼板");
   } catch (error) {
-    message.error('複製失敗')
-    console.error('複製失敗:', error)
+    message.error("複製失敗");
+    console.error("複製失敗:", error);
   }
-}
+};
 
 const handleRegenerateResponse = () => {
-  emit('regenerate-response', props.message)
-}
+  emit("regenerate-response", props.message);
+};
 
 const handleQuoteMessage = () => {
-  emit('quote-message', props.message)
-}
+  emit("quote-message", props.message);
+};
 
 const handleDeleteMessage = async () => {
   try {
-    await chatStore.handleDeleteMessage(props.message.id)
-    message.success('消息已刪除')
+    await chatStore.handleDeleteMessage(props.message.id);
+    message.success("消息已刪除");
   } catch (error) {
-    message.error('刪除失敗')
-    console.error('刪除失敗:', error)
+    message.error("刪除失敗");
+    console.error("刪除失敗:", error);
   }
-}
+};
 
 const handleViewAttachment = (attachment) => {
   // 處理附件查看邏輯
-  if (attachment.type === 'image') {
+  if (attachment.type === "image") {
     // 打開圖片預覽
-    window.open(attachment.url, '_blank')
+    window.open(attachment.url, "_blank");
   } else {
     // 下載文件
-    const link = document.createElement('a')
-    link.href = attachment.url
-    link.download = attachment.name
-    link.click()
+    const link = document.createElement("a");
+    link.href = attachment.url;
+    link.download = attachment.name;
+    link.click();
   }
-}
+};
 </script>
 
 <style scoped>
@@ -449,7 +478,7 @@ const handleViewAttachment = (attachment) => {
   background: #f6f8fa;
   padding: 2px 4px;
   border-radius: 3px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
 }
 
 .markdown-content :deep(blockquote) {
@@ -571,13 +600,13 @@ const handleViewAttachment = (attachment) => {
     max-width: 90%;
     padding: 10px 12px;
   }
-  
+
   .message-header {
     margin-bottom: 6px;
   }
-  
+
   .message-avatar {
     display: none;
   }
 }
-</style> 
+</style>

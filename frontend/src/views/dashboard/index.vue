@@ -292,9 +292,9 @@ import {
   QuestionCircleOutlined,
   BulbOutlined,
 } from "@ant-design/icons-vue";
-import { useAuthStore } from "@/store/auth";
-import { useWebSocketStore } from "@/store/websocket";
-import { useChatStore } from "@/store/chat";
+import { useAuthStore } from "@/stores/auth";
+import { useWebSocketStore } from "@/stores/websocket";
+import { useChatStore } from "@/stores/chat";
 import dayjs from "dayjs";
 
 const router = useRouter();

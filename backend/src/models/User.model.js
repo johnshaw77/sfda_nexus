@@ -3,10 +3,10 @@
  * 處理用戶相關的資料庫操作
  */
 
-import { query, transaction } from '../config/database.config.js';
-import bcrypt from 'bcryptjs';
-import { appConfig } from '../config/app.config.js';
-import logger from '../utils/logger.util.js';
+import { query, transaction } from "../config/database.config.js";
+import bcrypt from "bcryptjs";
+import { appConfig } from "../config/app.config.js";
+import logger from "../utils/logger.util.js";
 
 export class UserModel {
   /**
@@ -17,12 +17,54 @@ export class UserModel {
   static async findById(id) {
     try {
       const { rows } = await query(
-        'SELECT * FROM users WHERE id = ? AND is_active = TRUE',
+        "SELECT * FROM users WHERE id = ? AND is_active = 1",
         [id]
       );
       return rows.length > 0 ? this.formatUser(rows[0]) : null;
     } catch (error) {
-      logger.error('根據ID查詢用戶失敗', { id, error: error.message });
+      logger.error("根據ID查詢用戶失敗", { id, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * 根據用戶名獲取用戶（用於認證，包含密碼哈希）
+   * @param {string} username - 用戶名
+   * @returns {Promise<Object|null>} 用戶信息（包含密碼哈希）
+   */
+  static async findByUsernameForAuth(username) {
+    try {
+      const { rows } = await query(
+        "SELECT * FROM users WHERE username = ? AND is_active = 1",
+        [username]
+      );
+      return rows.length > 0 ? rows[0] : null;
+    } catch (error) {
+      logger.error("根據用戶名查詢用戶失敗（認證）", {
+        username,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * 根據郵箱獲取用戶（用於認證，包含密碼哈希）
+   * @param {string} email - 郵箱地址
+   * @returns {Promise<Object|null>} 用戶信息（包含密碼哈希）
+   */
+  static async findByEmailForAuth(email) {
+    try {
+      const { rows } = await query(
+        "SELECT * FROM users WHERE email = ? AND is_active = 1",
+        [email]
+      );
+      return rows.length > 0 ? rows[0] : null;
+    } catch (error) {
+      logger.error("根據郵箱查詢用戶失敗（認證）", {
+        email,
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -35,12 +77,15 @@ export class UserModel {
   static async findByUsername(username) {
     try {
       const { rows } = await query(
-        'SELECT * FROM users WHERE username = ? AND is_active = TRUE',
+        "SELECT * FROM users WHERE username = ? AND is_active = 1",
         [username]
       );
       return rows.length > 0 ? this.formatUser(rows[0]) : null;
     } catch (error) {
-      logger.error('根據用戶名查詢用戶失敗', { username, error: error.message });
+      logger.error("根據用戶名查詢用戶失敗", {
+        username,
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -53,12 +98,12 @@ export class UserModel {
   static async findByEmail(email) {
     try {
       const { rows } = await query(
-        'SELECT * FROM users WHERE email = ? AND is_active = TRUE',
+        "SELECT * FROM users WHERE email = ? AND is_active = 1",
         [email]
       );
       return rows.length > 0 ? this.formatUser(rows[0]) : null;
     } catch (error) {
-      logger.error('根據郵箱查詢用戶失敗', { email, error: error.message });
+      logger.error("根據郵箱查詢用戶失敗", { email, error: error.message });
       throw error;
     }
   }
@@ -77,7 +122,7 @@ export class UserModel {
       department,
       position,
       phone,
-      role = 'user'
+      role = "user",
     } = userData;
 
     try {
@@ -85,7 +130,10 @@ export class UserModel {
       await this.checkExisting(username, email);
 
       // 加密密碼
-      const password_hash = await bcrypt.hash(password, appConfig.security.bcryptRounds);
+      const password_hash = await bcrypt.hash(
+        password,
+        appConfig.security.bcryptRounds
+      );
 
       const { rows } = await query(
         `INSERT INTO users (
@@ -94,25 +142,29 @@ export class UserModel {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           username,
-          email, 
+          email,
           password_hash,
           display_name || username,
           department,
           position,
           phone,
           role,
-          false
+          false,
         ]
       );
 
-      logger.audit(null, 'USER_CREATED', { 
-        username, email, role 
+      logger.audit(null, "USER_CREATED", {
+        username,
+        email,
+        role,
       });
 
       return await this.findById(rows.insertId);
     } catch (error) {
-      logger.error('創建用戶失敗', { 
-        username, email, error: error.message 
+      logger.error("創建用戶失敗", {
+        username,
+        email,
+        error: error.message,
       });
       throw error;
     }
@@ -126,43 +178,51 @@ export class UserModel {
    */
   static async update(id, updateData) {
     const allowedFields = [
-      'display_name', 'avatar_url', 'department', 
-      'position', 'phone', 'preferences'
+      "display_name",
+      "avatar_url",
+      "department",
+      "position",
+      "phone",
+      "preferences",
     ];
 
     const updateFields = [];
     const updateValues = [];
 
     // 過濾允許更新的字段
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateData).forEach((key) => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
         updateFields.push(`${key} = ?`);
         updateValues.push(
-          key === 'preferences' ? JSON.stringify(updateData[key]) : updateData[key]
+          key === "preferences"
+            ? JSON.stringify(updateData[key])
+            : updateData[key]
         );
       }
     });
 
     if (updateFields.length === 0) {
-      throw new Error('沒有可更新的字段');
+      throw new Error("沒有可更新的字段");
     }
 
     updateValues.push(id);
 
     try {
       await query(
-        `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE users SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         updateValues
       );
 
-      logger.audit(id, 'USER_UPDATED', { 
-        fields: Object.keys(updateData)
+      logger.audit(id, "USER_UPDATED", {
+        fields: Object.keys(updateData),
       });
 
       return await this.findById(id);
     } catch (error) {
-      logger.error('更新用戶失敗', { 
-        id, updateData, error: error.message 
+      logger.error("更新用戶失敗", {
+        id,
+        updateData,
+        error: error.message,
       });
       throw error;
     }
@@ -176,19 +236,22 @@ export class UserModel {
    */
   static async updatePassword(id, newPassword) {
     try {
-      const password_hash = await bcrypt.hash(newPassword, appConfig.security.bcryptRounds);
-      
+      const password_hash = await bcrypt.hash(
+        newPassword,
+        appConfig.security.bcryptRounds
+      );
+
       await query(
-        'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        "UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         [password_hash, id]
       );
 
-      logger.audit(id, 'PASSWORD_UPDATED', {});
-      logger.security('PASSWORD_CHANGED', { userId: id }, 'medium');
+      logger.audit(id, "PASSWORD_UPDATED", {});
+      logger.security("PASSWORD_CHANGED", { userId: id }, "medium");
 
       return true;
     } catch (error) {
-      logger.error('更新密碼失敗', { id, error: error.message });
+      logger.error("更新密碼失敗", { id, error: error.message });
       throw error;
     }
   }
@@ -203,7 +266,7 @@ export class UserModel {
     try {
       return await bcrypt.compare(password, hash);
     } catch (error) {
-      logger.error('密碼驗證失敗', { error: error.message });
+      logger.error("密碼驗證失敗", { error: error.message });
       return false;
     }
   }
@@ -225,10 +288,12 @@ export class UserModel {
         [ip, id]
       );
 
-      logger.audit(id, 'USER_LOGIN', { ip });
+      logger.audit(id, "USER_LOGIN", { ip });
     } catch (error) {
-      logger.error('更新最後登入信息失敗', { 
-        id, ip, error: error.message 
+      logger.error("更新最後登入信息失敗", {
+        id,
+        ip,
+        error: error.message,
       });
     }
   }
@@ -241,14 +306,14 @@ export class UserModel {
   static async softDelete(id) {
     try {
       await query(
-        'UPDATE users SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        "UPDATE users SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         [id]
       );
 
-      logger.audit(id, 'USER_DELETED', {});
+      logger.audit(id, "USER_DELETED", {});
       return true;
     } catch (error) {
-      logger.error('軟刪除用戶失敗', { id, error: error.message });
+      logger.error("軟刪除用戶失敗", { id, error: error.message });
       throw error;
     }
   }
@@ -265,32 +330,35 @@ export class UserModel {
       role,
       department,
       search,
-      sortBy = 'created_at',
-      sortOrder = 'DESC'
+      sortBy = "created_at",
+      sortOrder = "DESC",
     } = options;
 
     const offset = (page - 1) * limit;
-    const conditions = ['is_active = TRUE'];
+    const conditions = ["is_active = TRUE"];
     const params = [];
 
     // 構建查詢條件
     if (role) {
-      conditions.push('role = ?');
+      conditions.push("role = ?");
       params.push(role);
     }
 
     if (department) {
-      conditions.push('department = ?');
+      conditions.push("department = ?");
       params.push(department);
     }
 
     if (search) {
-      conditions.push('(username LIKE ? OR email LIKE ? OR display_name LIKE ?)');
+      conditions.push(
+        "(username LIKE ? OR email LIKE ? OR display_name LIKE ?)"
+      );
       const searchPattern = `%${search}%`;
       params.push(searchPattern, searchPattern, searchPattern);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const orderClause = `ORDER BY ${sortBy} ${sortOrder}`;
 
     try {
@@ -312,14 +380,14 @@ export class UserModel {
       );
 
       return {
-        users: rows.map(user => this.formatUser(user)),
+        users: rows.map((user) => this.formatUser(user)),
         total,
         page: parseInt(page),
         limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
-      logger.error('獲取用戶列表失敗', { options, error: error.message });
+      logger.error("獲取用戶列表失敗", { options, error: error.message });
       throw error;
     }
   }
@@ -333,33 +401,35 @@ export class UserModel {
    */
   static async checkExisting(username, email, excludeId = null) {
     try {
-      let usernameQuery = 'SELECT id FROM users WHERE username = ?';
-      let emailQuery = 'SELECT id FROM users WHERE email = ?';
+      let usernameQuery = "SELECT id FROM users WHERE username = ?";
+      let emailQuery = "SELECT id FROM users WHERE email = ?";
       const usernameParams = [username];
       const emailParams = [email];
 
       if (excludeId) {
-        usernameQuery += ' AND id != ?';
-        emailQuery += ' AND id != ?';
+        usernameQuery += " AND id != ?";
+        emailQuery += " AND id != ?";
         usernameParams.push(excludeId);
         emailParams.push(excludeId);
       }
 
       const [usernameResult, emailResult] = await Promise.all([
         query(usernameQuery, usernameParams),
-        query(emailQuery, emailParams)
+        query(emailQuery, emailParams),
       ]);
 
       if (usernameResult.rows.length > 0) {
-        throw new Error('用戶名已存在');
+        throw new Error("用戶名已存在");
       }
 
       if (emailResult.rows.length > 0) {
-        throw new Error('郵箱已存在');
+        throw new Error("郵箱已存在");
       }
     } catch (error) {
-      logger.error('檢查用戶存在性失敗', { 
-        username, email, error: error.message 
+      logger.error("檢查用戶存在性失敗", {
+        username,
+        email,
+        error: error.message,
       });
       throw error;
     }
@@ -373,13 +443,10 @@ export class UserModel {
   static formatUser(user) {
     if (!user) return null;
 
-    const {
-      password_hash,
-      ...safeUser
-    } = user;
+    const { password_hash, ...safeUser } = user;
 
     // 解析JSON字段
-    if (safeUser.preferences && typeof safeUser.preferences === 'string') {
+    if (safeUser.preferences && typeof safeUser.preferences === "string") {
       try {
         safeUser.preferences = JSON.parse(safeUser.preferences);
       } catch (e) {
@@ -409,10 +476,10 @@ export class UserModel {
 
       return rows[0];
     } catch (error) {
-      logger.error('獲取用戶統計失敗', { error: error.message });
+      logger.error("獲取用戶統計失敗", { error: error.message });
       throw error;
     }
   }
 }
 
-export default UserModel; 
+export default UserModel;

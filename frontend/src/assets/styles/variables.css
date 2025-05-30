@@ -1,0 +1,82 @@
+/* CSS 變量定義 */
+:root {
+  /* 主色調 */
+  --primary-color: #1890ff;
+  --primary-color-hover: #40a9ff;
+  --primary-color-active: #096dd9;
+
+  /* 輔助色 */
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #ff4d4f;
+  --info-color: #1890ff;
+
+  /* 中性色 */
+  --text-color: #000000d9;
+  --text-color-secondary: #00000073;
+  --text-color-disabled: #00000040;
+  --border-color: #d9d9d9;
+  --border-color-split: #f0f0f0;
+  --background-color: #ffffff;
+  --background-color-light: #fafafa;
+  --background-color-base: #f5f5f5;
+
+  /* 陰影 */
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.15);
+
+  /* 圓角 */
+  --border-radius-base: 6px;
+  --border-radius-sm: 4px;
+  --border-radius-lg: 8px;
+
+  /* 間距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* 字體大小 */
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-xxl: 20px;
+
+  /* 行高 */
+  --line-height-base: 1.5715;
+  --line-height-sm: 1.5;
+  --line-height-lg: 1.6;
+
+  /* 動畫 */
+  --animation-duration-slow: 0.3s;
+  --animation-duration-base: 0.2s;
+  --animation-duration-fast: 0.1s;
+
+  /* Z-index */
+  --z-index-base: 0;
+  --z-index-affix: 10;
+  --z-index-back-top: 40;
+  --z-index-modal-mask: 1000;
+  --z-index-modal: 1000;
+  --z-index-notification: 1010;
+  --z-index-message: 1010;
+  --z-index-popover: 1030;
+  --z-index-dropdown: 1050;
+  --z-index-picker: 1050;
+  --z-index-tooltip: 1060;
+}
+
+/* 暗色主題變量 */
+[data-theme="dark"] {
+  --text-color: #ffffffd9;
+  --text-color-secondary: #ffffff73;
+  --text-color-disabled: #ffffff40;
+  --border-color: #434343;
+  --border-color-split: #303030;
+  --background-color: #141414;
+  --background-color-light: #1f1f1f;
+  --background-color-base: #000000;
+}

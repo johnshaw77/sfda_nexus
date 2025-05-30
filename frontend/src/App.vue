@@ -6,15 +6,15 @@
 
 <script setup>
 import { onMounted } from "vue";
-import { useAuthStore } from "@/store/auth";
-import { useWebSocketStore } from "@/store/websocket";
+import { useAuthStore } from "@/stores/auth";
+import { useWebSocketStore } from "@/stores/websocket";
 
 const authStore = useAuthStore();
 const wsStore = useWebSocketStore();
 
 onMounted(async () => {
   // 初始化認證狀態
-  await authStore.initializeAuth();
+  await authStore.handleInitialize();
 
   // 如果已登入，初始化WebSocket連接
   if (authStore.isAuthenticated) {

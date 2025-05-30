@@ -1,122 +1,9 @@
 <template>
   <a-layout class="main-layout">
     <!-- 側邊欄 -->
-    <a-layout-sider
-      v-model:collapsed="collapsed"
-      :trigger="null"
-      collapsible
-      :width="240"
-      :collapsed-width="80"
-      class="main-sider">
-      <!-- Logo 區域 -->
-      <div class="logo-container">
-        <div class="logo">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 32 32"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <circle
-              cx="16"
-              cy="16"
-              r="14"
-              fill="#1890ff"
-              opacity="0.1" />
-            <circle
-              cx="16"
-              cy="16"
-              r="10"
-              fill="#1890ff"
-              opacity="0.2" />
-            <circle
-              cx="16"
-              cy="16"
-              r="6"
-              fill="#1890ff" />
-            <path
-              d="M12 14h8v1h-8v-1zm0 2h6v1h-6v-1zm0 2h4v1h-4v-1z"
-              fill="white" />
-          </svg>
-          <span
-            v-if="!collapsed"
-            class="logo-text"
-            >SFDA Nexus</span
-          >
-        </div>
-      </div>
-
-      <!-- 導航菜單 -->
-      <a-menu
-        v-model:selectedKeys="selectedKeys"
-        mode="inline"
-        theme="dark"
-        class="main-menu"
-        @click="handleMenuClick">
-        <a-menu-item key="dashboard">
-          <DashboardOutlined />
-          <span>儀表板</span>
-        </a-menu-item>
-
-        <a-menu-item key="chat">
-          <MessageOutlined />
-          <span>聊天</span>
-        </a-menu-item>
-
-        <a-menu-item key="settings">
-          <SettingOutlined />
-          <span>設置</span>
-        </a-menu-item>
-
-        <!-- 管理員菜單 -->
-        <a-sub-menu
-          v-if="authStore.isAdmin"
-          key="admin">
-          <template #icon>
-            <CrownOutlined />
-          </template>
-          <template #title>管理</template>
-
-          <a-menu-item key="admin-dashboard">
-            <DashboardOutlined />
-            <span>管理儀表板</span>
-          </a-menu-item>
-
-          <a-menu-item key="admin-users">
-            <UserOutlined />
-            <span>用戶管理</span>
-          </a-menu-item>
-
-          <a-menu-item key="admin-system">
-            <SettingOutlined />
-            <span>系統設置</span>
-          </a-menu-item>
-
-          <a-menu-item key="admin-logs">
-            <FileTextOutlined />
-            <span>審計日誌</span>
-          </a-menu-item>
-        </a-sub-menu>
-      </a-menu>
-
-      <!-- 側邊欄底部 -->
-      <div class="sider-footer">
-        <!-- WebSocket 連接狀態 -->
-        <div class="connection-status">
-          <a-badge
-            :status="
-              wsStore.connectionStatus === 'connected' ? 'success' : 'error'
-            "
-            :text="
-              collapsed
-                ? ''
-                : wsStore.connectionStatus === 'connected'
-                  ? '已連接'
-                  : '未連接'
-            " />
-        </div>
-      </div>
-    </a-layout-sider>
+    <AppSidebar
+      :collapsed="collapsed"
+      @menu-click="handleMenuClick" />
 
     <!-- 主內容區域 -->
     <a-layout class="main-content">
@@ -270,28 +157,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import {
-  DashboardOutlined,
-  MessageOutlined,
-  SettingOutlined,
-  CrownOutlined,
-  UserOutlined,
-  FileTextOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   BellOutlined,
   DownOutlined,
   LogoutOutlined,
+  UserOutlined,
+  SettingOutlined,
   InfoCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   CloseCircleOutlined,
 } from "@ant-design/icons-vue";
-import { useAuthStore } from "@/store/auth";
-import { useWebSocketStore } from "@/store/websocket";
+import { useAuthStore } from "@/stores/auth";
+import { useWebSocketStore } from "@/stores/websocket";
+import AppSidebar from "@/components/AppSidebar.vue";
 
 // Store
 const authStore = useAuthStore();
@@ -303,7 +187,6 @@ const route = useRoute();
 
 // 響應式狀態
 const collapsed = ref(false);
-const selectedKeys = ref([]);
 const notificationDrawerVisible = ref(false);
 const notificationCount = ref(0);
 
@@ -313,15 +196,15 @@ const notifications = ref([
     id: 1,
     type: "info",
     title: "系統更新",
-    message: "SFDA Nexus 已更新到版本 1.3.0",
+    message: "SFDA Nexus 已更新到版本 1.6.2",
     created_at: new Date(),
     read: false,
   },
   {
     id: 2,
     type: "success",
-    title: "聊天功能上線",
-    message: "新的聊天界面已經可以使用了",
+    title: "組件重構完成",
+    message: "側邊欄組件已成功分離並支持路由自動生成",
     created_at: new Date(Date.now() - 3600000),
     read: true,
   },
@@ -337,21 +220,9 @@ const toggleCollapsed = () => {
   collapsed.value = !collapsed.value;
 };
 
-const handleMenuClick = ({ key }) => {
-  const routeMap = {
-    dashboard: "/dashboard",
-    chat: "/chat",
-    settings: "/settings",
-    "admin-dashboard": "/admin/dashboard",
-    "admin-users": "/admin/users",
-    "admin-system": "/admin/system",
-    "admin-logs": "/admin/logs",
-  };
-
-  const path = routeMap[key];
-  if (path && path !== route.path) {
-    router.push(path);
-  }
+const handleMenuClick = ({ key, path }) => {
+  // 菜單點擊事件處理（由 AppSidebar 組件處理路由跳轉）
+  console.log("菜單點擊:", { key, path });
 };
 
 const handleShowNotifications = () => {
@@ -359,7 +230,7 @@ const handleShowNotifications = () => {
 };
 
 const handleProfile = () => {
-  message.info("個人資料功能開發中");
+  router.push("/user");
 };
 
 const handleSettings = () => {
@@ -402,25 +273,6 @@ const formatTime = (timestamp) => {
 
   return date.toLocaleDateString("zh-TW");
 };
-
-// 監聽路由變化，更新選中的菜單項
-watch(
-  () => route.path,
-  (newPath) => {
-    const pathToKey = {
-      "/dashboard": "dashboard",
-      "/chat": "chat",
-      "/settings": "settings",
-      "/admin/dashboard": "admin-dashboard",
-      "/admin/users": "admin-users",
-      "/admin/system": "admin-system",
-      "/admin/logs": "admin-logs",
-    };
-
-    selectedKeys.value = [pathToKey[newPath] || "dashboard"];
-  },
-  { immediate: true }
-);
 
 // 生命週期
 onMounted(() => {

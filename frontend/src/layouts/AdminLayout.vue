@@ -306,8 +306,8 @@ import {
   ReloadOutlined,
   PlusOutlined,
 } from "@ant-design/icons-vue";
-import { useAuthStore } from "@/store/auth";
-import { useWebSocketStore } from "@/store/websocket";
+import { useAuthStore } from "@/stores/auth";
+import { useWebSocketStore } from "@/stores/websocket";
 
 // Store
 const authStore = useAuthStore();

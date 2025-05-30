@@ -4,11 +4,32 @@
       <!-- Logo 和標題 -->
       <div class="welcome-header">
         <div class="logo">
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="40" cy="40" r="35" fill="#1890ff" opacity="0.1"/>
-            <circle cx="40" cy="40" r="25" fill="#1890ff" opacity="0.2"/>
-            <circle cx="40" cy="40" r="15" fill="#1890ff"/>
-            <path d="M32 35h16v2H32v-2zm0 4h12v2H32v-2zm0 4h8v2H32v-2z" fill="white"/>
+          <svg
+            width="80"
+            height="80"
+            viewBox="0 0 80 80"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <circle
+              cx="40"
+              cy="40"
+              r="35"
+              fill="#1890ff"
+              opacity="0.1" />
+            <circle
+              cx="40"
+              cy="40"
+              r="25"
+              fill="#1890ff"
+              opacity="0.2" />
+            <circle
+              cx="40"
+              cy="40"
+              r="15"
+              fill="#1890ff" />
+            <path
+              d="M32 35h16v2H32v-2zm0 4h12v2H32v-2zm0 4h8v2H32v-2z"
+              fill="white" />
           </svg>
         </div>
         <h1 class="welcome-title">歡迎使用 SFDA Nexus</h1>
@@ -54,20 +75,18 @@
       <div class="quick-start">
         <h2>快速開始</h2>
         <div class="start-options">
-          <a-button 
-            type="primary" 
-            size="large" 
+          <a-button
+            type="primary"
+            size="large"
             @click="handleCreateConversation"
-            :loading="creating"
-          >
+            :loading="creating">
             <PlusOutlined />
             開始新對話
           </a-button>
-          
-          <a-button 
-            size="large" 
-            @click="handleShowExamples"
-          >
+
+          <a-button
+            size="large"
+            @click="handleShowExamples">
             <BulbOutlined />
             查看示例
           </a-button>
@@ -75,24 +94,23 @@
       </div>
 
       <!-- 示例對話 -->
-      <div v-if="showExamples" class="examples-section">
+      <div
+        v-if="showExamples"
+        class="examples-section">
         <h3>示例對話</h3>
         <div class="example-grid">
-          <div 
-            v-for="example in examples" 
+          <div
+            v-for="example in examples"
             :key="example.id"
             class="example-card"
-            @click="handleUseExample(example)"
-          >
+            @click="handleUseExample(example)">
             <div class="example-icon">
               <component :is="example.icon" />
             </div>
             <div class="example-content">
               <h4>{{ example.title }}</h4>
               <p>{{ example.description }}</p>
-              <div class="example-prompt">
-                "{{ example.prompt }}"
-              </div>
+              <div class="example-prompt">"{{ example.prompt }}"</div>
             </div>
           </div>
         </div>
@@ -125,8 +143,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref } from "vue";
+import { message } from "ant-design-vue";
 import {
   MessageOutlined,
   TeamOutlined,
@@ -138,85 +156,85 @@ import {
   CodeOutlined,
   FileTextOutlined,
   CalculatorOutlined,
-  TranslationOutlined
-} from '@ant-design/icons-vue'
-import { useChatStore } from '@/store/chat'
+  TranslationOutlined,
+} from "@ant-design/icons-vue";
+import { useChatStore } from "@/stores/chat";
 
 // Store
-const chatStore = useChatStore()
+const chatStore = useChatStore();
 
 // 響應式狀態
-const creating = ref(false)
-const showExamples = ref(false)
+const creating = ref(false);
+const showExamples = ref(false);
 
 // 示例對話數據
 const examples = ref([
   {
     id: 1,
-    title: '代碼審查',
-    description: '讓 AI 幫助審查和優化代碼',
-    prompt: '請幫我審查這段 JavaScript 代碼，並提供優化建議',
-    icon: CodeOutlined
+    title: "代碼審查",
+    description: "讓 AI 幫助審查和優化代碼",
+    prompt: "請幫我審查這段 JavaScript 代碼，並提供優化建議",
+    icon: CodeOutlined,
   },
   {
     id: 2,
-    title: '文檔撰寫',
-    description: '協助撰寫技術文檔和報告',
-    prompt: '幫我撰寫一份關於新功能的技術文檔',
-    icon: FileTextOutlined
+    title: "文檔撰寫",
+    description: "協助撰寫技術文檔和報告",
+    prompt: "幫我撰寫一份關於新功能的技術文檔",
+    icon: FileTextOutlined,
   },
   {
     id: 3,
-    title: '數據分析',
-    description: '分析數據並提供洞察',
-    prompt: '請分析這組銷售數據，並提供改進建議',
-    icon: CalculatorOutlined
+    title: "數據分析",
+    description: "分析數據並提供洞察",
+    prompt: "請分析這組銷售數據，並提供改進建議",
+    icon: CalculatorOutlined,
   },
   {
     id: 4,
-    title: '語言翻譯',
-    description: '多語言翻譯和本地化',
-    prompt: '請將這段文字翻譯成英文，並保持專業語調',
-    icon: TranslationOutlined
-  }
-])
+    title: "語言翻譯",
+    description: "多語言翻譯和本地化",
+    prompt: "請將這段文字翻譯成英文，並保持專業語調",
+    icon: TranslationOutlined,
+  },
+]);
 
 // 方法
 const handleCreateConversation = async () => {
   try {
-    creating.value = true
-    await chatStore.handleCreateConversation()
-    message.success('新對話已創建')
+    creating.value = true;
+    await chatStore.handleCreateConversation();
+    message.success("新對話已創建");
   } catch (error) {
-    message.error('創建對話失敗')
-    console.error('創建對話失敗:', error)
+    message.error("創建對話失敗");
+    console.error("創建對話失敗:", error);
   } finally {
-    creating.value = false
+    creating.value = false;
   }
-}
+};
 
 const handleShowExamples = () => {
-  showExamples.value = !showExamples.value
-}
+  showExamples.value = !showExamples.value;
+};
 
 const handleUseExample = async (example) => {
   try {
-    creating.value = true
-    await chatStore.handleCreateConversation()
-    
+    creating.value = true;
+    await chatStore.handleCreateConversation();
+
     // 發送示例消息
     setTimeout(() => {
-      chatStore.handleSendMessage(example.prompt)
-    }, 500)
-    
-    message.success('已創建新對話並發送示例消息')
+      chatStore.handleSendMessage(example.prompt);
+    }, 500);
+
+    message.success("已創建新對話並發送示例消息");
   } catch (error) {
-    message.error('創建對話失敗')
-    console.error('創建對話失敗:', error)
+    message.error("創建對話失敗");
+    console.error("創建對話失敗:", error);
   } finally {
-    creating.value = false
+    creating.value = false;
   }
-}
+};
 </script>
 
 <style scoped>
@@ -271,7 +289,9 @@ const handleUseExample = async (example) => {
   padding: 24px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .feature-card:hover {
@@ -430,27 +450,27 @@ const handleUseExample = async (example) => {
   .welcome-content {
     padding: 0 16px;
   }
-  
+
   .welcome-title {
     font-size: 24px;
   }
-  
+
   .feature-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  
+
   .quick-start,
   .examples-section,
   .tips-section {
     padding: 24px;
   }
-  
+
   .start-options {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .example-grid {
     grid-template-columns: 1fr;
   }
@@ -473,4 +493,4 @@ const handleUseExample = async (example) => {
 .welcome-screen::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
-</style> 
+</style>

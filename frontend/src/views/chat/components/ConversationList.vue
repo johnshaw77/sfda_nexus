@@ -2,12 +2,11 @@
   <div class="conversation-list">
     <!-- 新建對話按鈕 -->
     <div class="conversation-header">
-      <a-button 
-        type="primary" 
-        block 
+      <a-button
+        type="primary"
+        block
         @click="handleCreateConversation"
-        :loading="creating"
-      >
+        :loading="creating">
         <PlusOutlined />
         新建對話
       </a-button>
@@ -18,8 +17,7 @@
       <a-input
         v-model:value="searchKeyword"
         placeholder="搜索對話..."
-        @input="handleSearch"
-      >
+        @input="handleSearch">
         <template #prefix>
           <SearchOutlined />
         </template>
@@ -29,28 +27,30 @@
     <!-- 對話列表 -->
     <div class="conversation-items">
       <a-spin :spinning="loading">
-        <div v-if="filteredConversations.length === 0" class="empty-state">
-          <a-empty 
+        <div
+          v-if="filteredConversations.length === 0"
+          class="empty-state">
+          <a-empty
             description="暫無對話"
-            :image="Empty.PRESENTED_IMAGE_SIMPLE"
-          />
+            :image="Empty.PRESENTED_IMAGE_SIMPLE" />
         </div>
-        
-        <div 
-          v-for="conversation in filteredConversations" 
+
+        <div
+          v-for="conversation in filteredConversations"
           :key="conversation.id"
           class="conversation-item"
-          :class="{ 
-            'active': chatStore.currentConversation?.id === conversation.id,
-            'pinned': conversation.is_pinned 
+          :class="{
+            active: chatStore.currentConversation?.id === conversation.id,
+            pinned: conversation.is_pinned,
           }"
-          @click="handleSelectConversation(conversation)"
-        >
+          @click="handleSelectConversation(conversation)">
           <!-- 對話信息 -->
           <div class="conversation-info">
             <div class="conversation-title">
-              <PushpinOutlined v-if="conversation.is_pinned" class="pin-icon" />
-              {{ conversation.title || '新對話' }}
+              <PushpinOutlined
+                v-if="conversation.is_pinned"
+                class="pin-icon" />
+              {{ conversation.title || "新對話" }}
             </div>
             <div class="conversation-preview">
               {{ getLastMessagePreview(conversation) }}
@@ -59,7 +59,9 @@
               <span class="conversation-time">
                 {{ formatTime(conversation.updated_at) }}
               </span>
-              <span v-if="conversation.unread_count > 0" class="unread-count">
+              <span
+                v-if="conversation.unread_count > 0"
+                class="unread-count">
                 {{ conversation.unread_count }}
               </span>
             </div>
@@ -67,15 +69,20 @@
 
           <!-- 操作按鈕 -->
           <div class="conversation-actions">
-            <a-dropdown :trigger="['click']" placement="bottomRight">
-              <a-button type="text" size="small" @click.stop>
+            <a-dropdown
+              :trigger="['click']"
+              placement="bottomRight">
+              <a-button
+                type="text"
+                size="small"
+                @click.stop>
                 <MoreOutlined />
               </a-button>
               <template #overlay>
                 <a-menu>
                   <a-menu-item @click="handlePinConversation(conversation)">
                     <PushpinOutlined />
-                    {{ conversation.is_pinned ? '取消置頂' : '置頂對話' }}
+                    {{ conversation.is_pinned ? "取消置頂" : "置頂對話" }}
                   </a-menu-item>
                   <a-menu-item @click="handleRenameConversation(conversation)">
                     <EditOutlined />
@@ -86,10 +93,9 @@
                     歸檔對話
                   </a-menu-item>
                   <a-menu-divider />
-                  <a-menu-item 
+                  <a-menu-item
                     @click="handleDeleteConversation(conversation)"
-                    class="danger-item"
-                  >
+                    class="danger-item">
                     <DeleteOutlined />
                     刪除對話
                   </a-menu-item>
@@ -106,20 +112,18 @@
       v-model:open="renameModalVisible"
       title="重命名對話"
       @ok="handleConfirmRename"
-      @cancel="handleCancelRename"
-    >
+      @cancel="handleCancelRename">
       <a-input
         v-model:value="newConversationTitle"
         placeholder="請輸入新的對話標題"
-        @press-enter="handleConfirmRename"
-      />
+        @press-enter="handleConfirmRename" />
     </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { message, Empty } from 'ant-design-vue'
+import { ref, computed, onMounted } from "vue";
+import { message, Empty } from "ant-design-vue";
 import {
   PlusOutlined,
   SearchOutlined,
@@ -127,178 +131,186 @@ import {
   PushpinOutlined,
   EditOutlined,
   InboxOutlined,
-  DeleteOutlined
-} from '@ant-design/icons-vue'
-import { useChatStore } from '@/store/chat'
-import { useWebSocketStore } from '@/store/websocket'
+  DeleteOutlined,
+} from "@ant-design/icons-vue";
+import { useChatStore } from "@/stores/chat";
+import { useWebSocketStore } from "@/stores/websocket";
 
 // Store
-const chatStore = useChatStore()
-const wsStore = useWebSocketStore()
+const chatStore = useChatStore();
+const wsStore = useWebSocketStore();
 
 // 響應式狀態
-const loading = ref(false)
-const creating = ref(false)
-const searchKeyword = ref('')
-const renameModalVisible = ref(false)
-const newConversationTitle = ref('')
-const currentRenameConversation = ref(null)
+const loading = ref(false);
+const creating = ref(false);
+const searchKeyword = ref("");
+const renameModalVisible = ref(false);
+const newConversationTitle = ref("");
+const currentRenameConversation = ref(null);
 
 // 計算屬性
 const filteredConversations = computed(() => {
   if (!searchKeyword.value) {
-    return chatStore.conversations
+    return chatStore.conversations;
   }
-  
-  return chatStore.conversations.filter(conversation => 
-    conversation.title?.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-    conversation.last_message?.content?.toLowerCase().includes(searchKeyword.value.toLowerCase())
-  )
-})
+
+  return chatStore.conversations.filter(
+    (conversation) =>
+      conversation.title
+        ?.toLowerCase()
+        .includes(searchKeyword.value.toLowerCase()) ||
+      conversation.last_message?.content
+        ?.toLowerCase()
+        .includes(searchKeyword.value.toLowerCase())
+  );
+});
 
 // 方法
 const handleCreateConversation = async () => {
   try {
-    creating.value = true
-    await chatStore.handleCreateConversation()
-    message.success('新對話已創建')
+    creating.value = true;
+    await chatStore.handleCreateConversation();
+    message.success("新對話已創建");
   } catch (error) {
-    message.error('創建對話失敗')
-    console.error('創建對話失敗:', error)
+    message.error("創建對話失敗");
+    console.error("創建對話失敗:", error);
   } finally {
-    creating.value = false
+    creating.value = false;
   }
-}
+};
 
 const handleSelectConversation = async (conversation) => {
   try {
-    await chatStore.handleSelectConversation(conversation.id)
+    await chatStore.handleSelectConversation(conversation.id);
   } catch (error) {
-    message.error('切換對話失敗')
-    console.error('切換對話失敗:', error)
+    message.error("切換對話失敗");
+    console.error("切換對話失敗:", error);
   }
-}
+};
 
 const handleSearch = () => {
   // 搜索邏輯已在計算屬性中實現
-}
+};
 
 const handlePinConversation = async (conversation) => {
   try {
-    await chatStore.handlePinConversation(conversation.id, !conversation.is_pinned)
-    message.success(conversation.is_pinned ? '已取消置頂' : '已置頂對話')
+    await chatStore.handlePinConversation(
+      conversation.id,
+      !conversation.is_pinned
+    );
+    message.success(conversation.is_pinned ? "已取消置頂" : "已置頂對話");
   } catch (error) {
-    message.error('操作失敗')
-    console.error('置頂操作失敗:', error)
+    message.error("操作失敗");
+    console.error("置頂操作失敗:", error);
   }
-}
+};
 
 const handleRenameConversation = (conversation) => {
-  currentRenameConversation.value = conversation
-  newConversationTitle.value = conversation.title || ''
-  renameModalVisible.value = true
-}
+  currentRenameConversation.value = conversation;
+  newConversationTitle.value = conversation.title || "";
+  renameModalVisible.value = true;
+};
 
 const handleConfirmRename = async () => {
   if (!newConversationTitle.value.trim()) {
-    message.warning('請輸入對話標題')
-    return
+    message.warning("請輸入對話標題");
+    return;
   }
-  
+
   try {
     await chatStore.handleUpdateConversation(
       currentRenameConversation.value.id,
       { title: newConversationTitle.value.trim() }
-    )
-    message.success('對話已重命名')
-    renameModalVisible.value = false
+    );
+    message.success("對話已重命名");
+    renameModalVisible.value = false;
   } catch (error) {
-    message.error('重命名失敗')
-    console.error('重命名失敗:', error)
+    message.error("重命名失敗");
+    console.error("重命名失敗:", error);
   }
-}
+};
 
 const handleCancelRename = () => {
-  renameModalVisible.value = false
-  newConversationTitle.value = ''
-  currentRenameConversation.value = null
-}
+  renameModalVisible.value = false;
+  newConversationTitle.value = "";
+  currentRenameConversation.value = null;
+};
 
 const handleArchiveConversation = async (conversation) => {
   try {
-    await chatStore.handleArchiveConversation(conversation.id)
-    message.success('對話已歸檔')
+    await chatStore.handleArchiveConversation(conversation.id);
+    message.success("對話已歸檔");
   } catch (error) {
-    message.error('歸檔失敗')
-    console.error('歸檔失敗:', error)
+    message.error("歸檔失敗");
+    console.error("歸檔失敗:", error);
   }
-}
+};
 
 const handleDeleteConversation = async (conversation) => {
   try {
-    await chatStore.handleDeleteConversation(conversation.id)
-    message.success('對話已刪除')
+    await chatStore.handleDeleteConversation(conversation.id);
+    message.success("對話已刪除");
   } catch (error) {
-    message.error('刪除失敗')
-    console.error('刪除失敗:', error)
+    message.error("刪除失敗");
+    console.error("刪除失敗:", error);
   }
-}
+};
 
 const getLastMessagePreview = (conversation) => {
   if (!conversation.last_message) {
-    return '暫無消息'
+    return "暫無消息";
   }
-  
-  const content = conversation.last_message.content
-  return content.length > 50 ? content.substring(0, 50) + '...' : content
-}
+
+  const content = conversation.last_message.content;
+  return content.length > 50 ? content.substring(0, 50) + "..." : content;
+};
 
 const formatTime = (timestamp) => {
-  if (!timestamp) return ''
-  
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now - date
-  
+  if (!timestamp) return "";
+
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diff = now - date;
+
   // 今天
   if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
-    return date.toLocaleTimeString('zh-TW', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
+    return date.toLocaleTimeString("zh-TW", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
-  
+
   // 昨天
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
   if (date.getDate() === yesterday.getDate()) {
-    return '昨天'
+    return "昨天";
   }
-  
+
   // 本週
   if (diff < 7 * 24 * 60 * 60 * 1000) {
-    return date.toLocaleDateString('zh-TW', { weekday: 'short' })
+    return date.toLocaleDateString("zh-TW", { weekday: "short" });
   }
-  
+
   // 更早
-  return date.toLocaleDateString('zh-TW', { 
-    month: 'short', 
-    day: 'numeric' 
-  })
-}
+  return date.toLocaleDateString("zh-TW", {
+    month: "short",
+    day: "numeric",
+  });
+};
 
 // 生命週期
 onMounted(async () => {
   try {
-    loading.value = true
-    await chatStore.handleLoadConversations()
+    loading.value = true;
+    await chatStore.handleLoadConversations();
   } catch (error) {
-    message.error('載入對話列表失敗')
-    console.error('載入對話列表失敗:', error)
+    message.error("載入對話列表失敗");
+    console.error("載入對話列表失敗:", error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-})
+});
 </script>
 
 <style scoped>
@@ -434,4 +446,4 @@ onMounted(async () => {
 .conversation-items::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
-</style> 
+</style>
