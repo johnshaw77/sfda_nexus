@@ -32,7 +32,7 @@ export const verifyWebSocketToken = async (token) => {
     // 獲取用戶信息
     const { rows: userRows } = await query(
       "SELECT id, username, email, role, is_active FROM users WHERE id = ?",
-      [decoded.userId]
+      [decoded.id]
     );
 
     if (userRows.length === 0 || !userRows[0].is_active) {

@@ -303,7 +303,7 @@ const formatTime = (timestamp) => {
 onMounted(async () => {
   try {
     loading.value = true;
-    await chatStore.handleLoadConversations();
+    await chatStore.handleGetConversations();
   } catch (error) {
     message.error("載入對話列表失敗");
     console.error("載入對話列表失敗:", error);
