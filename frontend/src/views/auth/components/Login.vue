@@ -71,6 +71,7 @@ import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { UserOutlined, LockOutlined } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
+import { debugAuthStore, debugUserData } from "@/utils/debugAuth";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -101,13 +102,20 @@ const handleSubmit = async (values) => {
   isLoading.value = true;
 
   try {
+    console.log("🔐 開始登入流程...");
     const result = await authStore.handleLogin({
       username: values.username,
       password: values.password,
       rememberMe: values.rememberMe,
     });
 
+    console.log("🔐 登入結果:", result);
+
     if (result.success) {
+      console.log("✅ 登入成功");
+      debugAuthStore(authStore);
+      debugUserData(result.user, "登入返回的用戶數據");
+
       // 登入成功，跳轉到主頁面
       const redirectPath = router.currentRoute.value.query.redirect || "/";
       await router.push(redirectPath);

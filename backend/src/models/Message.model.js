@@ -3,8 +3,8 @@
  * 處理對話訊息相關的資料庫操作
  */
 
-import { query, transaction } from '../config/database.config.js';
-import logger from '../utils/logger.util.js';
+import { query, transaction } from "../config/database.config.js";
+import logger from "../utils/logger.util.js";
 
 export class MessageModel {
   /**
@@ -17,14 +17,14 @@ export class MessageModel {
       conversation_id,
       role,
       content,
-      content_type = 'text',
+      content_type = "text",
       attachments = null,
       metadata = null,
       tokens_used = 0,
       cost = 0,
       model_info = null,
       processing_time = 0,
-      parent_message_id = null
+      parent_message_id = null,
     } = messageData;
 
     try {
@@ -46,7 +46,7 @@ export class MessageModel {
             cost,
             model_info ? JSON.stringify(model_info) : null,
             processing_time,
-            parent_message_id
+            parent_message_id,
           ]
         );
 
@@ -65,8 +65,10 @@ export class MessageModel {
         return await this.findById(messageResult.insertId);
       });
     } catch (error) {
-      logger.error('創建訊息失敗', {
-        conversation_id, role, error: error.message
+      logger.error("創建訊息失敗", {
+        conversation_id,
+        role,
+        error: error.message,
       });
       throw error;
     }
@@ -86,7 +88,7 @@ export class MessageModel {
 
       return rows.length > 0 ? this.formatMessage(rows[0]) : null;
     } catch (error) {
-      logger.error('根據ID查詢訊息失敗', { id, error: error.message });
+      logger.error("根據ID查詢訊息失敗", { id, error: error.message });
       throw error;
     }
   }
@@ -103,38 +105,39 @@ export class MessageModel {
       limit = 50,
       role,
       content_type,
-      sortBy = 'created_at',
-      sortOrder = 'ASC',
+      sortBy = "created_at",
+      sortOrder = "ASC",
       after_message_id,
-      before_message_id
+      before_message_id,
     } = options;
 
     const offset = (page - 1) * limit;
-    const conditions = ['conversation_id = ?', 'is_deleted = FALSE'];
+    const conditions = ["conversation_id = ?", "is_deleted = FALSE"];
     const params = [conversationId];
 
     // 構建查詢條件
     if (role) {
-      conditions.push('role = ?');
+      conditions.push("role = ?");
       params.push(role);
     }
 
     if (content_type) {
-      conditions.push('content_type = ?');
+      conditions.push("content_type = ?");
       params.push(content_type);
     }
 
     if (after_message_id) {
-      conditions.push('id > ?');
+      conditions.push("id > ?");
       params.push(after_message_id);
     }
 
     if (before_message_id) {
-      conditions.push('id < ?');
+      conditions.push("id < ?");
       params.push(before_message_id);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const orderClause = `ORDER BY ${sortBy} ${sortOrder}`;
 
     try {
@@ -147,20 +150,22 @@ export class MessageModel {
 
       // 獲取訊息列表
       const { rows } = await query(
-        `SELECT * FROM messages ${whereClause} ${orderClause} LIMIT ? OFFSET ?`,
-        [...params, limit, offset]
+        `SELECT * FROM messages ${whereClause} ${orderClause} LIMIT ${limit} OFFSET ${offset}`,
+        params
       );
 
       return {
-        messages: rows.map(msg => this.formatMessage(msg)),
+        messages: rows.map((msg) => this.formatMessage(msg)),
         total,
         page: parseInt(page),
         limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
-      logger.error('獲取對話訊息列表失敗', {
-        conversationId, options, error: error.message
+      logger.error("獲取對話訊息列表失敗", {
+        conversationId,
+        options,
+        error: error.message,
       });
       throw error;
     }
@@ -173,18 +178,16 @@ export class MessageModel {
    * @returns {Promise<Object>} 更新後的訊息信息
    */
   static async update(id, updateData) {
-    const allowedFields = [
-      'content', 'attachments', 'metadata', 'is_edited'
-    ];
+    const allowedFields = ["content", "attachments", "metadata", "is_edited"];
 
     const updateFields = [];
     const updateValues = [];
 
     // 過濾允許更新的字段
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateData).forEach((key) => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
         updateFields.push(`${key} = ?`);
-        if (['attachments', 'metadata'].includes(key) && updateData[key]) {
+        if (["attachments", "metadata"].includes(key) && updateData[key]) {
           updateValues.push(JSON.stringify(updateData[key]));
         } else {
           updateValues.push(updateData[key]);
@@ -193,27 +196,29 @@ export class MessageModel {
     });
 
     if (updateFields.length === 0) {
-      throw new Error('沒有可更新的字段');
+      throw new Error("沒有可更新的字段");
     }
 
     // 如果更新內容，標記為已編輯
     if (updateData.content) {
-      updateFields.push('is_edited = TRUE');
+      updateFields.push("is_edited = TRUE");
     }
 
-    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
     updateValues.push(id);
 
     try {
       await query(
-        `UPDATE messages SET ${updateFields.join(', ')} WHERE id = ?`,
+        `UPDATE messages SET ${updateFields.join(", ")} WHERE id = ?`,
         updateValues
       );
 
       return await this.findById(id);
     } catch (error) {
-      logger.error('更新訊息失敗', {
-        id, updateData, error: error.message
+      logger.error("更新訊息失敗", {
+        id,
+        updateData,
+        error: error.message,
       });
       throw error;
     }
@@ -229,19 +234,19 @@ export class MessageModel {
       return await transaction(async (connection) => {
         // 獲取訊息信息
         const [messageRows] = await connection.execute(
-          'SELECT conversation_id, tokens_used, cost FROM messages WHERE id = ?',
+          "SELECT conversation_id, tokens_used, cost FROM messages WHERE id = ?",
           [id]
         );
 
         if (messageRows.length === 0) {
-          throw new Error('訊息不存在');
+          throw new Error("訊息不存在");
         }
 
         const message = messageRows[0];
 
         // 軟刪除訊息
         await connection.execute(
-          'UPDATE messages SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          "UPDATE messages SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
           [id]
         );
 
@@ -259,7 +264,7 @@ export class MessageModel {
         return true;
       });
     } catch (error) {
-      logger.error('軟刪除訊息失敗', { id, error: error.message });
+      logger.error("軟刪除訊息失敗", { id, error: error.message });
       throw error;
     }
   }
@@ -280,10 +285,12 @@ export class MessageModel {
         [conversationId, limit]
       );
 
-      return rows.map(msg => this.formatMessage(msg)).reverse();
+      return rows.map((msg) => this.formatMessage(msg)).reverse();
     } catch (error) {
-      logger.error('獲取最新訊息失敗', {
-        conversationId, limit, error: error.message
+      logger.error("獲取最新訊息失敗", {
+        conversationId,
+        limit,
+        error: error.message,
       });
       throw error;
     }
@@ -304,50 +311,51 @@ export class MessageModel {
       start_date,
       end_date,
       page = 1,
-      limit = 20
+      limit = 20,
     } = searchOptions;
 
     const offset = (page - 1) * limit;
-    const conditions = ['m.is_deleted = FALSE'];
+    const conditions = ["m.is_deleted = FALSE"];
     const params = [];
 
     // 構建搜索條件
     if (searchQuery) {
-      conditions.push('m.content LIKE ?');
+      conditions.push("m.content LIKE ?");
       params.push(`%${searchQuery}%`);
     }
 
     if (user_id) {
-      conditions.push('c.user_id = ?');
+      conditions.push("c.user_id = ?");
       params.push(user_id);
     }
 
     if (conversation_id) {
-      conditions.push('m.conversation_id = ?');
+      conditions.push("m.conversation_id = ?");
       params.push(conversation_id);
     }
 
     if (role) {
-      conditions.push('m.role = ?');
+      conditions.push("m.role = ?");
       params.push(role);
     }
 
     if (content_type) {
-      conditions.push('m.content_type = ?');
+      conditions.push("m.content_type = ?");
       params.push(content_type);
     }
 
     if (start_date) {
-      conditions.push('m.created_at >= ?');
+      conditions.push("m.created_at >= ?");
       params.push(start_date);
     }
 
     if (end_date) {
-      conditions.push('m.created_at <= ?');
+      conditions.push("m.created_at <= ?");
       params.push(end_date);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     try {
       // 獲取總數
@@ -370,20 +378,21 @@ export class MessageModel {
         LEFT JOIN conversations c ON m.conversation_id = c.id 
         ${whereClause}
         ORDER BY m.created_at DESC
-        LIMIT ? OFFSET ?`,
-        [...params, limit, offset]
+        LIMIT ${limit} OFFSET ${offset}`,
+        params
       );
 
       return {
-        messages: rows.map(msg => this.formatMessage(msg)),
+        messages: rows.map((msg) => this.formatMessage(msg)),
         total,
         page: parseInt(page),
         limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
-      logger.error('搜索訊息失敗', {
-        searchOptions, error: error.message
+      logger.error("搜索訊息失敗", {
+        searchOptions,
+        error: error.message,
       });
       throw error;
     }
@@ -414,28 +423,30 @@ export class MessageModel {
       `;
 
       const params = [];
-      const conditions = ['m.is_deleted = FALSE'];
+      const conditions = ["m.is_deleted = FALSE"];
 
       if (userId) {
-        query_sql += ' LEFT JOIN conversations c ON m.conversation_id = c.id';
-        conditions.push('c.user_id = ?');
+        query_sql += " LEFT JOIN conversations c ON m.conversation_id = c.id";
+        conditions.push("c.user_id = ?");
         params.push(userId);
       }
 
       if (conversationId) {
-        conditions.push('m.conversation_id = ?');
+        conditions.push("m.conversation_id = ?");
         params.push(conversationId);
       }
 
       if (conditions.length > 0) {
-        query_sql += ` WHERE ${conditions.join(' AND ')}`;
+        query_sql += ` WHERE ${conditions.join(" AND ")}`;
       }
 
       const { rows } = await query(query_sql, params);
       return rows[0];
     } catch (error) {
-      logger.error('獲取訊息統計失敗', {
-        userId, conversationId, error: error.message
+      logger.error("獲取訊息統計失敗", {
+        userId,
+        conversationId,
+        error: error.message,
       });
       throw error;
     }
@@ -448,7 +459,11 @@ export class MessageModel {
    * @param {number} maxTokens - 最大token數
    * @returns {Promise<Array>} 上下文訊息列表
    */
-  static async getContextMessages(conversationId, maxMessages = 20, maxTokens = 4000) {
+  static async getContextMessages(
+    conversationId,
+    maxMessages = 20,
+    maxTokens = 4000
+  ) {
     try {
       const { rows } = await query(
         `SELECT * FROM messages 
@@ -458,8 +473,8 @@ export class MessageModel {
         [conversationId, maxMessages]
       );
 
-      const messages = rows.map(msg => this.formatMessage(msg)).reverse();
-      
+      const messages = rows.map((msg) => this.formatMessage(msg)).reverse();
+
       // 計算token數並截取適當的上下文
       let totalTokens = 0;
       const contextMessages = [];
@@ -476,8 +491,11 @@ export class MessageModel {
 
       return contextMessages;
     } catch (error) {
-      logger.error('獲取對話上下文失敗', {
-        conversationId, maxMessages, maxTokens, error: error.message
+      logger.error("獲取對話上下文失敗", {
+        conversationId,
+        maxMessages,
+        maxTokens,
+        error: error.message,
       });
       throw error;
     }
@@ -492,8 +510,8 @@ export class MessageModel {
     if (!message) return null;
 
     // 解析JSON字段
-    ['attachments', 'metadata', 'model_info'].forEach(field => {
-      if (message[field] && typeof message[field] === 'string') {
+    ["attachments", "metadata", "model_info"].forEach((field) => {
+      if (message[field] && typeof message[field] === "string") {
         try {
           message[field] = JSON.parse(message[field]);
         } catch (e) {
@@ -506,4 +524,4 @@ export class MessageModel {
   }
 }
 
-export default MessageModel; 
+export default MessageModel;

@@ -3,40 +3,43 @@
  * 使用mysql2進行MySQL連接配置和連接池管理
  */
 
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
-import logger from '../utils/logger.util.js';
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
+import logger from "../utils/logger.util.js";
 
 // 載入環境變數
 dotenv.config();
 
 // 資料庫連接配置
 export const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || "localhost",
   port: parseInt(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'sfda_nexus',
-  
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "sfda_nexus",
+
   // 連接池配置
   connectionLimit: 10,
   acquireTimeout: 60000,
   timeout: 60000,
   reconnect: true,
-  
+
   // 字符集和時區配置
-  charset: 'utf8mb4',
-  timezone: '+08:00',
-  
+  charset: "utf8mb4",
+  timezone: "+08:00",
+
   // SSL配置 (生產環境建議啟用)
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false
-  } : false,
-  
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? {
+          rejectUnauthorized: false,
+        }
+      : false,
+
   // 其他配置
   supportBigNumbers: true,
   bigNumberStrings: true,
-  dateStrings: true
+  dateStrings: true,
 };
 
 // 建立連接池
@@ -48,16 +51,18 @@ let pool = null;
 export const initializeDatabase = async () => {
   try {
     pool = mysql.createPool(dbConfig);
-    
+
     // 測試連接
     const connection = await pool.getConnection();
-    logger.info('✅ 資料庫連接池初始化成功');
-    logger.info(`📊 連接到資料庫: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`);
+    logger.info("✅ 資料庫連接池初始化成功");
+    logger.info(
+      `📊 連接到資料庫: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`
+    );
     connection.release();
-    
+
     return pool;
   } catch (error) {
-    logger.error('❌ 資料庫連接失敗:', error.message);
+    logger.error("❌ 資料庫連接失敗:", error.message);
     throw error;
   }
 };
@@ -67,7 +72,7 @@ export const initializeDatabase = async () => {
  */
 export const getPool = () => {
   if (!pool) {
-    throw new Error('資料庫連接池尚未初始化，請先調用 initializeDatabase()');
+    throw new Error("資料庫連接池尚未初始化，請先調用 initializeDatabase()");
   }
   return pool;
 };
@@ -81,13 +86,47 @@ export const getPool = () => {
 export const query = async (sql, params = []) => {
   try {
     const pool = getPool();
+
+    // 調試模式下打印完整的 SQL
+    if (process.env.NODE_ENV === "development") {
+      console.log("🔍 執行 SQL 查詢:");
+      console.log("SQL:", sql);
+      console.log("參數:", params);
+      console.log("格式化 SQL:", formatQuery(sql, params));
+    }
+
     const [rows, fields] = await pool.execute(sql, params);
+
+    // 調試模式下打印結果統計
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "✅ 查詢成功，返回",
+        Array.isArray(rows) ? rows.length : "N/A",
+        "行數據"
+      );
+    }
+
     return { rows, fields };
   } catch (error) {
-    logger.error('SQL查詢執行失敗:', {
-      sql: sql.substring(0, 100) + (sql.length > 100 ? '...' : ''),
+    // 直接在控制台打印詳細錯誤信息
+    console.error("❌ SQL查詢執行失敗:");
+    console.error("SQL:", sql);
+    console.error("參數:", params);
+    console.error("格式化 SQL:", formatQuery(sql, params));
+    console.error("錯誤代碼:", error.code);
+    console.error("錯誤編號:", error.errno);
+    console.error("SQL狀態:", error.sqlState);
+    console.error("錯誤訊息:", error.message);
+    console.error("完整錯誤:", error);
+
+    logger.error("SQL查詢執行失敗:", {
+      sql: sql,
       params: params,
-      error: error.message
+      formattedSql: formatQuery(sql, params),
+      error: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
     });
     throw error;
   }
@@ -101,20 +140,20 @@ export const query = async (sql, params = []) => {
 export const transaction = async (callback) => {
   const pool = getPool();
   const connection = await pool.getConnection();
-  
+
   try {
     await connection.beginTransaction();
-    
+
     // 提供connection給回調函數
     const result = await callback(connection);
-    
+
     await connection.commit();
-    logger.debug('事務提交成功');
-    
+    logger.debug("事務提交成功");
+
     return result;
   } catch (error) {
     await connection.rollback();
-    logger.error('事務回滾:', error.message);
+    logger.error("事務回滾:", error.message);
     throw error;
   } finally {
     connection.release();
@@ -133,7 +172,7 @@ export const checkConnection = async () => {
     connection.release();
     return true;
   } catch (error) {
-    logger.error('資料庫連接檢查失敗:', error.message);
+    logger.error("資料庫連接檢查失敗:", error.message);
     return false;
   }
 };
@@ -146,9 +185,9 @@ export const closeDatabase = async () => {
     try {
       await pool.end();
       pool = null;
-      logger.info('資料庫連接池已關閉');
+      logger.info("資料庫連接池已關閉");
     } catch (error) {
-      logger.error('關閉資料庫連接池時發生錯誤:', error.message);
+      logger.error("關閉資料庫連接池時發生錯誤:", error.message);
     }
   }
 };
@@ -161,14 +200,15 @@ export const closeDatabase = async () => {
  */
 export const formatQuery = (sql, params) => {
   if (!params || params.length === 0) return sql;
-  
+
   let formattedSql = sql;
   params.forEach((param) => {
-    formattedSql = formattedSql.replace('?', 
-      typeof param === 'string' ? `'${param}'` : param
+    formattedSql = formattedSql.replace(
+      "?",
+      typeof param === "string" ? `'${param}'` : param
     );
   });
-  
+
   return formattedSql;
 };
 
@@ -180,5 +220,5 @@ export default {
   transaction,
   checkConnection,
   closeDatabase,
-  formatQuery
-}; 
+  formatQuery,
+};

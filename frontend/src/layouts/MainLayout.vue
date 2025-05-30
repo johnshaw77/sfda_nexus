@@ -49,8 +49,9 @@
               class="user-menu-btn">
               <a-avatar
                 :size="32"
+                :src="authStore.user?.avatar"
                 :style="{ backgroundColor: '#1890ff' }">
-                <UserOutlined />
+                <UserOutlined v-if="!authStore.user?.avatar" />
               </a-avatar>
               <span class="username">{{ authStore.user?.username }}</span>
               <DownOutlined />

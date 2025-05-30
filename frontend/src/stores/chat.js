@@ -5,7 +5,7 @@
 
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import axios from "axios";
+import api from "@/api/index.js";
 import { message } from "ant-design-vue";
 import { useWebSocketStore } from "./websocket";
 
@@ -44,7 +44,7 @@ export const useChatStore = defineStore("chat", () => {
   const handleGetConversations = async (params = {}) => {
     isLoading.value = true;
     try {
-      const response = await axios.get("/api/chat/conversations", {
+      const response = await api.get("/api/chat/conversations", {
         params: {
           page: conversationPagination.value.current,
           limit: conversationPagination.value.pageSize,
@@ -74,7 +74,7 @@ export const useChatStore = defineStore("chat", () => {
   const handleCreateConversation = async (conversationData) => {
     isLoading.value = true;
     try {
-      const response = await axios.post(
+      const response = await api.post(
         "/api/chat/conversations",
         conversationData
       );
@@ -130,7 +130,7 @@ export const useChatStore = defineStore("chat", () => {
 
     isLoadingMessages.value = true;
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `/api/chat/conversations/${conversationId}/messages`,
         {
           params: {
@@ -173,7 +173,7 @@ export const useChatStore = defineStore("chat", () => {
 
     isSendingMessage.value = true;
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/chat/conversations/${conversationId}/messages`,
         {
           content: content.trim(),
@@ -248,7 +248,7 @@ export const useChatStore = defineStore("chat", () => {
   // 刪除對話
   const handleDeleteConversation = async (conversationId) => {
     try {
-      await axios.delete(`/api/chat/conversations/${conversationId}`);
+      await api.delete(`/api/chat/conversations/${conversationId}`);
 
       // 從列表中移除
       conversations.value = conversations.value.filter(
@@ -271,7 +271,7 @@ export const useChatStore = defineStore("chat", () => {
   // 更新對話
   const handleUpdateConversation = async (conversationId, updates) => {
     try {
-      const response = await axios.put(
+      const response = await api.put(
         `/api/chat/conversations/${conversationId}`,
         updates
       );
@@ -301,7 +301,7 @@ export const useChatStore = defineStore("chat", () => {
   // 置頂/取消置頂對話
   const handleTogglePinConversation = async (conversationId, pinned = true) => {
     try {
-      await axios.post(`/api/chat/conversations/${conversationId}/pin`, {
+      await api.post(`/api/chat/conversations/${conversationId}/pin`, {
         pinned,
       });
 
@@ -330,7 +330,7 @@ export const useChatStore = defineStore("chat", () => {
   // 獲取可用模型
   const handleGetAvailableModels = async () => {
     try {
-      const response = await axios.get("/api/chat/models");
+      const response = await api.get("/api/chat/models");
       availableModels.value = response.data.data;
       return availableModels.value;
     } catch (error) {
@@ -343,7 +343,7 @@ export const useChatStore = defineStore("chat", () => {
   // 獲取可用智能體
   const handleGetAvailableAgents = async (params = {}) => {
     try {
-      const response = await axios.get("/api/chat/agents", { params });
+      const response = await api.get("/api/chat/agents", { params });
       availableAgents.value = response.data.data;
       return availableAgents.value;
     } catch (error) {

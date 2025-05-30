@@ -3,8 +3,8 @@
  * 處理對話相關的資料庫操作
  */
 
-import { query, transaction } from '../config/database.config.js';
-import logger from '../utils/logger.util.js';
+import { query, transaction } from "../config/database.config.js";
+import logger from "../utils/logger.util.js";
 
 export class ConversationModel {
   /**
@@ -17,8 +17,8 @@ export class ConversationModel {
       user_id,
       agent_id,
       model_id,
-      title = '新對話',
-      context = null
+      title = "新對話",
+      context = null,
     } = conversationData;
 
     try {
@@ -31,20 +31,23 @@ export class ConversationModel {
           agent_id,
           model_id,
           title,
-          context ? JSON.stringify(context) : null
+          context ? JSON.stringify(context) : null,
         ]
       );
 
-      logger.audit(user_id, 'CONVERSATION_CREATED', {
+      logger.audit(user_id, "CONVERSATION_CREATED", {
         conversation_id: rows.insertId,
         agent_id,
-        model_id
+        model_id,
       });
 
       return await this.findById(rows.insertId);
     } catch (error) {
-      logger.error('創建對話失敗', {
-        user_id, agent_id, model_id, error: error.message
+      logger.error("創建對話失敗", {
+        user_id,
+        agent_id,
+        model_id,
+        error: error.message,
       });
       throw error;
     }
@@ -76,7 +79,7 @@ export class ConversationModel {
 
       return rows.length > 0 ? this.formatConversation(rows[0]) : null;
     } catch (error) {
-      logger.error('根據ID查詢對話失敗', { id, error: error.message });
+      logger.error("根據ID查詢對話失敗", { id, error: error.message });
       throw error;
     }
   }
@@ -91,35 +94,36 @@ export class ConversationModel {
     const {
       page = 1,
       limit = 20,
-      status = 'active',
+      status = "active",
       search,
       agent_id,
-      sortBy = 'last_message_at',
-      sortOrder = 'DESC'
+      sortBy = "last_message_at",
+      sortOrder = "DESC",
     } = options;
 
     const offset = (page - 1) * limit;
-    const conditions = ['c.user_id = ?', 'c.status != ?'];
-    const params = [userId, 'deleted'];
+    const conditions = ["c.user_id = ?", "c.status != ?"];
+    const params = [userId, "deleted"];
 
     // 構建查詢條件
-    if (status && status !== 'all') {
-      conditions.push('c.status = ?');
+    if (status && status !== "all") {
+      conditions.push("c.status = ?");
       params.push(status);
     }
 
     if (agent_id) {
-      conditions.push('c.agent_id = ?');
+      conditions.push("c.agent_id = ?");
       params.push(agent_id);
     }
 
     if (search) {
-      conditions.push('(c.title LIKE ? OR c.summary LIKE ?)');
+      conditions.push("(c.title LIKE ? OR c.summary LIKE ?)");
       const searchPattern = `%${search}%`;
       params.push(searchPattern, searchPattern);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const orderClause = `ORDER BY c.${sortBy} ${sortOrder}`;
 
     try {
@@ -136,27 +140,29 @@ export class ConversationModel {
           c.*,
           a.name as agent_name,
           a.display_name as agent_display_name,
-          a.avatar_url as agent_avatar_url,
+          a.avatar as agent_avatar_url,
           m.name as model_name,
           m.display_name as model_display_name
         FROM conversations c
         LEFT JOIN agents a ON c.agent_id = a.id
         LEFT JOIN ai_models m ON c.model_id = m.id
         ${whereClause} ${orderClause}
-        LIMIT ? OFFSET ?`,
-        [...params, limit, offset]
+        LIMIT ${limit} OFFSET ${offset}`,
+        params
       );
 
       return {
-        conversations: rows.map(conv => this.formatConversation(conv)),
+        conversations: rows.map((conv) => this.formatConversation(conv)),
         total,
         page: parseInt(page),
         limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
-      logger.error('獲取用戶對話列表失敗', {
-        userId, options, error: error.message
+      logger.error("獲取用戶對話列表失敗", {
+        userId,
+        options,
+        error: error.message,
       });
       throw error;
     }
@@ -170,17 +176,21 @@ export class ConversationModel {
    */
   static async update(id, updateData) {
     const allowedFields = [
-      'title', 'summary', 'context', 'status', 'is_pinned'
+      "title",
+      "summary",
+      "context",
+      "status",
+      "is_pinned",
     ];
 
     const updateFields = [];
     const updateValues = [];
 
     // 過濾允許更新的字段
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateData).forEach((key) => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
         updateFields.push(`${key} = ?`);
-        if (key === 'context' && updateData[key]) {
+        if (key === "context" && updateData[key]) {
           updateValues.push(JSON.stringify(updateData[key]));
         } else {
           updateValues.push(updateData[key]);
@@ -189,21 +199,23 @@ export class ConversationModel {
     });
 
     if (updateFields.length === 0) {
-      throw new Error('沒有可更新的字段');
+      throw new Error("沒有可更新的字段");
     }
 
     updateValues.push(id);
 
     try {
       await query(
-        `UPDATE conversations SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE conversations SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         updateValues
       );
 
       return await this.findById(id);
     } catch (error) {
-      logger.error('更新對話失敗', {
-        id, updateData, error: error.message
+      logger.error("更新對話失敗", {
+        id,
+        updateData,
+        error: error.message,
       });
       throw error;
     }
@@ -218,19 +230,21 @@ export class ConversationModel {
   static async softDelete(id, userId) {
     try {
       const { rows } = await query(
-        'UPDATE conversations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-        ['deleted', id, userId]
+        "UPDATE conversations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?",
+        ["deleted", id, userId]
       );
 
       if (rows.affectedRows === 0) {
-        throw new Error('對話不存在或無權限刪除');
+        throw new Error("對話不存在或無權限刪除");
       }
 
-      logger.audit(userId, 'CONVERSATION_DELETED', { conversation_id: id });
+      logger.audit(userId, "CONVERSATION_DELETED", { conversation_id: id });
       return true;
     } catch (error) {
-      logger.error('軟刪除對話失敗', {
-        id, userId, error: error.message
+      logger.error("軟刪除對話失敗", {
+        id,
+        userId,
+        error: error.message,
       });
       throw error;
     }
@@ -243,11 +257,7 @@ export class ConversationModel {
    * @returns {Promise<void>}
    */
   static async updateStats(id, stats) {
-    const {
-      message_count_delta = 0,
-      tokens_delta = 0,
-      cost_delta = 0
-    } = stats;
+    const { message_count_delta = 0, tokens_delta = 0, cost_delta = 0 } = stats;
 
     try {
       await query(
@@ -261,8 +271,10 @@ export class ConversationModel {
         [message_count_delta, tokens_delta, cost_delta, id]
       );
     } catch (error) {
-      logger.error('更新對話統計失敗', {
-        id, stats, error: error.message
+      logger.error("更新對話統計失敗", {
+        id,
+        stats,
+        error: error.message,
       });
       throw error;
     }
@@ -277,19 +289,21 @@ export class ConversationModel {
   static async archive(id, userId) {
     try {
       const { rows } = await query(
-        'UPDATE conversations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-        ['archived', id, userId]
+        "UPDATE conversations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?",
+        ["archived", id, userId]
       );
 
       if (rows.affectedRows === 0) {
-        throw new Error('對話不存在或無權限歸檔');
+        throw new Error("對話不存在或無權限歸檔");
       }
 
-      logger.audit(userId, 'CONVERSATION_ARCHIVED', { conversation_id: id });
+      logger.audit(userId, "CONVERSATION_ARCHIVED", { conversation_id: id });
       return true;
     } catch (error) {
-      logger.error('歸檔對話失敗', {
-        id, userId, error: error.message
+      logger.error("歸檔對話失敗", {
+        id,
+        userId,
+        error: error.message,
       });
       throw error;
     }
@@ -304,19 +318,21 @@ export class ConversationModel {
   static async restore(id, userId) {
     try {
       const { rows } = await query(
-        'UPDATE conversations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-        ['active', id, userId]
+        "UPDATE conversations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?",
+        ["active", id, userId]
       );
 
       if (rows.affectedRows === 0) {
-        throw new Error('對話不存在或無權限恢復');
+        throw new Error("對話不存在或無權限恢復");
       }
 
-      logger.audit(userId, 'CONVERSATION_RESTORED', { conversation_id: id });
+      logger.audit(userId, "CONVERSATION_RESTORED", { conversation_id: id });
       return true;
     } catch (error) {
-      logger.error('恢復對話失敗', {
-        id, userId, error: error.message
+      logger.error("恢復對話失敗", {
+        id,
+        userId,
+        error: error.message,
       });
       throw error;
     }
@@ -332,21 +348,28 @@ export class ConversationModel {
   static async togglePin(id, userId, pinned) {
     try {
       const { rows } = await query(
-        'UPDATE conversations SET is_pinned = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+        "UPDATE conversations SET is_pinned = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?",
         [pinned, id, userId]
       );
 
       if (rows.affectedRows === 0) {
-        throw new Error('對話不存在或無權限操作');
+        throw new Error("對話不存在或無權限操作");
       }
 
-      logger.audit(userId, pinned ? 'CONVERSATION_PINNED' : 'CONVERSATION_UNPINNED', {
-        conversation_id: id
-      });
+      logger.audit(
+        userId,
+        pinned ? "CONVERSATION_PINNED" : "CONVERSATION_UNPINNED",
+        {
+          conversation_id: id,
+        }
+      );
       return true;
     } catch (error) {
-      logger.error('切換對話置頂狀態失敗', {
-        id, userId, pinned, error: error.message
+      logger.error("切換對話置頂狀態失敗", {
+        id,
+        userId,
+        pinned,
+        error: error.message,
       });
       throw error;
     }
@@ -374,17 +397,17 @@ export class ConversationModel {
       const params = [];
 
       if (userId) {
-        query_sql += ' WHERE user_id = ? AND status != ?';
-        params.push(userId, 'deleted');
+        query_sql += " WHERE user_id = ? AND status != ?";
+        params.push(userId, "deleted");
       } else {
-        query_sql += ' WHERE status != ?';
-        params.push('deleted');
+        query_sql += " WHERE status != ?";
+        params.push("deleted");
       }
 
       const { rows } = await query(query_sql, params);
       return rows[0];
     } catch (error) {
-      logger.error('獲取對話統計失敗', { userId, error: error.message });
+      logger.error("獲取對話統計失敗", { userId, error: error.message });
       throw error;
     }
   }
@@ -398,7 +421,7 @@ export class ConversationModel {
     if (!conversation) return null;
 
     // 解析JSON字段
-    if (conversation.context && typeof conversation.context === 'string') {
+    if (conversation.context && typeof conversation.context === "string") {
       try {
         conversation.context = JSON.parse(conversation.context);
       } catch (e) {
@@ -410,4 +433,4 @@ export class ConversationModel {
   }
 }
 
-export default ConversationModel; 
+export default ConversationModel;

@@ -354,7 +354,7 @@ export const handleUpdateProfile = catchAsync(async (req, res) => {
   // 過濾不允許更新的字段
   const allowedFields = [
     "display_name",
-    "avatar_url",
+    "avatar",
     "department",
     "position",
     "phone",

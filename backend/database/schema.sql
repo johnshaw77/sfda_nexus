@@ -37,25 +37,37 @@ CREATE TABLE users (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB COMMENT='用戶表';
 
--- 用戶會話表 (用於管理 JWT Token)
+-- 用戶會話表
 CREATE TABLE user_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL COMMENT '用戶ID',
-    token_hash VARCHAR(255) NOT NULL COMMENT 'Token雜湊值',
-    device_info VARCHAR(500) DEFAULT NULL COMMENT '設備信息',
+    token VARCHAR(500) NOT NULL COMMENT 'JWT令牌',
+    device_info JSON DEFAULT NULL COMMENT '設備信息',
     ip_address VARCHAR(45) DEFAULT NULL COMMENT 'IP地址',
     user_agent TEXT DEFAULT NULL COMMENT '用戶代理',
     expires_at TIMESTAMP NOT NULL COMMENT '過期時間',
-    is_active BOOLEAN DEFAULT TRUE COMMENT '是否有效',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '創建時間',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間',
+    last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後使用時間',
     
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
-    INDEX idx_token_hash (token_hash),
-    INDEX idx_expires_at (expires_at),
-    INDEX idx_active (is_active)
+    INDEX idx_token (token(255)),
+    INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB COMMENT='用戶會話表';
+
+-- 令牌黑名單表
+CREATE TABLE token_blacklist (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    token VARCHAR(500) NOT NULL COMMENT '被列入黑名單的令牌',
+    user_id INT DEFAULT NULL COMMENT '用戶ID',
+    reason VARCHAR(100) DEFAULT NULL COMMENT '列入黑名單的原因',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '創建時間',
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_token (token(255)),
+    INDEX idx_user_id (user_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB COMMENT='令牌黑名單表';
 
 -- =====================================
 -- AI模型管理相關表

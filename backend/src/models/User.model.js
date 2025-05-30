@@ -179,7 +179,7 @@ export class UserModel {
   static async update(id, updateData) {
     const allowedFields = [
       "display_name",
-      "avatar_url",
+      "avatar",
       "department",
       "position",
       "phone",

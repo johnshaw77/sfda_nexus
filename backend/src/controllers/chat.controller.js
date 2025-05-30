@@ -265,7 +265,7 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 });
 
 /**
- * 獲取對話列表
+ * 獲取用戶對話列表
  */
 export const handleGetConversations = catchAsync(async (req, res) => {
   const { user } = req;
@@ -289,7 +289,18 @@ export const handleGetConversations = catchAsync(async (req, res) => {
     sortOrder,
   });
 
-  res.json(createSuccessResponse(result, "獲取對話列表成功"));
+  // 重新格式化響應以符合前端期望
+  const formattedResult = {
+    data: result.conversations,
+    pagination: {
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      totalPages: result.totalPages,
+    },
+  };
+
+  res.json(createSuccessResponse(formattedResult, "獲取對話列表成功"));
 });
 
 /**
@@ -350,7 +361,18 @@ export const handleGetMessages = catchAsync(async (req, res) => {
     sortOrder,
   });
 
-  res.json(createSuccessResponse(result, "獲取訊息列表成功"));
+  // 重新格式化響應以符合前端期望
+  const formattedResult = {
+    data: result.messages,
+    pagination: {
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      totalPages: result.totalPages,
+    },
+  };
+
+  res.json(createSuccessResponse(formattedResult, "獲取訊息列表成功"));
 });
 
 /**
