@@ -3,13 +3,106 @@
  * 處理實時通信功能，包括聊天消息、通知等
  */
 
-import { WebSocketServer } from 'ws';
-import { createServer } from 'http';
-import logger from '../utils/logger.util.js';
+import { WebSocketServer } from "ws";
+import { createServer } from "http";
+import logger from "../utils/logger.util.js";
+import {
+  verifyWebSocketToken,
+  handleRealtimeChat,
+  handleConversationStatus,
+  handleTypingStatus,
+} from "./chat.handler.js";
 
 // 存儲所有WebSocket連接
 const clients = new Map();
 const rooms = new Map(); // 房間管理（用於群組聊天）
+
+/**
+ * 生成客戶端ID
+ * @returns {string} 唯一的客戶端ID
+ */
+const generateClientId = () => {
+  return `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+/**
+ * 發送消息到指定客戶端
+ * @param {string} clientId - 客戶端ID
+ * @param {Object} message - 要發送的消息
+ */
+const sendToClient = (clientId, message) => {
+  const client = clients.get(clientId);
+  if (client && client.ws.readyState === 1) {
+    // WebSocket.OPEN
+    try {
+      client.ws.send(JSON.stringify(message));
+    } catch (error) {
+      logger.error("發送WebSocket消息失敗", {
+        clientId,
+        error: error.message,
+      });
+    }
+  }
+};
+
+/**
+ * 廣播消息到房間
+ * @param {string} roomId - 房間ID
+ * @param {Object} message - 要廣播的消息
+ * @param {string} excludeClientId - 排除的客戶端ID（可選）
+ */
+const broadcastToRoom = (roomId, message, excludeClientId = null) => {
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  room.forEach((clientId) => {
+    if (clientId !== excludeClientId) {
+      sendToClient(clientId, message);
+    }
+  });
+};
+
+/**
+ * 將客戶端加入房間
+ * @param {string} clientId - 客戶端ID
+ * @param {string} roomId - 房間ID
+ */
+const joinRoom = (clientId, roomId) => {
+  if (!rooms.has(roomId)) {
+    rooms.set(roomId, new Set());
+  }
+
+  rooms.get(roomId).add(clientId);
+
+  const client = clients.get(clientId);
+  if (client) {
+    client.rooms.add(roomId);
+  }
+
+  logger.debug("客戶端加入房間", { clientId, roomId });
+};
+
+/**
+ * 將客戶端從房間移除
+ * @param {string} clientId - 客戶端ID
+ * @param {string} roomId - 房間ID
+ */
+const leaveRoom = (clientId, roomId) => {
+  const room = rooms.get(roomId);
+  if (room) {
+    room.delete(clientId);
+    if (room.size === 0) {
+      rooms.delete(roomId);
+    }
+  }
+
+  const client = clients.get(clientId);
+  if (client) {
+    client.rooms.delete(roomId);
+  }
+
+  logger.debug("客戶端離開房間", { clientId, roomId });
+};
 
 /**
  * 初始化WebSocket服務
@@ -18,81 +111,84 @@ const rooms = new Map(); // 房間管理（用於群組聊天）
  */
 export const initializeWebSocket = (httpServer, wsPort = 3001) => {
   // 創建WebSocket服務器
-  const wss = new WebSocketServer({ 
+  const wss = new WebSocketServer({
     port: wsPort,
-    perMessageDeflate: false // 關閉消息壓縮以提高性能
+    perMessageDeflate: false, // 關閉消息壓縮以提高性能
   });
 
   logger.info(`WebSocket服務器已啟動，監聽端口: ${wsPort}`);
 
   // 處理新的WebSocket連接
-  wss.on('connection', (ws, request) => {
+  wss.on("connection", (ws, request) => {
     const clientId = generateClientId();
     const clientInfo = {
       id: clientId,
       ws: ws,
       userId: null, // 待認證後填入
+      user: null, // 用戶完整信息
       rooms: new Set(), // 用戶加入的房間
       lastPing: Date.now(),
-      connectedAt: new Date().toISOString()
+      connectedAt: new Date().toISOString(),
     };
 
     clients.set(clientId, clientInfo);
-    
-    logger.info('新的WebSocket連接', {
+
+    logger.info("新的WebSocket連接", {
       clientId,
       ip: request.socket.remoteAddress,
-      userAgent: request.headers['user-agent']
+      userAgent: request.headers["user-agent"],
     });
 
     // 發送歡迎消息
-    ws.send(JSON.stringify({
-      type: 'connection',
-      data: {
-        clientId,
-        message: '連接成功',
-        timestamp: new Date().toISOString()
-      }
-    }));
+    ws.send(
+      JSON.stringify({
+        type: "connection",
+        data: {
+          clientId,
+          message: "連接成功",
+          timestamp: new Date().toISOString(),
+        },
+      })
+    );
 
     // 處理接收到的消息
-    ws.on('message', (data) => {
+    ws.on("message", (data) => {
       try {
         const message = JSON.parse(data.toString());
         handleMessage(clientId, message);
       } catch (error) {
-        logger.error('WebSocket消息解析失敗', {
+        logger.error("WebSocket消息解析失敗", {
           clientId,
           error: error.message,
-          data: data.toString()
+          data: data.toString(),
         });
-        
+
         sendToClient(clientId, {
-          type: 'error',
+          type: "error",
           data: {
-            message: '消息格式錯誤',
-            code: 'INVALID_MESSAGE_FORMAT'
-          }
+            message: "消息格式錯誤",
+            code: "INVALID_MESSAGE_FORMAT",
+          },
         });
       }
     });
 
     // 處理連接關閉
-    ws.on('close', (code, reason) => {
+    ws.on("close", (code, reason) => {
       handleDisconnection(clientId, code, reason);
     });
 
     // 處理連接錯誤
-    ws.on('error', (error) => {
-      logger.error('WebSocket連接錯誤', {
+    ws.on("error", (error) => {
+      logger.error("WebSocket連接錯誤", {
         clientId,
-        error: error.message
+        error: error.message,
       });
     });
 
     // 設置心跳檢測
     ws.isAlive = true;
-    ws.on('pong', () => {
+    ws.on("pong", () => {
       ws.isAlive = true;
       if (clients.has(clientId)) {
         clients.get(clientId).lastPing = Date.now();
@@ -107,14 +203,14 @@ export const initializeWebSocket = (httpServer, wsPort = 3001) => {
         ws.terminate();
         return;
       }
-      
+
       ws.isAlive = false;
       ws.ping();
     });
   }, 30000); // 每30秒檢測一次
 
   // 清理定時器
-  wss.on('close', () => {
+  wss.on("close", () => {
     clearInterval(heartbeatInterval);
   });
 
@@ -126,49 +222,74 @@ export const initializeWebSocket = (httpServer, wsPort = 3001) => {
  * @param {string} clientId - 客戶端ID
  * @param {Object} message - 消息對象
  */
-const handleMessage = (clientId, message) => {
+const handleMessage = async (clientId, message) => {
   const client = clients.get(clientId);
   if (!client) return;
 
-  logger.debug('收到WebSocket消息', {
+  logger.debug("收到WebSocket消息", {
     clientId,
     type: message.type,
-    userId: client.userId
+    userId: client.userId,
   });
 
   switch (message.type) {
-    case 'auth':
-      handleAuthentication(clientId, message.data);
+    case "auth":
+      await handleAuthentication(clientId, message.data);
       break;
-      
-    case 'join_room':
+
+    case "join_room":
       handleJoinRoom(clientId, message.data);
       break;
-      
-    case 'leave_room':
+
+    case "leave_room":
       handleLeaveRoom(clientId, message.data);
       break;
-      
-    case 'chat_message':
-      handleChatMessage(clientId, message.data);
+
+    case "realtime_chat":
+      await handleRealtimeChat(
+        clientId,
+        message.data,
+        clients,
+        sendToClient,
+        broadcastToRoom
+      );
       break;
-      
-    case 'ping':
+
+    case "conversation_status":
+      await handleConversationStatus(
+        clientId,
+        message.data,
+        clients,
+        sendToClient,
+        broadcastToRoom
+      );
+      break;
+
+    case "typing_status":
+      await handleTypingStatus(
+        clientId,
+        message.data,
+        clients,
+        broadcastToRoom
+      );
+      break;
+
+    case "ping":
       handlePing(clientId);
       break;
-      
+
     default:
-      logger.warn('未知的WebSocket消息類型', {
+      logger.warn("未知的WebSocket消息類型", {
         clientId,
-        type: message.type
+        type: message.type,
       });
-      
+
       sendToClient(clientId, {
-        type: 'error',
+        type: "error",
         data: {
-          message: '未知的消息類型',
-          code: 'UNKNOWN_MESSAGE_TYPE'
-        }
+          message: "未知的消息類型",
+          code: "UNKNOWN_MESSAGE_TYPE",
+        },
       });
   }
 };
@@ -178,100 +299,124 @@ const handleMessage = (clientId, message) => {
  * @param {string} clientId - 客戶端ID
  * @param {Object} data - 認證數據
  */
-const handleAuthentication = (clientId, data) => {
-  // TODO: 實現JWT token驗證
-  // 這裡先簡單實現，後續需要整合JWT驗證邏輯
-  
+const handleAuthentication = async (clientId, data) => {
   const client = clients.get(clientId);
   if (!client) return;
 
-  if (data.token) {
-    // 驗證token並獲取用戶信息
-    // const user = verifyJwtToken(data.token);
-    // client.userId = user.id;
-    
-    // 臨時實現
-    client.userId = data.userId || 'anonymous';
-    
+  try {
+    if (!data.token) {
+      sendToClient(clientId, {
+        type: "auth_error",
+        data: {
+          message: "缺少認證token",
+          code: "MISSING_TOKEN",
+        },
+      });
+      return;
+    }
+
+    // 驗證JWT token
+    const user = await verifyWebSocketToken(data.token);
+
+    if (!user) {
+      sendToClient(clientId, {
+        type: "auth_error",
+        data: {
+          message: "認證失敗",
+          code: "INVALID_TOKEN",
+        },
+      });
+      return;
+    }
+
+    // 更新客戶端信息
+    client.userId = user.id;
+    client.user = user;
+
     sendToClient(clientId, {
-      type: 'auth_success',
+      type: "auth_success",
       data: {
-        message: '認證成功',
-        userId: client.userId
-      }
+        message: "認證成功",
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        },
+      },
     });
-    
-    logger.info('WebSocket用戶認證成功', {
+
+    logger.info("WebSocket用戶認證成功", {
       clientId,
-      userId: client.userId
+      userId: user.id,
+      username: user.username,
     });
-  } else {
+  } catch (error) {
+    logger.error("WebSocket認證處理失敗", {
+      clientId,
+      error: error.message,
+    });
+
     sendToClient(clientId, {
-      type: 'auth_error',
+      type: "auth_error",
       data: {
-        message: '認證失敗，缺少token',
-        code: 'MISSING_TOKEN'
-      }
+        message: "認證處理失敗",
+        code: "AUTH_ERROR",
+      },
     });
   }
 };
 
 /**
  * 處理加入房間
- * @param {string} clientId - 客戶端ID  
+ * @param {string} clientId - 客戶端ID
  * @param {Object} data - 房間數據
  */
 const handleJoinRoom = (clientId, data) => {
   const client = clients.get(clientId);
   if (!client || !client.userId) {
     sendToClient(clientId, {
-      type: 'error',
-      data: { message: '請先進行認證' }
+      type: "error",
+      data: { message: "未認證的連接", code: "UNAUTHORIZED" },
     });
     return;
   }
 
-  const roomId = data.roomId;
+  const { roomId } = data;
   if (!roomId) {
     sendToClient(clientId, {
-      type: 'error', 
-      data: { message: '缺少房間ID' }
+      type: "error",
+      data: { message: "缺少房間ID", code: "MISSING_ROOM_ID" },
     });
     return;
   }
 
-  // 加入房間
-  if (!rooms.has(roomId)) {
-    rooms.set(roomId, new Set());
-  }
-  
-  rooms.get(roomId).add(clientId);
-  client.rooms.add(roomId);
+  joinRoom(clientId, roomId);
 
-  // 通知用戶加入成功
   sendToClient(clientId, {
-    type: 'room_joined',
+    type: "room_joined",
     data: {
-      roomId,
-      message: '成功加入房間'
-    }
+      roomId: roomId,
+      message: "成功加入房間",
+    },
   });
 
-  // 通知房間內其他用戶
-  broadcastToRoom(roomId, {
-    type: 'user_joined',
-    data: {
-      userId: client.userId,
-      roomId,
-      timestamp: new Date().toISOString()
-    }
-  }, [clientId]); // 排除自己
-
-  logger.info('用戶加入WebSocket房間', {
-    clientId,
-    userId: client.userId,
-    roomId
-  });
+  // 通知房間其他成員
+  broadcastToRoom(
+    roomId,
+    {
+      type: "user_joined",
+      data: {
+        roomId: roomId,
+        user: {
+          id: client.userId,
+          username: client.user.username,
+        },
+        timestamp: new Date().toISOString(),
+      },
+    },
+    clientId
+  );
 };
 
 /**
@@ -281,67 +426,51 @@ const handleJoinRoom = (clientId, data) => {
  */
 const handleLeaveRoom = (clientId, data) => {
   const client = clients.get(clientId);
-  const roomId = data.roomId;
-  
-  if (client && roomId && client.rooms.has(roomId)) {
-    // 從房間移除
-    rooms.get(roomId)?.delete(clientId);
-    client.rooms.delete(roomId);
-    
-    // 如果房間為空，刪除房間
-    if (rooms.get(roomId)?.size === 0) {
-      rooms.delete(roomId);
-    }
-    
-    // 通知房間內其他用戶
-    broadcastToRoom(roomId, {
-      type: 'user_left',
-      data: {
-        userId: client.userId,
-        roomId,
-        timestamp: new Date().toISOString()
-      }
-    });
-    
-    sendToClient(clientId, {
-      type: 'room_left',
-      data: { roomId, message: '已離開房間' }
-    });
+  if (!client) return;
+
+  const { roomId } = data;
+  if (!roomId) return;
+
+  // 通知房間其他成員
+  if (client.userId) {
+    broadcastToRoom(
+      roomId,
+      {
+        type: "user_left",
+        data: {
+          roomId: roomId,
+          user: {
+            id: client.userId,
+            username: client.user?.username,
+          },
+          timestamp: new Date().toISOString(),
+        },
+      },
+      clientId
+    );
   }
+
+  leaveRoom(clientId, roomId);
+
+  sendToClient(clientId, {
+    type: "room_left",
+    data: {
+      roomId: roomId,
+      message: "已離開房間",
+    },
+  });
 };
 
 /**
- * 處理聊天消息
- * @param {string} clientId - 客戶端ID
- * @param {Object} data - 消息數據
- */
-const handleChatMessage = (clientId, data) => {
-  const client = clients.get(clientId);
-  if (!client || !client.userId) return;
-
-  // TODO: 這裡應該保存消息到資料庫
-  
-  // 廣播消息到相關房間或用戶
-  if (data.roomId) {
-    broadcastToRoom(data.roomId, {
-      type: 'chat_message',
-      data: {
-        ...data,
-        senderId: client.userId,
-        timestamp: new Date().toISOString()
-      }
-    });
-  }
-};
-
-/**
- * 處理Ping消息
+ * 處理ping消息
  * @param {string} clientId - 客戶端ID
  */
 const handlePing = (clientId) => {
   sendToClient(clientId, {
-    type: 'pong',
-    data: { timestamp: new Date().toISOString() }
+    type: "pong",
+    data: {
+      timestamp: new Date().toISOString(),
+    },
   });
 };
 
@@ -353,109 +482,102 @@ const handlePing = (clientId) => {
  */
 const handleDisconnection = (clientId, code, reason) => {
   const client = clients.get(clientId);
-  
+
   if (client) {
-    // 從所有房間移除
-    client.rooms.forEach(roomId => {
-      rooms.get(roomId)?.delete(clientId);
-      if (rooms.get(roomId)?.size === 0) {
-        rooms.delete(roomId);
-      }
-      
-      // 通知房間內其他用戶
-      broadcastToRoom(roomId, {
-        type: 'user_disconnected',
-        data: {
-          userId: client.userId,
+    // 從所有房間中移除客戶端
+    client.rooms.forEach((roomId) => {
+      // 通知房間其他成員
+      if (client.userId) {
+        broadcastToRoom(
           roomId,
-          timestamp: new Date().toISOString()
-        }
-      });
+          {
+            type: "user_disconnected",
+            data: {
+              roomId: roomId,
+              user: {
+                id: client.userId,
+                username: client.user?.username,
+              },
+              timestamp: new Date().toISOString(),
+            },
+          },
+          clientId
+        );
+      }
+
+      leaveRoom(clientId, roomId);
     });
-    
-    clients.delete(clientId);
-    
-    logger.info('WebSocket連接關閉', {
+
+    logger.info("WebSocket連接關閉", {
       clientId,
       userId: client.userId,
       code,
-      reason: reason?.toString()
+      reason: reason?.toString(),
+      duration: Date.now() - new Date(client.connectedAt).getTime(),
     });
   }
+
+  clients.delete(clientId);
 };
 
 /**
- * 發送消息給指定客戶端
- * @param {string} clientId - 客戶端ID
- * @param {Object} message - 消息對象
+ * 獲取WebSocket統計信息
+ * @returns {Object} 統計信息
  */
-const sendToClient = (clientId, message) => {
-  const client = clients.get(clientId);
-  if (client && client.ws.readyState === 1) { // WebSocket.OPEN
-    try {
-      client.ws.send(JSON.stringify(message));
-    } catch (error) {
-      logger.error('發送WebSocket消息失敗', {
-        clientId,
-        error: error.message
-      });
+export const getWebSocketStats = () => {
+  const stats = {
+    totalConnections: clients.size,
+    authenticatedConnections: 0,
+    totalRooms: rooms.size,
+    roomDetails: {},
+  };
+
+  // 統計認證連接數
+  clients.forEach((client) => {
+    if (client.userId) {
+      stats.authenticatedConnections++;
     }
-  }
+  });
+
+  // 統計房間詳情
+  rooms.forEach((clientSet, roomId) => {
+    stats.roomDetails[roomId] = clientSet.size;
+  });
+
+  return stats;
 };
 
 /**
- * 廣播消息到房間
- * @param {string} roomId - 房間ID
- * @param {Object} message - 消息對象
- * @param {Array} excludeClients - 排除的客戶端ID列表
+ * 向所有客戶端廣播消息
+ * @param {Object} message - 要廣播的消息
+ * @param {Function} filter - 過濾函數（可選）
  */
-const broadcastToRoom = (roomId, message, excludeClients = []) => {
-  const roomClients = rooms.get(roomId);
-  if (!roomClients) return;
-
-  roomClients.forEach(clientId => {
-    if (!excludeClients.includes(clientId)) {
+export const broadcastToAll = (message, filter = null) => {
+  clients.forEach((client, clientId) => {
+    if (!filter || filter(client)) {
       sendToClient(clientId, message);
     }
   });
 };
 
 /**
- * 生成客戶端ID
- * @returns {string} 客戶端ID
+ * 向特定用戶發送消息
+ * @param {number} userId - 用戶ID
+ * @param {Object} message - 要發送的消息
  */
-const generateClientId = () => {
-  return `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-};
-
-/**
- * 獲取在線用戶統計
- * @returns {Object} 統計信息
- */
-export const getOnlineStats = () => {
-  const stats = {
-    totalConnections: clients.size,
-    authenticatedUsers: 0,
-    totalRooms: rooms.size,
-    roomStats: {}
-  };
-
-  clients.forEach(client => {
-    if (client.userId && client.userId !== 'anonymous') {
-      stats.authenticatedUsers++;
+export const sendToUser = (userId, message) => {
+  clients.forEach((client, clientId) => {
+    if (client.userId === userId) {
+      sendToClient(clientId, message);
     }
   });
-
-  rooms.forEach((clientSet, roomId) => {
-    stats.roomStats[roomId] = clientSet.size;
-  });
-
-  return stats;
 };
 
 export default {
   initializeWebSocket,
-  getOnlineStats,
+  getWebSocketStats,
+  broadcastToAll,
+  sendToUser,
   sendToClient,
-  broadcastToRoom
-}; 
+  broadcastToRoom,
+};

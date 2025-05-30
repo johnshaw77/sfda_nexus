@@ -16,10 +16,12 @@ if __name__ == "__main__":
     except Exception:
         pass # Ignore
 
-    print("--- FINAL REVIEW GATE ACTIVE ---", flush=True)
-    print("AI has completed its primary actions. Awaiting your review or further sub-prompts.", flush=True)
-    print("Type your sub-prompt, or one of: 'TASK_COMPLETE', 'Done', 'Quit', 'q' to signal completion.", flush=True) # MODIFIED
-    
+    # print("--- FINAL REVIEW GATE ACTIVE ---", flush=True)
+    # print("AI has completed its primary actions. Awaiting your review or further sub-prompts.", flush=True)
+    # print("Type your sub-prompt, or one of: 'TASK_COMPLETE', 'Done', 'Quit', 'q' to signal completion.", flush=True) # MODIFIED
+    print("--- 最終審查關卡已啟動 ---", flush=True)
+    print("AI 已完成其主要操作。正在等待您的審查或進一步的子提示。", flush=True)
+    print("請輸入您的子提示，或輸入以下其中一項：'TASK_COMPLETE'、'Done'、'Quit'、'q' 來表示完成。", flush=True)
     active_session = True
     while active_session:
         try:

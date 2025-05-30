@@ -1,264 +1,331 @@
-# sfda_nexus 企業 AI 聊天系統
-
-**標語**: "Connect. Create. Collaborate."  
-**定位**: 企業內部 AI 服務平台 - 管理員統一配置，員工直接使用
+# SFDA Nexus - 企業 AI 聊天系統
 
 ## 🎯 項目概述
 
-sfda_nexus 是一個企業級 AI 聊天系統，旨在為企業提供統一的 AI 服務管理平台。系統支持多種 AI 模型整合，智能體角色配置，以及工作流程自動化，讓企業能夠高效地利用 AI 技術提升工作效率。
+SFDA Nexus 是一個現代化的企業級 AI 聊天系統，提供多模型支援、智能體管理、工作流自動化等功能。
 
-### ✨ 核心特色
-
-- 🏢 **企業內部 AI 服務平台**
-- 👥 **管理員統一配置，員工直接使用**
-- 🤖 **預設智能體角色，標準化服務**
-- 📋 **工作流程自動化**
-- 🔒 **權限控制與審計**
-- 🚀 **多模型支持** (Ollama + Gemini)
-
-## 🛠️ 技術架構
-
-### 前端技術棧
-
-- **框架**: Vue 3 (Composition API)
-- **UI 庫**: Ant Design Vue 4.x
-- **狀態管理**: Pinia
-- **路由**: Vue Router 4
-- **HTTP 客戶端**: Axios
-- **實時通信**: WebSocket
-- **語言**: 純 JavaScript
-
-### 後端技術棧
-
-- **框架**: Node.js + Express.js
-- **資料庫**: MySQL 8.0
-- **ORM**: 原生 SQL (mysql2)
-- **認證**: JWT
-- **檔案上傳**: Multer
-- **API 文檔**: Swagger
-- **實時通信**: WebSocket (ws)
-- **語言**: 純 JavaScript
-
-### AI 整合
-
-- **本地模型**: Ollama (主要)
-- **雲端服務**: Google Gemini (輔助)
-- **向量資料庫**: Qdrant (知識庫)
-- **工具協議**: MCP (Model Context Protocol)
-
-## 📁 項目結構
+## 🏗️ 系統架構
 
 ```
 sfda_nexus/
-├── frontend/                    # 前端應用
-│   ├── src/
-│   │   ├── components/         # 組件
-│   │   │   ├── common/        # 通用組件
-│   │   │   ├── chat/          # 聊天組件
-│   │   │   ├── admin/         # 管理組件
-│   │   │   └── workflow/      # 工作流組件
-│   │   ├── views/             # 頁面視圖
-│   │   │   ├── auth/          # 認證頁面
-│   │   │   ├── dashboard/     # 儀表板
-│   │   │   ├── chat/          # 聊天頁面
-│   │   │   ├── admin/         # 管理頁面
-│   │   │   └── settings/      # 設置頁面
-│   │   ├── router/            # 路由配置
-│   │   ├── store/             # 狀態管理
-│   │   ├── utils/             # 工具函數
-│   │   ├── assets/            # 靜態資源
-│   │   └── api/               # API 接口
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.js
-├── backend/                     # 後端服務
-│   ├── src/
-│   │   ├── controllers/       # 控制器層
-│   │   ├── routes/            # 路由層
-│   │   ├── services/          # 業務邏輯層
-│   │   ├── models/            # 數據模型層
-│   │   ├── middleware/        # 中間件
-│   │   ├── utils/             # 工具函數
-│   │   ├── config/            # 配置文件
-│   │   ├── docs/              # API文檔
-│   │   └── websocket/         # WebSocket處理
-│   ├── database/              # 資料庫相關
-│   │   ├── migrations/        # 資料庫遷移
-│   │   └── seeds/             # 初始數據
-│   ├── uploads/               # 檔案上傳目錄
-│   ├── logs/                  # 日誌目錄
-│   ├── tests/                 # 測試文件
-│   ├── server.js              # 服務器入口
-│   ├── package.json
-│   └── .env.example           # 環境變量範例
-├── docs/                        # 項目文檔
-│   └── plan/                  # 開發計劃
-├── docker-compose.yml           # Docker配置
-└── README.md
+├── frontend/          # Vue 3 前端應用
+├── backend/           # Node.js 後端服務
+├── docs/             # 項目文檔
+└── README.md         # 項目說明
 ```
+
+## ✨ 主要功能
+
+### 🎯 核心功能
+
+- **多 AI 模型支援**: Gemini、Ollama、OpenAI、Claude
+- **智能體管理**: 自定義 AI 助手和專業智能體
+- **實時聊天**: WebSocket 即時通訊
+- **用戶管理**: 完整的認證和授權系統
+- **工作流**: 自動化任務處理（規劃中）
+
+### 🔧 技術特性
+
+- **前端**: Vue 3 + Ant Design Vue + Pinia
+- **後端**: Node.js + Express + MySQL
+- **認證**: JWT Token 管理
+- **實時通訊**: WebSocket
+- **資料庫**: MySQL 8.0+
 
 ## 🚀 快速開始
 
-### 環境要求
+### 📋 環境要求
 
-- Node.js >= 18.0.0
-- MySQL >= 8.0
+- Node.js 18+
+- MySQL 8.0+
 - npm 或 yarn
-- Ollama (本地 AI 模型服務)
 
-### 安裝步驟
+### 🛠️ 安裝步驟
 
 1. **克隆項目**
 
-   ```bash
-   git clone <repository-url>
-   cd sfda_nexus
-   ```
+```bash
+git clone <repository-url>
+cd sfda_nexus
+```
 
-2. **後端設置**
+2. **安裝依賴**
 
-   ```bash
-   cd backend
-   npm install
-   cp .env.example .env
-   # 配置環境變量
-   npm run migrate
-   npm run seed
-   npm run dev
-   ```
+```bash
+# 後端依賴
+cd backend
+npm install
 
-3. **前端設置**
+# 前端依賴
+cd ../frontend
+npm install
+```
 
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+3. **配置環境變數**
 
-4. **AI 服務設置**
+```bash
+# 複製並編輯後端環境配置
+cd backend
+cp .env.example .env
+# 編輯 .env 文件，配置資料庫和 API 密鑰
+```
 
-   **Ollama 安裝與配置：**
+4. **設置資料庫**
 
-   ```bash
-   # 安裝 Ollama
-   curl -fsSL https://ollama.ai/install.sh | sh
+```bash
+# 確保 MySQL 服務運行
+brew services start mysql  # macOS
+# 或 sudo systemctl start mysql  # Linux
 
-   # 下載模型
-   ollama pull qwen3:30b
+# 執行資料庫設置腳本
+cd backend
+node setup_database.js
+```
 
-   # 啟動服務 (通常自動啟動)
-   ollama serve
-   ```
+5. **填充測試數據**
 
-   **Gemini API 配置：**
+```bash
+# 插入 AI 模型配置和測試數據
+node seed_data.js
+```
 
-   - 前往 [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - 獲取 API Key
-   - 在 `.env` 文件中配置 `GEMINI_API_KEY`
+6. **啟動服務**
 
-5. **訪問應用**
-   - 前端: http://localhost:5173
-   - 後端 API: http://localhost:3000
-   - API 文檔: http://localhost:3000/api-docs
+```bash
+# 啟動後端服務
+cd backend
+npm start
 
-## 📖 開發文檔
+# 啟動前端服務（新終端）
+cd frontend
+npm run dev
+```
 
-- [項目概述](./docs/plan/01_項目概述.md)
-- [前端設計規劃](./docs/plan/02_前端設計規劃.md)
-- [後端設計規劃](./docs/plan/03_後端設計規劃.md)
-- [資料庫設計](./docs/plan/04_資料庫設計.md)
+### 🔑 默認帳號
+
+- **管理員**: admin / admin123
+- **測試用戶**: user001-user010 / password123
+
+## 📊 項目進度
+
+### ✅ 已完成功能
+
+#### 🗄️ 資料庫層 (v1.0.0)
+
+- [x] MySQL 資料庫結構設計
+- [x] 用戶管理表
+- [x] AI 模型配置表
+- [x] 智能體管理表
+- [x] 對話和訊息表
+- [x] 系統配置表
+- [x] 審計日誌表
+
+#### 🔧 後端服務 (v1.1.0)
+
+- [x] Express 服務器架構
+- [x] JWT 認證中間件
+- [x] 用戶管理 API
+- [x] AI 服務整合（Gemini、Ollama）
+- [x] WebSocket 實時通訊
+- [x] 檔案上傳處理
+- [x] 錯誤處理和日誌
+
+#### 🎨 前端基礎 (v1.2.0)
+
+- [x] Vue 3 + Vite 項目架構
+- [x] Ant Design Vue UI 組件
+- [x] Pinia 狀態管理
+- [x] Vue Router 路由配置
+- [x] 響應式佈局系統
+
+#### 💬 聊天系統 (v1.3.0)
+
+- [x] 聊天界面組件
+- [x] 訊息發送和接收
+- [x] WebSocket 連接管理
+- [x] 對話歷史記錄
+- [x] 智能體選擇
+
+#### 🔐 認證系統 (v1.4.0)
+
+- [x] 登入頁面 (Login.vue)
+- [x] 註冊頁面 (Register.vue)
+- [x] 儀表板頁面 (Dashboard.vue)
+- [x] 設置頁面 (Settings.vue)
+- [x] 路由守衛和權限控制
+
+#### 🗄️ 資料庫部署 (v1.5.0)
+
+- [x] MySQL 安裝和配置
+- [x] 資料庫結構創建
+- [x] 管理員帳號創建
+- [x] AI 模型配置插入
+- [x] 系統配置初始化
+- [x] 測試數據生成（10 個用戶、10 個智能體）
+
+### 🔄 進行中功能
+
+#### 🤖 智能體管理
+
+- [ ] 智能體創建和編輯界面
+- [ ] 智能體市場和分享
+- [ ] 智能體性能分析
+
+#### 📊 管理後台
+
+- [ ] 用戶管理界面
+- [ ] 系統監控儀表板
+- [ ] 日誌查看和分析
+
+### 📅 待開發功能
+
+#### 🔄 工作流系統
+
+- [ ] 工作流設計器
+- [ ] 任務自動化
+- [ ] 觸發器和條件
+
+#### 🔍 搜索和分析
+
+- [ ] 對話搜索功能
+- [ ] 數據分析報表
+- [ ] 使用統計
+
+#### 🔧 系統優化
+
+- [ ] 性能優化
+- [ ] 快取機制
+- [ ] 負載均衡
+
+## 🗄️ 資料庫結構
+
+### 核心表格
+
+- **users**: 用戶管理
+- **ai_models**: AI 模型配置
+- **agents**: 智能體管理
+- **conversations**: 對話記錄
+- **messages**: 訊息內容
+- **system_configs**: 系統配置
+- **audit_logs**: 審計日誌
+
+### 已配置的 AI 模型
+
+1. **Gemini 2.0 Flash** (默認)
+2. **Qwen 3 30B** (本地 Ollama)
+3. **GPT-4 Omni** (可選)
+4. **Claude 3.5 Sonnet** (可選)
+
+### 預設智能體
+
+- 程式碼助手
+- 寫作專家
+- 數據分析師
+- 創意設計師
+- 客服助手
+- 專案經理
+- 行銷專家
+- 翻譯助手
+- 研究助手
+- 通用助手
 
 ## 🔧 開發指南
 
-### Git 提交規範
+### 🏗️ 項目結構
 
-使用繁體中文進行提交訊息：
+```
+backend/
+├── src/
+│   ├── controllers/    # 控制器
+│   ├── models/        # 數據模型
+│   ├── routes/        # 路由定義
+│   ├── middleware/    # 中間件
+│   ├── services/      # 業務邏輯
+│   └── utils/         # 工具函數
+├── database/          # 資料庫相關
+├── uploads/           # 檔案上傳
+└── logs/             # 日誌文件
 
-- `feat: 新增聊天介面組件`
-- `fix: 修復用戶認證問題`
-- `docs: 更新API文檔`
+frontend/
+├── src/
+│   ├── components/    # Vue 組件
+│   ├── views/        # 頁面組件
+│   ├── store/        # Pinia 狀態
+│   ├── router/       # 路由配置
+│   └── utils/        # 工具函數
+└── public/           # 靜態資源
+```
 
-### 編程規範
+### 🔄 開發流程
 
-- 函數命名使用 `handleXXX` 格式
-- 優先使用 Ant Design Vue 組件
-- 保持代碼清晰的註解
+1. 功能設計和 API 規劃
+2. 後端 API 開發和測試
+3. 前端組件開發
+4. 整合測試
+5. 文檔更新
 
-## ✅ 已完成功能
+## 📝 更新日誌
 
-### 🔐 JWT 認證系統
+### v1.5.0 (2025-01-30)
 
-- ✅ 用戶註冊/登入/登出
-- ✅ JWT Token 管理 (生成/驗證/刷新/黑名單)
-- ✅ 多層級權限控制 (user/admin/super_admin)
-- ✅ 會話管理 (多設備登入/強制登出)
-- ✅ 安全功能 (速率限制/審計日誌/密碼加密)
+- ✅ 完成資料庫部署和配置
+- ✅ 安裝 MySQL 9.3.0
+- ✅ 創建完整資料庫結構（10 個表格）
+- ✅ 插入 AI 模型配置（4 個模型）
+- ✅ 初始化系統配置（10 個配置項）
+- ✅ 生成測試數據（10 個用戶、10 個智能體）
+- ✅ 管理員帳號設置完成
 
-### 🗄️ 資料庫架構
+### v1.4.0 (2025-01-30)
 
-- ✅ 用戶管理模型 (User.model.js)
-- ✅ 對話管理模型 (Conversation.model.js)
-- ✅ 訊息管理模型 (Message.model.js)
-- ✅ 完整的資料庫結構 (schema.sql)
+- ✅ 完成前端認證系統
+- ✅ 登入和註冊頁面
+- ✅ 儀表板系統
+- ✅ 用戶設置頁面
+- ✅ 路由守衛和權限控制
 
-### 🤖 AI 服務整合
+### v1.3.0 (2025-01-29)
 
-- ✅ Ollama 本地模型支持
-- ✅ Google Gemini API 整合
-- ✅ 統一的 AI 模型調用介面
-- ✅ Token 計算和費用統計
-- ✅ 模型可用性檢查
+- ✅ 聊天界面完成
+- ✅ WebSocket 實時通訊
+- ✅ 智能體選擇功能
+- ✅ 對話歷史管理
 
-### 💬 聊天功能
+### v1.2.0 (2025-01-29)
 
-- ✅ 對話創建和管理
-- ✅ 訊息發送和 AI 回應
-- ✅ 對話歷史和上下文管理
-- ✅ 智能體支持
-- ✅ 對話歸檔和置頂
+- ✅ 前端基礎架構
+- ✅ Vue 3 + Ant Design Vue
+- ✅ 響應式佈局系統
 
-### 🌐 API 服務
+### v1.1.0 (2025-01-28)
 
-- ✅ RESTful API 設計
-- ✅ Swagger 完整文檔
-- ✅ 中間件系統
-- ✅ WebSocket 支援
+- ✅ 後端 API 服務
+- ✅ JWT 認證系統
+- ✅ AI 服務整合
 
-## 📋 待辦事項
+### v1.0.0 (2025-01-28)
 
-### 高優先級
-
-- [ ] 前端 Vue 3 聊天介面開發
-- [ ] 智能體管理功能
-- [ ] 檔案上傳和多媒體支持
-- [ ] 工作流程設計器
-
-### 中優先級
-
-- [ ] 用戶管理界面
-- [ ] 系統監控面板
-- [ ] 訊息搜索功能
-- [ ] 導出對話記錄
-
-### 低優先級
-
-- [ ] 多語言支持
-- [ ] 主題切換
-- [ ] 插件系統
-- [ ] Docker 部署配置
+- ✅ 項目初始化
+- ✅ 資料庫結構設計
+- ✅ 基礎架構搭建
 
 ## 🤝 貢獻指南
 
-1. Fork 本項目
-2. 創建特性分支 (`git checkout -b feature/新功能`)
-3. 提交更改 (`git commit -m 'feat: 新增某功能'`)
-4. 推送到分支 (`git push origin feature/新功能`)
+1. Fork 項目
+2. 創建功能分支
+3. 提交更改
+4. 推送到分支
 5. 創建 Pull Request
 
 ## 📄 許可證
 
-[MIT License](LICENSE)
+MIT License
 
 ## 📞 聯繫方式
 
-如有問題或建議，請聯繫開發團隊。
+- 項目維護者: SFDA Team
+- 郵箱: admin@sfda-nexus.com
+
+---
+
+**SFDA Nexus** - 讓 AI 助力企業數位轉型 🚀

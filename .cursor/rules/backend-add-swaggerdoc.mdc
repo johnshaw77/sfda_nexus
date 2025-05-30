@@ -3,4 +3,4 @@ description:
 globs: backend/src/routes/*.js
 alwaysApply: false
 ---
-要撰寫 swagger doc
+後端 route 在撰寫時記得要撰寫 swagger doc
