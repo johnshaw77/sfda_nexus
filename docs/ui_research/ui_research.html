@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>AI 聊天系統 UI 設計研究</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+          "Segoe UI Symbol";
+        line-height: 1.6;
+        color: #24292e;
+        background-color: #f6f8fa;
+        margin: 0;
+        padding: 20px;
+      }
+      .container {
+        max-width: 980px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(27, 31, 35, 0.1);
+        padding: 30px;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        color: #000000;
+        margin-top: 24px;
+        margin-bottom: 16px;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      h1 {
+        font-size: 2em;
+        border-bottom: 1px solid #eaecef;
+        padding-bottom: 0.3em;
+      }
+      h2 {
+        font-size: 1.5em;
+        border-bottom: 1px solid #eaecef;
+        padding-bottom: 0.3em;
+      }
+      h3 {
+        font-size: 1.25em;
+      }
+      p {
+        margin-bottom: 16px;
+      }
+      ul {
+        margin-bottom: 16px;
+        padding-left: 2em;
+      }
+      li {
+        margin-bottom: 4px;
+      }
+      a {
+        color: #0366d6;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 20px 0;
+        border: 1px solid #eaecef;
+        border-radius: 4px;
+      }
+      .citation {
+        font-size: 0.9em;
+        color: #586069;
+        margin-top: -10px;
+        margin-bottom: 10px;
+      }
+      .code-block {
+        background-color: #f6f8fa;
+        border-radius: 3px;
+        padding: 16px;
+        overflow-x: auto;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+          Courier, monospace;
+        font-size: 0.85em;
+        line-height: 1.45;
+        color: #24292e;
+        margin-bottom: 16px;
+      }
+      .sticky-note {
+        background-color: #ffc;
+        border: 1px solid #e0e0e0;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        transform: rotate(1deg);
+        transition: transform 0.2s ease-in-out;
+      }
+      .sticky-note:nth-of-type(even) {
+        transform: rotate(-1deg);
+      }
+      .sticky-note:hover {
+        transform: rotate(0deg) scale(1.02);
+      }
+      .sticky-note h4 {
+        margin-top: 0;
+        color: #333;
+      }
+      .sticky-note p {
+        margin-bottom: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>AI 聊天系統 UI 設計研究</h1>
+
+      <p>
+        本文件旨在研究企業級 AI 聊天系統的 UI 設計，結合專案的技術棧（Vue 3, Ant
+        Design Vue）和功能需求，提供設計靈感和最佳實踐。研究參考了多個現有 AI
+        聊天系統的 UI 範例，並提煉出關鍵設計原則。
+      </p>
+
+      <h2>1. 專案概述與技術棧回顧</h2>
+      <p>
+        根據專案規劃，sfda_nexus 是一個企業內部 AI
+        聊天系統，旨在提供統一管理、員工使用的 AI 服務平台。其主要技術棧包括：
+      </p>
+      <ul>
+        <li>
+          <strong>前端:</strong> Vue 3, Ant Design Vue, Pinia, Vue Router,
+          Axios, Socket.io/WebSocket
+        </li>
+        <li>
+          <strong>後端:</strong> Node.js, Express.js, MySQL, JWT,
+          Socket.io/WebSocket
+        </li>
+        <li>
+          <strong>AI 整合:</strong> Ollama (本地), Google Gemini (輔助), Qdrant
+          (向量資料庫), MCP (Model Context Protocol)
+        </li>
+      </ul>
+      <p>
+        設計時需充分考慮 Ant Design Vue 的組件庫特性，並確保與後端 API
+        的順暢交互。
+      </p>
+
+      <h2>2. AI 聊天系統 UI 設計原則</h2>
+      <p>一個高效且用戶友好的 AI 聊天系統 UI 應遵循以下原則：</p>
+      <ul>
+        <li>
+          <strong>清晰與簡潔:</strong>
+          介面應直觀易懂，避免過多複雜元素，確保用戶能快速理解和操作。<mcreference
+            link="https://www.eleken.co/blog-posts/chatbot-ui-examples"
+            index="3"
+            >3</mcreference
+          >
+        </li>
+        <li>
+          <strong>視覺層次:</strong>
+          利用排版、顏色和間距來組織內容，突出重要信息和操作。<mcreference
+            link="https://www.eleken.co/blog-posts/chatbot-ui-examples"
+            index="3"
+            >3</mcreference
+          >
+        </li>
+        <li>
+          <strong>品牌一致性:</strong> UI
+          設計應與企業品牌形象、語氣和個性保持一致。<mcreference
+            link="https://www.eleken.co/blog-posts/chatbot-ui-examples"
+            index="3"
+            >3</mcreference
+          >
+        </li>
+        <li>
+          <strong>用戶友好輸入:</strong>
+          提供多種輸入方式，如自由文本輸入、快速回覆按鈕、文件上傳等，以適應不同場景。<mcreference
+            link="https://www.eleken.co/blog-posts/chatbot-ui-examples"
+            index="3"
+            >3</mcreference
+          >
+        </li>
+        <li>
+          <strong>錯誤處理與回退:</strong>
+          預期用戶可能遇到的錯誤，並提供友好的錯誤提示和回退選項。<mcreference
+            link="https://www.cherry-ai.com/"
+            index="3"
+            >3</mcreference
+          >
+        </li>
+        <li>
+          <strong>可訪問性與響應式:</strong>
+          確保介面在不同設備（桌面、移動設備）上都能無縫運行，並考慮無障礙設計。<mcreference
+            link="https://www.eleken.co/blog-posts/chatbot-ui-examples"
+            index="3"
+            >3</mcreference
+          >
+        </li>
+        <li>
+          <strong>類人交互:</strong> 儘管是
+          AI，但交互應盡量自然和引人入勝，例如使用打字指示器或友好的問候語。<mcreference
+            link="https://www.eleken.co/blog-posts/chatbot-ui-examples"
+            index="3"
+            >3</mcreference
+          >
+        </li>
+        <li>
+          <strong>對話流暢性:</strong>
+          確保對話能夠順暢進行，並提供選項氣泡或進一步提問來引導用戶。<mcreference
+            link="https://www.chatbot.com/blog/chatbot-ui-examples/"
+            index="4"
+            >4</mcreference
+          >
+        </li>
+      </ul>
+
+      <h2>3. UI 範例與靈感</h2>
+      <p>
+        本節將展示一些 AI 聊天系統的 UI 範例，這些範例為我們的設計提供了靈感。
+        請注意，以下圖片為佔位符，實際截圖需手動添加至 `imgs` 資料夾並更新路徑。
+      </p>
+      <h3>3.1 Cherry AI</h3>
+      <p>
+        <a
+          href="https://www.cherry-ai.com/"
+          target="_blank"
+          >https://www.cherry-ai.com/</a
+        >
+      </p>
+      <img
+        src="./imgs/cherry_ai.png-2025-05-30T02-22-04-497Z.png"
+        alt="Cherry AI UI 範例" />
+      <div class="citation">圖 1: Cherry AI UI 範例</div>
+
+      <h3>3.2 Tidio Chatbot UI</h3>
+      <p>
+        <a
+          href="https://www.tidio.com/blog/chatbot-ui-design/"
+          target="_blank"
+          >https://www.tidio.com/blog/chatbot-ui-design/</a
+        >
+      </p>
+
+      <h3>3.3 Eleken Chatbot UI Examples</h3>
+      <p>
+        <a
+          href="https://www.eleken.co/blog-posts/chatbot-ui-examples"
+          target="_blank"
+          >https://www.eleken.co/blog-posts/chatbot-ui-examples</a
+        >
+      </p>
+
+      <h3>3.4 Chatbot.com UI Examples</h3>
+      <p>
+        <a
+          href="https://www.chatbot.com/blog/chatbot-ui-examples/"
+          target="_blank"
+          >https://www.chatbot.com/blog/chatbot-ui-examples/</a
+        >
+      </p>
+
+      <h3>3.5 Dribbble AI Chatbot Designs</h3>
+      <p>
+        <a
+          href="https://dribbble.com/tags/ai_chatbot"
+          target="_blank"
+          >https://dribbble.com/tags/ai_chatbot</a
+        >
+      </p>
+
+      <h2>4. 結合 Ant Design Vue 的設計考量</h2>
+      <p>在實作時，應充分利用 Ant Design Vue 的組件和設計規範：</p>
+      <ul>
+        <li><strong>佈局:</strong> 使用 Layout 組件構建整體頁面結構。</li>
+        <li><strong>導航:</strong> 使用 Menu 和 Breadcrumb 實現清晰的導航。</li>
+        <li>
+          <strong>表單:</strong> 使用 Form 和 Input、Select
+          等組件構建用戶輸入和配置介面。
+        </li>
+        <li>
+          <strong>數據展示:</strong> 使用 Table 組件展示列表數據，使用
+          Card、Descriptions 展示詳細信息。
+        </li>
+        <li>
+          <strong>消息提示:</strong> 使用 Message、Notification、Modal
+          進行用戶反饋和確認。
+        </li>
+        <li>
+          <strong>圖標:</strong> 充分利用 Ant Design Icons 提升視覺表現力。
+        </li>
+      </ul>
+
+      <h2>5. 用戶故事與使用場景</h2>
+      <p>
+        以下是用戶故事，描述了不同角色如何與 AI 聊天系統互動，以滿足其需求：
+      </p>
+      <div class="sticky-note">
+        <h4>作為一名新入職員工</h4>
+        <p>
+          我希望能夠快速找到公司內部規章制度和常用工具的指引，以便我能盡快熟悉工作環境。
+        </p>
+      </div>
+      <div class="sticky-note">
+        <h4>作為一名技術支援人員</h4>
+        <p>
+          我希望能夠快速檢索常見問題的解決方案和技術文檔，以便我能高效地為客戶提供支援。
+        </p>
+      </div>
+      <div class="sticky-note">
+        <h4>作為一名產品經理</h4>
+        <p>
+          我希望能夠分析用戶對產品的反饋和建議，以便我能更好地優化產品功能。
+        </p>
+      </div>
+      <div class="sticky-note">
+        <h4>作為一名銷售人員</h4>
+        <p>
+          我希望能夠快速獲取產品的最新資料和銷售話術，以便我能更有效地與潛在客戶溝通。
+        </p>
+      </div>
+      <div class="sticky-note">
+        <h4>作為一名管理層人員</h4>
+        <p>
+          我希望能夠查看各部門的 AI 使用情況報告，以便我能評估 AI
+          工具的效益並做出決策。
+        </p>
+      </div>
+
+      <h2>6. 原型設計建議 (線框圖概念)</h2>
+      <p>基於上述原則和範例，可以構建以下線框圖概念：</p>
+      <h3>6.1. 主聊天頁面佈局</h3>
+      <div class="code-block">
+        <pre><code>
++------------------------------------------------------------------+
+| Header (Logo, 用戶信息, 設置)                                    |
++------------------------------------------------------------------+
+|                                                                  |
+| +---------------------+ +------------------------------------+ |
+| | 側邊欄              | | 主聊天區域                         | |
+| | - 新對話            | |                                    | |
+| | - 對話歷史          | |   [消息氣泡 - AI 回覆]             | |
+| | - 智能體列表        | |   [消息氣泡 - 用戶輸入]            | |
+| | - 模型選擇          | |   [消息氣泡 - AI 回覆]             | |
+| |                     | |                                    | |
+| |                     | |   +------------------------------+ |
+| |                     | |   | 輸入框 (支持多行)            | |
+| |                     | |   +------------------------------+ |
+| |                     | |   | [文件上傳] [表情] [發送按鈕] | |
+| +---------------------+ +------------------------------------+ |
+|                                                                  |
++------------------------------------------------------------------+
+            </code></pre>
+      </div>
+
+      <h3>6.2. 管理後台 - 模型管理頁面</h3>
+      <div class="code-block">
+        <pre><code>
++------------------------------------------------------------------+
+| Header (管理員名稱, 登出)                                        |
++------------------------------------------------------------------+
+|                                                                  |
+| +---------------------+ +------------------------------------+ |
+| | 側邊導航            | | 模型管理                           | |
+| | - 儀表板            | |                                    | |
+| | - 模型管理          | |   +------------------------------+ |
+| | - 智能體管理        | |   | [新增模型按鈕]               | |
+| | - 用戶管理          | |   +------------------------------+ |
+| |                     | |                                    | |
+| |                     | |   +------------------------------+ |
+| |                     | |   | 表格: 模型列表                 | |
+| |                     | |   | (名稱, 類型, 狀態, 操作)     | |
+| |                     | |   | [編輯] [刪除] [測試]         | |
+| |                     | |   +------------------------------+ |
+| +---------------------+ +------------------------------------+ |
+|                                                                  |
++------------------------------------------------------------------+
+            </code></pre>
+      </div>
+
+      <h2>7. 驗收標準</h2>
+      <ul>
+        <li>UI 介面符合專案設計規範，色彩、字體、間距等視覺元素統一。</li>
+        <li>
+          所有核心功能（對話、模型選擇、智能體切換、文件上傳、管理員操作）的 UI
+          流程順暢，無明顯卡頓或錯誤。
+        </li>
+        <li>介面在主流瀏覽器和不同螢幕尺寸下響應良好。</li>
+        <li>用戶輸入和系統反饋清晰明確，錯誤提示友好。</li>
+        <li>管理後台功能完整，數據展示清晰，操作便捷。</li>
+      </ul>
+
+      <p>本研究文件將作為後續 UI/UX 設計和前端開發的基礎。</p>
+    </div>
+  </body>
+</html>

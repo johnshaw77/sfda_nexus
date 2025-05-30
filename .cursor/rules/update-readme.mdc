@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+在每一次的更新完成後，記得更新 readme.md, 視狀況增加待辦事項

@@ -1,0 +1,12 @@
+---
+description: 
+globs: *.vue
+alwaysApply: false
+---
+引入規則:
+1. 當組件或模塊在當前目錄下時，使用相對路徑引入。例如:
+   - import MyComponent from './MyComponent.vue';
+   
+2. 當組件或模塊不在當前目錄時，使用別名 @ 來引入。例如:
+   - 原本的引入方式: import MyComponent from '../components/MyComponent.vue';
+   - 修改後的引入方式: import MyComponent from '@/components/MyComponent.vue';

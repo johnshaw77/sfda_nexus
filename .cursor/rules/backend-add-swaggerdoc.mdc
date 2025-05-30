@@ -1,0 +1,6 @@
+---
+description: 
+globs: backend/src/routes/*.js
+alwaysApply: false
+---
+要撰寫 swagger doc

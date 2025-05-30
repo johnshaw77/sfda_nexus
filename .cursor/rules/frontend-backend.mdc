@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+前端目錄是在 frontend
+後端目錄是在 backend
