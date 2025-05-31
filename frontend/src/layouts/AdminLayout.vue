@@ -153,6 +153,11 @@
             <span>用戶管理</span>
           </a-menu-item>
 
+          <a-menu-item key="agents">
+            <RobotOutlined />
+            <span>智能體管理</span>
+          </a-menu-item>
+
           <a-menu-item key="system">
             <SettingOutlined />
             <span>系統設置</span>
@@ -208,30 +213,35 @@
       </a-layout-sider>
 
       <!-- 內容區域 -->
-      <a-layout-content class="admin-content">
-        <!-- 麵包屑導航 -->
+      <a-layout-content
+        class="admin-content"
+        :class="{ collapsed }">
+        <!-- 內容頭部 -->
         <div class="content-header">
           <a-breadcrumb class="breadcrumb">
             <a-breadcrumb-item>
-              <router-link to="/admin/dashboard">管理中心</router-link>
+              <HomeOutlined />
+              <span>管理員</span>
             </a-breadcrumb-item>
-            <a-breadcrumb-item v-if="currentPageTitle">
-              {{ currentPageTitle }}
-            </a-breadcrumb-item>
+            <a-breadcrumb-item>{{ currentPageTitle }}</a-breadcrumb-item>
           </a-breadcrumb>
 
-          <!-- 頁面操作 -->
           <div class="page-actions">
-            <a-button @click="handleRefresh">
-              <ReloadOutlined />
-              刷新
-            </a-button>
-            <a-button
-              type="primary"
-              @click="handleQuickAction">
-              <PlusOutlined />
-              快速操作
-            </a-button>
+            <a-tooltip title="刷新頁面">
+              <a-button
+                type="text"
+                @click="handleRefresh">
+                <ReloadOutlined />
+              </a-button>
+            </a-tooltip>
+
+            <a-tooltip title="全屏">
+              <a-button
+                type="text"
+                @click="handleFullscreen">
+                <FullscreenOutlined />
+              </a-button>
+            </a-tooltip>
           </div>
         </div>
 
@@ -306,6 +316,9 @@ import {
   LineChartOutlined,
   ReloadOutlined,
   PlusOutlined,
+  HomeOutlined,
+  FullscreenOutlined,
+  RobotOutlined,
 } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
@@ -347,6 +360,7 @@ const handleMenuClick = ({ key }) => {
   const routeMap = {
     dashboard: "/admin/dashboard",
     users: "/admin/users",
+    agents: "/admin/agents",
     system: "/admin/system",
     logs: "/admin/logs",
     database: "/admin/database",
@@ -396,8 +410,8 @@ const handleRefresh = () => {
   window.location.reload();
 };
 
-const handleQuickAction = () => {
-  message.info("快速操作功能開發中");
+const handleFullscreen = () => {
+  message.info("全屏功能開發中");
 };
 
 // 監聽路由變化，更新選中的菜單項
@@ -407,6 +421,7 @@ watch(
     const pathToKey = {
       "/admin/dashboard": "dashboard",
       "/admin/users": "users",
+      "/admin/agents": "agents",
       "/admin/system": "system",
       "/admin/logs": "logs",
       "/admin/database": "database",
@@ -441,16 +456,21 @@ const loadSystemStats = () => {
 
 <style scoped>
 .admin-layout {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .admin-header {
-  background: #001529;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 0;
-  position: sticky;
+  height: 64px;
+  line-height: 64px;
+  position: fixed;
   top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -519,13 +539,20 @@ const loadSystemStats = () => {
 }
 
 .admin-main {
+  margin-top: 64px;
   height: calc(100vh - 64px);
+  display: flex;
 }
 
 .admin-sider {
   background: #fff;
   border-right: 1px solid #f0f0f0;
-  position: relative;
+  position: fixed;
+  left: 0;
+  top: 64px;
+  bottom: 0;
+  z-index: 100;
+  overflow: hidden;
 }
 
 .sider-trigger {
@@ -568,8 +595,18 @@ const loadSystemStats = () => {
 }
 
 .admin-content {
+  margin-left: 240px;
   padding: 0;
   background: #f0f2f5;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  transition: margin-left 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-content.collapsed {
+  margin-left: 80px;
 }
 
 .content-header {
@@ -579,6 +616,10 @@ const loadSystemStats = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
 .breadcrumb {
@@ -591,8 +632,10 @@ const loadSystemStats = () => {
 }
 
 .content-wrapper {
+  flex: 1;
   padding: 24px;
-  min-height: calc(100vh - 64px - 65px);
+  overflow-y: auto;
+  background: #f0f2f5;
 }
 
 .monitor-content {

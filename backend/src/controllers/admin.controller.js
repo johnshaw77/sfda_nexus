@@ -12,7 +12,7 @@ import {
   createSuccessResponse,
   ValidationError,
   BusinessError,
-  ForbiddenError,
+  AuthorizationError,
 } from "../middleware/errorHandler.middleware.js";
 import logger from "../utils/logger.util.js";
 import Joi from "joi";
@@ -62,6 +62,114 @@ const schemas = {
     security_settings: Joi.object().optional(),
     notification_settings: Joi.object().optional(),
   }),
+
+  createAgent: Joi.object({
+    name: Joi.string().min(2).max(100).required().messages({
+      "string.min": "智能體名稱至少需要2個字符",
+      "string.max": "智能體名稱不能超過100個字符",
+      "any.required": "智能體名稱是必填項",
+    }),
+    display_name: Joi.string().min(2).max(200).required().messages({
+      "string.min": "顯示名稱至少需要2個字符",
+      "string.max": "顯示名稱不能超過200個字符",
+      "any.required": "顯示名稱是必填項",
+    }),
+    description: Joi.string().max(1000).required().messages({
+      "string.max": "描述不能超過1000個字符",
+      "any.required": "描述是必填項",
+    }),
+    avatar: Joi.string().optional(),
+    system_prompt: Joi.string().min(10).required().messages({
+      "string.min": "系統提示詞至少需要10個字符",
+      "any.required": "系統提示詞是必填項",
+    }),
+    model_id: Joi.number().integer().positive().required().messages({
+      "number.base": "模型ID必須是數字",
+      "number.integer": "模型ID必須是整數",
+      "number.positive": "模型ID必須是正數",
+      "any.required": "模型ID是必填項",
+    }),
+    category: Joi.string()
+      .valid(
+        "general",
+        "assistant",
+        "coding",
+        "writing",
+        "analysis",
+        "customer_service"
+      )
+      .default("general")
+      .messages({
+        "any.only": "分類必須是有效值",
+      }),
+    tags: Joi.array().items(Joi.string()).optional(),
+    capabilities: Joi.object().optional(),
+    tools: Joi.object().optional(),
+    is_active: Joi.any()
+      .custom((value, helpers) => {
+        if (value === true || value === false || value === 1 || value === 0) {
+          return Boolean(value);
+        }
+        return helpers.error("any.invalid");
+      })
+      .default(true),
+    is_public: Joi.any()
+      .custom((value, helpers) => {
+        if (value === true || value === false || value === 1 || value === 0) {
+          return Boolean(value);
+        }
+        return helpers.error("any.invalid");
+      })
+      .default(true),
+  }),
+
+  updateAgent: Joi.object({
+    id: Joi.any().strip(),
+    name: Joi.string().min(2).max(100).optional(),
+    display_name: Joi.string().min(2).max(200).optional(),
+    description: Joi.string().max(1000).optional(),
+    avatar: Joi.string().optional(),
+    system_prompt: Joi.string().min(10).optional(),
+    model_id: Joi.number().integer().positive().optional(),
+    category: Joi.string()
+      .valid(
+        "general",
+        "assistant",
+        "coding",
+        "writing",
+        "analysis",
+        "customer_service"
+      )
+      .optional(),
+    tags: Joi.array().items(Joi.string()).optional(),
+    capabilities: Joi.object().optional(),
+    tools: Joi.object().optional(),
+    is_active: Joi.any()
+      .custom((value, helpers) => {
+        if (value === true || value === false || value === 1 || value === 0) {
+          return Boolean(value);
+        }
+        return helpers.error("any.invalid");
+      })
+      .optional(),
+    is_public: Joi.any()
+      .custom((value, helpers) => {
+        if (value === true || value === false || value === 1 || value === 0) {
+          return Boolean(value);
+        }
+        return helpers.error("any.invalid");
+      })
+      .optional(),
+    usage_count: Joi.any().strip(),
+    rating: Joi.any().strip(),
+    rating_count: Joi.any().strip(),
+    created_at: Joi.any().strip(),
+    updated_at: Joi.any().strip(),
+    created_by: Joi.any().strip(),
+    model_name: Joi.any().strip(),
+    model_display_name: Joi.any().strip(),
+    created_by_username: Joi.any().strip(),
+  }),
 };
 
 /**
@@ -78,7 +186,7 @@ const checkAdminPermission = (user, requiredLevel = "admin") => {
   const requiredLevelNum = roleHierarchy[requiredLevel] || 0;
 
   if (userLevel < requiredLevelNum) {
-    throw new ForbiddenError("權限不足，需要管理員權限");
+    throw new AuthorizationError("權限不足，需要管理員權限");
   }
 };
 
@@ -118,24 +226,14 @@ export const handleGetUser = catchAsync(async (req, res) => {
   checkAdminPermission(req.user, "admin");
 
   const { userId } = req.params;
-  const user = await UserModel.findById(userId);
 
+  // 檢查用戶是否存在
+  const user = await UserModel.findById(userId);
   if (!user) {
     throw new BusinessError("用戶不存在");
   }
 
-  // 獲取用戶統計信息
-  const stats = await getUserStats(userId);
-
-  res.json(
-    createSuccessResponse(
-      {
-        ...user,
-        stats,
-      },
-      "獲取用戶詳情成功"
-    )
-  );
+  res.json(createSuccessResponse(user, "獲取用戶詳情成功"));
 });
 
 /**
@@ -160,11 +258,11 @@ export const handleCreateUser = catchAsync(async (req, res) => {
 
   // 檢查權限：只有super_admin可以創建admin用戶
   if (role === "admin" && req.user.role !== "super_admin") {
-    throw new ForbiddenError("只有超級管理員可以創建管理員用戶");
+    throw new AuthorizationError("只有超級管理員可以創建管理員用戶");
   }
 
   if (role === "super_admin" && req.user.role !== "super_admin") {
-    throw new ForbiddenError("只有超級管理員可以創建超級管理員用戶");
+    throw new AuthorizationError("只有超級管理員可以創建超級管理員用戶");
   }
 
   // 加密密碼
@@ -224,7 +322,7 @@ export const handleUpdateUser = catchAsync(async (req, res) => {
       (targetUser.role === "admin" || value.role === "admin") &&
       req.user.role !== "super_admin"
     ) {
-      throw new ForbiddenError("只有超級管理員可以修改管理員角色");
+      throw new AuthorizationError("只有超級管理員可以修改管理員角色");
     }
 
     // 只有super_admin可以修改super_admin角色
@@ -232,7 +330,7 @@ export const handleUpdateUser = catchAsync(async (req, res) => {
       (targetUser.role === "super_admin" || value.role === "super_admin") &&
       req.user.role !== "super_admin"
     ) {
-      throw new ForbiddenError("只有超級管理員可以修改超級管理員角色");
+      throw new AuthorizationError("只有超級管理員可以修改超級管理員角色");
     }
   }
 
@@ -280,11 +378,11 @@ export const handleDeleteUser = catchAsync(async (req, res) => {
 
   // 只有super_admin可以刪除admin用戶
   if (targetUser.role === "admin" && req.user.role !== "super_admin") {
-    throw new ForbiddenError("只有超級管理員可以刪除管理員用戶");
+    throw new AuthorizationError("只有超級管理員可以刪除管理員用戶");
   }
 
   if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
-    throw new ForbiddenError("只有超級管理員可以刪除超級管理員用戶");
+    throw new AuthorizationError("只有超級管理員可以刪除超級管理員用戶");
   }
 
   // 軟刪除用戶
@@ -319,11 +417,11 @@ export const handleResetUserPassword = catchAsync(async (req, res) => {
 
   // 權限檢查
   if (targetUser.role === "admin" && req.user.role !== "super_admin") {
-    throw new ForbiddenError("只有超級管理員可以重置管理員密碼");
+    throw new AuthorizationError("只有超級管理員可以重置管理員密碼");
   }
 
   if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
-    throw new ForbiddenError("只有超級管理員可以重置超級管理員密碼");
+    throw new AuthorizationError("只有超級管理員可以重置超級管理員密碼");
   }
 
   // 加密新密碼
@@ -423,25 +521,25 @@ export const handleGetAuditLogs = catchAsync(async (req, res) => {
 
   const {
     page = 1,
-    limit = 50,
-    user_id,
+    limit = 20,
     action,
+    user_id,
     start_date,
     end_date,
-    sortOrder = "DESC",
   } = req.query;
+  const offset = (page - 1) * limit;
 
   let whereClause = "WHERE 1=1";
   const params = [];
 
-  if (user_id) {
-    whereClause += " AND user_id = ?";
-    params.push(user_id);
-  }
-
   if (action) {
     whereClause += " AND action = ?";
     params.push(action);
+  }
+
+  if (user_id) {
+    whereClause += " AND user_id = ?";
+    params.push(user_id);
   }
 
   if (start_date) {
@@ -454,40 +552,38 @@ export const handleGetAuditLogs = catchAsync(async (req, res) => {
     params.push(end_date);
   }
 
-  const offset = (parseInt(page) - 1) * parseInt(limit);
-
-  // 獲取總數
-  const { rows: countRows } = await query(
-    `SELECT COUNT(*) as total FROM audit_logs ${whereClause}`,
-    params
-  );
-  const total = countRows[0].total;
-
-  // 獲取日誌列表
-  const { rows } = await query(
-    `SELECT 
-      al.*,
-      u.username,
-      u.email
-    FROM audit_logs al
-    LEFT JOIN users u ON al.user_id = u.id
-    ${whereClause}
-    ORDER BY al.created_at ${sortOrder}
-    LIMIT ? OFFSET ?`,
+  const { rows: logs } = await query(
+    `SELECT al.*, u.username 
+     FROM audit_logs al 
+     LEFT JOIN users u ON al.user_id = u.id 
+     ${whereClause} 
+     ORDER BY al.created_at DESC 
+     LIMIT ? OFFSET ?`,
     [...params, parseInt(limit), offset]
   );
 
-  const result = {
-    data: rows,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      pages: Math.ceil(total / parseInt(limit)),
-    },
-  };
+  const { rows: totalRows } = await query(
+    `SELECT COUNT(*) as total FROM audit_logs al ${whereClause}`,
+    params
+  );
 
-  res.json(createSuccessResponse(result, "獲取審計日誌成功"));
+  const total = totalRows[0].total;
+  const pages = Math.ceil(total / limit);
+
+  res.json(
+    createSuccessResponse(
+      {
+        data: logs,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages,
+        },
+      },
+      "獲取審計日誌成功"
+    )
+  );
 });
 
 /**
@@ -589,6 +685,451 @@ const getSystemStats = async () => {
   };
 };
 
+// ===== 智能體管理方法 =====
+
+/**
+ * 獲取智能體列表（管理員）
+ */
+export const handleGetAgents = catchAsync(async (req, res) => {
+  checkAdminPermission(req.user, "admin");
+
+  const { page = 1, limit = 20, category, is_active, search } = req.query;
+  const offset = (page - 1) * limit;
+
+  let whereClause = "WHERE 1=1";
+  const params = [];
+
+  if (category) {
+    whereClause += " AND a.category = ?";
+    params.push(category);
+  }
+
+  if (is_active !== undefined) {
+    whereClause += " AND a.is_active = ?";
+    params.push(is_active === "true");
+  }
+
+  if (search) {
+    whereClause +=
+      " AND (a.name LIKE ? OR a.display_name LIKE ? OR a.description LIKE ?)";
+    const searchPattern = `%${search}%`;
+    params.push(searchPattern, searchPattern, searchPattern);
+  }
+
+  const { rows: agents } = await query(
+    `SELECT 
+      a.*,
+      m.name as model_name,
+      m.display_name as model_display_name,
+      u.username as created_by_username
+     FROM agents a
+     LEFT JOIN ai_models m ON a.model_id = m.id
+     LEFT JOIN users u ON a.created_by = u.id
+     ${whereClause}
+     ORDER BY a.created_at DESC
+     LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+    params
+  );
+
+  const { rows: totalRows } = await query(
+    `SELECT COUNT(*) as total FROM agents a ${whereClause}`,
+    params
+  );
+
+  const total = totalRows[0].total;
+  const pages = Math.ceil(total / limit);
+
+  res.json(
+    createSuccessResponse(
+      {
+        data: agents,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages,
+        },
+      },
+      "獲取智能體列表成功"
+    )
+  );
+});
+
+/**
+ * 創建智能體
+ */
+export const handleCreateAgent = catchAsync(async (req, res) => {
+  checkAdminPermission(req.user, "admin");
+
+  // 輸入驗證
+  const { error, value } = schemas.createAgent.validate(req.body);
+  if (error) {
+    throw new ValidationError("輸入驗證失敗", error.details);
+  }
+
+  const {
+    name,
+    display_name,
+    description,
+    avatar,
+    system_prompt,
+    model_id,
+    category,
+    tags,
+    capabilities,
+    tools,
+    is_active,
+    is_public,
+  } = value;
+
+  // 檢查智能體名稱是否已存在
+  const { rows: existingAgent } = await query(
+    "SELECT id FROM agents WHERE name = ?",
+    [name]
+  );
+
+  if (existingAgent.length > 0) {
+    throw new BusinessError("智能體名稱已存在");
+  }
+
+  // 檢查模型是否存在
+  const { rows: modelRows } = await query(
+    "SELECT id FROM ai_models WHERE id = ? AND is_active = TRUE",
+    [model_id]
+  );
+
+  if (modelRows.length === 0) {
+    throw new BusinessError("指定的AI模型不存在或已停用");
+  }
+
+  // 創建智能體
+  const { rows } = await query(
+    `INSERT INTO agents (
+      name, display_name, description, avatar, system_prompt, 
+      model_id, category, tags, capabilities, tools, is_active, is_public, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      name,
+      display_name,
+      description,
+      avatar || null,
+      system_prompt,
+      model_id,
+      category,
+      tags ? JSON.stringify(tags) : null,
+      capabilities ? JSON.stringify(capabilities) : null,
+      tools ? JSON.stringify(tools) : null,
+      is_active,
+      is_public,
+      req.user.id,
+    ]
+  );
+
+  const agentId = rows.insertId;
+
+  // 獲取創建的智能體詳情
+  const { rows: newAgent } = await query(
+    `SELECT 
+      a.*,
+      m.name as model_name,
+      m.display_name as model_display_name
+     FROM agents a
+     LEFT JOIN ai_models m ON a.model_id = m.id
+     WHERE a.id = ?`,
+    [agentId]
+  );
+
+  logger.audit(req.user.id, "AGENT_CREATED", {
+    agentId: agentId,
+    agentName: name,
+    category: category,
+  });
+
+  res.status(201).json(createSuccessResponse(newAgent[0], "智能體創建成功"));
+});
+
+/**
+ * 更新智能體
+ */
+export const handleUpdateAgent = catchAsync(async (req, res) => {
+  checkAdminPermission(req.user, "admin");
+
+  const { agentId } = req.params;
+
+  console.log("🔍 更新智能體請求數據:", JSON.stringify(req.body, null, 2));
+
+  // 輸入驗證
+  const { error, value } = schemas.updateAgent.validate(req.body);
+  if (error) {
+    console.error("❌ 驗證失敗詳情:", error.details);
+    console.error(
+      "❌ 驗證失敗的字段:",
+      error.details.map((d) => ({
+        field: d.path.join("."),
+        message: d.message,
+        value: d.context?.value,
+      }))
+    );
+    throw new ValidationError("輸入驗證失敗", error.details);
+  }
+
+  console.log("✅ 驗證通過，處理後的數據:", JSON.stringify(value, null, 2));
+
+  // 檢查智能體是否存在
+  const { rows: existingAgent } = await query(
+    "SELECT * FROM agents WHERE id = ?",
+    [agentId]
+  );
+
+  if (existingAgent.length === 0) {
+    throw new BusinessError("智能體不存在");
+  }
+
+  const agent = existingAgent[0];
+
+  // 如果更新名稱，檢查是否與其他智能體重複
+  if (value.name && value.name !== agent.name) {
+    const { rows: nameCheck } = await query(
+      "SELECT id FROM agents WHERE name = ? AND id != ?",
+      [value.name, agentId]
+    );
+
+    if (nameCheck.length > 0) {
+      throw new BusinessError("智能體名稱已存在");
+    }
+  }
+
+  // 如果更新模型，檢查模型是否存在
+  if (value.model_id) {
+    console.log(
+      "🔍 檢查模型 ID:",
+      value.model_id,
+      "類型:",
+      typeof value.model_id
+    );
+
+    const { rows: modelRows } = await query(
+      "SELECT id FROM ai_models WHERE id = ? AND is_active = TRUE",
+      [value.model_id]
+    );
+
+    console.log("🔍 模型查詢結果:", modelRows);
+
+    if (modelRows.length === 0) {
+      throw new BusinessError("指定的AI模型不存在或已停用");
+    }
+  }
+
+  // 構建更新語句
+  const updateFields = [];
+  const updateValues = [];
+
+  // 過濾掉不能更新的字段
+  const excludeFields = ["id", "created_at", "created_by", "updated_at"];
+
+  Object.keys(value).forEach((key) => {
+    if (value[key] !== undefined && !excludeFields.includes(key)) {
+      updateFields.push(`${key} = ?`);
+
+      // 處理特殊字段
+      if (key === "tags" || key === "capabilities" || key === "tools") {
+        updateValues.push(
+          typeof value[key] === "object"
+            ? JSON.stringify(value[key])
+            : value[key]
+        );
+      } else if (key === "is_active" || key === "is_public") {
+        updateValues.push(value[key]);
+      } else {
+        updateValues.push(value[key]);
+      }
+    }
+  });
+
+  if (updateFields.length === 0) {
+    throw new ValidationError("沒有提供要更新的字段");
+  }
+
+  updateFields.push("updated_at = CURRENT_TIMESTAMP");
+  updateValues.push(agentId);
+
+  const finalSQL = `UPDATE agents SET ${updateFields.join(", ")} WHERE id = ?`;
+
+  console.log("🔍 準備執行的 UPDATE SQL:");
+  console.log("SQL:", finalSQL);
+  console.log("參數:", updateValues);
+  console.log(
+    "格式化 SQL:",
+    finalSQL.replace(/\?/g, () => {
+      const val = updateValues.shift();
+      updateValues.push(val); // 重新放回去
+      return typeof val === "string" ? `'${val}'` : val;
+    })
+  );
+
+  // 執行更新
+  await query(finalSQL, updateValues);
+
+  // 獲取更新後的智能體詳情
+  const { rows: updatedAgent } = await query(
+    `SELECT 
+      a.*,
+      m.name as model_name,
+      m.display_name as model_display_name
+     FROM agents a
+     LEFT JOIN ai_models m ON a.model_id = m.id
+     WHERE a.id = ?`,
+    [agentId]
+  );
+
+  logger.audit(req.user.id, "AGENT_UPDATED", {
+    agentId: parseInt(agentId),
+    agentName: updatedAgent[0].name,
+    updatedFields: Object.keys(value),
+  });
+
+  res.json(createSuccessResponse(updatedAgent[0], "智能體更新成功"));
+});
+
+/**
+ * 刪除智能體
+ */
+export const handleDeleteAgent = catchAsync(async (req, res) => {
+  checkAdminPermission(req.user, "admin");
+
+  const { agentId } = req.params;
+
+  // 檢查智能體是否存在
+  const { rows: existingAgent } = await query(
+    "SELECT * FROM agents WHERE id = ?",
+    [agentId]
+  );
+
+  if (existingAgent.length === 0) {
+    throw new BusinessError("智能體不存在");
+  }
+
+  const agent = existingAgent[0];
+
+  // 檢查是否有相關的對話
+  const { rows: conversationCheck } = await query(
+    "SELECT COUNT(*) as count FROM conversations WHERE agent_id = ?",
+    [agentId]
+  );
+
+  if (conversationCheck[0].count > 0) {
+    // 如果有相關對話，只是標記為不活躍而不是物理刪除
+    await query(
+      "UPDATE agents SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [agentId]
+    );
+
+    logger.audit(req.user.id, "AGENT_DEACTIVATED", {
+      agentId: parseInt(agentId),
+      agentName: agent.name,
+      reason: "有相關對話，僅停用",
+    });
+
+    res.json(createSuccessResponse(null, "智能體已停用（因為有相關對話）"));
+  } else {
+    // 沒有相關對話，可以物理刪除
+    await query("DELETE FROM agents WHERE id = ?", [agentId]);
+
+    logger.audit(req.user.id, "AGENT_DELETED", {
+      agentId: parseInt(agentId),
+      agentName: agent.name,
+    });
+
+    res.json(createSuccessResponse(null, "智能體刪除成功"));
+  }
+});
+
+/**
+ * 複製智能體
+ */
+export const handleDuplicateAgent = catchAsync(async (req, res) => {
+  checkAdminPermission(req.user, "admin");
+
+  const { agentId } = req.params;
+
+  // 檢查原智能體是否存在
+  const { rows: existingAgent } = await query(
+    "SELECT * FROM agents WHERE id = ?",
+    [agentId]
+  );
+
+  if (existingAgent.length === 0) {
+    throw new BusinessError("智能體不存在");
+  }
+
+  const originalAgent = existingAgent[0];
+
+  // 生成新的名稱
+  let newName = `${originalAgent.name}_copy`;
+  let counter = 1;
+
+  // 檢查名稱是否重複，如果重複則添加數字後綴
+  while (true) {
+    const { rows: nameCheck } = await query(
+      "SELECT id FROM agents WHERE name = ?",
+      [newName]
+    );
+
+    if (nameCheck.length === 0) {
+      break;
+    }
+
+    counter++;
+    newName = `${originalAgent.name}_copy_${counter}`;
+  }
+
+  // 創建複製的智能體
+  const { rows } = await query(
+    `INSERT INTO agents (
+      name, display_name, description, avatar, system_prompt, 
+      model_id, category, tags, capabilities, tools, is_active, is_public, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      newName,
+      `${originalAgent.display_name} (副本)`,
+      originalAgent.description,
+      originalAgent.avatar,
+      originalAgent.system_prompt,
+      originalAgent.model_id,
+      originalAgent.category,
+      originalAgent.tags,
+      originalAgent.capabilities,
+      originalAgent.tools,
+      false, // 複製的智能體默認為不活躍
+      originalAgent.is_public,
+      req.user.id,
+    ]
+  );
+
+  const newAgentId = rows.insertId;
+
+  // 獲取新創建的智能體詳情
+  const { rows: newAgent } = await query(
+    `SELECT 
+      a.*,
+      m.name as model_name,
+      m.display_name as model_display_name
+     FROM agents a
+     LEFT JOIN ai_models m ON a.model_id = m.id
+     WHERE a.id = ?`,
+    [newAgentId]
+  );
+
+  logger.audit(req.user.id, "AGENT_DUPLICATED", {
+    originalAgentId: parseInt(agentId),
+    newAgentId: newAgentId,
+    originalName: originalAgent.name,
+    newName: newName,
+  });
+
+  res.status(201).json(createSuccessResponse(newAgent[0], "智能體複製成功"));
+});
+
 export default {
   handleGetUsers,
   handleGetUser,
@@ -600,4 +1141,9 @@ export default {
   handleGetSystemConfig,
   handleUpdateSystemConfig,
   handleGetAuditLogs,
+  handleGetAgents,
+  handleCreateAgent,
+  handleUpdateAgent,
+  handleDeleteAgent,
+  handleDuplicateAgent,
 };

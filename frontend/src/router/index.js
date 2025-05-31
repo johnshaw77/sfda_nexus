@@ -63,6 +63,16 @@ const routes = [
         },
       },
       {
+        path: "chat/:agentId",
+        name: "ChatWithAgent",
+        component: () => import("@/views/chat/index.vue"),
+        meta: {
+          title: "聊天 - SFDA Nexus",
+          icon: "MessageOutlined",
+        },
+        props: true,
+      },
+      {
         path: "user",
         name: "UserProfile",
         component: () => import("@/views/user/index.vue"),

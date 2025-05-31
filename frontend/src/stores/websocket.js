@@ -341,6 +341,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
     connect,
     disconnect,
     handleSendMessage,
+    sendMessage: handleSendMessage,
     addEventListener,
     removeEventListener,
     handleJoinRoom,

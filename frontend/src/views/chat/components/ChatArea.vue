@@ -3,17 +3,56 @@
     <!-- 聊天頭部 -->
     <div class="chat-area-header">
       <div class="conversation-info">
-        <h3 class="conversation-title">
-          {{ chatStore.currentConversation?.title || "新對話" }}
-        </h3>
-        <div class="conversation-meta">
-          <span class="message-count">
-            {{ chatStore.currentMessages.length }} 條消息
-          </span>
-          <span class="last-active">
-            最後活動:
-            {{ formatTime(chatStore.currentConversation?.updated_at) }}
-          </span>
+        <!-- 智能體信息 -->
+        <div
+          v-if="agent"
+          class="agent-info">
+          <div class="agent-avatar">
+            <div
+              class="avatar-bg"
+              :style="{ background: agent.gradient }">
+              <svg
+                v-if="agent.icon"
+                class="agent-icon"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20">
+                <path
+                  fill="white"
+                  :d="agent.icon" />
+              </svg>
+              <span
+                v-else
+                class="agent-initial"
+                >{{ agent.name.charAt(0) }}</span
+              >
+            </div>
+            <div
+              class="status-dot"
+              :class="agent.status"></div>
+          </div>
+          <div class="agent-details">
+            <h3 class="agent-name">{{ agent.name }}</h3>
+            <p class="agent-description">{{ agent.description }}</p>
+          </div>
+        </div>
+
+        <!-- 對話信息 -->
+        <div
+          v-else
+          class="conversation-title-section">
+          <h3 class="conversation-title">
+            {{ chatStore.currentConversation?.title || "新對話" }}
+          </h3>
+          <div class="conversation-meta">
+            <span class="message-count">
+              {{ chatStore.messages.length }} 條消息
+            </span>
+            <span class="last-active">
+              最後活動:
+              {{ formatTime(chatStore.currentConversation?.updated_at) }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -74,19 +113,48 @@
         tip="載入消息中...">
         <!-- 空狀態 -->
         <div
-          v-if="chatStore.currentMessages.length === 0"
+          v-if="chatStore.messages.length === 0"
           class="empty-messages">
           <div class="empty-content">
             <div class="empty-icon">
-              <MessageOutlined />
+              <div
+                class="agent-avatar-large"
+                v-if="agent">
+                <div
+                  class="avatar-bg"
+                  :style="{ background: agent.gradient }">
+                  <svg
+                    v-if="agent.icon"
+                    class="agent-icon"
+                    viewBox="0 0 24 24"
+                    width="32"
+                    height="32">
+                    <path
+                      fill="white"
+                      :d="agent.icon" />
+                  </svg>
+                  <span
+                    v-else
+                    class="agent-initial"
+                    >{{ agent.name.charAt(0) }}</span
+                  >
+                </div>
+              </div>
+              <MessageOutlined v-else />
             </div>
-            <h3>開始對話</h3>
-            <p>向 AI 助手發送消息開始對話</p>
+            <h3>{{ agent ? `與 ${agent.name} 開始對話` : "開始對話" }}</h3>
+            <p>
+              {{
+                agent
+                  ? `${agent.name} 專精於 ${agent.tags?.join("、")}`
+                  : "向 AI 助手發送消息開始對話"
+              }}
+            </p>
 
             <!-- 快速提示 -->
             <div class="quick-prompts">
               <a-button
-                v-for="prompt in quickPrompts"
+                v-for="prompt in getQuickPrompts()"
                 :key="prompt.id"
                 type="dashed"
                 size="small"
@@ -102,7 +170,7 @@
           v-else
           class="messages-list">
           <MessageBubble
-            v-for="message in chatStore.currentMessages"
+            v-for="message in chatStore.messages"
             :key="message.id"
             :message="message"
             :show-status="message.id === lastSentMessageId"
@@ -111,7 +179,7 @@
 
           <!-- AI 輸入狀態指示器 -->
           <div
-            v-if="chatStore.isAITyping"
+            v-if="chatStore.aiTyping"
             class="typing-indicator">
             <div class="typing-bubble">
               <div class="typing-dots">
@@ -119,7 +187,9 @@
                 <span></span>
                 <span></span>
               </div>
-              <span class="typing-text">AI 正在思考中...</span>
+              <span class="typing-text"
+                >{{ agent?.name || "AI" }} 正在思考中...</span
+              >
             </div>
           </div>
         </div>
@@ -138,7 +208,9 @@
             <RobotOutlined v-else />
             <span
               >回覆
-              {{ quotedMessage.role === "user" ? "用戶" : "AI助手" }}</span
+              {{
+                quotedMessage.role === "user" ? "用戶" : agent?.name || "AI助手"
+              }}</span
             >
           </div>
           <div class="quote-text">
@@ -158,7 +230,7 @@
         <div class="input-wrapper">
           <a-textarea
             v-model:value="messageText"
-            placeholder="輸入消息... (Shift+Enter 換行，Enter 發送)"
+            :placeholder="`向 ${agent?.name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送)`"
             :auto-size="{ minRows: 1, maxRows: 6 }"
             :disabled="sending"
             @keydown="handleKeyDown"
@@ -198,7 +270,8 @@
                 type="primary"
                 :loading="sending"
                 :disabled="!messageText.trim()"
-                @click="handleSendMessage">
+                @click="handleSendMessage"
+                class="send-button">
                 <SendOutlined />
               </a-button>
             </div>
@@ -296,6 +369,14 @@ const quickPrompts = ref([
   { id: 4, text: "解釋一下這個概念" },
 ]);
 
+// Props
+const props = defineProps({
+  agent: {
+    type: Object,
+    default: null,
+  },
+});
+
 // 方法
 const formatTime = (timestamp) => {
   if (!timestamp) return "剛剛";
@@ -336,7 +417,8 @@ const scrollToBottom = () => {
 
 // 事件處理
 const handleModelChange = (modelId) => {
-  chatStore.handleSetCurrentModel(modelId);
+  // chatStore.handleSetCurrentModel(modelId);
+  selectedModel.value = modelId;
   message.success("已切換 AI 模型");
 };
 
@@ -345,14 +427,35 @@ const handleSendMessage = async () => {
 
   try {
     sending.value = true;
-    const messageId = await chatStore.handleSendMessage(
-      messageText.value.trim(),
-      quotedMessage.value
-    );
-    lastSentMessageId.value = messageId;
-    messageText.value = "";
-    quotedMessage.value = null;
-    scrollToBottom();
+
+    // 如果沒有當前對話，先創建一個
+    let conversationId = chatStore.currentConversation?.id;
+    if (!conversationId) {
+      const newConversation = await chatStore.handleCreateConversation({
+        title: messageText.value.trim().substring(0, 50),
+        agent_id: props.agent?.id,
+      });
+      conversationId = newConversation?.id;
+    }
+
+    if (conversationId) {
+      const result = await chatStore.handleSendMessage(
+        conversationId,
+        messageText.value.trim(),
+        {
+          quotedMessage: quotedMessage.value,
+          temperature: chatSettings.value.temperature,
+          maxTokens: chatSettings.value.maxTokens,
+        }
+      );
+
+      if (result) {
+        lastSentMessageId.value = result.user_message?.id;
+        messageText.value = "";
+        quotedMessage.value = null;
+        scrollToBottom();
+      }
+    }
   } catch (error) {
     message.error("發送消息失敗");
     console.error("發送消息失敗:", error);
@@ -370,10 +473,10 @@ const handleKeyDown = (event) => {
 
 const handleInputChange = () => {
   // 發送輸入狀態
-  wsStore.sendMessage("user_typing", {
-    conversationId: chatStore.currentConversation?.id,
-    isTyping: messageText.value.length > 0,
-  });
+  wsStore.handleSendTypingStatus(
+    chatStore.currentConversation?.id,
+    messageText.value.length > 0
+  );
 };
 
 const handleQuickPrompt = (promptText) => {
@@ -391,8 +494,8 @@ const handleCancelQuote = () => {
 
 const handleRegenerateResponse = async (message) => {
   try {
-    await chatStore.handleRegenerateResponse(message.id);
-    message.success("正在重新生成回應");
+    // await chatStore.handleRegenerateResponse(message.id);
+    message.success("重新生成功能開發中");
   } catch (error) {
     message.error("重新生成失敗");
     console.error("重新生成失敗:", error);
@@ -415,7 +518,7 @@ const handleShowSettings = () => {
 };
 
 const handleSaveSettings = () => {
-  chatStore.handleUpdateChatSettings(chatSettings.value);
+  // chatStore.handleUpdateChatSettings(chatSettings.value);
   settingsModalVisible.value = false;
   message.success("設置已保存");
 };
@@ -426,8 +529,8 @@ const handleCancelSettings = () => {
 
 const handleExportConversation = async () => {
   try {
-    await chatStore.handleExportConversation(chatStore.currentConversation.id);
-    message.success("對話已導出");
+    // await chatStore.handleExportConversation(chatStore.currentConversation.id);
+    message.success("導出功能開發中");
   } catch (error) {
     message.error("導出失敗");
     console.error("導出失敗:", error);
@@ -436,17 +539,72 @@ const handleExportConversation = async () => {
 
 const handleClearMessages = async () => {
   try {
-    await chatStore.handleClearMessages(chatStore.currentConversation.id);
-    message.success("消息已清空");
+    // await chatStore.handleClearMessages(chatStore.currentConversation.id);
+    message.success("清空功能開發中");
   } catch (error) {
     message.error("清空失敗");
     console.error("清空失敗:", error);
   }
 };
 
+// 根據智能體獲取快速提示
+const getQuickPrompts = () => {
+  if (!props.agent) {
+    return quickPrompts.value;
+  }
+
+  // 根據智能體類型返回不同的快速提示
+  const agentPrompts = {
+    1: [
+      // Arthur - 教育
+      { id: 1, text: "解釋一個複雜的概念" },
+      { id: 2, text: "幫我學習新知識" },
+      { id: 3, text: "分析這個問題" },
+    ],
+    2: [
+      // Fred - 體育
+      { id: 1, text: "分析球隊表現" },
+      { id: 2, text: "預測比賽結果" },
+      { id: 3, text: "球員數據分析" },
+    ],
+    3: [
+      // Nikki - 營養
+      { id: 1, text: "制定健康飲食計劃" },
+      { id: 2, text: "分析營養成分" },
+      { id: 3, text: "推薦健康食譜" },
+    ],
+    4: [
+      // Rich - 金融
+      { id: 1, text: "投資建議" },
+      { id: 2, text: "理財規劃" },
+      { id: 3, text: "市場分析" },
+    ],
+    5: [
+      // Travis - 旅遊
+      { id: 1, text: "規劃旅行路線" },
+      { id: 2, text: "推薦旅遊景點" },
+      { id: 3, text: "酒店預訂建議" },
+    ],
+    6: [
+      // Libby - 閱讀
+      { id: 1, text: "推薦好書" },
+      { id: 2, text: "書籍評論" },
+      { id: 3, text: "閱讀計劃" },
+    ],
+    7: [
+      // Bizzy - 商業
+      { id: 1, text: "商業策略分析" },
+      { id: 2, text: "市場調研" },
+      { id: 3, text: "商業計劃書" },
+    ],
+  };
+
+  return agentPrompts[props.agent.id] || quickPrompts.value;
+};
+
 // 監聽消息變化，自動滾動到底部
 watch(
-  () => chatStore.currentMessages.length,
+  () => chatStore.messages.length,
   () => {
     scrollToBottom();
   }
@@ -454,7 +612,7 @@ watch(
 
 // 監聽 AI 輸入狀態變化
 watch(
-  () => chatStore.isAITyping,
+  () => chatStore.aiTyping,
   (isTyping) => {
     if (isTyping) {
       scrollToBottom();
@@ -469,16 +627,25 @@ onMounted(async () => {
 
     // 載入當前對話的消息
     if (chatStore.currentConversation) {
-      await chatStore.handleLoadMessages(chatStore.currentConversation.id);
+      await chatStore.handleGetMessages(chatStore.currentConversation.id);
     }
 
     // 載入可用模型
-    await chatStore.handleLoadAvailableModels();
+    await chatStore.handleGetAvailableModels();
 
     // 設置默認模型
-    if (chatStore.availableModels.length > 0) {
-      selectedModel.value =
-        chatStore.currentModel || chatStore.availableModels[0].id;
+    if (
+      chatStore.availableModels &&
+      Object.keys(chatStore.availableModels).length > 0
+    ) {
+      // 從 ollama 或 gemini 中選擇第一個可用模型
+      const allModels = [
+        ...(chatStore.availableModels.ollama || []),
+        ...(chatStore.availableModels.gemini || []),
+      ];
+      if (allModels.length > 0) {
+        selectedModel.value = allModels[0].id || allModels[0];
+      }
     }
 
     scrollToBottom();
@@ -493,10 +660,7 @@ onMounted(async () => {
 onUnmounted(() => {
   // 清理輸入狀態
   if (wsStore.isConnected) {
-    wsStore.sendMessage("user_typing", {
-      conversationId: chatStore.currentConversation?.id,
-      isTyping: false,
-    });
+    wsStore.handleSendTypingStatus(chatStore.currentConversation?.id, false);
   }
 });
 </script>
@@ -796,5 +960,121 @@ onUnmounted(() => {
   .quoted-message-display {
     padding: 8px 16px;
   }
+}
+
+/* 智能體信息樣式 */
+.agent-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agent-avatar {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.agent-avatar .avatar-bg {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.agent-avatar .agent-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.agent-avatar .agent-initial {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.agent-avatar .status-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.status-dot.online {
+  background: #48bb78;
+}
+
+.status-dot.away {
+  background: #ed8936;
+}
+
+.status-dot.offline {
+  background: #a0aec0;
+}
+
+.agent-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 4px 0;
+}
+
+.agent-description {
+  font-size: 13px;
+  color: #718096;
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.conversation-title-section .conversation-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 4px 0;
+}
+
+/* 空狀態智能體頭像 */
+.agent-avatar-large {
+  margin: 0 auto 16px;
+}
+
+.agent-avatar-large .avatar-bg {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.agent-avatar-large .agent-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.agent-avatar-large .agent-initial {
+  font-size: 32px;
+  font-weight: 600;
 }
 </style>

@@ -2,70 +2,64 @@
   <div class="chat-container">
     <!-- 聊天內容區域 -->
     <div class="chat-content">
-      <!-- 側邊欄 -->
-      <div
-        class="chat-sidebar"
-        :class="{ open: sidebarOpen }">
-        <ConversationList />
-      </div>
-
       <!-- 主聊天區域 -->
       <div class="chat-main">
-        <ChatArea v-if="chatStore.currentConversation" />
+        <ChatArea
+          v-if="selectedAgent"
+          :agent="selectedAgent" />
         <WelcomeScreen v-else />
       </div>
     </div>
-
-    <!-- 遮罩層（移動端） -->
-    <div
-      v-if="isMobile && sidebarOpen"
-      class="sidebar-overlay"
-      @click="closeSidebar"></div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useChatStore } from "@/stores/chat";
 import { useAuthStore } from "@/stores/auth";
-import ConversationList from "./ConversationList.vue";
+import { useAgentsStore } from "@/stores/agents";
 import ChatArea from "./ChatArea.vue";
 import WelcomeScreen from "./WelcomeScreen.vue";
+
+// Props
+const props = defineProps({
+  agentId: {
+    type: String,
+    default: null,
+  },
+});
 
 // Store
 const wsStore = useWebSocketStore();
 const chatStore = useChatStore();
 const authStore = useAuthStore();
+const agentsStore = useAgentsStore();
 
-// 響應式狀態
-const sidebarOpen = ref(false);
-const isMobile = ref(false);
+// 計算當前選中的智能體
+const selectedAgent = computed(() => {
+  if (!props.agentId) return null;
+  return agentsStore.getAgentById(parseInt(props.agentId));
+});
 
-// 檢查是否為移動端
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768;
-  if (!isMobile.value) {
-    sidebarOpen.value = false;
+// 監聽智能體變化
+watch(
+  () => props.agentId,
+  (newAgentId) => {
+    if (newAgentId && selectedAgent.value) {
+      console.log(
+        "切換到智能體:",
+        selectedAgent.value.display_name || selectedAgent.value.name
+      );
+      // 設置當前智能體到 store
+      agentsStore.setCurrentAgent(selectedAgent.value);
+      // 這裡可以添加切換智能體的邏輯，比如創建新對話或切換到該智能體的對話
+    }
   }
-};
-
-// 關閉側邊欄
-const closeSidebar = () => {
-  sidebarOpen.value = false;
-};
-
-// 監聽窗口大小變化
-const handleResize = () => {
-  checkMobile();
-};
+);
 
 onMounted(async () => {
   console.log("🚀 ChatContainer 載入開始");
-
-  // 檢查移動端
-  checkMobile();
-  window.addEventListener("resize", handleResize);
 
   // 確保認證狀態已初始化
   if (!authStore.isInitialized) {
@@ -82,6 +76,10 @@ onMounted(async () => {
   console.log("✅ 認證狀態確認，開始初始化聊天數據");
 
   try {
+    // 初始化智能體數據
+    await agentsStore.initialize();
+    console.log("✅ 智能體數據初始化完成");
+
     // 初始化聊天數據
     await chatStore.handleInitializeChat();
     console.log("✅ 聊天數據初始化完成");
@@ -91,10 +89,6 @@ onMounted(async () => {
 
   // 設置WebSocket事件監聽
   setupWebSocketListeners();
-});
-
-onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
 });
 
 // 設置WebSocket事件監聽
@@ -132,7 +126,7 @@ const setupWebSocketListeners = () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f5f5f5;
+  background: #f8fafc;
 }
 
 .chat-content {
@@ -141,50 +135,10 @@ const setupWebSocketListeners = () => {
   overflow: hidden;
 }
 
-.chat-sidebar {
-  width: 300px;
-  background: #fff;
-  border-right: 1px solid #f0f0f0;
-  transition: transform 0.3s ease;
-}
-
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-/* 移動端樣式 */
-@media (max-width: 768px) {
-  .chat-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    z-index: 1000;
-    transform: translateX(-100%);
-  }
-
-  .chat-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .sidebar-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
-}
-
-/* 桌面端樣式 */
-@media (min-width: 769px) {
-  .chat-sidebar {
-    position: relative;
-  }
 }
 </style>

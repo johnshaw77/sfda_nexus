@@ -672,4 +672,201 @@ router.get(
   adminController.handleGetAuditLogs
 );
 
+// ===== 智能體管理路由 =====
+
+/**
+ * @swagger
+ * /api/admin/agents:
+ *   get:
+ *     summary: 獲取智能體列表（管理員）
+ *     tags: [Admin - 智能體管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 頁碼
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: 每頁數量
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: 分類篩選
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *         description: 啟用狀態篩選
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: 搜索關鍵字
+ *     responses:
+ *       200:
+ *         description: 獲取智能體列表成功
+ */
+router.get(
+  "/agents",
+  rateLimitMiddleware("admin_agents", 100, 15 * 60 * 1000),
+  adminController.handleGetAgents
+);
+
+/**
+ * @swagger
+ * /api/admin/agents:
+ *   post:
+ *     summary: 創建智能體
+ *     tags: [Admin - 智能體管理]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: 智能體名稱
+ *               display_name:
+ *                 type: string
+ *                 description: 顯示名稱
+ *               description:
+ *                 type: string
+ *                 description: 描述
+ *               avatar:
+ *                 type: string
+ *                 description: 頭像（base64）
+ *               system_prompt:
+ *                 type: string
+ *                 description: 系統提示詞
+ *               model_id:
+ *                 type: integer
+ *                 description: 關聯模型ID
+ *               category:
+ *                 type: string
+ *                 description: 分類
+ *               config:
+ *                 type: string
+ *                 description: 配置參數（JSON字符串）
+ *     responses:
+ *       201:
+ *         description: 智能體創建成功
+ */
+router.post(
+  "/agents",
+  rateLimitMiddleware("admin_create_agent", 20, 60 * 60 * 1000),
+  adminController.handleCreateAgent
+);
+
+/**
+ * @swagger
+ * /api/admin/agents/{agentId}:
+ *   put:
+ *     summary: 更新智能體
+ *     tags: [Admin - 智能體管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 智能體ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               display_name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               avatar:
+ *                 type: string
+ *               system_prompt:
+ *                 type: string
+ *               model_id:
+ *                 type: integer
+ *               category:
+ *                 type: string
+ *               config:
+ *                 type: string
+ *               is_active:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: 智能體更新成功
+ */
+router.put(
+  "/agents/:agentId",
+  rateLimitMiddleware("admin_update_agent", 50, 60 * 60 * 1000),
+  adminController.handleUpdateAgent
+);
+
+/**
+ * @swagger
+ * /api/admin/agents/{agentId}:
+ *   delete:
+ *     summary: 刪除智能體
+ *     tags: [Admin - 智能體管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 智能體ID
+ *     responses:
+ *       200:
+ *         description: 智能體刪除成功
+ */
+router.delete(
+  "/agents/:agentId",
+  rateLimitMiddleware("admin_delete_agent", 20, 60 * 60 * 1000),
+  adminController.handleDeleteAgent
+);
+
+/**
+ * @swagger
+ * /api/admin/agents/{agentId}/duplicate:
+ *   post:
+ *     summary: 複製智能體
+ *     tags: [Admin - 智能體管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 智能體ID
+ *     responses:
+ *       201:
+ *         description: 智能體複製成功
+ */
+router.post(
+  "/agents/:agentId/duplicate",
+  rateLimitMiddleware("admin_duplicate_agent", 10, 60 * 60 * 1000),
+  adminController.handleDuplicateAgent
+);
+
 export default router;

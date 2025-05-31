@@ -1,141 +1,110 @@
 <template>
   <div class="welcome-screen">
     <div class="welcome-content">
-      <!-- Logo 和標題 -->
+      <!-- 歡迎標題 -->
       <div class="welcome-header">
-        <div class="logo">
+        <div class="welcome-icon">
           <svg
-            width="80"
-            height="80"
-            viewBox="0 0 80 80"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <circle
-              cx="40"
-              cy="40"
-              r="35"
-              fill="#1890ff"
-              opacity="0.1" />
-            <circle
-              cx="40"
-              cy="40"
-              r="25"
-              fill="#1890ff"
-              opacity="0.2" />
-            <circle
-              cx="40"
-              cy="40"
-              r="15"
-              fill="#1890ff" />
+            viewBox="0 0 24 24"
+            width="48"
+            height="48">
             <path
-              d="M32 35h16v2H32v-2zm0 4h12v2H32v-2zm0 4h8v2H32v-2z"
-              fill="white" />
+              fill="currentColor"
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
           </svg>
         </div>
         <h1 class="welcome-title">歡迎使用 SFDA Nexus</h1>
-        <p class="welcome-subtitle">企業級 AI 聊天助手，讓工作更高效</p>
+        <p class="welcome-subtitle">選擇一個智能體開始您的對話之旅</p>
       </div>
 
-      <!-- 功能介紹 -->
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <MessageOutlined />
-          </div>
-          <h3>智能對話</h3>
-          <p>與 AI 助手進行自然對話，獲得專業建議和解答</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <TeamOutlined />
-          </div>
-          <h3>多角色支持</h3>
-          <p>選擇不同的 AI 智能體，滿足各種工作場景需求</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <ThunderboltOutlined />
-          </div>
-          <h3>實時響應</h3>
-          <p>基於 WebSocket 的實時通信，快速獲得回應</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <SafetyOutlined />
-          </div>
-          <h3>安全可靠</h3>
-          <p>企業級安全保障，保護您的數據隱私</p>
-        </div>
-      </div>
-
-      <!-- 快速開始 -->
-      <div class="quick-start">
-        <h2>快速開始</h2>
-        <div class="start-options">
-          <a-button
-            type="primary"
-            size="large"
-            @click="handleCreateConversation"
-            :loading="creating">
-            <PlusOutlined />
-            開始新對話
-          </a-button>
-
-          <a-button
-            size="large"
-            @click="handleShowExamples">
-            <BulbOutlined />
-            查看示例
-          </a-button>
-        </div>
-      </div>
-
-      <!-- 示例對話 -->
-      <div
-        v-if="showExamples"
-        class="examples-section">
-        <h3>示例對話</h3>
-        <div class="example-grid">
-          <div
-            v-for="example in examples"
-            :key="example.id"
-            class="example-card"
-            @click="handleUseExample(example)">
-            <div class="example-icon">
-              <component :is="example.icon" />
+      <!-- 智能體網格 -->
+      <div class="agents-showcase">
+        <div
+          v-for="agent in agents"
+          :key="agent.id"
+          class="agent-showcase-card"
+          @click="handleSelectAgent(agent)">
+          <!-- 智能體頭像 -->
+          <div class="showcase-avatar">
+            <div
+              class="avatar-bg"
+              :style="{
+                background:
+                  agent.avatar?.gradient ||
+                  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              }">
+              <svg
+                v-if="agent.avatar?.icon"
+                class="agent-icon"
+                viewBox="0 0 24 24"
+                width="32"
+                height="32">
+                <path
+                  fill="white"
+                  :d="agent.avatar.icon" />
+              </svg>
+              <span
+                v-else
+                class="agent-initial"
+                >{{
+                  agent.display_name?.charAt(0) || agent.name?.charAt(0)
+                }}</span
+              >
             </div>
-            <div class="example-content">
-              <h4>{{ example.title }}</h4>
-              <p>{{ example.description }}</p>
-              <div class="example-prompt">"{{ example.prompt }}"</div>
+
+            <!-- 狀態指示器 -->
+            <div class="status-indicator">
+              <div
+                class="status-dot"
+                :class="agent.avatar?.status || 'online'"
+                :title="getStatusText(agent.avatar?.status || 'online')"></div>
             </div>
           </div>
+
+          <!-- 智能體信息 -->
+          <div class="showcase-info">
+            <h3 class="showcase-name">
+              {{ agent.display_name || agent.name }}
+            </h3>
+            <p class="showcase-description">{{ agent.description }}</p>
+
+            <!-- 特性標籤 -->
+            <div class="showcase-tags">
+              <span
+                v-for="tag in (agent.tags || []).slice(0, 3)"
+                :key="tag"
+                class="tag">
+                {{ tag }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 開始聊天按鈕 -->
+          <div class="showcase-action">
+            <button class="start-chat-btn">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16">
+                <path
+                  fill="currentColor"
+                  d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+              </svg>
+              開始對話
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- 使用提示 -->
-      <div class="tips-section">
-        <h3>使用提示</h3>
-        <div class="tips-list">
-          <div class="tip-item">
-            <CheckCircleOutlined class="tip-icon" />
-            <span>點擊左上角的「新建對話」開始與 AI 對話</span>
-          </div>
-          <div class="tip-item">
-            <CheckCircleOutlined class="tip-icon" />
-            <span>可以在對話中切換不同的 AI 模型和智能體</span>
-          </div>
-          <div class="tip-item">
-            <CheckCircleOutlined class="tip-icon" />
-            <span>支持置頂、重命名和歸檔對話，方便管理</span>
-          </div>
-          <div class="tip-item">
-            <CheckCircleOutlined class="tip-icon" />
-            <span>使用搜索功能快速找到歷史對話</span>
-          </div>
+      <!-- 底部提示 -->
+      <div class="welcome-footer">
+        <div class="tips">
+          <h4>💡 使用提示</h4>
+          <ul>
+            <li>每個智能體都有不同的專業領域和特長</li>
+            <li>您可以隨時切換智能體來獲得不同的幫助</li>
+            <li>對話歷史會自動保存，方便您隨時查看</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -143,336 +112,331 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
-import {
-  MessageOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  SafetyOutlined,
-  PlusOutlined,
-  BulbOutlined,
-  CheckCircleOutlined,
-  CodeOutlined,
-  FileTextOutlined,
-  CalculatorOutlined,
-  TranslationOutlined,
-} from "@ant-design/icons-vue";
-import { useChatStore } from "@/stores/chat";
+import { useAgentsStore } from "@/stores/agents";
 
-// Store
-const chatStore = useChatStore();
+const router = useRouter();
+const agentsStore = useAgentsStore();
 
-// 響應式狀態
-const creating = ref(false);
-const showExamples = ref(false);
-
-// 示例對話數據
-const examples = ref([
-  {
-    id: 1,
-    title: "代碼審查",
-    description: "讓 AI 幫助審查和優化代碼",
-    prompt: "請幫我審查這段 JavaScript 代碼，並提供優化建議",
-    icon: CodeOutlined,
-  },
-  {
-    id: 2,
-    title: "文檔撰寫",
-    description: "協助撰寫技術文檔和報告",
-    prompt: "幫我撰寫一份關於新功能的技術文檔",
-    icon: FileTextOutlined,
-  },
-  {
-    id: 3,
-    title: "數據分析",
-    description: "分析數據並提供洞察",
-    prompt: "請分析這組銷售數據，並提供改進建議",
-    icon: CalculatorOutlined,
-  },
-  {
-    id: 4,
-    title: "語言翻譯",
-    description: "多語言翻譯和本地化",
-    prompt: "請將這段文字翻譯成英文，並保持專業語調",
-    icon: TranslationOutlined,
-  },
-]);
+// 計算屬性
+const agents = computed(() => agentsStore.availableAgents);
 
 // 方法
-const handleCreateConversation = async () => {
-  try {
-    creating.value = true;
-    await chatStore.handleCreateConversation();
-    message.success("新對話已創建");
-  } catch (error) {
-    message.error("創建對話失敗");
-    console.error("創建對話失敗:", error);
-  } finally {
-    creating.value = false;
+const handleSelectAgent = (agent) => {
+  agentsStore.setCurrentAgent(agent);
+  router.push({
+    name: "ChatWithAgent",
+    params: { agentId: agent.id },
+  });
+  message.success(`已選擇智能體：${agent.display_name || agent.name}`);
+};
+
+const getStatusText = (status) => {
+  const statusMap = {
+    online: "在線",
+    away: "離開",
+    offline: "離線",
+  };
+  return statusMap[status] || "未知";
+};
+
+// 生命週期
+onMounted(async () => {
+  // 如果智能體數據還沒載入，嘗試載入
+  if (agents.value.length === 0) {
+    try {
+      await agentsStore.fetchAgents();
+    } catch (error) {
+      console.error("載入智能體數據失敗:", error);
+      message.error("載入智能體數據失敗");
+    }
   }
-};
-
-const handleShowExamples = () => {
-  showExamples.value = !showExamples.value;
-};
-
-const handleUseExample = async (example) => {
-  try {
-    creating.value = true;
-    await chatStore.handleCreateConversation();
-
-    // 發送示例消息
-    setTimeout(() => {
-      chatStore.handleSendMessage(example.prompt);
-    }, 500);
-
-    message.success("已創建新對話並發送示例消息");
-  } catch (error) {
-    message.error("創建對話失敗");
-    console.error("創建對話失敗:", error);
-  } finally {
-    creating.value = false;
-  }
-};
+});
 </script>
 
 <style scoped>
 .welcome-screen {
   height: 100%;
   overflow-y: auto;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 40px 20px;
 }
 
 .welcome-content {
-  max-width: 800px;
-  width: 100%;
-  text-align: center;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
+/* 歡迎標題 */
 .welcome-header {
+  text-align: center;
   margin-bottom: 48px;
 }
 
-.logo {
-  margin-bottom: 24px;
+.welcome-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
   display: flex;
+  align-items: center;
   justify-content: center;
+  margin: 0 auto 24px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
 }
 
 .welcome-title {
-  font-size: 32px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 12px;
+  font-size: 36px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 12px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .welcome-subtitle {
-  font-size: 16px;
-  color: #666;
+  font-size: 18px;
+  color: #718096;
   margin: 0;
+  font-weight: 400;
 }
 
-.feature-grid {
+/* 智能體展示網格 */
+.agents-showcase {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 24px;
   margin-bottom: 48px;
 }
 
-.feature-card {
+.agent-showcase-card {
   background: white;
+  border-radius: 16px;
   padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
 }
 
-.feature-card:hover {
+.agent-showcase-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.agent-showcase-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+  border-color: #667eea;
 }
 
-.feature-icon {
-  font-size: 32px;
-  color: #1890ff;
+.agent-showcase-card:hover::before {
+  opacity: 1;
+}
+
+/* 智能體頭像 */
+.showcase-avatar {
+  position: relative;
   margin-bottom: 16px;
 }
 
-.feature-card h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #1a1a1a;
-}
-
-.feature-card p {
-  font-size: 14px;
-  color: #666;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.quick-start {
-  background: white;
-  padding: 32px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 32px;
-}
-
-.quick-start h2 {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #1a1a1a;
-}
-
-.start-options {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.examples-section {
-  background: white;
-  padding: 32px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 32px;
-  text-align: left;
-}
-
-.examples-section h3 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #1a1a1a;
-  text-align: center;
-}
-
-.example-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
-}
-
-.example-card {
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  gap: 12px;
-}
-
-.example-card:hover {
-  border-color: #1890ff;
-  background: #f6ffed;
-}
-
-.example-icon {
-  font-size: 20px;
-  color: #1890ff;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.example-content h4 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #1a1a1a;
-}
-
-.example-content p {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.example-prompt {
-  font-size: 13px;
-  color: #1890ff;
-  font-style: italic;
-  background: #f0f8ff;
-  padding: 8px;
-  border-radius: 4px;
-  border-left: 3px solid #1890ff;
-}
-
-.tips-section {
-  background: white;
-  padding: 32px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  text-align: left;
-}
-
-.tips-section h3 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #1a1a1a;
-  text-align: center;
-}
-
-.tips-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.tip-item {
+.showcase-avatar .avatar-bg {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 14px;
-  color: #666;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-.tip-icon {
-  color: #52c41a;
-  font-size: 16px;
-  flex-shrink: 0;
+.showcase-avatar .agent-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.showcase-avatar .agent-initial {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: white;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.status-indicator .status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-dot.online {
+  background: #48bb78;
+}
+
+.status-dot.away {
+  background: #ed8936;
+}
+
+.status-dot.offline {
+  background: #a0aec0;
+}
+
+/* 智能體信息 */
+.showcase-info {
+  margin-bottom: 20px;
+}
+
+.showcase-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 8px 0;
+}
+
+.showcase-description {
+  font-size: 14px;
+  color: #718096;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.showcase-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  background: #edf2f7;
+  color: #4a5568;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 開始聊天按鈕 */
+.showcase-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.start-chat-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.start-chat-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+}
+
+.start-chat-btn:active {
+  transform: translateY(0);
+}
+
+/* 底部提示 */
+.welcome-footer {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.tips h4 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tips ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tips li {
+  color: #718096;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.tips li::before {
+  content: "•";
+  color: #667eea;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
 }
 
 /* 響應式設計 */
 @media (max-width: 768px) {
-  .welcome-content {
-    padding: 0 16px;
+  .welcome-screen {
+    padding: 20px 16px;
   }
 
   .welcome-title {
-    font-size: 24px;
+    font-size: 28px;
   }
 
-  .feature-grid {
+  .welcome-subtitle {
+    font-size: 16px;
+  }
+
+  .agents-showcase {
     grid-template-columns: 1fr;
     gap: 16px;
   }
 
-  .quick-start,
-  .examples-section,
-  .tips-section {
+  .agent-showcase-card {
+    padding: 20px;
+  }
+
+  .welcome-footer {
     padding: 24px;
-  }
-
-  .start-options {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .example-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -482,15 +446,15 @@ const handleUseExample = async (example) => {
 }
 
 .welcome-screen::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 
 .welcome-screen::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #cbd5e0;
   border-radius: 3px;
 }
 
 .welcome-screen::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #a0aec0;
 }
 </style>
