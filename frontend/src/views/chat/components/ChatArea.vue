@@ -123,7 +123,8 @@
     <!-- 消息列表區域 -->
     <div
       class="messages-container"
-      ref="messagesContainer">
+      ref="messagesContainer"
+      :style="{ height: `calc(100% - ${inputAreaHeight}px)` }">
       <a-spin
         :spinning="loading"
         tip="載入消息中...">
@@ -228,8 +229,20 @@
       </a-spin>
     </div>
 
+    <!-- 可拖拉的分隔線 -->
+    <div
+      class="resize-handle"
+      @mousedown="handleResizeStart"
+      :class="{ 'is-resizing': isResizing }">
+      <div class="resize-indicator">
+        <div class="resize-dots"></div>
+      </div>
+    </div>
+
     <!-- 消息輸入區域 -->
-    <div class="message-input-area">
+    <div
+      class="message-input-area"
+      :style="{ height: `${inputAreaHeight}px` }">
       <!-- 引用消息顯示 -->
       <div
         v-if="quotedMessage"
@@ -260,13 +273,56 @@
       <!-- 輸入框 -->
       <div class="input-container">
         <div class="input-wrapper">
+          <!-- 調整大小按鈕 -->
+          <div class="resize-buttons">
+            <a-tooltip
+              title="放大輸入區域"
+              placement="left">
+              <a-button
+                type="text"
+                size="small"
+                @click="handleExpandInput"
+                :disabled="inputAreaHeight >= maxInputHeight"
+                class="resize-btn">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14">
+                  <path
+                    fill="currentColor"
+                    d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+                </svg>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip
+              title="縮小輸入區域"
+              placement="left">
+              <a-button
+                type="text"
+                size="small"
+                @click="handleShrinkInput"
+                :disabled="inputAreaHeight <= minInputHeight"
+                class="resize-btn">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14">
+                  <path
+                    fill="currentColor"
+                    d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
+                </svg>
+              </a-button>
+            </a-tooltip>
+          </div>
+
           <a-textarea
             v-model:value="messageText"
             :placeholder="`向 ${agent?.name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送)`"
-            :auto-size="{ minRows: 1, maxRows: 6 }"
+            :auto-size="false"
             :disabled="sending"
             @keydown="handleKeyDown"
             @input="handleInputChange"
+            :style="{ height: `${textareaHeight}px` }"
             class="message-input" />
 
           <!-- 輸入工具欄 -->
@@ -348,7 +404,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { message } from "ant-design-vue";
 import {
   MessageOutlined,
@@ -378,6 +434,22 @@ const quotedMessage = ref(null);
 const lastSentMessageId = ref(null);
 const messagesContainer = ref(null);
 const settingsModalVisible = ref(false);
+const inputAreaHeight = ref(300);
+const isResizing = ref(false);
+const minInputHeight = 200;
+const maxInputHeight = 600;
+
+// 計算 textarea 的高度
+const textareaHeight = computed(() => {
+  // 輸入區域總高度 - 引用消息區域高度 - 工具欄高度 - 內邊距
+  const quotedHeight = quotedMessage.value ? 60 : 0; // 引用消息區域高度
+  const toolbarHeight = 60; // 工具欄高度
+  const padding = 48; // 上下內邊距
+  return Math.max(
+    60,
+    inputAreaHeight.value - quotedHeight - toolbarHeight - padding
+  );
+});
 
 // 模型和設置
 const selectedModel = ref("");
@@ -657,6 +729,9 @@ onMounted(async () => {
   try {
     loading.value = true;
 
+    // 載入用戶偏好的輸入區域高度
+    loadInputAreaHeight();
+
     // 載入當前對話的消息
     if (chatStore.currentConversation) {
       await chatStore.handleGetMessages(chatStore.currentConversation.id);
@@ -695,6 +770,68 @@ onUnmounted(() => {
     wsStore.handleSendTypingStatus(chatStore.currentConversation?.id, false);
   }
 });
+
+const handleResizeStart = (event) => {
+  isResizing.value = true;
+  const startY = event.clientY;
+  const startHeight = inputAreaHeight.value;
+
+  const handleMouseMove = (moveEvent) => {
+    const deltaY = startY - moveEvent.clientY; // 向上拖拉為正值
+    const newHeight = Math.max(
+      minInputHeight,
+      Math.min(maxInputHeight, startHeight + deltaY)
+    );
+    inputAreaHeight.value = newHeight;
+    moveEvent.preventDefault();
+  };
+
+  const handleMouseUp = () => {
+    isResizing.value = false;
+    // 保存用戶偏好到 localStorage
+    localStorage.setItem(
+      "chatInputAreaHeight",
+      inputAreaHeight.value.toString()
+    );
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+  };
+
+  // 防止文字選取和設置游標樣式
+  document.body.style.userSelect = "none";
+  document.body.style.cursor = "row-resize";
+
+  document.addEventListener("mousemove", handleMouseMove);
+  document.addEventListener("mouseup", handleMouseUp);
+  event.preventDefault();
+};
+
+// 從 localStorage 載入用戶偏好
+const loadInputAreaHeight = () => {
+  const savedHeight = localStorage.getItem("chatInputAreaHeight");
+  if (savedHeight) {
+    const height = parseInt(savedHeight, 10);
+    if (height >= minInputHeight && height <= maxInputHeight) {
+      inputAreaHeight.value = height;
+    }
+  }
+};
+
+// 放大輸入區域
+const handleExpandInput = () => {
+  //const newHeight = Math.min(maxInputHeight, inputAreaHeight.value + 300);
+  inputAreaHeight.value = maxInputHeight;
+  localStorage.setItem("chatInputAreaHeight", newHeight.toString());
+};
+
+// 縮小輸入區域
+const handleShrinkInput = () => {
+  //const newHeight = Math.max(minInputHeight, inputAreaHeight.value - 100);
+  inputAreaHeight.value = minInputHeight;
+  localStorage.setItem("chatInputAreaHeight", newHeight.toString());
+};
 </script>
 
 <style scoped>
@@ -897,15 +1034,23 @@ onUnmounted(() => {
 }
 
 .input-container {
-  padding: 16px 24px;
+  padding: 16px;
+  height: calc(100% - 2px);
+  display: flex;
+  flex-direction: column;
 }
 
 .input-wrapper {
   border: 1px solid var(--custom-border-primary);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   transition: border-color 0.2s;
   background: var(--custom-bg-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  position: relative;
 }
 
 .input-wrapper:focus-within {
@@ -917,9 +1062,13 @@ onUnmounted(() => {
   border: none !important;
   box-shadow: none !important;
   resize: none;
-  padding: 12px 16px 0 16px;
+  padding: 16px 20px;
   background: var(--custom-bg-primary);
   color: var(--custom-text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  flex: 1;
+  min-height: 60px;
 }
 
 .message-input:focus {
@@ -931,9 +1080,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 12px 20px;
   background: var(--custom-bg-tertiary);
   border-top: 1px solid var(--custom-border-primary);
+  flex-shrink: 0;
 }
 
 .toolbar-left,
@@ -972,7 +1122,7 @@ onUnmounted(() => {
   }
 
   .input-container {
-    padding: 12px 16px;
+    padding: 16px 16px 24px 16px;
   }
 
   .quoted-message-display {
@@ -1109,5 +1259,117 @@ onUnmounted(() => {
 .agent-avatar-large .agent-initial {
   font-size: 32px;
   font-weight: 600;
+}
+
+.resize-handle {
+  height: 6px;
+  background: var(--custom-bg-primary);
+  /* border-top: 1px solid var(--custom-border-primary);
+  border-bottom: 1px solid var(--custom-border-primary); */
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 10;
+}
+
+.resize-handle:hover {
+  background: var(--custom-bg-tertiary);
+  border-color: var(--primary-color);
+}
+
+.resize-handle.is-resizing {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.resize-indicator {
+  width: 60px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.resize-handle:hover .resize-indicator {
+  background: rgba(24, 144, 255, 0.1);
+}
+
+.resize-handle.is-resizing .resize-indicator {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.resize-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.resize-dots span {
+  width: 20px;
+  height: 1px;
+  background: var(--custom-text-tertiary);
+  border-radius: 1px;
+  transition: all 0.2s ease;
+}
+
+.resize-handle:hover .resize-dots span {
+  background: var(--primary-color);
+  width: 24px;
+}
+
+.resize-handle.is-resizing .resize-dots span {
+  background: white;
+  width: 28px;
+}
+
+/* 調整大小按鈕樣式 */
+.resize-buttons {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+  background: var(--custom-bg-primary);
+  border-radius: 6px;
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--custom-border-primary);
+}
+
+.resize-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--custom-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.resize-btn:hover:not(:disabled) {
+  background: var(--custom-bg-tertiary) !important;
+  color: var(--primary-color) !important;
+}
+
+.resize-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.resize-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.resize-btn:hover:not(:disabled) svg {
+  transform: scale(1.1);
 }
 </style>

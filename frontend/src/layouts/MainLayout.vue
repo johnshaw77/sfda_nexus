@@ -41,41 +41,45 @@
 
       <!-- 主選單 -->
       <div class="main-menu">
-        <div
+        <a-tooltip
           v-for="item in mainMenuItems"
           :key="item.key"
-          class="menu-item"
-          :class="{
-            active:
-              item.key === 'agents'
-                ? agentsSidebarVisible
-                : $route.name === item.route,
-            'collapsed-item': sidebarCollapsed,
-          }"
-          @click="handleMenuClick(item)"
-          :title="sidebarCollapsed ? item.title : ''">
-          <div class="menu-icon">
-            <component :is="item.icon" />
-          </div>
-          <span
-            v-if="!sidebarCollapsed"
-            class="menu-title"
-            >{{ item.title }}</span
-          >
+          :title="sidebarCollapsed ? item.title : ''"
+          placement="right"
+          :mouse-enter-delay="0.5">
           <div
-            v-if="!sidebarCollapsed && item.key === 'agents'"
-            class="menu-arrow"
-            :class="{ expanded: agentsSidebarVisible }">
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16">
-              <path
-                fill="currentColor"
-                d="M9 18l6-6-6-6" />
-            </svg>
+            class="menu-item"
+            :class="{
+              active:
+                item.key === 'agents'
+                  ? agentsSidebarVisible
+                  : $route.name === item.route,
+              'collapsed-item': sidebarCollapsed,
+            }"
+            @click="handleMenuClick(item)">
+            <div class="menu-icon">
+              <component :is="item.icon" />
+            </div>
+            <span
+              v-if="!sidebarCollapsed"
+              class="menu-title"
+              >{{ item.title }}</span
+            >
+            <div
+              v-if="!sidebarCollapsed && item.key === 'agents'"
+              class="menu-arrow"
+              :class="{ expanded: agentsSidebarVisible }">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16">
+                <path
+                  fill="currentColor"
+                  d="M9 18l6-6-6-6" />
+              </svg>
+            </div>
           </div>
-        </div>
+        </a-tooltip>
       </div>
 
       <!-- 底部用戶區域 -->

@@ -19,94 +19,124 @@
 
       <!-- 智能體網格 -->
       <div class="agents-showcase">
-        <div
+        <a-card
           v-for="agent in agents"
           :key="agent.id"
           class="agent-showcase-card"
+          :hoverable="true"
           @click="handleSelectAgent(agent)">
-          <!-- 智能體頭像 -->
-          <div class="showcase-avatar">
-            <div
-              class="avatar-bg"
-              :style="{
-                background:
-                  agent.avatar?.gradient ||
-                  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              }">
-              <svg
-                v-if="agent.avatar?.icon"
-                class="agent-icon"
-                viewBox="0 0 24 24"
-                width="32"
-                height="32">
-                <path
-                  fill="white"
-                  :d="agent.avatar.icon" />
-              </svg>
-              <span
-                v-else
-                class="agent-initial"
-                >{{
-                  agent.display_name?.charAt(0) || agent.name?.charAt(0)
-                }}</span
-              >
-            </div>
+          <!-- 卡片內容 -->
+          <template #cover>
+            <div class="card-cover">
+              <!-- 智能體頭像 -->
+              <div class="showcase-avatar">
+                <div class="avatar-container">
+                  <!-- 如果有 base64 圖片，顯示圖片 -->
+                  <img
+                    v-if="
+                      agent.avatar &&
+                      typeof agent.avatar === 'string' &&
+                      agent.avatar.startsWith('data:')
+                    "
+                    :src="agent.avatar"
+                    :alt="agent.display_name || agent.name"
+                    class="avatar-image" />
 
-            <!-- 狀態指示器 -->
-            <div class="status-indicator">
-              <div
-                class="status-dot"
-                :class="agent.avatar?.status || 'online'"
-                :title="getStatusText(agent.avatar?.status || 'online')"></div>
-            </div>
-          </div>
+                  <!-- 否則顯示漸變背景和圖標/首字母 -->
+                  <div
+                    v-else
+                    class="avatar-bg"
+                    :style="{
+                      background:
+                        agent.avatar?.gradient ||
+                        agent.avatar?.background ||
+                        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    }">
+                    <svg
+                      v-if="agent.avatar?.icon"
+                      class="agent-icon"
+                      viewBox="0 0 24 24"
+                      width="32"
+                      height="32">
+                      <path
+                        fill="white"
+                        :d="agent.avatar.icon" />
+                    </svg>
+                    <span
+                      v-else
+                      class="agent-initial"
+                      >{{
+                        (agent.display_name || agent.name)
+                          ?.charAt(0)
+                          ?.toUpperCase() || "A"
+                      }}</span
+                    >
+                  </div>
+                </div>
 
-          <!-- 智能體信息 -->
-          <div class="showcase-info">
-            <h3 class="showcase-name">
-              {{ agent.display_name || agent.name }}
-            </h3>
-            <p class="showcase-description">{{ agent.description }}</p>
-
-            <!-- 特性標籤 -->
-            <div class="showcase-tags">
-              <span
-                v-for="tag in (agent.tags || []).slice(0, 3)"
-                :key="tag"
-                class="tag">
-                {{ tag }}
-              </span>
+                <!-- 狀態指示器 -->
+                <div class="status-indicator">
+                  <div
+                    class="status-dot"
+                    :class="agent.avatar?.status || 'online'"
+                    :title="
+                      getStatusText(agent.avatar?.status || 'online')
+                    "></div>
+                </div>
+              </div>
             </div>
+          </template>
+
+          <!-- 卡片主體內容 -->
+          <a-card-meta
+            :title="agent.display_name || agent.name"
+            :description="agent.description">
+          </a-card-meta>
+
+          <!-- 特性標籤 -->
+          <div class="showcase-tags">
+            <a-tag
+              v-for="tag in (agent.tags || []).slice(0, 3)"
+              :key="tag"
+              color="blue">
+              {{ tag }}
+            </a-tag>
           </div>
 
           <!-- 開始聊天按鈕 -->
-          <div class="showcase-action">
-            <button class="start-chat-btn">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16">
-                <path
-                  fill="currentColor"
-                  d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
-              </svg>
-              開始對話
-            </button>
-          </div>
-        </div>
+          <template #actions>
+            <div class="card-actions">
+              <a-button
+                type="primary"
+                class="start-chat-btn"
+                @click.stop="handleSelectAgent(agent)">
+                <template #icon>
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16">
+                    <path
+                      fill="currentColor"
+                      d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+                  </svg>
+                </template>
+                開始對話
+              </a-button>
+            </div>
+          </template>
+        </a-card>
       </div>
 
       <!-- 底部提示 -->
-      <div class="welcome-footer">
-        <div class="tips">
-          <h4>💡 使用提示</h4>
-          <ul>
-            <li>每個智能體都有不同的專業領域和特長</li>
-            <li>您可以隨時切換智能體來獲得不同的幫助</li>
-            <li>對話歷史會自動保存，方便您隨時查看</li>
-          </ul>
-        </div>
-      </div>
+      <a-card
+        class="welcome-footer"
+        title="💡 使用提示">
+        <ul class="tips-list">
+          <li>每個智能體都有不同的專業領域和特長</li>
+          <li>您可以隨時切換智能體來獲得不同的幫助</li>
+          <li>對話歷史會自動保存，方便您隨時查看</li>
+        </ul>
+      </a-card>
     </div>
   </div>
 </template>
@@ -160,7 +190,6 @@ onMounted(async () => {
 .welcome-screen {
   height: 100%;
   overflow-y: auto;
-  /* background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); */
   padding: 40px 20px;
 }
 
@@ -215,64 +244,63 @@ onMounted(async () => {
 }
 
 .agent-showcase-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  position: relative;
+  border-radius: 16px !important;
   overflow: hidden;
-}
-
-.agent-showcase-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
 }
 
 .agent-showcase-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-  border-color: #667eea;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15) !important;
 }
 
-.agent-showcase-card:hover::before {
-  opacity: 1;
+/* 卡片封面區域 */
+.card-cover {
+  padding: 24px 24px 16px;
+  background: var(--custom-bg-primary, #ffffff);
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid var(--custom-border-primary, #e2e8f0);
 }
 
 /* 智能體頭像 */
 .showcase-avatar {
   position: relative;
-  margin-bottom: 16px;
 }
 
-.showcase-avatar .avatar-bg {
+.avatar-container {
   width: 64px;
   height: 64px;
   border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.avatar-bg {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 600;
   font-size: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-.showcase-avatar .agent-icon {
+.agent-icon {
   width: 32px;
   height: 32px;
 }
 
-.showcase-avatar .agent-initial {
+.agent-initial {
   font-size: 24px;
   font-weight: 600;
 }
@@ -281,7 +309,7 @@ onMounted(async () => {
   position: absolute;
   bottom: -2px;
   right: -2px;
-  background: white;
+  background: var(--custom-bg-primary, white);
   border-radius: 50%;
   padding: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -305,55 +333,28 @@ onMounted(async () => {
   background: #a0aec0;
 }
 
-/* 智能體信息 */
-.showcase-info {
-  margin-bottom: 20px;
-}
-
-.showcase-name {
-  font-size: 20px;
-  font-weight: 600;
-  color: #2d3748;
-  margin: 0 0 8px 0;
-}
-
-.showcase-description {
-  font-size: 14px;
-  color: #718096;
-  line-height: 1.5;
-  margin: 0 0 12px 0;
-}
-
+/* 特性標籤 */
 .showcase-tags {
+  margin-top: 16px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.tag {
-  background: #edf2f7;
-  color: #4a5568;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+/* 卡片操作區域 */
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 2px 16px;
 }
 
 /* 開始聊天按鈕 */
-.showcase-action {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .start-chat-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: none !important;
+  border-radius: 8px !important;
   font-weight: 500;
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -362,40 +363,22 @@ onMounted(async () => {
 }
 
 .start-chat-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4) !important;
 }
 
-.start-chat-btn:active {
-  transform: translateY(0);
-}
-
-/* 底部提示 */
+/* 底部提示卡片 */
 .welcome-footer {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-radius: 16px !important;
 }
 
-.tips h4 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #2d3748;
-  margin: 0 0 16px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tips ul {
+.tips-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.tips li {
+.tips-list li {
   color: #718096;
   font-size: 14px;
   line-height: 1.6;
@@ -404,7 +387,7 @@ onMounted(async () => {
   position: relative;
 }
 
-.tips li::before {
+.tips-list li::before {
   content: "•";
   color: #667eea;
   font-weight: bold;
@@ -431,12 +414,8 @@ onMounted(async () => {
     gap: 16px;
   }
 
-  .agent-showcase-card {
-    padding: 20px;
-  }
-
-  .welcome-footer {
-    padding: 24px;
+  .card-cover {
+    padding: 20px 20px 12px;
   }
 }
 </style>
