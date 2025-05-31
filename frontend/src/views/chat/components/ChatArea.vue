@@ -277,7 +277,8 @@
           <div class="resize-buttons">
             <a-tooltip
               title="放大輸入區域"
-              placement="left">
+              placement="topLeft"
+              :arrow="false">
               <a-button
                 type="text"
                 size="small"
@@ -296,7 +297,8 @@
             </a-tooltip>
             <a-tooltip
               title="縮小輸入區域"
-              placement="left">
+              placement="topLeft"
+              :arrow="false">
               <a-button
                 type="text"
                 size="small"
@@ -1339,8 +1341,8 @@ const handleShrinkInput = () => {
   background: var(--custom-bg-primary);
   border-radius: 6px;
   padding: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--custom-border-primary);
+  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--custom-border-primary); */
 }
 
 .resize-btn {

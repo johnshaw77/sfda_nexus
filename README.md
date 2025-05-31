@@ -198,6 +198,16 @@ npm run dev
 - [x] 完善狀態管理系統
   - [x] models.js - AI 模型狀態管理
   - [x] agents.js - 智能體狀態管理
+
+#### 🌙 暗黑模式修復 (v1.6.2) - 2025-01-15
+
+- [x] 修復 Admin 頁面暗黑模式顯示問題
+- [x] 創建統一的 admin.css 樣式文件
+- [x] 使用 CSS 變數替代硬編碼顏色值
+- [x] 修復頁面背景色適應主題
+- [x] 修復 Sidebar 底部系統狀態顏色
+- [x] 統一所有 admin 頁面的 CSS 類名
+- [x] 完善 Ant Design 組件的暗黑模式覆蓋樣式
   - [x] workflows.js - 工作流狀態管理
   - [x] app.js - 應用全局狀態
 - [x] 創建完整樣式系統

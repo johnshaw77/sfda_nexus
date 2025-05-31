@@ -313,7 +313,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--custom-bg-secondary);
   margin: 16px;
   border-radius: 8px;
 }
@@ -325,7 +325,7 @@ watch(
 }
 
 .logo-text {
-  color: white;
+  color: var(--custom-text-primary);
   font-size: 18px;
   font-weight: 600;
 }
@@ -345,9 +345,10 @@ watch(
 
 .connection-status {
   padding: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--custom-bg-secondary);
   border-radius: 4px;
   text-align: center;
+  color: var(--custom-text-secondary);
 }
 
 /* 響應式設計 */

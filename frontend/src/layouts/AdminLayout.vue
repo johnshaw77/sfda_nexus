@@ -6,34 +6,7 @@
         <!-- 左側 Logo 和標題 -->
         <div class="header-left">
           <div class="admin-logo">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 32 32"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <circle
-                cx="16"
-                cy="16"
-                r="14"
-                fill="#1890ff"
-                opacity="0.1" />
-              <circle
-                cx="16"
-                cy="16"
-                r="10"
-                fill="#1890ff"
-                opacity="0.2" />
-              <circle
-                cx="16"
-                cy="16"
-                r="6"
-                fill="#1890ff" />
-              <path
-                d="M12 14h8v1h-8v-1zm0 2h6v1h-6v-1zm0 2h4v1h-4v-1z"
-                fill="white" />
-            </svg>
-            <span class="logo-text">SFDA Nexus</span>
+            <span class="logo-text">數據分析部 Nexus</span>
             <a-tag
               color="gold"
               size="small"
@@ -65,7 +38,19 @@
 
           <!-- 快速操作 -->
           <div class="quick-actions">
-            <a-tooltip title="系統監控">
+            <a-tooltip
+              title="開關燈光"
+              :arrow="false">
+              <a-button
+                type="text"
+                @click="configStore.toggleTheme">
+                <BulbOutlined />
+              </a-button>
+            </a-tooltip>
+
+            <a-tooltip
+              title="系統監控"
+              :arrow="false">
               <a-button
                 type="text"
                 @click="handleSystemMonitor">
@@ -73,7 +58,9 @@
               </a-button>
             </a-tooltip>
 
-            <a-tooltip title="用戶在線">
+            <a-tooltip
+              title="用戶在線"
+              :arrow="false">
               <a-badge
                 :count="onlineUsers"
                 :offset="[10, 0]">
@@ -85,7 +72,9 @@
               </a-badge>
             </a-tooltip>
 
-            <a-tooltip title="系統通知">
+            <a-tooltip
+              title="系統通知"
+              :arrow="false">
               <a-badge
                 :count="systemNotifications"
                 :offset="[10, 0]">
@@ -339,6 +328,7 @@ import {
   FullscreenOutlined,
   RobotOutlined,
   BulbFilled,
+  BulbOutlined,
 } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
@@ -483,7 +473,8 @@ const loadSystemStats = () => {
 }
 
 .admin-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f9f9f9 0%, #ffffff 100%);
+  /* background: var(--custom-bg-primary); */
   padding: 0;
   height: 64px;
   line-height: 64px;
@@ -492,7 +483,10 @@ const loadSystemStats = () => {
   left: 0;
   right: 0;
   z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+[data-theme="dark"] .ant-layout-header {
+  background: linear-gradient(135deg, #141117 0%, #242424 100%);
 }
 
 .header-content {
@@ -515,7 +509,7 @@ const loadSystemStats = () => {
 }
 
 .logo-text {
-  color: white;
+  color: var(--custom-text-primary);
   font-size: 20px;
   font-weight: 600;
 }
@@ -531,7 +525,7 @@ const loadSystemStats = () => {
 }
 
 .theme-switch .ant-switch-handle::before {
-  background-color: #fff;
+  background-color: var(--custom-bg-primary);
 }
 
 .theme-switch.ant-switch-checked {
@@ -539,7 +533,7 @@ const loadSystemStats = () => {
 }
 
 .theme-switch.ant-switch-checked .ant-switch-handle::before {
-  background-color: #fff;
+  background-color: var(--custom-bg-primary);
 }
 
 .quick-actions {
@@ -549,13 +543,13 @@ const loadSystemStats = () => {
 }
 
 .quick-actions .ant-btn {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--custom-text-primary);
 }
 
-.quick-actions .ant-btn:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
-}
+/* .quick-actions .ant-btn:hover {
+  color: var(--custom-text-primary);
+   background: var(--custom-bg-primary); 
+} */
 
 .user-menu-btn {
   display: flex;
@@ -563,7 +557,7 @@ const loadSystemStats = () => {
   gap: 8px;
   height: auto;
   padding: 4px 8px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--custom-text-primary);
 }
 
 .user-menu-btn:hover {
@@ -572,7 +566,7 @@ const loadSystemStats = () => {
 }
 
 .username {
-  color: white;
+  color: var(--custom-text-primary);
   font-weight: 500;
 }
 
@@ -583,8 +577,8 @@ const loadSystemStats = () => {
 }
 
 .admin-sider {
-  background: #fff;
-  border-right: 1px solid #f0f0f0;
+  background: var(--custom-bg-primary);
+  border-right: 1px solid var(--custom-border-primary);
   position: fixed;
   left: 0;
   top: 64px;
@@ -595,7 +589,7 @@ const loadSystemStats = () => {
 
 .sider-trigger {
   padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--custom-border-primary);
   text-align: center;
 }
 
@@ -611,9 +605,9 @@ const loadSystemStats = () => {
   left: 16px;
   right: 16px;
   padding: 12px;
-  background: #f6f8fa;
+  background: var(--custom-bg-primary);
   border-radius: 6px;
-  border: 1px solid #e1e4e8;
+  border: 1px solid var(--custom-border-primary);
 }
 
 .status-item {
@@ -635,7 +629,7 @@ const loadSystemStats = () => {
 .admin-content {
   margin-left: 240px;
   padding: 0;
-  background: #f0f2f5;
+  background: var(--custom-bg-primary);
   height: calc(100vh - 64px);
   overflow: hidden;
   transition: margin-left 0.2s;
@@ -648,9 +642,9 @@ const loadSystemStats = () => {
 }
 
 .content-header {
-  background: white;
-  padding: 16px 24px;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--custom-bg-primary);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--custom-border-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -673,7 +667,7 @@ const loadSystemStats = () => {
   flex: 1;
   padding: 2px;
   overflow-y: auto;
-  background: #f0f2f5;
+  background: var(--custom-bg-primary);
 }
 
 .monitor-content {

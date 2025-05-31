@@ -20,7 +20,7 @@
           <h1
             v-if="!sidebarCollapsed"
             class="logo-text">
-            SFDA Nexus
+            數據分析
           </h1>
         </div>
 

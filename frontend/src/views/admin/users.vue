@@ -1,5 +1,5 @@
 <template>
-  <div class="users-page">
+  <div class="admin-page">
     <a-card
       title="用戶管理"
       :bordered="false">
@@ -60,7 +60,7 @@
         <template #avatar="{ record }">
           <a-avatar
             :size="40"
-            :style="{ backgroundColor: '#1890ff' }">
+            :style="{ backgroundColor: 'var(--primary-color)' }">
             {{ record.username.charAt(0).toUpperCase() }}
           </a-avatar>
         </template>
@@ -433,14 +433,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.users-page {
-  padding: 12px;
-}
-
-.search-section {
-  margin-bottom: 24px;
-  padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-}
+/* 使用全局 admin 樣式，無需重複定義 */
 </style>

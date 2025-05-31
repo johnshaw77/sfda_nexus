@@ -7,6 +7,7 @@
         <a-row :gutter="[24, 24]">
           <a-col :span="6">
             <a-card
+              class="admin-card"
               hoverable
               @click="handleNavigate('/admin/models')">
               <template #cover>
@@ -22,6 +23,7 @@
 
           <a-col :span="6">
             <a-card
+              class="admin-card"
               hoverable
               @click="handleNavigate('/admin/agents')">
               <template #cover>
@@ -37,6 +39,7 @@
 
           <a-col :span="6">
             <a-card
+              class="admin-card"
               hoverable
               @click="handleNavigate('/admin/users')">
               <template #cover>
@@ -52,6 +55,7 @@
 
           <a-col :span="6">
             <a-card
+              class="admin-card"
               hoverable
               @click="handleNavigate('/admin/system')">
               <template #cover>
@@ -95,31 +99,5 @@ export default {
 </script>
 
 <style scoped>
-.admin-page {
-  padding: 12px;
-}
-
-.admin-grid {
-  margin-top: 24px;
-}
-
-.card-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 80px;
-  font-size: 32px;
-  color: #1890ff;
-  background: #f0f2f5;
-}
-
-.ant-card {
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.ant-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
+/* 使用全局 admin 樣式，無需重複定義 */
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="system-page">
+  <div class="admin-page">
     <a-row :gutter="24">
       <!-- 系統信息 -->
       <a-col
@@ -307,55 +307,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.system-page {
-  padding: 12px;
-}
-
-.log-container {
-  max-height: 400px;
-  overflow-y: auto;
-  background: #f5f5f5;
-  border-radius: 4px;
-  padding: 12px;
-}
-
-.log-item {
-  display: flex;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid #e8e8e8;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 12px;
-}
-
-.log-item:last-child {
-  border-bottom: none;
-}
-
-.log-time {
-  color: #666;
-  min-width: 140px;
-}
-
-.log-level {
-  min-width: 60px;
-  font-weight: bold;
-}
-
-.log-item.error .log-level {
-  color: #ff4d4f;
-}
-
-.log-item.warn .log-level {
-  color: #faad14;
-}
-
-.log-item.info .log-level {
-  color: #52c41a;
-}
-
-.log-message {
-  flex: 1;
-  color: #333;
-}
+/* 使用全局 admin 樣式，無需重複定義 */
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="models-page">
+  <div class="admin-page">
     <a-card
       title="AI 模型管理"
       :bordered="false">
@@ -516,25 +516,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.models-page {
-  padding: 12px;
-}
-
-.search-section {
-  margin-bottom: 24px;
-  padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-}
-
-.config-display {
-  background: #f5f5f5;
-  padding: 12px;
-  border-radius: 4px;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  max-height: 300px;
-  overflow-y: auto;
-}
+/* 使用全局 admin 樣式，無需重複定義 */
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="agents-page">
+  <div class="admin-page">
     <a-card
       title="智能體管理"
       :bordered="false">
@@ -76,12 +76,17 @@
               :class="{ disabled: !agent.is_active }">
               <!-- 卡片頭部 -->
               <template #cover>
+                <!-- <img
+                  alt="example"
+                  :src="agent.avatar" /> -->
                 <div class="agent-avatar">
                   <a-avatar
-                    :size="64"
+                    :size="128"
                     :src="agent.avatar"
                     :style="{
-                      backgroundColor: agent.avatar ? 'transparent' : '#1890ff',
+                      backgroundColor: agent.avatar
+                        ? 'transparent'
+                        : 'var(--primary-color)',
                     }">
                     <template #icon>
                       <RobotOutlined v-if="!agent.avatar" />
@@ -746,113 +751,5 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.agents-page {
-  padding: 12px;
-}
-
-.search-section {
-  margin-bottom: 24px;
-  padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-}
-
-.agents-grid {
-  margin-bottom: 24px;
-}
-
-.agent-card {
-  height: 100%;
-  transition: all 0.3s;
-}
-
-.agent-card.disabled {
-  opacity: 0.6;
-}
-
-.agent-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.agent-avatar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 120px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-.agent-stats {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #666;
-}
-
-.stat-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1890ff;
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-top: 24px;
-}
-
-.avatar-upload-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  background: #fafafa;
-  transition: all 0.3s ease;
-}
-
-.avatar-upload-section:hover {
-  border-color: #1890ff;
-  background: #f0f8ff;
-}
-
-.avatar-preview {
-  flex-shrink: 0;
-}
-
-.avatar-upload-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.avatar-tips {
-  margin-top: 8px;
-}
-
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .avatar-upload-section {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .avatar-upload-controls {
-    flex-direction: row;
-    justify-content: center;
-  }
-}
+/* 使用全局 admin 樣式，無需重複定義 */
 </style>

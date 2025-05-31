@@ -1,0 +1,378 @@
+/* Admin 頁面專用樣式 - 支援暗黑模式 */
+
+/* Admin 頁面基礎樣式 */
+.admin-page {
+  padding: 12px;
+}
+
+/* 搜索區域樣式 */
+.admin-page .search-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: var(--border-radius-lg);
+  transition: var(--transition-all);
+}
+
+/* Admin 首頁網格樣式 */
+.admin-grid {
+  margin-top: 24px;
+}
+
+/* Admin 卡片圖標樣式 */
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  font-size: 32px;
+  color: var(--primary-color);
+  background: var(--custom-bg-secondary);
+  border-radius: var(--border-radius-base);
+  transition: var(--transition-all);
+}
+
+/* Admin 卡片懸停效果 */
+.admin-card {
+  cursor: pointer;
+  transition: var(--transition-all);
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
+}
+
+.admin-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--primary-color);
+}
+
+.admin-card:hover .card-icon {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* 智能體卡片樣式 */
+.agents-grid {
+  margin-bottom: 24px;
+}
+
+.agent-card {
+  height: 100%;
+  transition: var(--transition-all);
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
+}
+
+.agent-card.disabled {
+  opacity: 0.6;
+}
+
+.agent-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--primary-color);
+}
+
+.agent-avatar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: var(--custom-bg-secondary);
+  border-radius: var(--border-radius-base);
+}
+
+.agent-stats {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--custom-border-primary);
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--custom-text-tertiary);
+}
+
+.stat-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+/* 分頁樣式 */
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* 頭像上傳區域樣式 */
+.avatar-upload-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px dashed var(--custom-border-secondary);
+  border-radius: var(--border-radius-base);
+  background: var(--custom-bg-secondary);
+  transition: var(--transition-all);
+}
+
+.avatar-upload-section:hover {
+  border-color: var(--primary-color);
+  background: var(--custom-bg-tertiary);
+}
+
+.avatar-preview {
+  flex-shrink: 0;
+}
+
+.avatar-upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.avatar-tips {
+  margin-top: 8px;
+  color: var(--custom-text-tertiary);
+  font-size: 12px;
+}
+
+/* 配置顯示區域樣式 */
+.config-display {
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  padding: 12px;
+  border-radius: var(--border-radius-base);
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 300px;
+  overflow-y: auto;
+  color: var(--custom-text-primary);
+}
+
+/* 日誌容器樣式 */
+.log-container {
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: var(--border-radius-base);
+  padding: 12px;
+}
+
+.log-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--custom-border-primary);
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 12px;
+}
+
+.log-item:last-child {
+  border-bottom: none;
+}
+
+.log-time {
+  color: var(--custom-text-tertiary);
+  min-width: 140px;
+}
+
+.log-level {
+  min-width: 60px;
+  font-weight: bold;
+}
+
+.log-item.error .log-level {
+  color: var(--error-color);
+}
+
+.log-item.warn .log-level {
+  color: var(--warning-color);
+}
+
+.log-item.info .log-level {
+  color: var(--success-color);
+}
+
+.log-message {
+  flex: 1;
+  color: var(--custom-text-primary);
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .avatar-upload-section {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .avatar-upload-controls {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .admin-grid .ant-col {
+    margin-bottom: 16px;
+  }
+}
+
+/* Ant Design 組件覆蓋樣式 */
+.admin-page .ant-card {
+  background: var(--custom-bg-primary);
+  border-color: var(--custom-border-primary);
+}
+
+.admin-page .ant-card-head {
+  background: var(--custom-bg-primary);
+  border-bottom-color: var(--custom-border-primary);
+}
+
+.admin-page .ant-card-head-title {
+  color: var(--custom-text-primary);
+}
+
+.admin-page .ant-table {
+  background: var(--custom-bg-primary);
+}
+
+.admin-page .ant-table-thead > tr > th {
+  background: var(--custom-bg-secondary);
+  border-bottom-color: var(--custom-border-primary);
+  color: var(--custom-text-primary);
+}
+
+.admin-page .ant-table-tbody > tr > td {
+  border-bottom-color: var(--custom-border-primary);
+  color: var(--custom-text-primary);
+}
+
+.admin-page .ant-table-tbody > tr:hover > td {
+  background: var(--custom-bg-secondary);
+}
+
+.admin-page .ant-input {
+  background: var(--custom-bg-primary);
+  border-color: var(--custom-border-primary);
+  color: var(--custom-text-primary);
+}
+
+.admin-page .ant-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.admin-page .ant-select-selector {
+  background: var(--custom-bg-primary) !important;
+  border-color: var(--custom-border-primary) !important;
+  color: var(--custom-text-primary) !important;
+}
+
+.admin-page .ant-select-selection-item {
+  color: var(--custom-text-primary) !important;
+}
+
+.admin-page .ant-modal-content {
+  background: var(--custom-bg-primary);
+}
+
+.admin-page .ant-modal-header {
+  background: var(--custom-bg-primary);
+  border-bottom-color: var(--custom-border-primary);
+}
+
+.admin-page .ant-modal-title {
+  color: var(--custom-text-primary);
+}
+
+.admin-page .ant-form-item-label > label {
+  color: var(--custom-text-primary);
+}
+
+/* Badge 組件樣式修復 */
+.admin-page .ant-badge-status-text {
+  color: var(--custom-text-secondary) !important;
+}
+
+/* 連接狀態樣式修復 */
+.connection-status .ant-badge-status-text {
+  color: var(--custom-text-secondary) !important;
+}
+
+/* 下拉菜單樣式修復 */
+.admin-page .ant-select-dropdown {
+  background: var(--custom-bg-primary) !important;
+  border: 1px solid var(--custom-border-primary) !important;
+}
+
+.admin-page .ant-select-item {
+  color: var(--custom-text-primary) !important;
+}
+
+.admin-page .ant-select-item:hover {
+  background: var(--custom-bg-secondary) !important;
+}
+
+.admin-page .ant-select-item-option-selected {
+  background: var(--primary-color) !important;
+  color: white !important;
+}
+
+/* 彈出框樣式修復 */
+.admin-page .ant-popover-content {
+  background: var(--custom-bg-primary) !important;
+}
+
+.admin-page .ant-popover-inner {
+  background: var(--custom-bg-primary) !important;
+  border: 1px solid var(--custom-border-primary) !important;
+}
+
+.admin-page .ant-popover-title {
+  color: var(--custom-text-primary) !important;
+  border-bottom-color: var(--custom-border-primary) !important;
+}
+
+.admin-page .ant-popover-inner-content {
+  color: var(--custom-text-secondary) !important;
+}
+
+/* 工具提示樣式修復 */
+.admin-page .ant-tooltip-inner {
+  background: var(--custom-bg-secondary) !important;
+  color: var(--custom-text-primary) !important;
+}
+
+/* 分頁樣式修復 */
+.admin-page .ant-pagination-item {
+  background: var(--custom-bg-primary) !important;
+  border-color: var(--custom-border-primary) !important;
+}
+
+.admin-page .ant-pagination-item a {
+  color: var(--custom-text-primary) !important;
+}
+
+.admin-page .ant-pagination-item:hover {
+  border-color: var(--primary-color) !important;
+}
+
+.admin-page .ant-pagination-item-active {
+  background: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.admin-page .ant-pagination-item-active a {
+  color: white !important;
+}

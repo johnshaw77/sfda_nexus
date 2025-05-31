@@ -1,6 +1,7 @@
 /* 主樣式入口文件 */
 @import "./variables.css";
 @import "./components.css";
+@import "./admin.css";
 
 /* 全局樣式 - 只包含真正全局的樣式 */
 #app {

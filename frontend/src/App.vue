@@ -71,7 +71,7 @@ watchEffect(() => {
 <style>
 #app {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--custom-bg-primary);
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -84,7 +84,7 @@ body {
 
 /* 暗黑模式下的全局背景顏色設定 */
 [data-theme="dark"] #app {
-  background: #141414;
+  background: var(--custom-bg-primary);
 }
 
 /* Ant Design 組件的暗黑模式適配 */
