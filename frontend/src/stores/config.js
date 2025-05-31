@@ -9,6 +9,10 @@ export const useConfigStore = defineStore("config", () => {
   const environment = ref("development");
   const isLoaded = ref(false);
   const loadError = ref(null);
+  const colorPrimary = ref("#030303");
+
+  // 主題相關狀態
+  const isDarkMode = ref(localStorage.getItem("theme") === "dark");
 
   // 載入配置文件
   const loadConfig = async () => {
@@ -29,12 +33,14 @@ export const useConfigStore = defineStore("config", () => {
       appName.value = config.appName || appName.value;
       version.value = config.version || version.value;
       environment.value = config.environment || environment.value;
+      colorPrimary.value = config.colorPrimary || colorPrimary.value;
 
       console.log("配置已載入:", {
         apiBaseUrl: apiBaseUrl.value,
         appName: appName.value,
         version: version.value,
         environment: environment.value,
+        colorPrimary: colorPrimary.value,
       });
 
       isLoaded.value = true;
@@ -52,6 +58,22 @@ export const useConfigStore = defineStore("config", () => {
     return loadConfig();
   };
 
+  // 切換主題
+  const toggleTheme = () => {
+    isDarkMode.value = !isDarkMode.value;
+    const themeValue = isDarkMode.value ? "dark" : "light";
+    localStorage.setItem("theme", themeValue);
+    document.documentElement.setAttribute("data-theme", themeValue);
+    console.log("主題已切換為:", isDarkMode.value ? "暗黑" : "亮色");
+  };
+
+  // 初始化主題
+  const initTheme = () => {
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    isDarkMode.value = savedTheme === "dark";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+  };
+
   return {
     apiBaseUrl,
     appName,
@@ -61,5 +83,9 @@ export const useConfigStore = defineStore("config", () => {
     loadError,
     loadConfig,
     reloadConfig,
+    // 主題相關
+    isDarkMode,
+    toggleTheme,
+    initTheme,
   };
 });

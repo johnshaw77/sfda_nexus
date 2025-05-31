@@ -44,6 +44,25 @@
 
         <!-- 右側操作區域 -->
         <div class="header-right">
+          <!-- 主題切換開關 -->
+          <a-tooltip
+            :title="
+              configStore.isDarkMode ? '切換至亮色模式' : '切換至暗黑模式'
+            ">
+            <a-switch
+              :checked="configStore.isDarkMode"
+              size="small"
+              @change="configStore.toggleTheme"
+              class="theme-switch">
+              <template #checkedChildren>
+                <bulb-filled style="color: yellow" />
+              </template>
+              <template #unCheckedChildren>
+                <bulb-filled style="color: gray" />
+              </template>
+            </a-switch>
+          </a-tooltip>
+
           <!-- 快速操作 -->
           <div class="quick-actions">
             <a-tooltip title="系統監控">
@@ -319,13 +338,16 @@ import {
   HomeOutlined,
   FullscreenOutlined,
   RobotOutlined,
+  BulbFilled,
 } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
+import { useConfigStore } from "@/stores/config";
 
 // Store
 const authStore = useAuthStore();
 const wsStore = useWebSocketStore();
+const configStore = useConfigStore();
 
 // Router
 const router = useRouter();
@@ -502,6 +524,22 @@ const loadSystemStats = () => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.theme-switch {
+  margin-right: 8px;
+}
+
+.theme-switch .ant-switch-handle::before {
+  background-color: #fff;
+}
+
+.theme-switch.ant-switch-checked {
+  background-color: var(--ant-color-primary);
+}
+
+.theme-switch.ant-switch-checked .ant-switch-handle::before {
+  background-color: #fff;
 }
 
 .quick-actions {
@@ -692,5 +730,18 @@ const loadSystemStats = () => {
 
 .admin-menu::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* 主題切換開關樣式 */
+.theme-switch .ant-switch-handle::before {
+  background-color: #fff;
+}
+
+.theme-switch.ant-switch-checked {
+  background-color: var(--ant-color-primary);
+}
+
+.theme-switch.ant-switch-checked .ant-switch-handle::before {
+  background-color: #fff;
 }
 </style>

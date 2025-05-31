@@ -2,47 +2,29 @@
 @import "./variables.css";
 @import "./components.css";
 
-/* 全局樣式重置 */
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial,
-    sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-color);
-  background-color: var(--background-color);
-}
-
+/* 只保留必要的全局樣式 */
 #app {
   min-height: 100vh;
 }
 
-/* 滾動條樣式 */
+/* 自定義滾動條樣式 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: var(--border-color);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: var(--text-color-disabled);
 }
 
 /* 通用工具類 */

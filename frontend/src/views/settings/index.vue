@@ -102,7 +102,6 @@ const handleMenuClick = ({ key }) => {
 <style scoped>
 .settings-container {
   padding: 24px;
-  background: #f5f5f5;
   min-height: calc(100vh - 64px);
 }
 

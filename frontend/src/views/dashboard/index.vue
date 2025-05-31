@@ -428,7 +428,7 @@ onMounted(async () => {
 <style scoped>
 .dashboard-container {
   padding: 24px;
-  background: #f5f5f5;
+
   min-height: calc(100vh - 64px);
 }
 

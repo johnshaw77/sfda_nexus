@@ -1,5 +1,24 @@
 <template>
   <div class="auth-layout">
+    <!-- 主題切換按鈕 -->
+    <div class="theme-toggle-container">
+      <a-tooltip
+        :title="configStore.isDarkMode ? '切換至亮色模式' : '切換至暗黑模式'">
+        <a-switch
+          :checked="configStore.isDarkMode"
+          size="small"
+          @change="configStore.toggleTheme"
+          class="theme-switch">
+          <template #checkedChildren>
+            <bulb-filled style="color: yellow" />
+          </template>
+          <template #unCheckedChildren>
+            <bulb-filled style="color: gray" />
+          </template>
+        </a-switch>
+      </a-tooltip>
+    </div>
+
     <!-- 背景裝飾 -->
     <div class="auth-background">
       <div class="bg-pattern"></div>
@@ -149,9 +168,11 @@
 <script setup>
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { CheckCircleOutlined } from "@ant-design/icons-vue";
+import { CheckCircleOutlined, BulbFilled } from "@ant-design/icons-vue";
+import { useConfigStore } from "@/stores/config";
 
 const route = useRoute();
+const configStore = useConfigStore();
 
 // 計算屬性
 const getPageTitle = () => {
@@ -178,6 +199,25 @@ const getPageSubtitle = () => {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
+}
+
+.theme-toggle-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.theme-switch .ant-switch-handle::before {
+  background-color: #fff;
+}
+
+.theme-switch.ant-switch-checked {
+  background-color: var(--ant-color-primary);
+}
+
+.theme-switch.ant-switch-checked .ant-switch-handle::before {
+  background-color: #fff;
 }
 
 .auth-background {
@@ -286,9 +326,7 @@ const getPageSubtitle = () => {
 }
 
 .feature-highlights {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: none;
 }
 
 .feature-item {
@@ -533,5 +571,18 @@ const getPageSubtitle = () => {
   .feature-highlights {
     display: none;
   }
+}
+
+/* 主題切換開關樣式 */
+.theme-switch .ant-switch-handle::before {
+  background-color: #fff;
+}
+
+.theme-switch.ant-switch-checked {
+  background-color: var(--ant-color-primary);
+}
+
+.theme-switch.ant-switch-checked .ant-switch-handle::before {
+  background-color: #fff;
 }
 </style>

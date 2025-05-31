@@ -335,7 +335,6 @@ onMounted(() => {
   padding: 16px;
   border: 1px dashed #d9d9d9;
   border-radius: 6px;
-  background: #fafafa;
   transition: all 0.3s ease;
 }
 

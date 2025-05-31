@@ -2,5 +2,6 @@
   "apiBaseUrl": "http://localhost:3000",
   "appName": "SFDA_Nexus",
   "version": "1.6.9",
-  "environment": "development"
+  "environment": "development",
+  "colorPrimary": "red"
 }

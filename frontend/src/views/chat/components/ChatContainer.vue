@@ -126,7 +126,6 @@ const setupWebSocketListeners = () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
 }
 
 .chat-content {

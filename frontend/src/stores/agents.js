@@ -47,26 +47,25 @@ export const useAgentsStore = defineStore("agents", {
         const response = await getAgents(params);
 
         if (response.success) {
+          // 安全的 JSON 解析函數
+          const safeJsonParse = (str, fallback = null) => {
+            if (typeof str !== "string") return str;
+            if (str.startsWith("data:")) return str; // 如果是 data URL，直接返回
+            try {
+              return JSON.parse(str);
+            } catch {
+              return fallback;
+            }
+          };
+
           // 處理智能體數據，解析 JSON 字段
           this.agents = response.data.map((agent) => ({
             ...agent,
             // 解析 JSON 字段
-            avatar:
-              typeof agent.avatar === "string"
-                ? JSON.parse(agent.avatar)
-                : agent.avatar,
-            tags:
-              typeof agent.tags === "string"
-                ? JSON.parse(agent.tags)
-                : agent.tags,
-            capabilities:
-              typeof agent.capabilities === "string"
-                ? JSON.parse(agent.capabilities)
-                : agent.capabilities,
-            tools:
-              typeof agent.tools === "string"
-                ? JSON.parse(agent.tools)
-                : agent.tools,
+            avatar: safeJsonParse(agent.avatar, agent.avatar),
+            tags: safeJsonParse(agent.tags, []),
+            capabilities: safeJsonParse(agent.capabilities, []),
+            tools: safeJsonParse(agent.tools, []),
           }));
         } else {
           throw new Error(response.message || "獲取智能體列表失敗");
