@@ -747,7 +747,7 @@ onMounted(async () => {
 
 <style scoped>
 .agents-page {
-  padding: 24px;
+  padding: 12px;
 }
 
 .search-section {

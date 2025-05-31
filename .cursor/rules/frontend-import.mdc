@@ -10,3 +10,14 @@ alwaysApply: false
 2. 當組件或模塊不在當前目錄時，使用別名 @ 來引入。例如:
    - 原本的引入方式: import MyComponent from '../components/MyComponent.vue';
    - 修改後的引入方式: import MyComponent from '@/components/MyComponent.vue';
+
+3. In the Vue.js framework, avoid using v-model for binding. Instead, directly bind with the :value syntax. Below is a concrete example to illustrate this approach:
+
+Usage Example:
+```html
+<a-input-search
+              :value="searchText"
+              placeholder="搜索用戶名或郵箱"
+              @search="handleSearch"
+              allow-clear />
+```

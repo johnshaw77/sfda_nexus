@@ -308,7 +308,7 @@ onMounted(() => {
 
 <style scoped>
 .system-page {
-  padding: 24px;
+  padding: 12px;
 }
 
 .log-container {

@@ -17,14 +17,14 @@
         <a-row :gutter="16">
           <a-col :span="8">
             <a-input-search
-              v-model:value="searchText"
+              :value="searchText"
               placeholder="搜索用戶名或郵箱"
               @search="handleSearch"
               allow-clear />
           </a-col>
           <a-col :span="6">
             <a-select
-              v-model:value="filterRole"
+              :value="filterRole"
               placeholder="選擇角色"
               style="width: 100%"
               allow-clear>
@@ -34,7 +34,7 @@
           </a-col>
           <a-col :span="6">
             <a-select
-              v-model:value="filterStatus"
+              :value="filterStatus"
               placeholder="選擇狀態"
               style="width: 100%"
               allow-clear>
@@ -75,7 +75,7 @@
         <!-- 狀態列 -->
         <template #status="{ record }">
           <a-switch
-            v-model:checked="record.is_active"
+            :checked="record.is_active"
             :loading="record.updating"
             @change="handleStatusChange(record)" />
         </template>
@@ -115,7 +115,7 @@
 
     <!-- 添加/編輯用戶對話框 -->
     <a-modal
-      v-model:open="modalVisible"
+      :open="modalVisible"
       :title="modalTitle"
       :width="600"
       @ok="handleModalOk"
@@ -131,7 +131,7 @@
               label="用戶名"
               name="username">
               <a-input
-                v-model:value="formData.username"
+                :value="formData.username"
                 placeholder="輸入用戶名" />
             </a-form-item>
           </a-col>
@@ -140,7 +140,7 @@
               label="郵箱"
               name="email">
               <a-input
-                v-model:value="formData.email"
+                :value="formData.email"
                 placeholder="輸入郵箱" />
             </a-form-item>
           </a-col>
@@ -152,7 +152,7 @@
               label="角色"
               name="role">
               <a-select
-                v-model:value="formData.role"
+                :value="formData.role"
                 placeholder="選擇角色">
                 <a-select-option value="admin">管理員</a-select-option>
                 <a-select-option value="user">普通用戶</a-select-option>
@@ -165,7 +165,7 @@
               name="password"
               v-if="!formData.id">
               <a-input-password
-                v-model:value="formData.password"
+                :value="formData.password"
                 placeholder="輸入密碼" />
             </a-form-item>
           </a-col>
@@ -434,7 +434,7 @@ onMounted(() => {
 
 <style scoped>
 .users-page {
-  padding: 24px;
+  padding: 12px;
 }
 
 .search-section {

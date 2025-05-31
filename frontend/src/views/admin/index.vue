@@ -96,7 +96,7 @@ export default {
 
 <style scoped>
 .admin-page {
-  padding: 24px;
+  padding: 12px;
 }
 
 .admin-grid {

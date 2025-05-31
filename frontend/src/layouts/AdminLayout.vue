@@ -633,7 +633,7 @@ const loadSystemStats = () => {
 
 .content-wrapper {
   flex: 1;
-  padding: 24px;
+  padding: 2px;
   overflow-y: auto;
   background: #f0f2f5;
 }

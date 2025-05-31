@@ -517,7 +517,7 @@ onMounted(() => {
 
 <style scoped>
 .models-page {
-  padding: 24px;
+  padding: 12px;
 }
 
 .search-section {
