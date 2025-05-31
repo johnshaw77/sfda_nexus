@@ -428,22 +428,4 @@ onMounted(async () => {
 .danger-item {
   color: #ff4d4f !important;
 }
-
-/* 滾動條樣式 */
-.conversation-items::-webkit-scrollbar {
-  width: 4px;
-}
-
-.conversation-items::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.conversation-items::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 2px;
-}
-
-.conversation-items::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
 </style>

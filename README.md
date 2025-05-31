@@ -764,3 +764,59 @@ MIT License
 ---
 
 **SFDA Nexus** - 讓 AI 助力企業數位轉型 🚀
+
+#### 🎨 現代化聊天界面 (v1.7.0) - 2025-01-03
+
+- [x] 雙層側邊欄設計
+  - [x] 主側邊欄：導航選單（儀表板、聊天、智能體、個人資料、設置）
+  - [x] 智能體側邊欄：智能體選擇和管理
+  - [x] 滑動動畫效果和響應式設計
+- [x] 聊天界面重構
+  - [x] ChatContainer.vue - 聊天容器組件
+  - [x] ChatArea.vue - 主聊天區域
+  - [x] MessageBubble.vue - 訊息氣泡組件
+  - [x] WelcomeScreen.vue - 歡迎畫面
+  - [x] ConversationList.vue - 對話列表
+- [x] 智能體系統
+  - [x] 7 個專業智能體配置
+  - [x] 智能體頭像和狀態顯示
+  - [x] 智能體切換和選擇功能
+
+#### 🎨 樣式系統重構 (v1.8.0) - 2025-01-03
+
+- [x] 組件優先架構實施
+  - [x] variables.css 重構：移除與 Ant Design 衝突的樣式
+  - [x] main.css 簡化：只保留真正全局的樣式
+  - [x] App.vue 清理：移除重複樣式代碼
+  - [x] components.css 創建：可重用組件樣式庫
+- [x] MainLayout.vue 完全重寫
+  - [x] 使用新的 CSS 變量系統
+  - [x] 移除所有硬編碼顏色
+  - [x] 統一變量命名規範
+- [x] 主色調同步機制
+  - [x] App.vue 中實現 ConfigProvider 與 CSS 變量橋接
+  - [x] config store 增強：主色調持久化和更新方法
+  - [x] Settings.vue 測試頁面：8 種預設顏色 + 自定義顏色
+  - [x] Dashboard 硬編碼修正：所有元素使用 CSS 變量
+
+#### 🔧 樣式系統修正與優化 (v1.8.1) - 2025-01-03
+
+- [x] 主色調同步問題修正
+  - [x] App.vue 同時設置 --ant-primary-color 和 --primary-color
+  - [x] 確保所有自定義組件與 Ant Design 組件主色調完全同步
+- [x] 暗黑模式全面支援
+  - [x] ChatArea.vue 所有硬編碼顏色替換為 CSS 變量
+  - [x] Settings.vue 選單樣式修正
+  - [x] 智能體頭像顯示邏輯修正（支持 base64 圖片）
+- [x] 滾動條系統優化
+  - [x] 全局滾動條樣式統一使用 CSS 變量
+  - [x] 滾動條寬度增加到 8px，顏色調整為更明顯的 --custom-text-tertiary
+  - [x] 暗黑模式下滾動條透明度優化（0.4）
+  - [x] 懸停效果使用主色調
+- [x] 頁面滾動功能修正
+  - [x] Dashboard 和 Settings 頁面容器高度修正
+  - [x] MainLayout 內容區域 overflow 設置修正
+  - [x] 所有頁面現在都能根據內容自動顯示滾動條
+- [x] 智能體選單交互優化
+  - [x] 點擊其他選單項目時自動關閉智能體側邊欄
+  - [x] 智能體頭像優先顯示 base64 圖片，後備使用漸變背景

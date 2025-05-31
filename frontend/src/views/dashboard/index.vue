@@ -428,13 +428,13 @@ onMounted(async () => {
 <style scoped>
 .dashboard-container {
   padding: 24px;
-
-  min-height: calc(100vh - 64px);
+  min-height: 100%;
+  overflow-y: auto;
 }
 
 /* 歡迎區域 */
 .welcome-section {
-  background: linear-gradient(135deg, #1890ff, #722ed1);
+  background: linear-gradient(135deg, var(--primary-color), #722ed1);
   border-radius: 12px;
   padding: 32px;
   margin-bottom: 24px;
@@ -472,7 +472,7 @@ onMounted(async () => {
 }
 
 .stat-icon {
-  color: #1890ff;
+  color: var(--primary-color);
   font-size: 18px;
 }
 
@@ -512,8 +512,8 @@ onMounted(async () => {
 }
 
 .conversation-item:hover {
-  background: #f5f5f5;
-  border-color: #d9d9d9;
+  background: var(--custom-bg-tertiary);
+  border-color: var(--custom-border-primary);
 }
 
 .conversation-avatar {
@@ -534,7 +534,7 @@ onMounted(async () => {
 }
 
 .conversation-preview {
-  color: #666;
+  color: var(--custom-text-secondary);
   font-size: 14px;
   margin-bottom: 8px;
   overflow: hidden;
@@ -549,7 +549,7 @@ onMounted(async () => {
 }
 
 .conversation-time {
-  color: #999;
+  color: var(--custom-text-tertiary);
   font-size: 12px;
 }
 
@@ -576,25 +576,25 @@ onMounted(async () => {
   align-items: center;
   padding: 20px;
   border-radius: 8px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--custom-border-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .quick-action-item:hover {
-  border-color: #1890ff;
-  background: #f0f8ff;
+  border-color: var(--primary-color);
+  background: var(--custom-bg-tertiary);
 }
 
 .action-icon {
   font-size: 24px;
-  color: #1890ff;
+  color: var(--primary-color);
   margin-bottom: 8px;
 }
 
 .action-text {
   font-size: 14px;
-  color: #333;
+  color: var(--custom-text-primary);
 }
 
 /* 系統狀態 */
@@ -609,7 +609,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--custom-border-primary);
 }
 
 .status-item:last-child {
@@ -617,12 +617,13 @@ onMounted(async () => {
 }
 
 .status-label {
-  color: #666;
+  color: var(--custom-text-secondary);
   font-size: 14px;
 }
 
 .status-value {
   font-weight: 500;
+  color: var(--custom-text-primary);
 }
 
 /* 使用提示 */
@@ -636,11 +637,11 @@ onMounted(async () => {
   align-items: center;
   padding: 8px 0;
   font-size: 14px;
-  color: #666;
+  color: var(--custom-text-secondary);
 }
 
 .tip-icon {
-  color: #faad14;
+  color: var(--warning-color);
   margin-right: 8px;
   font-size: 16px;
 }
@@ -669,15 +670,15 @@ onMounted(async () => {
 /* 卡片標題樣式 */
 :deep(.ant-card-head-title) {
   font-weight: 600;
-  color: #333;
+  color: var(--custom-text-primary);
 }
 
 :deep(.ant-statistic-title) {
-  color: #666;
+  color: var(--custom-text-secondary);
   font-size: 14px;
 }
 
 :deep(.ant-statistic-content) {
-  color: #333;
+  color: var(--custom-text-primary);
 }
 </style>

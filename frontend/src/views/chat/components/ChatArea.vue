@@ -8,9 +8,25 @@
           v-if="agent"
           class="agent-info">
           <div class="agent-avatar">
+            <!-- 如果有 base64 avatar，直接顯示圖片 -->
+            <img
+              v-if="
+                agent.avatar &&
+                typeof agent.avatar === 'string' &&
+                agent.avatar.startsWith('data:')
+              "
+              :src="agent.avatar"
+              :alt="agent.name"
+              class="avatar-image" />
+            <!-- 沒有 avatar 時使用漸變背景 -->
             <div
+              v-else
               class="avatar-bg"
-              :style="{ background: agent.gradient }">
+              :style="{
+                background:
+                  agent.gradient ||
+                  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              }">
               <svg
                 v-if="agent.icon"
                 class="agent-icon"
@@ -120,9 +136,25 @@
               <div
                 class="agent-avatar-large"
                 v-if="agent">
+                <!-- 如果有 base64 avatar，直接顯示圖片 -->
+                <img
+                  v-if="
+                    agent.avatar &&
+                    typeof agent.avatar === 'string' &&
+                    agent.avatar.startsWith('data:')
+                  "
+                  :src="agent.avatar"
+                  :alt="agent.name"
+                  class="avatar-image-large" />
+                <!-- 沒有 avatar 時使用漸變背景 -->
                 <div
+                  v-else
                   class="avatar-bg"
-                  :style="{ background: agent.gradient }">
+                  :style="{
+                    background:
+                      agent.gradient ||
+                      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  }">
                   <svg
                     v-if="agent.icon"
                     class="agent-icon"
@@ -670,16 +702,16 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--custom-bg-primary);
 }
 
 .chat-area-header {
   padding: 16px 24px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--custom-border-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fafafa;
+  background: var(--custom-bg-secondary);
 }
 
 .conversation-info {
@@ -694,13 +726,14 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--custom-text-primary);
 }
 
 .conversation-meta {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #666;
+  color: var(--custom-text-secondary);
 }
 
 .chat-controls {
@@ -724,7 +757,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
-  background: #f8f9fa;
+  background: var(--custom-bg-secondary);
 }
 
 .empty-messages {
@@ -741,18 +774,18 @@ onUnmounted(() => {
 
 .empty-icon {
   font-size: 48px;
-  color: #d9d9d9;
+  color: var(--custom-text-tertiary);
   margin-bottom: 16px;
 }
 
 .empty-content h3 {
   font-size: 20px;
   margin-bottom: 8px;
-  color: #1a1a1a;
+  color: var(--custom-text-primary);
 }
 
 .empty-content p {
-  color: #666;
+  color: var(--custom-text-secondary);
   margin-bottom: 24px;
 }
 
@@ -776,8 +809,8 @@ onUnmounted(() => {
 }
 
 .typing-bubble {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
+  background: var(--custom-bg-tertiary);
+  border: 1px solid var(--success-color);
   border-radius: 12px;
   border-bottom-left-radius: 4px;
   padding: 12px 16px;
@@ -795,7 +828,7 @@ onUnmounted(() => {
 .typing-dots span {
   width: 6px;
   height: 6px;
-  background: #52c41a;
+  background: var(--success-color);
   border-radius: 50%;
   animation: typing 1.4s infinite ease-in-out;
 }
@@ -810,7 +843,7 @@ onUnmounted(() => {
 
 .typing-text {
   font-size: 12px;
-  color: #666;
+  color: var(--custom-text-secondary);
 }
 
 @keyframes typing {
@@ -827,14 +860,14 @@ onUnmounted(() => {
 }
 
 .message-input-area {
-  border-top: 1px solid #f0f0f0;
-  background: #fff;
+  border-top: 1px solid var(--custom-border-primary);
+  background: var(--custom-bg-primary);
 }
 
 .quoted-message-display {
   padding: 12px 24px;
-  background: #f6ffed;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--custom-bg-tertiary);
+  border-bottom: 1px solid var(--custom-border-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -851,13 +884,13 @@ onUnmounted(() => {
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #52c41a;
+  color: var(--success-color);
   margin-bottom: 4px;
 }
 
 .quote-text {
   font-size: 13px;
-  color: #666;
+  color: var(--custom-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -868,14 +901,15 @@ onUnmounted(() => {
 }
 
 .input-wrapper {
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--custom-border-primary);
   border-radius: 8px;
   overflow: hidden;
   transition: border-color 0.2s;
+  background: var(--custom-bg-primary);
 }
 
 .input-wrapper:focus-within {
-  border-color: #1890ff;
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
@@ -884,6 +918,8 @@ onUnmounted(() => {
   box-shadow: none !important;
   resize: none;
   padding: 12px 16px 0 16px;
+  background: var(--custom-bg-primary);
+  color: var(--custom-text-primary);
 }
 
 .message-input:focus {
@@ -896,8 +932,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #fafafa;
-  border-top: 1px solid #f0f0f0;
+  background: var(--custom-bg-tertiary);
+  border-top: 1px solid var(--custom-border-primary);
 }
 
 .toolbar-left,
@@ -909,25 +945,7 @@ onUnmounted(() => {
 
 .char-count {
   font-size: 12px;
-  color: #999;
-}
-
-/* 滾動條樣式 */
-.messages-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.messages-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.messages-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.messages-container::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  color: var(--custom-text-tertiary);
 }
 
 /* 響應式設計 */
@@ -972,6 +990,14 @@ onUnmounted(() => {
 .agent-avatar {
   position: relative;
   flex-shrink: 0;
+}
+
+.agent-avatar .avatar-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .agent-avatar .avatar-bg {
@@ -1028,13 +1054,13 @@ onUnmounted(() => {
 .agent-name {
   font-size: 18px;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--custom-text-primary);
   margin: 0 0 4px 0;
 }
 
 .agent-description {
   font-size: 13px;
-  color: #718096;
+  color: var(--custom-text-secondary);
   margin: 0;
   line-height: 1.4;
   display: -webkit-box;
@@ -1046,13 +1072,20 @@ onUnmounted(() => {
 .conversation-title-section .conversation-title {
   font-size: 18px;
   font-weight: 600;
-  color: #2d3748;
-  margin: 0 0 4px 0;
+  color: var(--custom-text-primary);
 }
 
 /* 空狀態智能體頭像 */
 .agent-avatar-large {
   margin: 0 auto 16px;
+}
+
+.agent-avatar-large .avatar-image-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
 .agent-avatar-large .avatar-bg {

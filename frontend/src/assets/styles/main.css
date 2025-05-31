@@ -1,47 +1,57 @@
-/* 主樣式文件 */
+/* 主樣式入口文件 */
 @import "./variables.css";
 @import "./components.css";
 
-/* 只保留必要的全局樣式 */
+/* 全局樣式 - 只包含真正全局的樣式 */
 #app {
   min-height: 100vh;
 }
 
-/* 自定義滾動條樣式 */
+/* 全局滾動條樣式 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 3px;
+  background: var(--custom-bg-tertiary);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: "" rgba(255, 255, 255, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--custom-border-secondary);
   border-radius: 3px;
+  transition: background-color 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-color-disabled);
+  background: var(--primary-color);
 }
 
-/* 通用工具類 */
-.text-center {
-  text-align: center;
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(175, 175, 175, 0.3);
 }
 
-.text-left {
-  text-align: left;
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
 }
 
-.text-right {
-  text-align: right;
+/* NProgress 全局樣式 */
+#nprogress .bar {
+  height: 2px !important;
 }
 
-.flex {
-  display: flex;
+[data-theme="dark"] #nprogress .bar {
+  opacity: 0.8;
+}
+
+/* 全局工具類 - 只保留最常用的 */
+.full-height {
+  height: 100vh;
 }
 
 .flex-center {
@@ -56,54 +66,10 @@
   justify-content: space-between;
 }
 
-.flex-column {
-  display: flex;
-  flex-direction: column;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.h-full {
-  height: 100%;
-}
-
-.mb-16 {
-  margin-bottom: 16px;
-}
-
-.mb-24 {
-  margin-bottom: 24px;
-}
-
-.mt-16 {
-  margin-top: 16px;
-}
-
-.mt-24 {
-  margin-top: 24px;
-}
-
-.p-16 {
-  padding: 16px;
-}
-
-.p-24 {
-  padding: 24px;
-}
-
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .ant-layout-sider {
-    position: fixed !important;
-    left: 0;
-    top: 64px;
-    bottom: 0;
-    z-index: 999;
-  }
-
-  .ant-layout-content {
-    margin-left: 0 !important;
-  }
+/* 主題切換動畫 */
+* {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }

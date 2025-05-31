@@ -102,7 +102,8 @@ const handleMenuClick = ({ key }) => {
 <style scoped>
 .settings-container {
   padding: 24px;
-  min-height: calc(100vh - 64px);
+  min-height: 100%;
+  overflow-y: auto;
 }
 
 .settings-header {
@@ -113,11 +114,11 @@ const handleMenuClick = ({ key }) => {
   font-size: 28px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--custom-text-primary);
 }
 
 .settings-subtitle {
-  color: #666;
+  color: var(--custom-text-secondary);
   font-size: 16px;
   margin: 0;
 }
@@ -129,16 +130,21 @@ const handleMenuClick = ({ key }) => {
 .settings-menu-card {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
 }
 
 .settings-menu {
   border: none;
+  background: transparent;
 }
 
 .settings-panel {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: 500px;
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
 }
 
 /* 響應式設計 */
@@ -155,16 +161,37 @@ const handleMenuClick = ({ key }) => {
 /* 表單樣式優化 */
 :deep(.ant-form-item-label > label) {
   font-weight: 500;
-  color: #333;
+  color: var(--custom-text-primary);
 }
 
 :deep(.ant-card-head-title) {
   font-weight: 600;
-  color: #333;
+  color: var(--custom-text-primary);
 }
 
 :deep(.ant-menu-item-selected) {
-  background-color: #e6f7ff;
+  background-color: var(--primary-color);
+  color: white;
   border-radius: 6px;
+}
+
+:deep(.ant-menu-item) {
+  color: var(--custom-text-secondary);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+:deep(.ant-menu-item:hover) {
+  background-color: var(--custom-bg-tertiary);
+  color: var(--custom-text-primary);
+}
+
+:deep(.ant-card) {
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
+}
+
+:deep(.ant-card-body) {
+  background: var(--custom-bg-primary);
 }
 </style>

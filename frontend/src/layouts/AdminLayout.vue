@@ -714,24 +714,6 @@ const loadSystemStats = () => {
   }
 }
 
-/* 滾動條樣式 */
-.admin-menu::-webkit-scrollbar {
-  width: 4px;
-}
-
-.admin-menu::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.admin-menu::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 2px;
-}
-
-.admin-menu::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
 /* 主題切換開關樣式 */
 .theme-switch .ant-switch-handle::before {
   background-color: #fff;

@@ -9,7 +9,7 @@ export const useConfigStore = defineStore("config", () => {
   const environment = ref("development");
   const isLoaded = ref(false);
   const loadError = ref(null);
-  const colorPrimary = ref("#030303");
+  const colorPrimary = ref("#1677ff"); // 使用 Ant Design 預設主色調，確保與 ConfigProvider 一致
 
   // 主題相關狀態
   const isDarkMode = ref(localStorage.getItem("theme") === "dark");
@@ -58,6 +58,13 @@ export const useConfigStore = defineStore("config", () => {
     return loadConfig();
   };
 
+  // 更新主色調
+  const updatePrimaryColor = (color) => {
+    colorPrimary.value = color;
+    localStorage.setItem("primaryColor", color);
+    console.log("主色調已更新為:", color);
+  };
+
   // 切換主題
   const toggleTheme = () => {
     isDarkMode.value = !isDarkMode.value;
@@ -72,6 +79,12 @@ export const useConfigStore = defineStore("config", () => {
     const savedTheme = localStorage.getItem("theme") || "dark";
     isDarkMode.value = savedTheme === "dark";
     document.documentElement.setAttribute("data-theme", savedTheme);
+
+    // 初始化主色調
+    const savedColor = localStorage.getItem("primaryColor");
+    if (savedColor) {
+      colorPrimary.value = savedColor;
+    }
   };
 
   return {
@@ -81,8 +94,10 @@ export const useConfigStore = defineStore("config", () => {
     environment,
     isLoaded,
     loadError,
+    colorPrimary,
     loadConfig,
     reloadConfig,
+    updatePrimaryColor,
     // 主題相關
     isDarkMode,
     toggleTheme,

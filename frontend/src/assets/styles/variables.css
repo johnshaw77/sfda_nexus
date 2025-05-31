@@ -1,9 +1,8 @@
 /* CSS 變量定義 */
 :root {
-  /* 主色調 */
-  --primary-color: #1890ff;
-  --primary-color-hover: #40a9ff;
-  --primary-color-active: #096dd9;
+  /* 主色調 - 由 App.vue 動態設置，與 Ant Design ConfigProvider 同步 */
+  /* --primary-color 和 --ant-primary-color 都會被 App.vue 設置為相同值 */
+  --primary-color: #1677ff; /* 後備值，實際會被 App.vue 覆蓋 */
 
   /* 輔助色 */
   --success-color: #52c41a;
@@ -67,6 +66,38 @@
   --z-index-dropdown: 1050;
   --z-index-picker: 1050;
   --z-index-tooltip: 1060;
+
+  /* 佈局相關變量 */
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 80px;
+  --agents-sidebar-width: 320px;
+  --header-height: 80px;
+
+  /* Z-index 層級 */
+  --z-sidebar: 100;
+  --z-agents-sidebar: 90;
+  --z-overlay: 80;
+  --z-notification: 1010;
+
+  /* 動畫變量 */
+  --transition-sidebar: width 0.3s ease;
+  --transition-transform: transform 0.3s ease;
+  --transition-all: all 0.2s ease;
+
+  /* 自定義陰影 */
+  --shadow-sidebar: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-floating: 0 6px 16px rgba(0, 0, 0, 0.12);
+
+  /* 自定義間距 */
+  --spacing-sidebar: 20px;
+  --spacing-card: 16px;
+  --spacing-small: 8px;
+
+  /* 自定義圓角 */
+  --radius-card: 12px;
+  --radius-button: 8px;
+  --radius-input: 6px;
 }
 
 /* 暗色主題變量 */
@@ -79,4 +110,35 @@
   --background-color: #141414;
   --background-color-light: #1f1f1f;
   --background-color-base: #000000;
+
+  /* 自定義背景色 */
+  --custom-bg-primary: #141414;
+  --custom-bg-secondary: #1f1f1f;
+  --custom-bg-tertiary: #2a2a2a;
+
+  /* 自定義邊框色 */
+  --custom-border-primary: #303030;
+  --custom-border-secondary: #3a3a3a;
+
+  /* 自定義文字色 */
+  --custom-text-primary: rgba(255, 255, 255, 0.85);
+  --custom-text-secondary: rgba(255, 255, 255, 0.65);
+  --custom-text-tertiary: rgba(255, 255, 255, 0.45);
+}
+
+/* 亮色模式下的自定義變量 */
+[data-theme="light"] {
+  /* 自定義背景色 */
+  --custom-bg-primary: #ffffff;
+  --custom-bg-secondary: #f8fafc;
+  --custom-bg-tertiary: #f1f5f9;
+
+  /* 自定義邊框色 */
+  --custom-border-primary: #e2e8f0;
+  --custom-border-secondary: #cbd5e0;
+
+  /* 自定義文字色 */
+  --custom-text-primary: #1a202c;
+  --custom-text-secondary: #4a5568;
+  --custom-text-tertiary: #718096;
 }

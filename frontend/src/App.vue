@@ -2,11 +2,16 @@
   <a-config-provider
     :theme="{
       token: {
-        colorPrimary: '#1677ff',
+        colorPrimary: configStore.colorPrimary,
       },
       algorithm: themeAlgorithm,
     }">
-    <div id="app">
+    <div
+      id="app"
+      :style="{
+        '--ant-primary-color': configStore.colorPrimary,
+        '--primary-color': configStore.colorPrimary,
+      }">
       <router-view />
     </div>
   </a-config-provider>
@@ -58,6 +63,7 @@ onMounted(async () => {
 // 監聽主題變化
 watchEffect(() => {
   console.log("App 主題當前為:", configStore.isDarkMode ? "暗黑" : "亮色");
+  console.log("主色調為:", configStore.colorPrimary);
 });
 </script>
 
@@ -80,68 +86,15 @@ body {
   background: #141414;
 }
 
+/* Ant Design 組件的暗黑模式適配 */
 [data-theme="dark"] .ant-layout-sider,
-[data-theme="dark"] .ant-menu-dark,
-[data-theme="dark"] .site-layout-header {
-  background-color: #141414 !important;
+[data-theme="dark"] .ant-menu-dark {
+  background-color: #1f1f1f !important;
 }
 
-[data-theme="dark"] .site-layout-header {
+[data-theme="dark"] .ant-layout-header {
+  background-color: #1f1f1f !important;
   border-bottom: 1px solid #303030;
-}
-
-[data-theme="dark"] .ant-layout-sider {
-  border-right: 1px solid #303030;
-}
-
-/* 確保暗黑模式下的文字和圖標顏色 */
-[data-theme="dark"] .trigger,
-[data-theme="dark"] .ant-dropdown-link,
-[data-theme="dark"] .theme-toggle {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-/* NProgress 自定義樣式 */
-#nprogress .bar {
-  /* background: #52c41a !important; */
-  height: 2px !important;
-}
-
-/* 暗黑模式下的 NProgress 設定 */
-[data-theme="dark"] #nprogress .bar {
-  opacity: 0.8;
-}
-
-/* 全局滾動條樣式 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-track {
-  background: #2a2a2a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: #555;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: #777;
 }
 
 /* 響應式設計 */

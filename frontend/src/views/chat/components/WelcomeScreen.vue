@@ -439,22 +439,4 @@ onMounted(async () => {
     padding: 24px;
   }
 }
-
-/* 滾動條樣式 */
-.welcome-screen::-webkit-scrollbar {
-  width: 6px;
-}
-
-.welcome-screen::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.welcome-screen::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
-  border-radius: 3px;
-}
-
-.welcome-screen::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
-}
 </style>
