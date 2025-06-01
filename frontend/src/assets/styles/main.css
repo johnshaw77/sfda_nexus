@@ -3,6 +3,9 @@
 @import "./components.css";
 @import "./admin.css";
 
+/* 導入 Fira Code 字體 */
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap");
+
 /* 全局樣式 - 只包含真正全局的樣式 */
 #app {
   min-height: 100vh;

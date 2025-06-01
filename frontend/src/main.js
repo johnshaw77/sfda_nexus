@@ -37,5 +37,9 @@ for (const [key, component] of Object.entries(Icons)) {
   console.log(key, component);
   app.component(key, component);
 }
+
+// 引入並註冊全域組件
+import CodeHighlight from "./components/common/CodeHighlight.vue";
+app.component("CodeHighlight", CodeHighlight);
 // 掛載應用
 app.mount("#app");

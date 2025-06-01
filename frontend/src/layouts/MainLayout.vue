@@ -19,7 +19,8 @@
           </div>
           <h1
             v-if="!sidebarCollapsed"
-            class="logo-text">
+            class="logo-text"
+            :class="{ 'delayed-show': showLogoText }">
             數據分析
           </h1>
         </div>
@@ -445,9 +446,11 @@ const route = useRoute();
 // 響應式狀態
 const sidebarCollapsed = ref(false);
 const agentsSidebarVisible = ref(false);
-const notificationDrawerVisible = ref(false);
+
+const showNotifications = ref(false);
 const notificationCount = ref(2);
 const searchQuery = ref("");
+const showLogoText = ref(!sidebarCollapsed.value); // 初始化時根據sidebar狀態設置
 
 // 計算屬性
 const agents = computed(() => agentsStore.availableAgents);
@@ -507,9 +510,19 @@ const notifications = ref([
   },
 ]);
 
-// 側邊欄切換
+// 控制方法
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value;
+
+  if (sidebarCollapsed.value) {
+    // 折疊時立即隱藏logo文字
+    showLogoText.value = false;
+  } else {
+    // 展開時延遲0.5秒顯示logo文字
+    setTimeout(() => {
+      showLogoText.value = true;
+    }, 200);
+  }
 };
 
 // 智能體側邊欄開啟
@@ -651,9 +664,14 @@ onMounted(async () => {
   width: var(--sidebar-collapsed-width);
 }
 
+.collapsed .sidebar-header {
+  padding: 5px 10px 0px 20px;
+}
+
 /* 側邊欄頭部 */
 .sidebar-header {
-  padding: var(--spacing-sidebar);
+  padding: 0 var(--spacing-sidebar);
+
   border-bottom: 1px solid var(--custom-border-primary);
   display: flex;
   align-items: center;
@@ -679,10 +697,17 @@ onMounted(async () => {
 }
 
 .logo-text {
-  font-size: 20px;
+  margin: 0;
+  font-size: 24px;
   font-weight: 600;
   color: var(--custom-text-primary);
-  margin: 0;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.logo-text.delayed-show {
+  opacity: 1;
 }
 
 .collapse-btn {
@@ -1013,7 +1038,7 @@ onMounted(async () => {
 .user-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
 }

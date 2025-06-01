@@ -102,20 +102,20 @@ api.interceptors.response.use(
     // 計算請求耗時（用於調試）
     const endTime = new Date();
     const duration = endTime - response.config.metadata.startTime;
-    console.log(`API 請求耗時: ${duration}ms - ${response.config.url}`);
+    //console.log(`API 請求耗時: ${duration}ms - ${response.config.url}`);
 
     // 調試：打印詳細回應信息（僅針對聊天 API）
     if (
       response.config.url.includes("/chat/conversations/") &&
       response.config.url.includes("/messages")
     ) {
-      console.log("=== API 回應攔截器調試 ===");
-      console.log("請求 URL:", response.config.url);
-      console.log("請求方法:", response.config.method);
-      console.log("回應狀態:", response.status);
-      console.log("回應 headers:", response.headers);
-      console.log("回應數據:", response.data);
-      console.log("=== API 回應攔截器調試結束 ===\n");
+      // console.log("=== API 回應攔截器調試 ===");
+      // console.log("請求 URL:", response.config.url);
+      // console.log("請求方法:", response.config.method);
+      // console.log("回應狀態:", response.status);
+      // console.log("回應 headers:", response.headers);
+      // console.log("回應數據:", response.data);
+      // console.log("=== API 回應攔截器調試結束 ===\n");
     }
 
     return response;

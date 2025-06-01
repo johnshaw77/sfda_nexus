@@ -18,12 +18,12 @@
     "dayjs": "^1.11.10",
     "dompurify": "^3.2.6",
     "gsap": "^3.13.0",
-    "highlight.js": "^11.9.0",
     "lodash-es": "^4.17.21",
     "markdown-it": "^14.0.0",
     "marked": "^15.0.12",
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
+    "prismjs": "^1.30.0",
     "vue": "^3.4.0",
     "vue-advanced-cropper": "^2.8.9",
     "vue-router": "^4.2.5"

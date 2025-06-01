@@ -504,6 +504,25 @@
             placeholder="設置 AI 的行為和角色..."
             :rows="4" />
         </a-form-item>
+
+        <a-form-item label="字體大小">
+          <a-input-number
+            v-model:value="chatSettings.fontSize"
+            :min="12"
+            :max="20"
+            :step="1"
+            style="width: 100%"
+            :formatter="(value) => `${value}px`"
+            :parser="(value) => value.replace('px', '')" />
+          <div
+            style="
+              margin-top: 4px;
+              font-size: 12px;
+              color: var(--custom-text-secondary);
+            ">
+            調整聊天消息的字體大小 (12-20px)
+          </div>
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>
@@ -626,6 +645,7 @@ const chatSettings = ref({
   temperature: 0.7,
   maxTokens: 8192, // 增加最大token數量
   systemPrompt: "",
+  fontSize: 14, // 新增字體大小設置，默認14px
 });
 
 // 串流模式狀態
@@ -905,7 +925,15 @@ const handleShowSettings = () => {
 };
 
 const handleSaveSettings = () => {
-  // chatStore.handleUpdateChatSettings(chatSettings.value);
+  // 保存聊天設置到本地存儲
+  localStorage.setItem("chat_settings", JSON.stringify(chatSettings.value));
+
+  // 應用字體大小設置
+  document.documentElement.style.setProperty(
+    "--chat-font-size",
+    `${chatSettings.value.fontSize}px`
+  );
+
   settingsModalVisible.value = false;
   message.success("設置已保存");
 };
@@ -1160,6 +1188,28 @@ onMounted(() => {
   const savedStreamMode = localStorage.getItem("chat_stream_mode");
   if (savedStreamMode !== null) {
     useStreamMode.value = JSON.parse(savedStreamMode);
+  }
+
+  // 恢復聊天設置
+  const savedChatSettings = localStorage.getItem("chat_settings");
+  if (savedChatSettings) {
+    try {
+      const settings = JSON.parse(savedChatSettings);
+      Object.assign(chatSettings.value, settings);
+      // 應用字體大小設置
+      document.documentElement.style.setProperty(
+        "--chat-font-size",
+        `${chatSettings.value.fontSize}px`
+      );
+    } catch (error) {
+      console.error("恢復聊天設置失敗:", error);
+    }
+  } else {
+    // 設置默認字體大小
+    document.documentElement.style.setProperty(
+      "--chat-font-size",
+      `${chatSettings.value.fontSize}px`
+    );
   }
 });
 

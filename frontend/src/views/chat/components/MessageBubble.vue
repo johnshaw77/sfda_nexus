@@ -63,11 +63,14 @@
 
       <!-- 主要內容 -->
       <div class="message-text">
-        <!-- Markdown 渲染 -->
-        <div
+        <!-- AI 消息使用 CodeHighlight 組件 -->
+        <CodeHighlight
           v-if="message.role === 'assistant'"
-          class="markdown-content"
-          v-html="renderMarkdown(message.content)"></div>
+          :content="message.content"
+          :is-streaming="message.isStreaming"
+          :enable-keyword-highlight="true"
+          theme="auto"
+          ref="codeHighlightRef" />
         <!-- 純文本（用戶消息） -->
         <div
           v-else
@@ -247,26 +250,9 @@
 <script setup>
 import { computed, ref, nextTick, onMounted } from "vue";
 import { message as antMessage } from "ant-design-vue";
-import {
-  UserOutlined,
-  RobotOutlined,
-  InfoCircleOutlined,
-  MoreOutlined,
-  CopyOutlined,
-  ReloadOutlined,
-  MessageOutlined,
-  DeleteOutlined,
-  FileOutlined,
-  PictureOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
-  CheckOutlined,
-  ExclamationCircleOutlined,
-} from "@ant-design/icons-vue";
-import { marked } from "marked";
-import DOMPurify from "dompurify";
 import { useChatStore } from "@/stores/chat";
 import { formatMessageTime } from "@/utils/datetimeFormat";
+import CodeHighlight from "@/components/common/CodeHighlight.vue";
 
 // Props
 const props = defineProps({
@@ -290,6 +276,7 @@ const chatStore = useChatStore();
 const userMessageContent = ref(null);
 const isUserMessageCollapsed = ref(true);
 const shouldShowExpandButton = ref(false);
+const codeHighlightRef = ref(null);
 
 // 用戶消息的最大高度（行數）
 const MAX_USER_MESSAGE_LINES = 6;
@@ -332,29 +319,6 @@ const getSenderName = () => {
       return "系統";
     default:
       return "未知";
-  }
-};
-
-// 方法
-const formatTime = formatMessageTime;
-
-const renderMarkdown = (content) => {
-  try {
-    // 配置 marked
-    marked.setOptions({
-      breaks: true,
-      gfm: true,
-      highlight: function (code, lang) {
-        // 這裡可以集成代碼高亮庫，如 highlight.js
-        return `<pre><code class="language-${lang}">${code}</code></pre>`;
-      },
-    });
-
-    const html = marked(content);
-    return DOMPurify.sanitize(html);
-  } catch (error) {
-    console.error("Markdown 渲染失敗:", error);
-    return content;
   }
 };
 
@@ -434,6 +398,7 @@ const handleViewAttachment = (attachment) => {
   position: relative;
   max-width: 80%;
   word-wrap: break-word;
+  font-size: var(--chat-font-size, 14px);
 }
 
 .user-message {
@@ -547,51 +512,8 @@ const handleViewAttachment = (attachment) => {
 }
 
 .message-text {
-  font-size: 14px;
-}
-
-.markdown-content {
-  /* Markdown 樣式 */
-}
-
-.markdown-content :deep(pre) {
-  background: #f6f8fa;
-  border-radius: 6px;
-  padding: 12px;
-  overflow-x: auto;
-  margin: 8px 0;
-}
-
-.markdown-content :deep(code) {
-  background: #f6f8fa;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-}
-
-.markdown-content :deep(blockquote) {
-  border-left: 4px solid #dfe2e5;
-  padding-left: 16px;
-  margin: 8px 0;
-  color: #6a737d;
-}
-
-.markdown-content :deep(table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 8px 0;
-}
-
-.markdown-content :deep(th),
-.markdown-content :deep(td) {
-  border: 1px solid #dfe2e5;
-  padding: 6px 13px;
-  text-align: left;
-}
-
-.markdown-content :deep(th) {
-  background: #f6f8fa;
-  font-weight: 600;
+  font-size: var(--chat-font-size, 14px);
+  line-height: 1.6;
 }
 
 .plain-text {

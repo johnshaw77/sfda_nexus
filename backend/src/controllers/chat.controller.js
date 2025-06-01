@@ -74,7 +74,6 @@ export const handleCreateConversation = catchAsync(async (req, res) => {
   }
 
   const model = modelRows[0];
-  console.log(model);
 
   // 如果指定了智能體，驗證智能體是否存在
   if (agent_id) {

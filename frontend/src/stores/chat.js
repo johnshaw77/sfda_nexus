@@ -90,10 +90,10 @@ export const useChatStore = defineStore("chat", () => {
       currentConversation.value = newConversation;
       messages.value = [];
 
-      console.log("=== 新對話創建完成 ===");
-      console.log("新對話 ID:", newConversation.id);
-      console.log("設置為當前對話:", currentConversation.value?.id);
-      console.log("=== 新對話創建完成結束 ===\n");
+      // console.log("=== 新對話創建完成 ===");
+      // console.log("新對話 ID:", newConversation.id);
+      // console.log("設置為當前對話:", currentConversation.value?.id);
+      // console.log("=== 新對話創建完成結束 ===\n");
 
       // 加入WebSocket房間
       const wsStore = useWebSocketStore();
@@ -183,14 +183,14 @@ export const useChatStore = defineStore("chat", () => {
     if (!conversationId || !content.trim()) return null;
 
     // 調試：打印發送參數
-    console.log("=== 前端發送訊息調試 ===");
-    console.log("對話 ID:", conversationId);
-    console.log("訊息內容:", content.trim());
-    console.log("選項:", options);
-    console.log(
-      "API URL:",
-      `/api/chat/conversations/${conversationId}/messages`
-    );
+    // console.log("=== 前端發送訊息調試 ===");
+    // console.log("對話 ID:", conversationId);
+    // console.log("訊息內容:", content.trim());
+    // console.log("選項:", options);
+    // console.log(
+    //   "API URL:",
+    //   `/api/chat/conversations/${conversationId}/messages`
+    // );
 
     isSendingMessage.value = true;
     try {
@@ -204,42 +204,42 @@ export const useChatStore = defineStore("chat", () => {
         model_id: options.model_id, // 傳遞模型 ID
       };
 
-      console.log("請求數據:", requestData);
+      //console.log("請求數據:", requestData);
 
       const response = await api.post(
         `/api/chat/conversations/${conversationId}/messages`,
         requestData
       );
 
-      console.log("=== 前端收到回應 ===");
-      console.log("完整回應:", response);
-      console.log("回應狀態:", response.status);
-      console.log("回應數據:", response.data);
-      console.log("回應數據結構:", JSON.stringify(response.data, null, 2));
+      // console.log("=== 前端收到回應 ===");
+      // console.log("完整回應:", response);
+      // console.log("回應狀態:", response.status);
+      // console.log("回應數據:", response.data);
+      // console.log("回應數據結構:", JSON.stringify(response.data, null, 2));
 
       const { user_message, assistant_message, conversation } =
         response.data.data;
 
-      console.log("解析後的數據:");
-      console.log("用戶訊息:", user_message);
-      console.log("AI 訊息:", assistant_message);
-      console.log("對話信息:", conversation);
+      // console.log("解析後的數據:");
+      // console.log("用戶訊息:", user_message);
+      // console.log("AI 訊息:", assistant_message);
+      // console.log("對話信息:", conversation);
 
       // 添加消息到當前對話
       if (currentConversation.value?.id === conversationId) {
-        console.log("添加訊息到當前對話:", conversationId);
-        console.log("當前 messages 數量:", messages.value.length);
+        // console.log("添加訊息到當前對話:", conversationId);
+        // console.log("當前 messages 數量:", messages.value.length);
 
         messages.value.push(user_message);
         if (assistant_message) {
           messages.value.push(assistant_message);
         }
 
-        console.log("更新後 messages 數量:", messages.value.length);
+        // console.log("更新後 messages 數量:", messages.value.length);
       } else {
-        console.log("對話 ID 不匹配，不更新 UI");
-        console.log("當前對話 ID:", currentConversation.value?.id);
-        console.log("訊息對話 ID:", conversationId);
+        // console.log("對話 ID 不匹配，不更新 UI");
+        // console.log("當前對話 ID:", currentConversation.value?.id);
+        //console.log("訊息對話 ID:", conversationId);
       }
 
       // 更新對話信息
@@ -254,7 +254,7 @@ export const useChatStore = defineStore("chat", () => {
         }
       }
 
-      console.log("=== 前端處理完成 ===\n");
+      //console.log("=== 前端處理完成 ===\n");
 
       return { user_message, assistant_message };
     } catch (error) {
@@ -470,10 +470,10 @@ export const useChatStore = defineStore("chat", () => {
       isStreaming.value = true;
       aiTyping.value = true; // 顯示AI思考狀態
 
-      console.log("=== 開始串流聊天 ===");
-      console.log("對話ID:", conversationId);
-      console.log("內容:", content);
-      console.log("選項:", options);
+      // console.log("=== 開始串流聊天 ===");
+      // console.log("對話ID:", conversationId);
+      // console.log("內容:", content);
+      // console.log("選項:", options);
 
       const requestBody = {
         conversation_id: conversationId,
@@ -486,7 +486,7 @@ export const useChatStore = defineStore("chat", () => {
         max_tokens,
       };
 
-      console.log("請求體:", requestBody);
+      //console.log("請求體:", requestBody);
 
       // 獲取認證token（從 api 配置中）
       const authToken =
@@ -532,7 +532,7 @@ export const useChatStore = defineStore("chat", () => {
         throw new Error(errorMsg);
       }
 
-      console.log("=== SSE 連接建立成功 ===");
+      //console.log("=== SSE 連接建立成功 ===");
 
       // 處理 SSE 串流
       const reader = response.body.getReader();
@@ -546,7 +546,7 @@ export const useChatStore = defineStore("chat", () => {
         const { done, value } = await reader.read();
 
         if (done) {
-          console.log("=== SSE 串流結束 ===");
+          //console.log("=== SSE 串流結束 ===");
           break;
         }
 
@@ -600,13 +600,13 @@ export const useChatStore = defineStore("chat", () => {
       // 重新載入對話以獲取最新狀態
       await handleGetMessages(conversationId);
 
-      console.log("=== 串流聊天完成 ===");
+      //console.log("=== 串流聊天完成 ===");
     } catch (err) {
       if (err.name === "AbortError") {
-        console.log("=== 串流聊天被用戶停止 ===");
+        //console.log("=== 串流聊天被用戶停止 ===");
         message.info("對話已停止");
       } else {
-        console.error("=== 串流聊天失敗 ===");
+        //console.error("=== 串流聊天失敗 ===");
         console.error("錯誤:", err.message);
         console.error("堆疊:", err.stack);
         message.error(err.message || "串流聊天失敗");
@@ -626,7 +626,7 @@ export const useChatStore = defineStore("chat", () => {
   function stopCurrentStream() {
     if (streamController.value && isStreaming.value) {
       streamController.value.abort();
-      console.log("=== 用戶手動停止串流 ===");
+      //console.log("=== 用戶手動停止串流 ===");
     }
   }
 
@@ -682,14 +682,14 @@ export const useChatStore = defineStore("chat", () => {
     const { conversationId, currentAssistantMessage, updateStreamingContent } =
       context;
 
-    console.log("=== SSE 事件 ===");
-    console.log("事件類型:", eventType);
-    console.log("數據:", data);
+    //console.log("=== SSE 事件 ===");
+    //console.log("事件類型:", eventType);
+    //console.log("數據:", data);
 
     switch (eventType) {
       case "user_message":
         // 用戶訊息創建成功
-        console.log("用戶訊息已創建:", data.user_message);
+        //console.log("用戶訊息已創建:", data.user_message);
 
         // 更新當前對話的訊息列表
         if (
@@ -702,7 +702,7 @@ export const useChatStore = defineStore("chat", () => {
 
       case "assistant_message_created":
         // AI 助手訊息記錄已創建
-        console.log("AI 訊息記錄已創建:", data.assistant_message_id);
+        //console.log("AI 訊息記錄已創建:", data.assistant_message_id);
 
         // 創建新的 AI 訊息對象，準備接收串流內容
         const newAssistantMessage = {
@@ -730,7 +730,7 @@ export const useChatStore = defineStore("chat", () => {
 
       case "stream_content":
         // 串流內容數據
-        console.log("收到串流內容:", data.content);
+        //console.log("收到串流內容:", data.content);
 
         // 第一次收到內容時，隱藏思考狀態
         if (aiTyping.value) {
@@ -764,7 +764,7 @@ export const useChatStore = defineStore("chat", () => {
 
       case "stream_done":
         // 串流完成
-        console.log("串流完成:", data);
+        //console.log("串流完成:", data);
 
         // 更新最終訊息狀態
         const finalMessageIndex = messages.value.findIndex(
@@ -790,7 +790,7 @@ export const useChatStore = defineStore("chat", () => {
 
       case "conversation_updated":
         // 對話狀態更新
-        console.log("對話已更新:", data.conversation);
+        //console.log("對話已更新:", data.conversation);
 
         // 更新對話列表中的對話信息
         const convIndex = conversations.value.findIndex(
