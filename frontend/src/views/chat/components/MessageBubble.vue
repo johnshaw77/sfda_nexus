@@ -7,8 +7,9 @@
       'system-message': message.role === 'system',
     }">
     <!-- 消息頭部信息 -->
+    <!--
     <div class="message-header">
-      <div class="message-avatar">
+       <div class="message-avatar">
         <a-avatar
           v-if="message.role === 'user'"
           :size="32"
@@ -27,57 +28,22 @@
           :style="{ backgroundColor: '#faad14' }">
           <InfoCircleOutlined />
         </a-avatar>
-      </div>
-
-      <div class="message-info">
+      </div> -->
+    <!-- TODO: 先暫時隱藏 -->
+    <!-- <div class="message-info">
         <div class="message-sender">
           {{ getSenderName() }}
         </div>
         <div class="message-time">
           {{ formatTime(message.created_at) }}
         </div>
-      </div>
+      </div> 
 
-      <!-- 消息操作按鈕 -->
-      <div class="message-actions">
-        <a-dropdown
-          :trigger="['click']"
-          placement="bottomRight">
-          <a-button
-            type="text"
-            size="small">
-            <MoreOutlined />
-          </a-button>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item @click="handleCopyMessage">
-                <CopyOutlined />
-                複製消息
-              </a-menu-item>
-              <a-menu-item
-                v-if="message.role === 'assistant'"
-                @click="handleRegenerateResponse">
-                <ReloadOutlined />
-                重新生成
-              </a-menu-item>
-              <a-menu-item @click="handleQuoteMessage">
-                <MessageOutlined />
-                引用回覆
-              </a-menu-item>
-              <a-menu-divider />
-              <a-menu-item
-                @click="handleDeleteMessage"
-                class="danger-item">
-                <DeleteOutlined />
-                刪除消息
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
-      </div>
-    </div>
 
-    <!-- 消息內容 -->
+      
+    </div> -->
+
+    <!-- 消息內容 TODO:TEST-->
     <div class="message-content">
       <!-- 引用的消息 -->
       <div
@@ -102,11 +68,45 @@
           v-if="message.role === 'assistant'"
           class="markdown-content"
           v-html="renderMarkdown(message.content)"></div>
-        <!-- 純文本 -->
+        <!-- 純文本（用戶消息） -->
         <div
           v-else
-          class="plain-text">
+          class="plain-text"
+          :class="{
+            collapsed: isUserMessageCollapsed && shouldShowExpandButton,
+          }"
+          ref="userMessageContent">
           {{ message.content }}
+        </div>
+        <!-- 展開/收起按鈕（僅用戶消息） -->
+        <div
+          v-if="message.role === 'user' && shouldShowExpandButton"
+          class="expand-button-container">
+          <a-button
+            type="link"
+            size="small"
+            @click="toggleUserMessageExpand"
+            class="expand-button">
+            <template #icon>
+              <svg
+                v-if="isUserMessageCollapsed"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="currentColor">
+                <path d="M7 14l5-5 5 5z" />
+              </svg>
+              <svg
+                v-else
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="currentColor">
+                <path d="M7 10l5 5 5-5z" />
+              </svg>
+            </template>
+            {{ isUserMessageCollapsed ? "展開" : "收起" }}
+          </a-button>
         </div>
       </div>
 
@@ -139,12 +139,91 @@
       <div
         v-if="message.role === 'assistant' && message.model_info"
         class="model-info">
-        <a-tag :color="getModelColor(message.model_info.provider)">
-          {{ message.model_info.name }}
+        <a-tag :color="getModelColor('gemini')">
+          {{ message.model_info.model || "Unknown Model" }}
         </a-tag>
-        <span class="token-usage">
-          Token: {{ message.model_info.tokens_used || 0 }}
+        <span class="token-usage"> Token: {{ message.tokens_used || 0 }} </span>
+        <span
+          class="cost-info"
+          v-if="message.cost && parseFloat(message.cost) > 0">
+          Cost: ${{ parseFloat(message.cost).toFixed(6) }}
         </span>
+      </div>
+
+      <!-- AI回應工具欄 -->
+      <div
+        v-if="message.role === 'assistant'"
+        class="ai-message-toolbar">
+        <a-button
+          type="text"
+          size="small"
+          @click="handleCopyMessage"
+          class="toolbar-btn">
+          <template #icon>
+            <CopyOutlined />
+          </template>
+        </a-button>
+
+        <a-button
+          type="text"
+          size="small"
+          @click="handleRegenerateResponse"
+          class="toolbar-btn">
+          <template #icon>
+            <ReloadOutlined />
+          </template>
+        </a-button>
+
+        <a-button
+          type="text"
+          size="small"
+          @click="handleQuoteMessage"
+          class="toolbar-btn">
+          <template #icon>
+            <MessageOutlined />
+          </template>
+        </a-button>
+      </div>
+
+      <div class="message-actions">
+        <a-tooltip title="複製消息">
+          <a-button
+            type="text"
+            size="small"
+            @click="handleCopyMessage">
+            <CopyOutlined />
+          </a-button>
+        </a-tooltip>
+
+        <a-tooltip
+          v-if="message.role === 'assistant'"
+          title="重新生成">
+          <a-button
+            type="text"
+            size="small"
+            @click="handleRegenerateResponse">
+            <ReloadOutlined />
+          </a-button>
+        </a-tooltip>
+
+        <a-tooltip title="引用回覆">
+          <a-button
+            type="text"
+            size="small"
+            @click="handleQuoteMessage">
+            <MessageOutlined />
+          </a-button>
+        </a-tooltip>
+
+        <a-tooltip title="刪除消息">
+          <a-button
+            type="text"
+            size="small"
+            @click="handleDeleteMessage"
+            class="danger-item">
+            <DeleteOutlined />
+          </a-button>
+        </a-tooltip>
       </div>
     </div>
 
@@ -166,8 +245,8 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { message } from "ant-design-vue";
+import { computed, ref, nextTick, onMounted } from "vue";
+import { message as antMessage } from "ant-design-vue";
 import {
   UserOutlined,
   RobotOutlined,
@@ -206,6 +285,41 @@ const emit = defineEmits(["quote-message", "regenerate-response"]);
 
 // Store
 const chatStore = useChatStore();
+
+// 響應式狀態
+const userMessageContent = ref(null);
+const isUserMessageCollapsed = ref(true);
+const shouldShowExpandButton = ref(false);
+
+// 用戶消息的最大高度（行數）
+const MAX_USER_MESSAGE_LINES = 6;
+
+// 生命週期
+onMounted(() => {
+  if (props.message.role === "user") {
+    checkUserMessageHeight();
+  }
+});
+
+// 檢查用戶消息是否需要展開按鈕
+const checkUserMessageHeight = async () => {
+  await nextTick();
+  if (userMessageContent.value) {
+    const element = userMessageContent.value;
+    const lineHeight = parseInt(window.getComputedStyle(element).lineHeight);
+    const maxHeight = lineHeight * MAX_USER_MESSAGE_LINES;
+
+    // 如果內容高度超過最大高度，顯示展開按鈕
+    if (element.scrollHeight > maxHeight) {
+      shouldShowExpandButton.value = true;
+    }
+  }
+};
+
+// 切換用戶消息展開/收起
+const toggleUserMessageExpand = () => {
+  isUserMessageCollapsed.value = !isUserMessageCollapsed.value;
+};
 
 // 計算屬性
 const getSenderName = () => {
@@ -270,27 +384,29 @@ const formatFileSize = (bytes) => {
 const handleCopyMessage = async () => {
   try {
     await navigator.clipboard.writeText(props.message.content);
-    message.success("消息已複製到剪貼板");
+    antMessage.success("消息已複製到剪貼板");
   } catch (error) {
-    message.error("複製失敗");
+    antMessage.error("複製失敗");
     console.error("複製失敗:", error);
   }
 };
 
 const handleRegenerateResponse = () => {
   emit("regenerate-response", props.message);
+  antMessage.info("重新生成功能開發中");
 };
 
 const handleQuoteMessage = () => {
   emit("quote-message", props.message);
+  antMessage.success("消息已引用");
 };
 
 const handleDeleteMessage = async () => {
   try {
     await chatStore.handleDeleteMessage(props.message.id);
-    message.success("消息已刪除");
+    antMessage.success("消息已刪除");
   } catch (error) {
-    message.error("刪除失敗");
+    antMessage.error("刪除失敗");
     console.error("刪除失敗:", error);
   }
 };
@@ -321,17 +437,21 @@ const handleViewAttachment = (attachment) => {
 }
 
 .user-message {
-  background: #1890ff;
-  color: white;
+  background: var(--custom-bg-tertiary);
+  color: var(--custom-text-primary);
   margin-left: auto;
   border-bottom-right-radius: 4px;
+  border: 1px solid var(--custom-border-primary);
 }
 
 .ai-message {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
+  background: transparent;
+  border: none;
   margin-right: auto;
   border-bottom-left-radius: 4px;
+  position: relative;
+  padding-bottom: 40px; /* 為工具欄留出空間 */
+  color: var(--custom-text-primary);
 }
 
 .system-message {
@@ -364,7 +484,7 @@ const handleViewAttachment = (attachment) => {
 }
 
 .user-message .message-sender {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--custom-text-primary);
 }
 
 .message-time {
@@ -373,8 +493,11 @@ const handleViewAttachment = (attachment) => {
 }
 
 .message-actions {
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.2s;
+  position: absolute;
+  bottom: -35px;
+  right: 0px;
 }
 
 .message-bubble:hover .message-actions {
@@ -382,16 +505,17 @@ const handleViewAttachment = (attachment) => {
 }
 
 .user-message .message-actions :deep(.ant-btn) {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--custom-text-secondary);
 }
 
 .user-message .message-actions :deep(.ant-btn:hover) {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--custom-text-primary);
+  background: var(--custom-bg-secondary);
 }
 
 .message-content {
   line-height: 1.6;
+  position: relative;
 }
 
 .quoted-message {
@@ -403,8 +527,8 @@ const handleViewAttachment = (attachment) => {
 }
 
 .user-message .quoted-message {
-  background: rgba(255, 255, 255, 0.1);
-  border-left-color: rgba(255, 255, 255, 0.5);
+  background: var(--custom-bg-secondary);
+  border-left-color: var(--primary-color);
 }
 
 .quote-header {
@@ -472,6 +596,57 @@ const handleViewAttachment = (attachment) => {
 
 .plain-text {
   white-space: pre-wrap;
+  transition: max-height 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+.plain-text.collapsed {
+  max-height: 9em; /* 約6行文字的高度 */
+  position: relative;
+}
+
+.plain-text.collapsed::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2em;
+  background: linear-gradient(transparent, var(--custom-bg-tertiary));
+  pointer-events: none;
+}
+
+.user-message .plain-text.collapsed::after {
+  background: linear-gradient(transparent, var(--custom-bg-tertiary));
+}
+
+.expand-button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.expand-button {
+  padding: 4px 8px !important;
+  height: auto !important;
+  font-size: 12px;
+  color: var(--custom-text-secondary) !important;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.expand-button:hover {
+  background: var(--custom-bg-secondary) !important;
+  color: var(--primary-color) !important;
+}
+
+.user-message .expand-button {
+  color: var(--custom-text-secondary) !important;
+}
+
+.user-message .expand-button:hover {
+  color: var(--primary-color) !important;
+  background: var(--custom-bg-secondary) !important;
 }
 
 .message-attachments {
@@ -497,11 +672,11 @@ const handleViewAttachment = (attachment) => {
 }
 
 .user-message .attachment-item {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--custom-bg-secondary);
 }
 
 .user-message .attachment-item:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--custom-bg-tertiary);
 }
 
 .attachment-icon {
@@ -537,6 +712,47 @@ const handleViewAttachment = (attachment) => {
 
 .token-usage {
   opacity: 0.7;
+}
+
+.ai-message-toolbar {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.ai-message:hover .ai-message-toolbar {
+  opacity: 1;
+}
+
+.toolbar-btn {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--custom-text-secondary) !important;
+  transition: all 0.2s ease !important;
+}
+
+.toolbar-btn:hover {
+  background: var(--primary-color) !important;
+  color: white !important;
+  transform: scale(1.05);
+}
+
+.toolbar-btn:active {
+  transform: scale(0.95);
 }
 
 .message-status {

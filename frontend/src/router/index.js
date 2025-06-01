@@ -8,34 +8,15 @@ const routes = [
     redirect: "/dashboard",
   },
 
-  // 認證相關路由
+  // 認證相關路由 - 直接使用登入頁面
   {
-    path: "/auth",
-    component: () => import("@/layouts/AuthLayout.vue"),
-    children: [
-      {
-        path: "",
-        redirect: "/auth/login",
-      },
-      {
-        path: "login",
-        name: "Login",
-        component: () => import("@/views/auth/components/Login.vue"),
-        meta: {
-          requiresGuest: true,
-          title: "登入",
-        },
-      },
-      {
-        path: "register",
-        name: "Register",
-        component: () => import("@/views/auth/components/Register.vue"),
-        meta: {
-          requiresGuest: true,
-          title: "註冊",
-        },
-      },
-    ],
+    path: "/auth/login",
+    name: "Login",
+    component: () => import("@/views/auth/components/Login.vue"),
+    meta: {
+      requiresGuest: true,
+      title: "登入",
+    },
   },
 
   // 主要應用路由

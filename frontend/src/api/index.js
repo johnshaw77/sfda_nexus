@@ -5,15 +5,15 @@
 
 import axios from "axios";
 import { message } from "ant-design-vue";
-import NProgress from 'nprogress';
-import 'nprogress/nprogress.css';
-import { useConfigStore } from '@/stores/config';
+import NProgress from "nprogress";
+import "nprogress/nprogress.css";
+import { useConfigStore } from "@/stores/config";
 
 // NProgress 配置
-NProgress.configure({ 
+NProgress.configure({
   showSpinner: false,
   minimum: 0.1,
-  speed: 500
+  speed: 500,
 });
 
 // 確保配置已載入的函數
@@ -73,10 +73,10 @@ api.interceptors.request.use(
     if (!config.baseURL) {
       config.baseURL = configStore.apiBaseUrl;
     }
-    
+
     // 啟動進度條
     NProgress.start();
-    
+
     // 自動添加認證 header
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
@@ -98,11 +98,25 @@ api.interceptors.response.use(
   (response) => {
     // 完成進度條
     NProgress.done();
-    
+
     // 計算請求耗時（用於調試）
     const endTime = new Date();
     const duration = endTime - response.config.metadata.startTime;
     console.log(`API 請求耗時: ${duration}ms - ${response.config.url}`);
+
+    // 調試：打印詳細回應信息（僅針對聊天 API）
+    if (
+      response.config.url.includes("/chat/conversations/") &&
+      response.config.url.includes("/messages")
+    ) {
+      console.log("=== API 回應攔截器調試 ===");
+      console.log("請求 URL:", response.config.url);
+      console.log("請求方法:", response.config.method);
+      console.log("回應狀態:", response.status);
+      console.log("回應 headers:", response.headers);
+      console.log("回應數據:", response.data);
+      console.log("=== API 回應攔截器調試結束 ===\n");
+    }
 
     return response;
   },
@@ -138,7 +152,7 @@ api.interceptors.response.use(
 
     // 完成進度條
     NProgress.done();
-    
+
     // 處理其他錯誤
     const errorMessage =
       error.response?.data?.message || error.message || "請求失敗";

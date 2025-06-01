@@ -77,10 +77,20 @@ export class AIService {
         },
       };
 
+      // 調試：打印完整的 AI 回應信息
+      console.log("=== OLLAMA AI 回應調試信息 ===");
+      console.log("原始回應數據:", JSON.stringify(response.data, null, 2));
+      console.log("解析後的回應內容:", result.content);
+      console.log("回應內容長度:", result.content.length);
+      console.log("估算 tokens:", result.tokens_used);
+      console.log("處理時間:", processingTime, "ms");
+      console.log("=== AI 回應調試信息結束 ===\n");
+
       logger.info("Ollama 調用成功", {
         model,
         tokens: result.tokens_used,
         time: processingTime,
+        contentLength: result.content.length,
       });
 
       return result;
@@ -189,12 +199,24 @@ export class AIService {
         },
       };
 
+      // 調試：打印完整的 AI 回應信息
+      console.log("=== GEMINI AI 回應調試信息 ===");
+      console.log("原始回應數據:", JSON.stringify(response.data, null, 2));
+      console.log("解析後的回應內容:", result.content);
+      console.log("回應內容長度:", result.content.length);
+      console.log("輸入 tokens:", inputTokens);
+      console.log("輸出 tokens:", outputTokens);
+      console.log("總費用:", cost);
+      console.log("處理時間:", processingTime, "ms");
+      console.log("=== AI 回應調試信息結束 ===\n");
+
       logger.info("Gemini 調用成功", {
         model,
         inputTokens,
         outputTokens,
         cost,
         time: processingTime,
+        contentLength: content.length,
       });
 
       return result;
@@ -210,9 +232,15 @@ export class AIService {
   }
 
   /**
-   * 統一的 AI 模型調用介面
-   * @param {Object} options - 調用選項
-   * @returns {Promise<Object>} AI回應結果
+   * 調用AI模型（支援串流模式）
+   * @param {Object} options - AI調用選項
+   * @param {string} options.provider - AI提供商 (ollama, gemini)
+   * @param {string} options.model - 模型名稱
+   * @param {Array} options.messages - 消息陣列
+   * @param {number} [options.temperature=0.7] - 溫度參數
+   * @param {number} [options.max_tokens=4096] - 最大token數
+   * @param {boolean} [options.stream=false] - 是否使用串流模式
+   * @returns {Promise<Object|AsyncGenerator>} AI回應或串流生成器
    */
   static async callModel(options) {
     const {
@@ -224,35 +252,398 @@ export class AIService {
       stream = false,
     } = options;
 
+    logger.info("AI模型調用開始", {
+      provider,
+      model,
+      messageCount: messages.length,
+      temperature,
+      max_tokens,
+      stream,
+    });
+
+    const startTime = Date.now();
+
     try {
-      switch (provider.toLowerCase()) {
+      switch (provider) {
         case "ollama":
-          return await this.callOllama({
-            model,
-            messages,
-            temperature,
-            max_tokens,
-            stream,
-          });
+          if (stream) {
+            return await this.callOllamaStream(
+              model,
+              messages,
+              temperature,
+              max_tokens
+            );
+          } else {
+            return await this.callOllama({
+              model,
+              messages,
+              temperature,
+              max_tokens,
+              stream,
+            });
+          }
 
         case "gemini":
-          return await this.callGemini({
-            model,
-            messages,
-            temperature,
-            max_tokens,
-          });
+          if (stream) {
+            return await this.callGeminiStream(
+              model,
+              messages,
+              temperature,
+              max_tokens
+            );
+          } else {
+            return await this.callGemini({
+              model,
+              messages,
+              temperature,
+              max_tokens,
+            });
+          }
 
         default:
-          throw new Error(`不支援的模型提供者: ${provider}`);
+          throw new Error(`不支持的AI提供商: ${provider}`);
       }
     } catch (error) {
       logger.error("AI模型調用失敗", {
         provider,
         model,
         error: error.message,
+        processingTime: Date.now() - startTime,
       });
       throw error;
+    }
+  }
+
+  /**
+   * 調用Ollama模型（串流模式）
+   */
+  static async callOllamaStream(model, messages, temperature, max_tokens) {
+    const startTime = Date.now();
+
+    try {
+      const ollamaUrl = process.env.OLLAMA_ENDPOINT || "http://localhost:11434";
+
+      console.log("=== OLLAMA 串流調用開始 ===");
+      console.log("URL:", `${ollamaUrl}/api/chat`);
+      console.log("模型:", model);
+      console.log("消息數量:", messages.length);
+      console.log("串流模式: 啟用");
+
+      const response = await fetch(`${ollamaUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          stream: true, // 啟用串流
+          options: {
+            temperature: temperature,
+            num_predict: max_tokens,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Ollama API錯誤: ${response.status} ${response.statusText}`
+        );
+      }
+
+      console.log("=== OLLAMA 串流回應準備就緒 ===");
+
+      // 返回串流生成器
+      return this.createOllamaStreamGenerator(response, startTime);
+    } catch (error) {
+      console.error("=== OLLAMA 串流調用失敗 ===");
+      console.error("錯誤:", error.message);
+      throw new Error(`Ollama串流調用失敗: ${error.message}`);
+    }
+  }
+
+  /**
+   * 創建Ollama串流生成器
+   */
+  static async *createOllamaStreamGenerator(response, startTime) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let totalTokens = 0;
+    let fullContent = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+
+        // 保留最後一個可能不完整的行
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+
+              if (data.message && data.message.content) {
+                const content = data.message.content;
+                fullContent += content;
+                totalTokens++;
+
+                // 產出串流數據塊
+                yield {
+                  type: "content",
+                  content: content,
+                  full_content: fullContent,
+                  tokens_used: totalTokens,
+                  done: data.done || false,
+                  model: data.model,
+                  provider: "ollama",
+                };
+              }
+
+              if (data.done) {
+                const processingTime = Date.now() - startTime;
+
+                console.log("=== OLLAMA 串流完成 ===");
+                console.log("總內容長度:", fullContent.length);
+                console.log("處理時間:", processingTime, "ms");
+                console.log("總 tokens:", totalTokens);
+
+                // 產出最終統計數據
+                yield {
+                  type: "done",
+                  full_content: fullContent,
+                  tokens_used: totalTokens,
+                  processing_time: processingTime,
+                  cost: this.calculateCost("ollama", totalTokens),
+                  model_info: data.model,
+                  provider: "ollama",
+                };
+                break;
+              }
+            } catch (parseError) {
+              console.warn(
+                "Ollama串流數據解析錯誤:",
+                parseError.message,
+                "行:",
+                line
+              );
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  /**
+   * 調用Gemini模型（串流模式）
+   */
+  static async callGeminiStream(model, messages, temperature, max_tokens) {
+    const startTime = Date.now();
+
+    try {
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        throw new Error("未配置Gemini API Key");
+      }
+
+      console.log("=== GEMINI 串流調用開始 ===");
+      console.log("模型:", model);
+      console.log("消息數量:", messages.length);
+      console.log("串流模式: 啟用");
+
+      // 轉換消息格式為Gemini格式
+      const geminiMessages = this.convertToGeminiFormat(messages);
+
+      const requestBody = {
+        contents: geminiMessages,
+        generationConfig: {
+          temperature: temperature,
+          maxOutputTokens: max_tokens,
+        },
+      };
+
+      console.log("Gemini請求體:", JSON.stringify(requestBody, null, 2));
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${geminiApiKey}&alt=sse`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Gemini API錯誤: ${response.status} ${response.statusText} - ${errorText}`
+        );
+      }
+
+      console.log("=== GEMINI 串流回應準備就緒 ===");
+
+      // 返回串流生成器
+      return this.createGeminiStreamGenerator(response, startTime, model);
+    } catch (error) {
+      console.error("=== GEMINI 串流調用失敗 ===");
+      console.error("錯誤:", error.message);
+      throw new Error(`Gemini串流調用失敗: ${error.message}`);
+    }
+  }
+
+  /**
+   * 創建Gemini串流生成器
+   */
+  static async *createGeminiStreamGenerator(response, startTime, model) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let totalTokens = 0;
+    let fullContent = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+
+        // 保留最後一個可能不完整的行
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const jsonStr = line.slice(6).trim();
+
+            if (jsonStr === "[DONE]") {
+              const processingTime = Date.now() - startTime;
+
+              console.log("=== GEMINI 串流完成 ===");
+              console.log("總內容長度:", fullContent.length);
+              console.log("處理時間:", processingTime, "ms");
+              console.log("總 tokens:", totalTokens);
+
+              // 產出最終統計數據
+              yield {
+                type: "done",
+                full_content: fullContent,
+                tokens_used: totalTokens,
+                processing_time: processingTime,
+                cost: this.calculateCost("gemini", totalTokens),
+                model_info: model,
+                provider: "gemini",
+              };
+              return;
+            }
+
+            try {
+              const data = JSON.parse(jsonStr);
+
+              if (
+                data.candidates &&
+                data.candidates[0] &&
+                data.candidates[0].content
+              ) {
+                const parts = data.candidates[0].content.parts;
+                if (parts && parts[0] && parts[0].text) {
+                  const content = parts[0].text;
+                  fullContent += content;
+                  totalTokens++;
+
+                  // 產出串流數據塊
+                  yield {
+                    type: "content",
+                    content: content,
+                    full_content: fullContent,
+                    tokens_used: totalTokens,
+                    done: false,
+                    model: model,
+                    provider: "gemini",
+                  };
+                }
+              }
+
+              // 檢查是否有使用統計信息
+              if (data.usageMetadata) {
+                totalTokens = data.usageMetadata.totalTokenCount || totalTokens;
+              }
+
+              // 檢查是否完成（Gemini可能通過finishReason標示完成）
+              if (
+                data.candidates &&
+                data.candidates[0] &&
+                data.candidates[0].finishReason
+              ) {
+                const processingTime = Date.now() - startTime;
+
+                console.log("=== GEMINI 串流完成（通過finishReason） ===");
+                console.log("完成原因:", data.candidates[0].finishReason);
+                console.log("總內容長度:", fullContent.length);
+                console.log("處理時間:", processingTime, "ms");
+                console.log("總 tokens:", totalTokens);
+
+                // 產出最終統計數據
+                yield {
+                  type: "done",
+                  full_content: fullContent,
+                  tokens_used: totalTokens,
+                  processing_time: processingTime,
+                  cost: this.calculateCost("gemini", totalTokens),
+                  model_info: model,
+                  provider: "gemini",
+                };
+                return;
+              }
+            } catch (parseError) {
+              console.warn(
+                "Gemini串流數據解析錯誤:",
+                parseError.message,
+                "數據:",
+                jsonStr
+              );
+            }
+          }
+        }
+      }
+
+      // 如果循環結束但沒有發送完成信號，手動發送
+      if (fullContent) {
+        const processingTime = Date.now() - startTime;
+
+        console.log("=== GEMINI 串流完成（循環結束） ===");
+        console.log("總內容長度:", fullContent.length);
+        console.log("處理時間:", processingTime, "ms");
+        console.log("總 tokens:", totalTokens);
+
+        // 產出最終統計數據
+        yield {
+          type: "done",
+          full_content: fullContent,
+          tokens_used: totalTokens,
+          processing_time: processingTime,
+          cost: this.calculateCost("gemini", totalTokens),
+          model_info: model,
+          provider: "gemini",
+        };
+      }
+    } finally {
+      reader.releaseLock();
     }
   }
 
@@ -312,6 +703,18 @@ export class AIService {
     const outputCost = (outputTokens / 1000) * modelPricing.output;
 
     return inputCost + outputCost;
+  }
+
+  /**
+   * 計算費用
+   * @param {string} provider - 模型提供者
+   * @param {number} tokens_used - 使用的 token 數量
+   * @returns {number} 費用（美元）
+   */
+  static calculateCost(provider, tokens_used) {
+    // 實現費用計算邏輯
+    // 這裡需要根據實際的費用計算邏輯來實現
+    return 0; // 暫時返回0，實際應該根據實際的費用計算邏輯來實現
   }
 
   /**

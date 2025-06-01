@@ -62,7 +62,30 @@ export class MessageModel {
           [tokens_used, cost, conversation_id]
         );
 
-        return await this.findById(messageResult.insertId);
+        logger.debug("訊息插入成功", {
+          insertId: messageResult.insertId,
+          affectedRows: messageResult.affectedRows,
+          conversation_id,
+          role,
+        });
+
+        // 在事務內部直接查詢剛插入的數據
+        const [newMessageRows] = await connection.execute(
+          `SELECT * FROM messages WHERE id = ? AND is_deleted = FALSE`,
+          [messageResult.insertId]
+        );
+
+        if (newMessageRows.length === 0) {
+          logger.error("插入後查詢訊息失敗", {
+            insertId: messageResult.insertId,
+            conversation_id,
+          });
+          throw new Error(
+            `無法獲取剛創建的訊息，ID: ${messageResult.insertId}`
+          );
+        }
+
+        return this.formatMessage(newMessageRows[0]);
       });
     } catch (error) {
       logger.error("創建訊息失敗", {
@@ -81,14 +104,26 @@ export class MessageModel {
    */
   static async findById(id) {
     try {
+      logger.debug("查詢訊息", { id });
+
       const { rows } = await query(
         `SELECT * FROM messages WHERE id = ? AND is_deleted = FALSE`,
         [id]
       );
 
+      logger.debug("訊息查詢結果", {
+        id,
+        found: rows.length > 0,
+        rowCount: rows.length,
+      });
+
       return rows.length > 0 ? this.formatMessage(rows[0]) : null;
     } catch (error) {
-      logger.error("根據ID查詢訊息失敗", { id, error: error.message });
+      logger.error("根據ID查詢訊息失敗", {
+        id,
+        error: error.message,
+        stack: error.stack,
+      });
       throw error;
     }
   }
@@ -469,8 +504,8 @@ export class MessageModel {
         `SELECT * FROM messages 
         WHERE conversation_id = ? AND is_deleted = FALSE 
         ORDER BY created_at DESC 
-        LIMIT ?`,
-        [conversationId, maxMessages]
+        LIMIT ${maxMessages}`,
+        [conversationId]
       );
 
       const messages = rows.map((msg) => this.formatMessage(msg)).reverse();

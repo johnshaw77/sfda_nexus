@@ -39,6 +39,7 @@ const schemas = {
     metadata: Joi.object().optional(),
     temperature: Joi.number().min(0).max(2).default(0.7),
     max_tokens: Joi.number().integer().min(1).max(32768).default(4096),
+    model_id: Joi.number().integer().optional(), // 允許指定不同的模型
   }),
 
   updateConversation: Joi.object({
@@ -73,6 +74,7 @@ export const handleCreateConversation = catchAsync(async (req, res) => {
   }
 
   const model = modelRows[0];
+  console.log(model);
 
   // 如果指定了智能體，驗證智能體是否存在
   if (agent_id) {
@@ -122,37 +124,81 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     metadata,
     temperature,
     max_tokens,
+    model_id,
   } = value;
   const { user } = req;
   const { conversationId } = req.params;
 
   // 獲取對話信息
+  logger.debug("查詢對話信息", {
+    conversationId,
+    userId: user.id,
+    userRole: user.role,
+  });
+
   const conversation = await ConversationModel.findById(conversationId);
   if (!conversation) {
+    logger.error("對話不存在", { conversationId });
     throw new BusinessError("對話不存在");
   }
+
+  logger.debug("對話信息獲取成功", {
+    conversationId: conversation.id,
+    conversationUserId: conversation.user_id,
+    requestUserId: user.id,
+  });
 
   // 檢查對話擁有權
   if (
     conversation.user_id !== user.id &&
     !["admin", "super_admin"].includes(user.role)
   ) {
+    logger.error("權限檢查失敗", {
+      conversationUserId: conversation.user_id,
+      requestUserId: user.id,
+      userRole: user.role,
+    });
     throw new BusinessError("無權訪問此對話");
   }
 
+  // 確定要使用的模型ID（優先使用請求中的model_id，否則使用對話默認模型）
+  const targetModelId = model_id || conversation.model_id;
+
   // 獲取模型信息
   const { rows: modelRows } = await query(
-    "SELECT * FROM ai_models WHERE id = ?",
-    [conversation.model_id]
+    "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE",
+    [targetModelId]
   );
 
   if (modelRows.length === 0) {
-    throw new BusinessError("對話關聯的AI模型不存在");
+    throw new BusinessError(
+      model_id ? "指定的AI模型不存在或已停用" : "對話關聯的AI模型不存在或已停用"
+    );
   }
 
   const model = modelRows[0];
 
+  // 如果使用了不同的模型，更新對話的默認模型
+  if (model_id && model_id !== conversation.model_id) {
+    await query(
+      "UPDATE conversations SET model_id = ?, updated_at = NOW() WHERE id = ?",
+      [model_id, conversationId]
+    );
+
+    logger.info("對話模型已更新", {
+      conversationId: conversationId,
+      oldModelId: conversation.model_id,
+      newModelId: model_id,
+    });
+  }
+
   // 創建用戶訊息
+  logger.debug("創建用戶消息", {
+    conversationId,
+    contentLength: content.length,
+    contentType: content_type,
+  });
+
   const userMessage = await MessageModel.create({
     conversation_id: conversationId,
     role: "user",
@@ -160,6 +206,11 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     content_type: content_type,
     attachments: attachments || null,
     metadata: metadata || null,
+  });
+
+  logger.debug("用戶消息創建成功", {
+    messageId: userMessage?.id,
+    conversationId,
   });
 
   logger.info("用戶訊息創建成功", {
@@ -170,11 +221,22 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
   try {
     // 獲取對話上下文
+    logger.debug("獲取對話上下文", {
+      conversationId,
+      maxMessages: 20,
+      maxTokensForContext: Math.floor(max_tokens * 0.7),
+    });
+
     const contextMessages = await MessageModel.getContextMessages(
       conversationId,
       20, // 最多20條訊息
       max_tokens * 0.7 // 保留30%給回應
     );
+
+    logger.debug("對話上下文獲取成功", {
+      messageCount: contextMessages?.length,
+      conversationId,
+    });
 
     // 準備AI調用參數
     const aiOptions = {
@@ -213,6 +275,20 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     // 調用AI模型
     const aiResponse = await AIService.callModel(aiOptions);
 
+    // 調試：打印 AI 回應摘要
+    console.log("=== CHAT CONTROLLER AI 回應摘要 ===");
+    console.log("回應提供者:", aiResponse.provider);
+    console.log("回應模型:", aiResponse.model);
+    console.log(
+      "回應內容預覽:",
+      aiResponse.content.substring(0, 200) +
+        (aiResponse.content.length > 200 ? "..." : "")
+    );
+    console.log("回應完整長度:", aiResponse.content.length);
+    console.log("使用 tokens:", aiResponse.tokens_used);
+    console.log("處理時間:", aiResponse.processing_time, "ms");
+    console.log("=== CHAT CONTROLLER 回應摘要結束 ===\n");
+
     // 創建AI回應訊息
     const assistantMessage = await MessageModel.create({
       conversation_id: conversationId,
@@ -233,17 +309,26 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       processingTime: aiResponse.processing_time,
     });
 
-    // 返回用戶訊息和AI回應
-    res.json(
-      createSuccessResponse(
-        {
-          user_message: userMessage,
-          assistant_message: assistantMessage,
-          conversation: await ConversationModel.findById(conversationId),
-        },
-        "訊息發送成功"
-      )
+    // 調試：打印最終回應數據
+    const responseData = {
+      user_message: userMessage,
+      assistant_message: assistantMessage,
+      conversation: await ConversationModel.findById(conversationId),
+    };
+
+    console.log("=== 最終回應數據調試 ===");
+    console.log("用戶訊息 ID:", responseData.user_message?.id);
+    console.log("AI 訊息 ID:", responseData.assistant_message?.id);
+    console.log(
+      "AI 訊息內容長度:",
+      responseData.assistant_message?.content?.length
     );
+    console.log("對話 ID:", responseData.conversation?.id);
+    console.log("回應狀態: 準備發送給前端");
+    console.log("=== 最終回應數據調試結束 ===\n");
+
+    // 返回用戶訊息和AI回應
+    res.json(createSuccessResponse(responseData, "訊息發送成功"));
   } catch (aiError) {
     logger.error("AI模型調用失敗", {
       conversationId: conversationId,
@@ -261,6 +346,323 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     });
 
     throw new BusinessError(`AI模型調用失敗: ${aiError.message}`);
+  }
+});
+
+/**
+ * 發送訊息（串流模式）
+ * 支援 Server-Sent Events (SSE) 進行即時串流回應
+ */
+export const handleSendMessageStream = catchAsync(async (req, res) => {
+  const { user } = req;
+  const {
+    conversation_id: conversationId,
+    content,
+    content_type = "text",
+    attachments,
+    metadata,
+    model_id,
+    temperature = 0.7,
+    max_tokens = 8192,
+  } = req.body;
+
+  logger.info("開始串流聊天", {
+    userId: user.id,
+    conversationId,
+    contentLength: content?.length,
+    modelId: model_id,
+  });
+
+  // 設置 SSE headers
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": req.headers.origin || "*",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Requested-With, Accept, Cache-Control, Connection, Keep-Alive",
+    "Access-Control-Expose-Headers": "Cache-Control, Connection, Content-Type",
+  });
+
+  // 客戶端斷開檢測
+  let isClientConnected = true;
+  const abortController = new AbortController();
+
+  req.on("close", () => {
+    logger.info("客戶端斷開連接", { conversationId, userId: user.id });
+    isClientConnected = false;
+    abortController.abort();
+  });
+
+  req.on("error", (error) => {
+    logger.error("請求錯誤", {
+      conversationId,
+      userId: user.id,
+      error: error.message,
+    });
+    isClientConnected = false;
+    abortController.abort();
+  });
+
+  const sendSSE = (eventType, data) => {
+    if (!isClientConnected) {
+      return false;
+    }
+    try {
+      res.write(`event: ${eventType}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+      return true;
+    } catch (error) {
+      logger.error("SSE發送失敗", { error: error.message });
+      isClientConnected = false;
+      return false;
+    }
+  };
+
+  try {
+    // 驗證對話存在且用戶有權限
+    const conversation = await ConversationModel.findById(conversationId);
+    if (!conversation) {
+      sendSSE("error", { error: "對話不存在" });
+      res.end();
+      return;
+    }
+
+    if (conversation.user_id !== user.id) {
+      sendSSE("error", { error: "無權限訪問該對話" });
+      res.end();
+      return;
+    }
+
+    // 獲取模型配置
+    const modelQuery = model_id
+      ? "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE"
+      : "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE";
+
+    const modelParams = model_id ? [model_id] : [conversation.model_id];
+    const { rows: modelRows } = await query(modelQuery, modelParams);
+
+    if (modelRows.length === 0) {
+      sendSSE("error", { error: "指定的模型不存在或不可用" });
+      res.end();
+      return;
+    }
+
+    const model = modelRows[0];
+
+    // 如果使用了不同的模型，更新對話的默認模型
+    if (model_id && model_id !== conversation.model_id) {
+      await query(
+        "UPDATE conversations SET model_id = ?, updated_at = NOW() WHERE id = ?",
+        [model_id, conversationId]
+      );
+
+      logger.info("對話模型已更新", {
+        conversationId: conversationId,
+        oldModelId: conversation.model_id,
+        newModelId: model_id,
+      });
+    }
+
+    // 創建用戶訊息
+    const userMessage = await MessageModel.create({
+      conversation_id: conversationId,
+      role: "user",
+      content: content,
+      content_type: content_type,
+      attachments: attachments || null,
+      metadata: metadata || null,
+    });
+
+    // 發送用戶訊息創建成功事件
+    sendSSE("user_message", {
+      user_message: userMessage,
+      conversation_id: conversationId,
+    });
+
+    // 獲取對話上下文
+    const contextMessages = await MessageModel.getContextMessages(
+      conversationId,
+      20, // 最多20條訊息
+      max_tokens * 0.7 // 保留30%給回應
+    );
+
+    // 準備AI調用參數
+    const aiOptions = {
+      provider: model.model_type,
+      model: model.model_id,
+      messages: contextMessages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      temperature: temperature,
+      max_tokens: max_tokens,
+      stream: true, // 啟用串流模式
+    };
+
+    // 如果有智能體，添加系統提示
+    if (conversation.agent_id) {
+      const { rows: agentRows } = await query(
+        "SELECT system_prompt FROM agents WHERE id = ?",
+        [conversation.agent_id]
+      );
+
+      if (agentRows.length > 0) {
+        aiOptions.messages.unshift({
+          role: "system",
+          content: agentRows[0].system_prompt,
+        });
+      }
+    }
+
+    logger.info("開始調用AI模型串流", {
+      provider: model.model_type,
+      model: model.model_id,
+      messageCount: aiOptions.messages.length,
+      conversationId: conversationId,
+    });
+
+    // 調用AI模型串流
+    const aiStreamGenerator = await AIService.callModel(aiOptions);
+
+    let assistantMessageId = null;
+    let fullContent = "";
+    let finalStats = null;
+
+    // 處理串流回應
+    for await (const chunk of aiStreamGenerator) {
+      // 檢查客戶端是否仍然連接
+      if (!isClientConnected) {
+        logger.info("客戶端已斷開，停止串流處理", { conversationId });
+        break;
+      }
+
+      if (chunk.type === "content") {
+        fullContent = chunk.full_content || fullContent + chunk.content;
+
+        // 發送串流內容
+        const sent = sendSSE("stream_content", {
+          content: chunk.content,
+          full_content: fullContent,
+          tokens_used: chunk.tokens_used,
+          assistant_message_id: assistantMessageId,
+        });
+
+        // 如果發送失敗，說明客戶端已斷開
+        if (!sent) {
+          logger.info("SSE發送失敗，停止串流處理", { conversationId });
+          break;
+        }
+
+        // 如果是第一個內容塊，創建assistant訊息記錄
+        if (!assistantMessageId) {
+          const assistantMessage = await MessageModel.create({
+            conversation_id: conversationId,
+            role: "assistant",
+            content: fullContent,
+            content_type: "text",
+            tokens_used: chunk.tokens_used,
+            model_info: { provider: chunk.provider, model: chunk.model },
+            processing_time: null, // 串流模式下會在最後更新
+          });
+          assistantMessageId = assistantMessage.id;
+
+          sendSSE("assistant_message_created", {
+            assistant_message_id: assistantMessageId,
+            conversation_id: conversationId,
+          });
+        } else {
+          // 更新existing assistant訊息
+          await MessageModel.update(assistantMessageId, {
+            content: fullContent,
+            tokens_used: chunk.tokens_used,
+          });
+        }
+      } else if (chunk.type === "done") {
+        finalStats = chunk;
+
+        // 最終更新assistant訊息
+        if (assistantMessageId) {
+          await MessageModel.update(assistantMessageId, {
+            content: chunk.full_content,
+            tokens_used: chunk.tokens_used,
+            cost: chunk.cost,
+            processing_time: chunk.processing_time,
+            model_info: {
+              provider: chunk.provider,
+              model: chunk.model_info,
+              processing_time: chunk.processing_time,
+              tokens_used: chunk.tokens_used,
+              cost: chunk.cost,
+            },
+          });
+        }
+
+        // 發送完成事件
+        sendSSE("stream_done", {
+          assistant_message_id: assistantMessageId,
+          full_content: chunk.full_content,
+          tokens_used: chunk.tokens_used,
+          cost: chunk.cost,
+          processing_time: chunk.processing_time,
+          conversation_id: conversationId,
+        });
+
+        logger.info("AI串流回應完成", {
+          conversationId: conversationId,
+          messageId: assistantMessageId,
+          tokens: chunk.tokens_used,
+          cost: chunk.cost,
+          processingTime: chunk.processing_time,
+          contentLength: chunk.full_content?.length,
+        });
+      }
+    }
+
+    // 獲取更新後的對話信息
+    const updatedConversation =
+      await ConversationModel.findById(conversationId);
+
+    // 發送最終對話狀態（只有在客戶端仍連接時）
+    if (isClientConnected) {
+      sendSSE("conversation_updated", {
+        conversation: updatedConversation,
+      });
+    }
+
+    // 結束SSE連接
+    if (isClientConnected) {
+      res.end();
+    }
+  } catch (error) {
+    logger.error("串流聊天失敗", {
+      conversationId: conversationId,
+      error: error.message,
+      stack: error.stack,
+    });
+
+    // 發送錯誤事件
+    sendSSE("error", {
+      error: `AI模型調用失敗: ${error.message}`,
+      conversation_id: conversationId,
+    });
+
+    // 創建錯誤訊息記錄
+    try {
+      await MessageModel.create({
+        conversation_id: conversationId,
+        role: "system",
+        content: `AI模型調用失敗: ${error.message}`,
+        content_type: "text",
+        metadata: { error: true, error_message: error.message },
+      });
+    } catch (dbError) {
+      logger.error("創建錯誤訊息失敗", { error: dbError.message });
+    }
+
+    res.end();
   }
 });
 
@@ -536,6 +938,7 @@ export const handleGetAgents = catchAsync(async (req, res) => {
 export default {
   handleCreateConversation,
   handleSendMessage,
+  handleSendMessageStream,
   handleGetConversations,
   handleGetConversation,
   handleGetMessages,

@@ -631,6 +631,73 @@ router.post(
   sendMessageLimiter,
   chatController.handleSendMessage
 );
+
+/**
+ * @swagger
+ * /api/chat/conversations/{conversationId}/messages/stream:
+ *   post:
+ *     tags: [Chat]
+ *     summary: 發送訊息（串流模式）
+ *     description: 向指定對話發送訊息並以串流方式獲取AI回應，支援即時字符級顯示
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: conversationId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 對話ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SendMessageRequest'
+ *     responses:
+ *       200:
+ *         description: 串流回應成功
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *               description: Server-Sent Events 格式的串流數據
+ *               example: |
+ *                 event: user_message
+ *                 data: {"id": 123, "content": "用戶訊息內容", "role": "user"}
+ *
+ *                 event: assistant_message_created
+ *                 data: {"id": 124, "role": "assistant", "conversation_id": 1}
+ *
+ *                 event: stream_content
+ *                 data: {"content": "你"}
+ *
+ *                 event: stream_content
+ *                 data: {"content": "好"}
+ *
+ *                 event: stream_done
+ *                 data: {"message": {"id": 124, "content": "你好，我是AI助手", "tokens_used": 15}}
+ *
+ *                 event: conversation_updated
+ *                 data: {"conversation": {"id": 1, "message_count": 10, "total_tokens": 150}}
+ *       400:
+ *         description: 請求參數錯誤
+ *       401:
+ *         description: 未認證
+ *       404:
+ *         description: 對話不存在
+ *       429:
+ *         description: 請求過於頻繁
+ *       500:
+ *         description: 伺服器錯誤
+ */
+router.post(
+  "/conversations/:conversationId/messages/stream",
+  authenticateToken,
+  sendMessageLimiter,
+  chatController.handleSendMessageStream
+);
+
 router.get(
   "/conversations/:conversationId/messages",
   authenticateToken,

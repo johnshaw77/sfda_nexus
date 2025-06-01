@@ -53,6 +53,9 @@ export const corsConfig = {
     "Access-Control-Request-Headers",
     "X-API-Key",
     "X-Client-Version",
+    "Cache-Control", // SSE 需要
+    "Connection", // SSE 需要
+    "Keep-Alive", // SSE 需要
   ],
 
   // 允許暴露的響應標頭
@@ -63,6 +66,9 @@ export const corsConfig = {
     "X-Per-Page",
     "X-Rate-Limit-Remaining",
     "X-Rate-Limit-Reset",
+    "Cache-Control", // SSE 需要
+    "Connection", // SSE 需要
+    "Content-Type", // SSE 需要
   ],
 
   // 是否允許發送Cookie

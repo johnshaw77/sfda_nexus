@@ -78,11 +78,13 @@
           v-model:value="selectedModel"
           placeholder="選擇 AI 模型"
           style="width: 200px"
-          @change="handleModelChange">
+          @change="handleModelChange"
+          :loading="chatStore.isLoading">
           <a-select-option
             v-for="model in availableModels"
             :key="model.id"
-            :value="model.id">
+            :value="model.id"
+            :disabled="model.available === false">
             <div class="model-option">
               <span class="model-name">{{ model.name }}</span>
               <a-tag
@@ -90,9 +92,24 @@
                 size="small">
                 {{ model.provider }}
               </a-tag>
+              <a-tag
+                v-if="model.available === false"
+                color="red"
+                size="small">
+                不可用
+              </a-tag>
             </div>
           </a-select-option>
         </a-select>
+
+        <!-- 串流模式切換 -->
+        <a-tooltip title="啟用後將使用類似 ChatGPT 的逐字顯示效果">
+          <a-switch
+            v-model:checked="useStreamMode"
+            checked-children="串流"
+            un-checked-children="普通"
+            class="stream-toggle" />
+        </a-tooltip>
 
         <a-dropdown
           :trigger="['click']"
@@ -212,7 +229,7 @@
 
           <!-- AI 輸入狀態指示器 -->
           <div
-            v-if="chatStore.aiTyping"
+            v-if="chatStore.aiTyping && !hasStartedReceivingAIResponse"
             class="typing-indicator">
             <div class="typing-bubble">
               <div class="typing-dots">
@@ -224,6 +241,33 @@
                 >{{ agent?.name || "AI" }} 正在思考中...</span
               >
             </div>
+          </div>
+
+          <!-- 停止對話按鈕 -->
+          <div
+            v-if="isAIResponding"
+            class="stop-stream-container">
+            <a-button
+              type="default"
+              danger
+              @click="handleStopStream"
+              class="stop-stream-button">
+              <template #icon>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="currentColor">
+                  <rect
+                    x="6"
+                    y="6"
+                    width="12"
+                    height="12"
+                    rx="2" />
+                </svg>
+              </template>
+              停止對話
+            </a-button>
           </div>
         </div>
       </a-spin>
@@ -318,18 +362,34 @@
           </div>
 
           <a-textarea
-            v-model:value="messageText"
+            ref="messageInput"
+            :value="messageText"
+            @input="
+              (e) => {
+                messageText = e.target.value;
+                handleInputChange(e);
+              }
+            "
             :placeholder="`向 ${agent?.name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送)`"
             :auto-size="false"
             :disabled="sending"
             @keydown="handleKeyDown"
-            @input="handleInputChange"
             :style="{ height: `${textareaHeight}px` }"
             class="message-input" />
 
           <!-- 輸入工具欄 -->
           <div class="input-toolbar">
             <div class="toolbar-left">
+              <!-- 新對話按鈕 -->
+              <a-button
+                type="text"
+                size="small"
+                @click="handleCreateNewConversation"
+                :loading="creatingNewConversation">
+                <PlusOutlined />
+                新對話
+              </a-button>
+
               <!-- 附件上傳 -->
               <a-upload
                 :show-upload-list="false"
@@ -370,6 +430,50 @@
       </div>
     </div>
 
+    <!-- 智能體選單 -->
+    <div
+      v-if="showAgentMenu"
+      class="agent-mention-menu"
+      :style="{
+        position: 'fixed',
+        top: agentMenuPosition.top + 'px',
+        left: agentMenuPosition.left + 'px',
+        zIndex: 1000,
+      }">
+      <div class="agent-menu-list">
+        <div
+          v-for="agent in availableAgents"
+          :key="agent.id"
+          class="agent-menu-item"
+          @click="handleSelectAgent(agent)">
+          <div class="agent-avatar-small">
+            <!-- 如果有 base64 avatar，直接顯示圖片 -->
+            <img
+              v-if="
+                agent.avatar &&
+                typeof agent.avatar === 'string' &&
+                agent.avatar.startsWith('data:')
+              "
+              :src="agent.avatar"
+              :alt="agent.name"
+              class="avatar-image-small" />
+            <!-- 沒有 avatar 時使用漸變背景和首字母 -->
+            <span
+              v-else
+              class="agent-initial-small">
+              {{
+                agent.display_name?.charAt(0) || agent.name?.charAt(0) || "?"
+              }}
+            </span>
+          </div>
+          <div class="agent-info-small">
+            <div class="agent-name-small">{{ agent.display_name }}</div>
+            <div class="agent-desc-small">{{ agent.description }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 聊天設置模態框 -->
     <a-modal
       v-model:open="settingsModalVisible"
@@ -390,7 +494,7 @@
           <a-input-number
             v-model:value="chatSettings.maxTokens"
             :min="100"
-            :max="4000"
+            :max="16384"
             style="width: 100%" />
         </a-form-item>
 
@@ -419,6 +523,7 @@ import {
   PaperClipOutlined,
   SmileOutlined,
   SendOutlined,
+  PlusOutlined,
 } from "@ant-design/icons-vue";
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
@@ -436,11 +541,15 @@ const messageText = ref("");
 const quotedMessage = ref(null);
 const lastSentMessageId = ref(null);
 const messagesContainer = ref(null);
+const messageInput = ref(null);
 const settingsModalVisible = ref(false);
+const showAgentMenu = ref(false);
+const agentMenuPosition = ref({ top: 0, left: 0 });
 const inputAreaHeight = ref(300);
 const isResizing = ref(false);
 const minInputHeight = 200;
 const maxInputHeight = 600;
+const creatingNewConversation = ref(false);
 
 // 計算 textarea 的高度
 const textareaHeight = computed(() => {
@@ -454,19 +563,74 @@ const textareaHeight = computed(() => {
   );
 });
 
+// 判斷是否正在AI回應中
+const isAIResponding = computed(() => {
+  return (
+    sending.value ||
+    chatStore.isStreaming ||
+    chatStore.isSendingMessage ||
+    chatStore.aiTyping
+  );
+});
+
+// 判斷當前對話是否已開始接收AI回應（用於控制思考狀態）
+const hasStartedReceivingAIResponse = computed(() => {
+  // 檢查最後一條消息是否是AI回應且是當前發送會話的回應
+  const lastMessage = chatStore.messages[chatStore.messages.length - 1];
+  const secondLastMessage = chatStore.messages[chatStore.messages.length - 2];
+
+  // 如果最後兩條消息是用戶消息緊接著AI消息，說明已開始接收回應
+  if (lastMessage?.role === "assistant" && secondLastMessage?.role === "user") {
+    return true;
+  }
+
+  // 如果正在串流且有AI消息，說明已開始接收
+  if (
+    chatStore.isStreaming &&
+    chatStore.messages.some(
+      (msg) => msg.role === "assistant" && msg.isStreaming
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+});
+
 // 模型和設置
 const selectedModel = ref("");
-const availableModels = ref([
-  { id: "ollama-qwen", name: "Qwen 3 30B", provider: "ollama" },
-  { id: "gemini-pro", name: "Gemini Pro", provider: "gemini" },
-  { id: "ollama-llama", name: "Llama 3.1", provider: "ollama" },
-]);
+const availableModels = computed(() => {
+  // 從 store 中獲取所有可用模型並平鋪
+  const ollama = chatStore.availableModels.ollama || [];
+  const gemini = chatStore.availableModels.gemini || [];
+
+  return [
+    ...ollama.map((model) => ({
+      id: model.id,
+      name: model.display_name || model.name,
+      provider: "ollama",
+      available: model.available,
+      is_default: model.is_default || false,
+    })),
+    ...gemini.map((model) => ({
+      id: model.id,
+      name: model.display_name || model.name,
+      provider: "gemini",
+      available: model.available,
+      is_default: model.is_default || false,
+    })),
+  ].filter((model) => model.available !== false && model.id); // 只顯示可用且有ID的模型
+});
 
 const chatSettings = ref({
   temperature: 0.7,
-  maxTokens: 2000,
+  maxTokens: 8192, // 增加最大token數量
   systemPrompt: "",
 });
+
+// 串流模式狀態
+const useStreamMode = ref(true); // 默認啟用串流模式
+const isStreaming = ref(false); // 是否正在串流中
 
 // 快速提示
 const quickPrompts = ref([
@@ -475,6 +639,9 @@ const quickPrompts = ref([
   { id: 3, text: "請提供一些建議" },
   { id: 4, text: "解釋一下這個概念" },
 ]);
+
+// 從 store 中獲取可用智能體
+const availableAgents = computed(() => chatStore.availableAgents || []);
 
 // Props
 const props = defineProps({
@@ -519,8 +686,17 @@ const handleModelChange = (modelId) => {
 const handleSendMessage = async () => {
   if (!messageText.value.trim()) return;
 
+  // 確保選擇了模型
+  if (!selectedModel.value) {
+    message.error("請先選擇 AI 模型");
+    return;
+  }
+
   try {
     sending.value = true;
+
+    // 立即設置AI思考狀態
+    chatStore.handleSetAITypingStatus(true);
 
     // 如果沒有當前對話，先創建一個
     let conversationId = chatStore.currentConversation?.id;
@@ -528,33 +704,59 @@ const handleSendMessage = async () => {
       const newConversation = await chatStore.handleCreateConversation({
         title: messageText.value.trim().substring(0, 50),
         agent_id: props.agent?.id,
+        model_id: selectedModel.value,
       });
       conversationId = newConversation?.id;
     }
 
     if (conversationId) {
-      const result = await chatStore.handleSendMessage(
-        conversationId,
-        messageText.value.trim(),
-        {
-          quotedMessage: quotedMessage.value,
-          temperature: chatSettings.value.temperature,
-          maxTokens: chatSettings.value.maxTokens,
-        }
-      );
+      const content = messageText.value.trim();
 
-      if (result) {
-        lastSentMessageId.value = result.user_message?.id;
-        messageText.value = "";
-        quotedMessage.value = null;
-        scrollToBottom();
+      // 清空輸入框和重置狀態
+      messageText.value = "";
+      quotedMessage.value = null;
+
+      if (useStreamMode.value) {
+        // 使用串流模式
+        console.log("=== 使用串流模式發送消息 ===");
+        isStreaming.value = true;
+
+        await chatStore.sendMessageStream(conversationId, content, {
+          model_id: selectedModel.value,
+          temperature: chatSettings.value.temperature,
+          max_tokens: chatSettings.value.maxTokens,
+        });
+
+        message.success("串流消息發送成功");
+      } else {
+        // 使用普通模式
+        const result = await chatStore.handleSendMessage(
+          conversationId,
+          content,
+          {
+            quotedMessage: quotedMessage.value,
+            temperature: chatSettings.value.temperature,
+            maxTokens: chatSettings.value.maxTokens,
+            model_id: selectedModel.value,
+          }
+        );
+
+        if (result) {
+          lastSentMessageId.value = result.user_message?.id;
+          message.success("消息發送成功");
+        }
       }
+
+      scrollToBottom();
     }
   } catch (error) {
-    message.error("發送消息失敗");
+    const errorMsg = useStreamMode.value ? "串流發送消息失敗" : "發送消息失敗";
+    message.error(`${errorMsg}: ${error.message}`);
     console.error("發送消息失敗:", error);
   } finally {
     sending.value = false;
+    isStreaming.value = false;
+    // 注意：不在這裡重置aiTyping，讓它在收到回應時自然重置
   }
 };
 
@@ -565,17 +767,108 @@ const handleKeyDown = (event) => {
   }
 };
 
-const handleInputChange = () => {
+const handleInputChange = (event) => {
   // 發送輸入狀態
   wsStore.handleSendTypingStatus(
     chatStore.currentConversation?.id,
     messageText.value.length > 0
   );
+
+  // 檢查是否已經有 @ 提及
+  const existingMentions = (messageText.value.match(/@\w+/g) || []).length;
+
+  // 檢查是否輸入了 @
+  const cursorPosition = event?.target?.selectionStart || 0;
+  const textBeforeCursor = messageText.value.substring(0, cursorPosition);
+  const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
+  if (lastAtIndex !== -1 && existingMentions === 0) {
+    const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+    // 如果 @ 後面沒有空格且在最後，顯示智能體選單
+    if (
+      !textAfterAt.includes(" ") &&
+      cursorPosition === messageText.value.length
+    ) {
+      showAgentMenu.value = true;
+      // 計算選單位置
+      calculateMenuPosition(event.target);
+    } else {
+      showAgentMenu.value = false;
+    }
+  } else {
+    showAgentMenu.value = false;
+  }
+};
+
+const calculateMenuPosition = (textarea) => {
+  const rect = textarea.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const menuHeight = 200; // 預估選單高度
+
+  // 判斷是否應該顯示在上方
+  const shouldShowAbove =
+    rect.bottom + menuHeight > viewportHeight && rect.top > menuHeight;
+
+  agentMenuPosition.value = {
+    top: shouldShowAbove
+      ? rect.top + window.scrollY - menuHeight
+      : rect.bottom + window.scrollY,
+    left: rect.left + window.scrollX,
+  };
+};
+
+const handleSelectAgent = (agent) => {
+  // 檢查是否已經有 @ 提及，如果有則不允許添加
+  const existingMentions = (messageText.value.match(/@\w+/g) || []).length;
+  if (existingMentions > 0) {
+    message.warning("每條消息只能 @ 一個智能體");
+    showAgentMenu.value = false;
+    return;
+  }
+
+  const cursorPosition =
+    messageInput.value?.$el?.querySelector("textarea")?.selectionStart ||
+    messageText.value.length;
+  const textBeforeCursor = messageText.value.substring(0, cursorPosition);
+  const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
+  if (lastAtIndex !== -1) {
+    const textBeforeAt = messageText.value.substring(0, lastAtIndex);
+    const textAfterCursor = messageText.value.substring(cursorPosition);
+    messageText.value = textBeforeAt + `@${agent.name} ` + textAfterCursor;
+  }
+
+  showAgentMenu.value = false;
+
+  // 重新聚焦輸入框
+  nextTick(() => {
+    if (messageInput.value) {
+      messageInput.value.focus();
+    }
+  });
 };
 
 const handleQuickPrompt = (promptText) => {
   messageText.value = promptText;
-  handleSendMessage();
+  // 不自動發送，讓用戶可以繼續編輯
+  // handleSendMessage();
+
+  // Focus 到輸入框
+  nextTick(() => {
+    if (messageInput.value) {
+      messageInput.value.focus();
+      // 將游標移到文字末尾
+      const textareaEl =
+        messageInput.value.$el?.querySelector("textarea") ||
+        messageInput.value.$el;
+      if (textareaEl && textareaEl.setSelectionRange) {
+        textareaEl.setSelectionRange(
+          textareaEl.value.length,
+          textareaEl.value.length
+        );
+      }
+    }
+  });
 };
 
 const handleQuoteMessage = (message) => {
@@ -641,6 +934,12 @@ const handleClearMessages = async () => {
   }
 };
 
+const handleStopStream = () => {
+  if (chatStore.isStreaming) {
+    chatStore.stopCurrentStream();
+  }
+};
+
 // 根據智能體獲取快速提示
 const getQuickPrompts = () => {
   if (!props.agent) {
@@ -698,6 +997,24 @@ const getQuickPrompts = () => {
 
 // 監聽消息變化，自動滾動到底部
 watch(
+  () => chatStore.messages,
+  (newMessages, oldMessages) => {
+    // 自動滾動到底部
+    if (newMessages?.length > (oldMessages?.length || 0)) {
+      scrollToBottom();
+    }
+
+    // 檢查是否有串流中的訊息內容發生變化
+    const hasStreamingMessage = newMessages.some((msg) => msg.isStreaming);
+    if (hasStreamingMessage) {
+      // 如果有串流訊息，持續滾動到底部
+      scrollToBottom();
+    }
+  },
+  { deep: true }
+);
+
+watch(
   () => chatStore.messages.length,
   () => {
     scrollToBottom();
@@ -727,21 +1044,30 @@ onMounted(async () => {
       await chatStore.handleGetMessages(chatStore.currentConversation.id);
     }
 
-    // 載入可用模型
+    // 載入可用模型和智能體
     await chatStore.handleGetAvailableModels();
+    await chatStore.handleGetAvailableAgents();
 
     // 設置默認模型
+    // 確保模型數據已載入
     if (
-      chatStore.availableModels &&
-      Object.keys(chatStore.availableModels).length > 0
+      !chatStore.availableModels.ollama &&
+      !chatStore.availableModels.gemini
     ) {
-      // 從 ollama 或 gemini 中選擇第一個可用模型
-      const allModels = [
-        ...(chatStore.availableModels.ollama || []),
-        ...(chatStore.availableModels.gemini || []),
-      ];
-      if (allModels.length > 0) {
-        selectedModel.value = allModels[0].id || allModels[0];
+      await chatStore.handleGetAvailableModels();
+    }
+
+    // 設置默認選中的模型
+    if (availableModels.value.length > 0) {
+      // 優先選擇默認模型或第一個可用模型
+      const defaultModel =
+        availableModels.value.find((model) => model.is_default) ||
+        availableModels.value[0];
+
+      if (defaultModel && defaultModel.id) {
+        selectedModel.value = defaultModel.id;
+      } else {
+        console.warn("無法找到有效的默認模型");
       }
     }
 
@@ -813,14 +1139,62 @@ const loadInputAreaHeight = () => {
 const handleExpandInput = () => {
   //const newHeight = Math.min(maxInputHeight, inputAreaHeight.value + 300);
   inputAreaHeight.value = maxInputHeight;
-  localStorage.setItem("chatInputAreaHeight", newHeight.toString());
+  localStorage.setItem("chatInputAreaHeight", inputAreaHeight.value.toString());
 };
 
 // 縮小輸入區域
 const handleShrinkInput = () => {
   //const newHeight = Math.max(minInputHeight, inputAreaHeight.value - 100);
   inputAreaHeight.value = minInputHeight;
-  localStorage.setItem("chatInputAreaHeight", newHeight.toString());
+  localStorage.setItem("chatInputAreaHeight", inputAreaHeight.value.toString());
+};
+
+// 監聽串流模式變化，保存用戶偏好
+watch(useStreamMode, (newValue) => {
+  console.log("串流模式切換:", newValue ? "啟用" : "禁用");
+  localStorage.setItem("chat_stream_mode", JSON.stringify(newValue));
+});
+
+// 從本地存儲恢復串流模式設置
+onMounted(() => {
+  const savedStreamMode = localStorage.getItem("chat_stream_mode");
+  if (savedStreamMode !== null) {
+    useStreamMode.value = JSON.parse(savedStreamMode);
+  }
+});
+
+const handleCreateNewConversation = async () => {
+  try {
+    creatingNewConversation.value = true;
+
+    // 確保選擇了模型
+    if (!selectedModel.value) {
+      message.error("請先選擇 AI 模型");
+      return;
+    }
+
+    // 創建新對話
+    const newConversation = await chatStore.handleCreateConversation({
+      title: "新對話",
+      agent_id: props.agent?.id,
+      model_id: selectedModel.value,
+    });
+
+    if (newConversation) {
+      // 重新載入對話列表以更新sidebar
+      await chatStore.handleGetConversations();
+
+      message.success("新對話創建成功");
+
+      // 如果需要跳轉到新對話，可以使用路由
+      // $router.push(`/chat/${newConversation.id}`);
+    }
+  } catch (error) {
+    message.error("創建新對話失敗");
+    console.error("創建新對話失敗:", error);
+  } finally {
+    creatingNewConversation.value = false;
+  }
 };
 </script>
 
@@ -869,6 +1243,10 @@ const handleShrinkInput = () => {
   gap: 12px;
 }
 
+.stream-toggle {
+  margin-left: 8px;
+}
+
 .model-option {
   display: flex;
   align-items: center;
@@ -884,7 +1262,7 @@ const handleShrinkInput = () => {
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
-  background: var(--custom-bg-secondary);
+  background: var(--custom-bg-primary);
 }
 
 .empty-messages {
@@ -984,6 +1362,43 @@ const handleShrinkInput = () => {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+.stop-stream-container {
+  position: fixed;
+  bottom: 120px; /* 固定在輸入框上方 */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 16px;
+}
+
+.stop-stream-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 20px;
+  padding: 8px 16px;
+  background: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.3);
+  color: #ff4d4f;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.2);
+}
+
+.stop-stream-button:hover {
+  background: rgba(255, 77, 79, 0.15) !important;
+  border-color: #ff4d4f !important;
+  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3) !important;
+  transform: translateY(-1px);
+}
+
+.stop-stream-button svg {
+  transition: transform 0.3s ease;
+}
+
+.stop-stream-button:hover svg {
+  transform: scale(1.1);
 }
 
 .message-input-area {
@@ -1361,5 +1776,81 @@ const handleShrinkInput = () => {
 
 .resize-btn:hover:not(:disabled) svg {
   transform: scale(1.1);
+}
+
+/* 智能體提及選單樣式 */
+.agent-mention-menu {
+  background: white;
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 250px;
+}
+
+.agent-menu-list {
+  padding: 4px 0;
+}
+
+.agent-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.agent-menu-item:hover {
+  background: var(--custom-bg-tertiary);
+}
+
+.agent-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-image-small {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.agent-initial-small {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+}
+
+.agent-info-small {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-name-small {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--custom-text-primary);
+  margin-bottom: 2px;
+}
+
+.agent-desc-small {
+  font-size: 12px;
+  color: var(--custom-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

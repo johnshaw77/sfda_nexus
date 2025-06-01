@@ -102,8 +102,8 @@
 
 /* 暗色主題變量 */
 [data-theme="dark"] {
-  --text-color: #ffffffd9;
-  --text-color-secondary: #ffffff73;
+  --text-color: #f7f7f7;
+  --text-color-secondary: #ffffff;
   --text-color-disabled: #ffffff40;
   --border-color: #434343;
   --border-color-split: #303030;

@@ -182,11 +182,14 @@ export const validateImage = (file, options = {}) => {
 
 /**
  * 智能壓縮圖片（根據文件大小自動調整壓縮參數）
- * @param {File} file - 原始圖片文件
+ * @param {File|Blob} file - 原始圖片文件
  * @param {Object} options - 壓縮選項
  * @param {number} options.targetSize - 目標大小（字節），默認 100KB
  * @param {number} options.maxWidth - 最大寬度，默認 400
  * @param {number} options.maxHeight - 最大高度，默認 400
+ * @param {number} options.minQuality - 最低壓縮質量，默認 0.5
+ * @param {number} options.maxQuality - 最高壓縮質量，默認 0.9
+ * @param {number} options.maxIterations - 最大嘗試次數，默認 5
  * @returns {Promise<string>} 壓縮後的 base64 字符串
  */
 export const smartCompressImage = async (file, options = {}) => {
@@ -194,44 +197,123 @@ export const smartCompressImage = async (file, options = {}) => {
     targetSize = 100 * 1024, // 100KB
     maxWidth = 400,
     maxHeight = 400,
+    minQuality = 0.5,
+    maxQuality = 0.9,
+    maxIterations = 5,
   } = options;
 
   // 獲取原始圖片信息
   const imageInfo = await getImageInfo(file);
+  console.log("原始圖片信息:", imageInfo);
 
-  // 根據原始文件大小調整壓縮參數
-  let quality = 0.8;
-  let width = maxWidth;
-  let height = maxHeight;
-
-  if (imageInfo.size > 1024 * 1024) {
-    // 大於 1MB
-    quality = 0.6;
-    width = Math.min(maxWidth, 300);
-    height = Math.min(maxHeight, 300);
-  } else if (imageInfo.size > 512 * 1024) {
-    // 大於 512KB
-    quality = 0.7;
-    width = Math.min(maxWidth, 350);
-    height = Math.min(maxHeight, 350);
+  // 如果原始圖片已經小於目標大小，使用高質量壓縮
+  if (imageInfo.size <= targetSize) {
+    return compressImage(file, {
+      maxWidth,
+      maxHeight,
+      quality: maxQuality,
+    });
   }
 
-  // 執行壓縮
-  const compressedBase64 = await compressImage(file, {
-    maxWidth: width,
-    maxHeight: height,
-    quality,
-    outputFormat: "image/jpeg", // 使用 JPEG 格式獲得更好的壓縮率
-  });
+  // 二分法查找最佳壓縮質量
+  let left = minQuality;
+  let right = maxQuality;
+  let bestResult = null;
+  let iteration = 0;
 
-  // 檢查壓縮後的大小
-  const compressedSize = Math.round((compressedBase64.length * 3) / 4); // base64 大小估算
+  while (iteration < maxIterations) {
+    const quality = (left + right) / 2;
+    console.log(`嘗試壓縮質量: ${quality}`);
 
-  console.log(
-    `圖片壓縮完成: ${imageInfo.size} bytes -> ${compressedSize} bytes`
-  );
+    const result = await compressImage(file, {
+      maxWidth,
+      maxHeight,
+      quality,
+    });
 
-  return compressedBase64;
+    // 計算當前結果大小
+    const currentSize = Math.ceil(result.length * 0.75); // base64 to binary size
+    console.log(`當前大小: ${currentSize} bytes`);
+
+    // 如果當前結果在目標大小的 90-100% 範圍內，或者已經達到最大迭代次數，使用當前結果
+    if (
+      (currentSize >= targetSize * 0.9 && currentSize <= targetSize) ||
+      iteration === maxIterations - 1
+    ) {
+      bestResult = result;
+      break;
+    }
+
+    // 調整壓縮質量範圍
+    if (currentSize > targetSize) {
+      right = quality;
+    } else {
+      left = quality;
+    }
+
+    // 如果已經找到足夠好的結果，或者質量範圍已經很小，停止迭代
+    if (right - left < 0.05) {
+      bestResult = result;
+      break;
+    }
+
+    iteration++;
+  }
+
+  // 如果沒有找到合適的結果，使用最低質量再次嘗試
+  if (!bestResult) {
+    console.log("使用最低質量壓縮");
+    bestResult = await compressImage(file, {
+      maxWidth,
+      maxHeight,
+      quality: minQuality,
+    });
+  }
+
+  return bestResult;
+};
+
+/**
+ * 優化圖片渲染質量
+ * @param {CanvasRenderingContext2D} ctx - Canvas 上下文
+ * @param {number} width - 目標寬度
+ * @param {number} height - 目標高度
+ */
+const optimizeImageRendering = (ctx, width, height) => {
+  // 設置最佳的圖像平滑算法
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // 根據縮放比例優化渲染
+  const scale = Math.min(width / ctx.canvas.width, height / ctx.canvas.height);
+  if (scale < 0.5) {
+    // 對於顯著縮小的圖片，使用階段性縮放以提高質量
+    let currentWidth = ctx.canvas.width;
+    let currentHeight = ctx.canvas.height;
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+
+    while (currentWidth * 0.5 > width) {
+      tempCanvas.width = currentWidth * 0.5;
+      tempCanvas.height = currentHeight * 0.5;
+      tempCtx.drawImage(
+        ctx.canvas,
+        0,
+        0,
+        currentWidth,
+        currentHeight,
+        0,
+        0,
+        tempCanvas.width,
+        tempCanvas.height
+      );
+      currentWidth = tempCanvas.width;
+      currentHeight = tempCanvas.height;
+      ctx.canvas.width = currentWidth;
+      ctx.canvas.height = currentHeight;
+      ctx.drawImage(tempCanvas, 0, 0);
+    }
+  }
 };
 
 export default {

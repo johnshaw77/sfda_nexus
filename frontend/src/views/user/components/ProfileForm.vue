@@ -22,15 +22,26 @@
             class="profile-avatar" />
         </div>
 
-        <div class="avatar-upload-controls">
-          <a-button
-            size="small"
-            :loading="uploadLoading"
-            @click="$refs.fileInput.click()">
-            <UploadOutlined />
-            上傳頭像
-          </a-button>
+        <a-upload
+          :show-upload-list="false"
+          :before-upload="handleBeforeUpload"
+          :custom-request="() => {}"
+          :accept="'image/*'"
+          :multiple="false"
+          class="avatar-uploader">
+          <div
+            class="upload-area"
+            @paste="handlePaste"
+            tabindex="0">
+            <p class="ant-upload-drag-icon">
+              <UploadOutlined />
+            </p>
+            <p class="ant-upload-text">點擊或拖拽圖片到此處上傳</p>
+            <p class="ant-upload-hint">支持複製貼上圖片</p>
+          </div>
+        </a-upload>
 
+        <div class="avatar-upload-controls">
           <a-button
             v-if="formData.avatar"
             type="text"
@@ -79,14 +90,6 @@
           </a-space>
         </template>
       </a-modal>
-
-      <!-- 隱藏的文件輸入框 -->
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        style="display: none"
-        @change="handleFileSelect" />
     </a-form-item>
 
     <a-form-item
@@ -234,12 +237,41 @@ const initFormData = () => {
   }
 };
 
-// 處理文件選擇
-const handleFileSelect = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+// 處理貼上事件
+const handlePaste = async (e) => {
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  let blob = null;
 
-  // 驗證文件
+  for (const item of items) {
+    if (item.type.indexOf("image") === 0) {
+      blob = item.getAsFile();
+      break;
+    }
+  }
+
+  if (blob) {
+    const validation = validateImage(blob, {
+      maxSize: 5 * 1024 * 1024,
+      allowedTypes: ["image/jpeg", "image/png", "image/webp"],
+    });
+
+    if (!validation.valid) {
+      message.error(validation.error);
+      return;
+    }
+
+    // 讀取文件並顯示裁剪框
+    const reader = new FileReader();
+    reader.onload = () => {
+      imageUrl.value = reader.result;
+      showCropModal.value = true;
+    };
+    reader.readAsDataURL(blob);
+  }
+};
+
+// 處理上傳前的驗證
+const handleBeforeUpload = (file) => {
   const validation = validateImage(file, {
     maxSize: 5 * 1024 * 1024,
     allowedTypes: ["image/jpeg", "image/png", "image/webp"],
@@ -247,7 +279,7 @@ const handleFileSelect = (e) => {
 
   if (!validation.valid) {
     message.error(validation.error);
-    return;
+    return false;
   }
 
   // 讀取文件並顯示裁剪框
@@ -257,6 +289,8 @@ const handleFileSelect = (e) => {
     showCropModal.value = true;
   };
   reader.readAsDataURL(file);
+
+  return false; // 阻止自動上傳
 };
 
 // 處理裁剪完成
@@ -390,14 +424,14 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  border: 1px dashed #d9d9d9;
+  border: 1px dashed var(--border-color);
   border-radius: 6px;
   transition: all 0.3s ease;
 }
 
 .avatar-upload-section:hover {
-  border-color: #1890ff;
-  background: #f0f8ff;
+  border-color: var(--ant-primary-color);
+  background: var(--ant-primary-1);
 }
 
 .avatar-preview {
@@ -405,7 +439,7 @@ onMounted(() => {
 }
 
 .profile-avatar {
-  border: 2px solid #fff;
+  border: 0px solid var(--ant-primary-color);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -417,19 +451,6 @@ onMounted(() => {
 
 .avatar-tips {
   margin-top: 8px;
-}
-
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .avatar-upload-section {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .avatar-upload-controls {
-    flex-direction: row;
-    justify-content: center;
-  }
 }
 
 .hidden-input {
@@ -451,5 +472,73 @@ onMounted(() => {
 .cropper {
   height: 100%;
   background: #f5f5f5;
+}
+
+.avatar-uploader {
+  width: 100%;
+  margin-top: 16px;
+}
+.avatar-uploader :hover {
+  background: var(--ant-primary-1);
+}
+
+.upload-area {
+  padding: 16px;
+  border: 2px dashed var(--ant-primary-color-deprecated-border);
+  border-radius: 8px;
+  background: var(--ant-primary-1);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  outline: none;
+}
+
+.upload-area:hover,
+.upload-area:focus {
+  border-color: var(--ant-primary-color);
+  background: var(--ant-primary-1);
+}
+
+.ant-upload-drag-icon {
+  margin-bottom: 8px;
+  color: var(--ant-primary-color);
+}
+
+.ant-upload-text {
+  margin: 0 0 4px;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 16px;
+}
+
+.ant-upload-hint {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+}
+
+/* 暗黑模式適配 */
+:root[data-theme="dark"] .upload-area {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: #434343;
+}
+
+:root[data-theme="dark"] .ant-upload-text {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme="dark"] .ant-upload-hint {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .avatar-upload-section {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .avatar-upload-controls {
+    flex-direction: row;
+    justify-content: center;
+  }
 }
 </style>
