@@ -18,23 +18,6 @@
         <!-- 右側操作區域 -->
         <div class="header-right">
           <!-- 主題切換開關 -->
-          <a-tooltip
-            :title="
-              configStore.isDarkMode ? '切換至亮色模式' : '切換至暗黑模式'
-            ">
-            <a-switch
-              :checked="configStore.isDarkMode"
-              size="small"
-              @change="configStore.toggleTheme"
-              class="theme-switch">
-              <template #checkedChildren>
-                <bulb-filled style="color: yellow" />
-              </template>
-              <template #unCheckedChildren>
-                <bulb-filled style="color: gray" />
-              </template>
-            </a-switch>
-          </a-tooltip>
 
           <!-- 快速操作 -->
           <div class="quick-actions">
@@ -305,34 +288,35 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
-import {
-  DashboardOutlined,
-  TeamOutlined,
-  BellOutlined,
-  CrownOutlined,
-  DownOutlined,
-  ArrowLeftOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  MenuUnfoldOutlined,
-  MenuFoldOutlined,
-  SettingOutlined,
-  FileTextOutlined,
-  ToolOutlined,
-  DatabaseOutlined,
-  CloudDownloadOutlined,
-  LineChartOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  HomeOutlined,
-  FullscreenOutlined,
-  RobotOutlined,
-  BulbFilled,
-  BulbOutlined,
-} from "@ant-design/icons-vue";
+// import {
+//   DashboardOutlined,
+//   TeamOutlined,
+//   BellOutlined,
+//   CrownOutlined,
+//   DownOutlined,
+//   ArrowLeftOutlined,
+//   UserOutlined,
+//   LogoutOutlined,
+//   MenuUnfoldOutlined,
+//   MenuFoldOutlined,
+//   SettingOutlined,
+//   FileTextOutlined,
+//   ToolOutlined,
+//   DatabaseOutlined,
+//   CloudDownloadOutlined,
+//   LineChartOutlined,
+//   ReloadOutlined,
+//   PlusOutlined,
+//   HomeOutlined,
+//   FullscreenOutlined,
+//   RobotOutlined,
+//   BulbFilled,
+//   BulbOutlined,
+// } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";
+import { useFullscreen } from "@vueuse/core";
 
 // Store
 const authStore = useAuthStore();
@@ -386,26 +370,32 @@ const handleMenuClick = ({ key }) => {
   }
 };
 
+// 系統監控抽屜開啟
 const handleSystemMonitor = () => {
   monitorDrawerVisible.value = true;
 };
 
+// 在線用戶功能開發中
 const handleOnlineUsers = () => {
   message.info("在線用戶功能開發中");
 };
 
+// 系統通知功能開發中
 const handleSystemNotifications = () => {
   message.info("系統通知功能開發中");
 };
 
+// 返回主應用
 const handleBackToMain = () => {
   router.push("/dashboard");
 };
 
+// 個人資料功能開發中
 const handleProfile = () => {
   message.info("個人資料功能開發中");
 };
 
+// 登出
 const handleLogout = async () => {
   try {
     await authStore.handleLogout();
@@ -418,12 +408,17 @@ const handleLogout = async () => {
   }
 };
 
+// 刷新頁面
 const handleRefresh = () => {
   window.location.reload();
 };
 
+// 全螢幕功能
+const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
+
+// 全屏功能
 const handleFullscreen = () => {
-  message.info("全屏功能開發中");
+  toggleFullscreen();
 };
 
 // 監聽路由變化，更新選中的菜單項

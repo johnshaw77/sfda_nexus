@@ -434,7 +434,8 @@ onMounted(async () => {
 
 /* 歡迎區域 */
 .welcome-section {
-  background: linear-gradient(135deg, var(--primary-color), #722ed1);
+  /* background: linear-gradient(135deg, var(--primary-color), #541e9f); */
+  background: radial-gradient(circle, var(--primary-color), #541e9f);
   border-radius: 12px;
   padding: 32px;
   margin-bottom: 24px;

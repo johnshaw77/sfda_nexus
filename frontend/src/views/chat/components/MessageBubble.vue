@@ -187,6 +187,7 @@ import {
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { useChatStore } from "@/stores/chat";
+import { formatMessageTime } from "@/utils/datetimeFormat";
 
 // Props
 const props = defineProps({
@@ -221,44 +222,7 @@ const getSenderName = () => {
 };
 
 // 方法
-const formatTime = (timestamp) => {
-  if (!timestamp) return "";
-
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now - date;
-
-  // 今天
-  if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
-    return date.toLocaleTimeString("zh-TW", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  // 昨天
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (date.getDate() === yesterday.getDate()) {
-    return (
-      "昨天 " +
-      date.toLocaleTimeString("zh-TW", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    );
-  }
-
-  // 更早
-  return (
-    date.toLocaleDateString("zh-TW") +
-    " " +
-    date.toLocaleTimeString("zh-TW", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  );
-};
+const formatTime = formatMessageTime;
 
 const renderMarkdown = (content) => {
   try {

@@ -23,7 +23,7 @@ const routes = [
         component: () => import("@/views/auth/components/Login.vue"),
         meta: {
           requiresGuest: true,
-          title: "登入 - SFDA Nexus",
+          title: "登入",
         },
       },
       {
@@ -32,7 +32,7 @@ const routes = [
         component: () => import("@/views/auth/components/Register.vue"),
         meta: {
           requiresGuest: true,
-          title: "註冊 - SFDA Nexus",
+          title: "註冊",
         },
       },
     ],
@@ -49,7 +49,7 @@ const routes = [
         name: "Dashboard",
         component: () => import("@/views/dashboard/index.vue"),
         meta: {
-          title: "儀表板 - SFDA Nexus",
+          title: "儀表板",
           icon: "DashboardOutlined",
         },
       },
@@ -58,7 +58,7 @@ const routes = [
         name: "Chat",
         component: () => import("@/views/chat/index.vue"),
         meta: {
-          title: "聊天 - SFDA Nexus",
+          title: "聊天",
           icon: "MessageOutlined",
         },
       },
@@ -67,7 +67,7 @@ const routes = [
         name: "ChatWithAgent",
         component: () => import("@/views/chat/index.vue"),
         meta: {
-          title: "聊天 - SFDA Nexus",
+          title: "聊天",
           icon: "MessageOutlined",
         },
         props: true,
@@ -77,7 +77,7 @@ const routes = [
         name: "UserProfile",
         component: () => import("@/views/user/index.vue"),
         meta: {
-          title: "個人資料 - SFDA Nexus",
+          title: "個人資料",
           icon: "UserOutlined",
         },
       },
@@ -86,7 +86,7 @@ const routes = [
         name: "Settings",
         component: () => import("@/views/settings/index.vue"),
         meta: {
-          title: "設置 - SFDA Nexus",
+          title: "設置",
           icon: "SettingOutlined",
         },
       },
@@ -111,7 +111,7 @@ const routes = [
         name: "AdminDashboard",
         component: () => import("@/views/admin/index.vue"),
         meta: {
-          title: "管理儀表板 - SFDA Nexus",
+          title: "管理儀表板",
           icon: "DashboardOutlined",
         },
       },
@@ -120,7 +120,7 @@ const routes = [
         name: "ModelManagement",
         component: () => import("@/views/admin/models.vue"),
         meta: {
-          title: "模型管理 - SFDA Nexus",
+          title: "模型管理",
           icon: "ApiOutlined",
         },
       },
@@ -129,7 +129,7 @@ const routes = [
         name: "AgentManagement",
         component: () => import("@/views/admin/agents.vue"),
         meta: {
-          title: "智能體管理 - SFDA Nexus",
+          title: "智能體管理",
           icon: "RobotOutlined",
         },
       },
@@ -138,7 +138,7 @@ const routes = [
         name: "UserManagement",
         component: () => import("@/views/admin/users.vue"),
         meta: {
-          title: "用戶管理 - SFDA Nexus",
+          title: "用戶管理",
           icon: "UserOutlined",
         },
       },
@@ -147,7 +147,7 @@ const routes = [
         name: "SystemSettings",
         component: () => import("@/views/admin/system.vue"),
         meta: {
-          title: "系統設置 - SFDA Nexus",
+          title: "系統設置",
           icon: "SettingOutlined",
         },
       },
@@ -160,7 +160,7 @@ const routes = [
     name: "NotFound",
     component: () => import("@/views/error/NotFound.vue"),
     meta: {
-      title: "頁面未找到 - SFDA Nexus",
+      title: "頁面未找到",
     },
   },
 ];

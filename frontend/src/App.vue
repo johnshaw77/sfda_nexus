@@ -63,8 +63,8 @@ onMounted(async () => {
 
 // 監聽主題變化
 watchEffect(() => {
-  console.log("App 主題當前為:", configStore.isDarkMode ? "暗黑" : "亮色");
-  console.log("主色調為:", configStore.colorPrimary);
+  // console.log("App 主題當前為:", configStore.isDarkMode ? "暗黑" : "亮色");
+  // console.log("主色調為:", configStore.colorPrimary);
 });
 </script>
 

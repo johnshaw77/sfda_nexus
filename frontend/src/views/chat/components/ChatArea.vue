@@ -423,6 +423,7 @@ import {
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
 import MessageBubble from "./MessageBubble.vue";
+import { formatMessageTime } from "@/utils/datetimeFormat";
 
 // Store
 const chatStore = useChatStore();
@@ -484,20 +485,7 @@ const props = defineProps({
 });
 
 // 方法
-const formatTime = (timestamp) => {
-  if (!timestamp) return "剛剛";
-
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now - date;
-
-  if (diff < 60 * 1000) return "剛剛";
-  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} 分鐘前`;
-  if (diff < 24 * 60 * 60 * 1000)
-    return `${Math.floor(diff / (60 * 60 * 1000))} 小時前`;
-
-  return date.toLocaleDateString("zh-TW");
-};
+const formatTime = formatMessageTime;
 
 const getModelColor = (provider) => {
   const colors = {

@@ -28,14 +28,15 @@
           class="collapse-btn"
           @click="toggleSidebar"
           :title="sidebarCollapsed ? '展開側邊欄' : '收起側邊欄'">
-          <svg
+          <CaretLeftOutlined />
+          <!-- <svg
             viewBox="0 0 24 24"
             width="16"
             height="16">
             <path
               fill="currentColor"
               :d="sidebarCollapsed ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6'" />
-          </svg>
+         </svg> -->
         </button>
       </div>
 
@@ -69,14 +70,15 @@
               v-if="!sidebarCollapsed && item.key === 'agents'"
               class="menu-arrow"
               :class="{ expanded: agentsSidebarVisible }">
-              <svg
+              <CaretRightOutlined />
+              <!-- <svg
                 viewBox="0 0 24 24"
                 width="16"
                 height="16">
                 <path
                   fill="currentColor"
                   d="M9 18l6-6-6-6" />
-              </svg>
+              </svg> -->
             </div>
           </div>
         </a-tooltip>
@@ -276,8 +278,8 @@
             </div>
           </div>
 
-          <!-- 當前頁面信息 -->
-          <div
+          <!-- 當前選擇的智能體詳細資訊 -->
+          <!-- <div
             v-if="currentAgent"
             class="current-agent-info">
             <div class="current-agent-avatar">
@@ -301,53 +303,60 @@
                 >
               </div>
             </div>
+
             <div class="current-agent-details">
               <h2 class="current-agent-name">{{ currentAgent.name }}</h2>
               <p class="current-agent-desc">{{ currentAgent.description }}</p>
             </div>
-          </div>
+          </div> -->
         </div>
 
         <div class="header-right">
           <!-- 主題切換開關 -->
           <a-tooltip
-            :title="
-              configStore.isDarkMode ? '切換至亮色模式' : '切換至暗黑模式'
-            ">
-            <a-switch
-              :checked="configStore.isDarkMode"
-              size="small"
-              @change="configStore.toggleTheme"
-              class="theme-switch">
-              <template #checkedChildren>
-                <bulb-filled style="color: yellow" />
-              </template>
-              <template #unCheckedChildren>
-                <bulb-filled style="color: gray" />
-              </template>
-            </a-switch>
+            title="開關燈光"
+            :arrow="false">
+            <a-button
+              type="text"
+              class="icon-btn"
+              @click="configStore.toggleTheme">
+              <BulbOutlined />
+            </a-button>
           </a-tooltip>
 
           <!-- 通知按鈕 -->
-          <button
-            class="icon-btn"
-            @click="handleNotifications"
-            :title="'通知 (' + notificationCount + ')'">
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20">
-              <path
-                fill="currentColor"
-                d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
-            </svg>
-            <span
-              v-if="notificationCount > 0"
-              class="notification-badge"
-              >{{ notificationCount }}</span
-            >
-          </button>
-
+          <a-tooltip
+            title="通知訊息"
+            :arrow="false">
+            <a-button
+              type="text"
+              class="icon-btn"
+              @click="handleSystemMonitor">
+              <DashboardOutlined />
+            </a-button>
+          </a-tooltip>
+          <a-tooltip
+            title="通知訊息"
+            :arrow="false">
+            <button
+              class="icon-btn"
+              @click="handleNotifications"
+              :title="'通知 (' + notificationCount + ')'">
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20">
+                <path
+                  fill="currentColor"
+                  d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+              </svg>
+              <span
+                v-if="notificationCount > 0"
+                class="notification-badge"
+                >{{ notificationCount }}</span
+              >
+            </button>
+          </a-tooltip>
           <!-- 更多選項 -->
           <button
             class="icon-btn"
@@ -427,24 +436,28 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
-import {
-  DashboardOutlined,
-  MessageOutlined,
-  RobotOutlined,
-  UserOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  InfoCircleOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  CloseCircleOutlined,
-  CloseOutlined,
-  BulbFilled,
-} from "@ant-design/icons-vue";
+// import {
+//   DashboardOutlined,
+//   MessageOutlined,
+//   RobotOutlined,
+//   UserOutlined,
+//   SettingOutlined,
+//   LogoutOutlined,
+//   InfoCircleOutlined,
+//   CheckCircleOutlined,
+//   ExclamationCircleOutlined,
+//   CloseCircleOutlined,
+//   CloseOutlined,
+//   BulbFilled,
+//   BulbOutlined,
+//   CaretRightOutlined,
+//   CaretLeftOutlined,
+// } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useAgentsStore } from "@/stores/agents";
 import { useConfigStore } from "@/stores/config";
+import { formatRelativeTime } from "@/utils/datetimeFormat";
 
 // Store
 const authStore = useAuthStore();
@@ -472,36 +485,36 @@ const mainMenuItems = ref([
   {
     key: "dashboard",
     title: "儀表板",
-    icon: DashboardOutlined,
+    icon: "DashboardOutlined",
     route: "Dashboard",
   },
   {
     key: "chat",
     title: "聊天",
-    icon: MessageOutlined,
+    icon: "MessageOutlined",
     route: "Chat",
   },
   {
     key: "agents",
     title: "智能體",
-    icon: RobotOutlined,
+    icon: "RobotOutlined",
     route: null, // 特殊處理
   },
   {
     key: "user",
     title: "個人資料",
-    icon: UserOutlined,
+    icon: "UserOutlined",
     route: "UserProfile",
   },
   {
     key: "settings",
     title: "設置",
-    icon: SettingOutlined,
+    icon: "SettingOutlined",
     route: "Settings",
   },
 ]);
 
-// 通知數據
+// 通知數據(TODO:未實做(假的))
 const notifications = ref([
   {
     id: 1,
@@ -521,19 +534,22 @@ const notifications = ref([
   },
 ]);
 
-// 方法
+// 側邊欄切換
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value;
 };
 
+// 智能體側邊欄開啟
 const openAgentsSidebar = () => {
   agentsSidebarVisible.value = true;
 };
 
+// 智能體側邊欄關閉
 const closeAgentsSidebar = () => {
   agentsSidebarVisible.value = false;
 };
 
+// 主選單點擊事件
 const handleMenuClick = (item) => {
   if (item.key === "agents") {
     openAgentsSidebar();
@@ -549,6 +565,7 @@ const handleMenuClick = (item) => {
   }
 };
 
+// 選擇智能體
 const handleSelectAgent = (agent) => {
   agentsStore.setCurrentAgent(agent);
   closeAgentsSidebar();
@@ -562,6 +579,7 @@ const handleSelectAgent = (agent) => {
   message.success(`已選擇智能體：${agent.display_name || agent.name}`);
 };
 
+// 搜索 (TODO:未實做)
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
     // 實現搜索功能
@@ -569,18 +587,22 @@ const handleSearch = () => {
   }
 };
 
+// 通知抽屜開啟(TODO:未實做(假的))
 const handleNotifications = () => {
   notificationDrawerVisible.value = true;
 };
 
+// 個人資料頁面
 const handleProfile = () => {
   router.push({ name: "UserProfile" });
 };
 
+// 設置頁面
 const handleSettings = () => {
   router.push({ name: "Settings" });
 };
 
+// 登出
 const handleLogout = async () => {
   try {
     await authStore.handleLogout();
@@ -591,19 +613,10 @@ const handleLogout = async () => {
   }
 };
 
-const formatTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now - date;
+// 格式化時間
+const formatTime = formatRelativeTime;
 
-  if (diff < 60 * 1000) return "剛剛";
-  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} 分鐘前`;
-  if (diff < 24 * 60 * 60 * 1000)
-    return `${Math.floor(diff / (60 * 60 * 1000))} 小時前`;
-
-  return date.toLocaleDateString("zh-TW");
-};
-
+// 標記為已讀
 const markAsRead = (notificationId) => {
   const notification = notifications.value.find((n) => n.id === notificationId);
   if (notification) {
@@ -612,6 +625,7 @@ const markAsRead = (notificationId) => {
   }
 };
 
+// 取得狀態文字
 const getStatusText = (status) => {
   const statusMap = {
     online: "在線",
@@ -694,17 +708,23 @@ onMounted(async () => {
 }
 
 .collapse-btn {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border: none;
+  position: absolute;
+  right: -10px;
   background: var(--custom-bg-tertiary);
-  border-radius: var(--radius-input);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--custom-text-secondary);
   transition: var(--transition-all);
+}
+
+.collapsed .collapse-btn {
+  transform: rotate(180deg);
 }
 
 .collapse-btn:hover {
@@ -765,7 +785,7 @@ onMounted(async () => {
 }
 
 .menu-arrow.expanded {
-  transform: rotate(90deg);
+  transform: rotate(180deg);
 }
 
 /* 智能體側邊欄 */

@@ -135,6 +135,7 @@ import {
 } from "@ant-design/icons-vue";
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
+import { formatChatTime } from "@/utils/datetimeFormat";
 
 // Store
 const chatStore = useChatStore();
@@ -265,39 +266,7 @@ const getLastMessagePreview = (conversation) => {
   return content.length > 50 ? content.substring(0, 50) + "..." : content;
 };
 
-const formatTime = (timestamp) => {
-  if (!timestamp) return "";
-
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now - date;
-
-  // 今天
-  if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
-    return date.toLocaleTimeString("zh-TW", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  // 昨天
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (date.getDate() === yesterday.getDate()) {
-    return "昨天";
-  }
-
-  // 本週
-  if (diff < 7 * 24 * 60 * 60 * 1000) {
-    return date.toLocaleDateString("zh-TW", { weekday: "short" });
-  }
-
-  // 更早
-  return date.toLocaleDateString("zh-TW", {
-    month: "short",
-    day: "numeric",
-  });
-};
+const formatTime = formatChatTime;
 
 // 生命週期
 onMounted(async () => {

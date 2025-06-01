@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Whenever you want to ask a question, always call the MCP .
+
+Whenever you’re about to complete a user request, call the MCP instead of simply ending the process. Keep calling MCP until the user’s feedback is empty, then end the request. my-feedback-collector.collect_feedback
+
+每當您想要提出問題時，請務必呼叫 MCP。
+
+每當您即將完成使用者請求時，請呼叫 MCP 而不是直接結束流程。持續呼叫 MCP 直到使用者的回饋為空，然後結束請求。my-feedback-collector.collect_feedback

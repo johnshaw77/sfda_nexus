@@ -74,7 +74,7 @@
   border-color: var(--primary-color);
 }
 
-.agent-avatar {
+.admin-page .agent-avatar {
   display: flex;
   justify-content: center;
   align-items: center;

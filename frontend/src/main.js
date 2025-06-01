@@ -21,6 +21,7 @@ NProgress.configure({
   trickleSpeed: 200,
   minimum: 0.3,
 });
+
 // 創建應用實例
 const app = createApp(App);
 
@@ -28,5 +29,13 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 
+// 引入 antd 的所有 icon
+import * as Icons from "@ant-design/icons-vue";
+
+// 註冊所有 icon
+for (const [key, component] of Object.entries(Icons)) {
+  console.log(key, component);
+  app.component(key, component);
+}
 // 掛載應用
 app.mount("#app");
