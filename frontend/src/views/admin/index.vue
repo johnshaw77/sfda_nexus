@@ -74,30 +74,46 @@
   </div>
 </template>
 
-<script>
-import {
-  ApiOutlined,
-  RobotOutlined,
-  UserOutlined,
-  SettingOutlined,
-} from "@ant-design/icons-vue";
+<script setup>
+import { useRouter } from "vue-router";
 
-export default {
-  name: "AdminPage",
-  components: {
-    ApiOutlined,
-    RobotOutlined,
-    UserOutlined,
-    SettingOutlined,
-  },
-  methods: {
-    handleNavigate(path) {
-      this.$router.push(path);
-    },
-  },
+const router = useRouter();
+
+const handleNavigate = (path) => {
+  router.push(path);
 };
 </script>
 
 <style scoped>
-/* 使用全局 admin 樣式，無需重複定義 */
+/* Admin 卡片懸停效果 */
+.admin-card {
+  cursor: pointer;
+  transition: var(--transition-all);
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
+}
+
+.admin-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--primary-color);
+}
+
+.admin-card:hover .card-icon {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Admin 卡片圖標樣式 */
+.admin-card .card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  font-size: 32px;
+  color: var(--primary-color);
+  background: var(--custom-bg-secondary);
+  border-radius: var(--border-radius-base);
+  transition: var(--transition-all);
+}
 </style>

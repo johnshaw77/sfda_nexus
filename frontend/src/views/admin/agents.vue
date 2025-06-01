@@ -364,18 +364,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CopyOutlined,
-  PlayCircleOutlined,
-  UploadOutlined,
-  RobotOutlined,
-  EditFilled,
-  BarChartOutlined,
-  CustomerServiceOutlined,
-} from "@ant-design/icons-vue";
 import { useAdminAgentsStore } from "@/stores/adminAgents";
 import { smartCompressImage, validateImage } from "@/utils/imageCompress";
 

@@ -187,13 +187,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
-import {
-  SaveOutlined,
-  DatabaseOutlined,
-  ThunderboltOutlined,
-  ClearOutlined,
-  ReloadOutlined,
-} from "@ant-design/icons-vue";
 
 // 響應式數據
 const logLevel = ref("all");

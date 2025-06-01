@@ -183,7 +183,9 @@
         </a-menu>
 
         <!-- 系統狀態 -->
-        <div class="system-status">
+        <div
+          v-show="!collapsed"
+          class="system-status">
           <div class="status-item">
             <span class="status-label">系統狀態</span>
             <a-badge
@@ -583,7 +585,7 @@ const loadSystemStats = () => {
 }
 
 .sider-trigger {
-  padding: 16px;
+  padding: 3px;
   border-bottom: 1px solid var(--custom-border-primary);
   text-align: center;
 }
@@ -618,7 +620,7 @@ const loadSystemStats = () => {
 }
 
 .status-label {
-  color: #666;
+  color: var(--custom-text-secondary);
 }
 
 .admin-content {
