@@ -6,7 +6,7 @@
         <!-- 左側 Logo 和標題 -->
         <div class="header-left">
           <div class="admin-logo">
-            <span class="logo-text">數據分析部 Nexus</span>
+            <span class="logo-text">Nexus 管理後台</span>
             <a-tag
               color="gold"
               size="small"

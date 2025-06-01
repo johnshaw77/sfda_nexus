@@ -335,30 +335,20 @@
               <DashboardOutlined />
             </a-button>
           </a-tooltip>
+
           <a-tooltip
-            title="通知訊息"
-            :arrow="false">
-            <button
+            title="管理員"
+            placement="bottom"
+            :arrow="false"
+            ><a-button
+              type="text"
               class="icon-btn"
-              @click="handleNotifications"
-              :title="'通知 (' + notificationCount + ')'">
-              <svg
-                viewBox="0 0 24 24"
-                width="20"
-                height="20">
-                <path
-                  fill="currentColor"
-                  d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
-              </svg>
-              <span
-                v-if="notificationCount > 0"
-                class="notification-badge"
-                >{{ notificationCount }}</span
-              >
-            </button>
-          </a-tooltip>
+              @click="handleToAdminPage">
+              <InsuranceOutlined /> </a-button
+          ></a-tooltip>
+
           <!-- 更多選項 -->
-          <button
+          <!-- <button
             class="icon-btn"
             :title="'更多選項'">
             <svg
@@ -369,7 +359,7 @@
                 fill="currentColor"
                 d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
             </svg>
-          </button>
+          </button> -->
         </div>
       </div>
 
@@ -436,23 +426,6 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
-// import {
-//   DashboardOutlined,
-//   MessageOutlined,
-//   RobotOutlined,
-//   UserOutlined,
-//   SettingOutlined,
-//   LogoutOutlined,
-//   InfoCircleOutlined,
-//   CheckCircleOutlined,
-//   ExclamationCircleOutlined,
-//   CloseCircleOutlined,
-//   CloseOutlined,
-//   BulbFilled,
-//   BulbOutlined,
-//   CaretRightOutlined,
-//   CaretLeftOutlined,
-// } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useAgentsStore } from "@/stores/agents";
@@ -600,6 +573,11 @@ const handleProfile = () => {
 // 設置頁面
 const handleSettings = () => {
   router.push({ name: "Settings" });
+};
+
+// 管理員頁面
+const handleToAdminPage = () => {
+  router.push({ name: "AdminDashboard" });
 };
 
 // 登出
