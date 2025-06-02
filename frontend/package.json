@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
+    "@shikijs/markdown-it": "^3.4.2",
     "@vueuse/core": "^13.3.0",
     "ant-design-vue": "^4.1.0",
     "axios": "^1.6.0",
@@ -19,11 +20,10 @@
     "dompurify": "^3.2.6",
     "gsap": "^3.13.0",
     "lodash-es": "^4.17.21",
-    "markdown-it": "^14.0.0",
-    "marked": "^15.0.12",
+    "markdown-it": "^14.1.0",
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
-    "prismjs": "^1.30.0",
+    "shiki": "^3.4.2",
     "vue": "^3.4.0",
     "vue-advanced-cropper": "^2.8.9",
     "vue-router": "^4.2.5"

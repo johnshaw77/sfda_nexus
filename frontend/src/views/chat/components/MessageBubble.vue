@@ -393,7 +393,8 @@ const handleViewAttachment = (attachment) => {
 <style scoped>
 .message-bubble {
   margin-bottom: 16px;
-  padding: 12px 16px;
+  /* padding: 12px 16px; */
+  padding: 6px 8px;
   border-radius: 12px;
   position: relative;
   max-width: 80%;
@@ -458,14 +459,21 @@ const handleViewAttachment = (attachment) => {
 }
 
 .message-actions {
-  opacity: 1;
+  opacity: 0;
   transition: opacity 0.2s;
   position: absolute;
   bottom: -35px;
-  right: 0px;
+  right: -20px;
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
 }
 
+.ai-message .message-actions,
 .message-bubble:hover .message-actions {
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 6px;
   opacity: 1;
 }
 

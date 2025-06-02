@@ -65,6 +65,8 @@ declare module 'vue' {
     ATypographyText: typeof import('ant-design-vue/es')['TypographyText']
     AUpload: typeof import('ant-design-vue/es')['Upload']
     CodeHighlight: typeof import('./src/components/common/CodeHighlight.vue')['default']
+    CodeHighlightCopy: typeof import('./src/components/common/CodeHighlight-copy.vue')['default']
+    CodeHighlightResearch: typeof import('./src/components/common/CodeHighlight-research.vue')['default']
     IconButton: typeof import('./src/components/common/IconButton.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
