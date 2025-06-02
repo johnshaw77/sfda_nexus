@@ -6,20 +6,20 @@
     <div
       v-if="content"
       class="markdown-content"
-      v-html="renderedContent"
-      @DOMNodeInserted="handleContentUpdate"></div>
+      v-html="renderedContent"></div>
     <slot v-else />
+    {{ isDarkTheme }}
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch, nextTick } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import Prism from "prismjs";
-import "prismjs/themes/prism.css"; // 亮色主題
-import "prismjs/themes/prism-tomorrow.css"; // 暗色主題
-// 只引入基本語言，避免依賴問題
+import { useAppStore } from "@/stores/app";
+import "prismjs/themes/prism.css";
+import "prismjs/themes/prism-tomorrow.css";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-python";
@@ -44,35 +44,60 @@ const props = defineProps({
   theme: {
     type: String,
     default: "auto", // 'auto', 'light', 'dark'
+    validator: (value) => ["auto", "light", "dark"].includes(value),
   },
 });
 
 // Refs
 const containerRef = ref(null);
+let mutationObserver = null;
+let highlightTimeout = null;
+let isHighlighting = false; // 防止循環的標記
+
+// 使用 Pinia store
+const appStore = useAppStore();
+
+// 響應式主題狀態
+const currentTheme = ref("light"); // 先設定預設值
+
+// 獲取當前主題
+function getCurrentTheme() {
+  if (props.theme === "dark") return "dark";
+  if (props.theme === "light") return "light";
+
+  // auto 模式：優先使用 store 的主題，然後檢查 DOM 和系統主題
+  if (appStore.theme) {
+    return appStore.theme;
+  }
+
+  return document.documentElement.classList.contains("dark") ||
+    document.documentElement.getAttribute("data-theme") === "dark" ||
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
 
 // 主題檢測
 const isDarkTheme = computed(() => {
-  if (props.theme === "dark") return true;
-  if (props.theme === "light") return false;
-
-  // auto 模式：檢查系統主題
-  return (
-    document.documentElement.classList.contains("dark") ||
-    document.documentElement.getAttribute("data-theme") === "dark" ||
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-  );
+  return currentTheme.value === "dark";
 });
 
 // 動態設置程式碼主題
 const updateCodeTheme = () => {
   const root = document.documentElement;
-  if (isDarkTheme.value) {
-    root.style.setProperty("--code-bg", "#2d3748");
-    root.style.setProperty("--code-text", "#e2e8f0");
-  } else {
-    root.style.setProperty("--code-bg", "#f5f2f0");
-    root.style.setProperty("--code-text", "#403f53");
-  }
+  console.log(isDarkTheme.value, "isDarkTheme.value");
+  // if (isDarkTheme.value) {
+  //   root.style.setProperty("--code-bg", "#2d3748");
+  //   root.style.setProperty("--code-text", "#e2e8f0");
+  // } else {
+  //   root.style.setProperty("--code-bg", "#f5f2f0");
+  //   root.style.setProperty("--code-text", "#403f53");
+  // }
+
+  console.log(
+    root.style.getPropertyValue("--code-bg"),
+    "root.style.getPropertyValue('--code-bg')"
+  );
 };
 
 // HTML轉義函數
@@ -199,8 +224,13 @@ const addKeywordHighlighting = (html) => {
   }
 };
 
-// Markdown 渲染函數
+// 改進的 Markdown 渲染函數
 const renderMarkdown = (content) => {
+  if (!content || typeof content !== "string") {
+    console.warn("renderMarkdown: 無效的內容");
+    return "";
+  }
+
   try {
     // 創建自定義 renderer
     const renderer = new marked.Renderer();
@@ -224,7 +254,7 @@ const renderMarkdown = (content) => {
         : "";
       const langClass = actualLang ? `language-${actualLang}` : "";
 
-      return `<pre><code class="${langClass}">${escapeHtml(codeContent)}</code></pre>`;
+      return `<pre role="region" aria-label="代碼塊"><code class="${langClass}" aria-label="${actualLang || "代碼"}">${escapeHtml(codeContent)}</code></pre>`;
     };
 
     // 配置 marked
@@ -242,20 +272,32 @@ const renderMarkdown = (content) => {
     // 後處理：添加關鍵字高亮
     html = addKeywordHighlighting(html);
 
+    // 清理 HTML 並返回
     return DOMPurify.sanitize(html, {
       ADD_TAGS: ["span"],
-      ADD_ATTR: ["class"],
+      ADD_ATTR: ["class", "role", "aria-label"],
     });
   } catch (error) {
     console.error("Markdown 渲染失敗:", error);
-    return escapeHtml(content);
+    // 返回用戶友好的錯誤信息
+    return `<div class="error-message" role="alert">
+      <p>⚠️ 內容渲染失敗</p>
+      <details>
+        <summary>錯誤詳情</summary>
+        <pre>${escapeHtml(error.message)}</pre>
+      </details>
+    </div>`;
   }
 };
 
-// 程式碼高亮函數（帶 debounce）
-let highlightTimeout = null;
-
+// 程式碼高亮函數（帶 debounce 和防循環）
 const highlightCodeBlocks = async () => {
+  // 防止在高亮過程中重複觸發
+  if (isHighlighting) {
+    console.log("CodeHighlight: 正在高亮中，跳過此次調用");
+    return;
+  }
+
   if (highlightTimeout) {
     clearTimeout(highlightTimeout);
   }
@@ -265,46 +307,130 @@ const highlightCodeBlocks = async () => {
 
     if (!containerRef.value) return;
 
-    const allCodeBlocks = containerRef.value.querySelectorAll("pre code");
-    console.log(`CodeHighlight: 找到 ${allCodeBlocks.length} 個程式碼塊`);
+    // 設置高亮標記
+    isHighlighting = true;
 
-    allCodeBlocks.forEach((block, index) => {
-      let language = block.className.match(/language-(\w+)/)?.[1];
+    try {
+      const allCodeBlocks = containerRef.value.querySelectorAll("pre code");
+      console.log(`CodeHighlight: 找到 ${allCodeBlocks.length} 個程式碼塊`);
 
-      if (!language) {
-        const pre = block.closest("pre");
-        if (pre) {
-          language = pre.className.match(/language-(\w+)/)?.[1];
+      allCodeBlocks.forEach((block, index) => {
+        // 檢查是否已經高亮過
+        if (block.hasAttribute("data-highlighted")) {
+          return;
         }
+
+        let language = block.className.match(/language-(\w+)/)?.[1];
+
         if (!language) {
-          language = "javascript";
-        }
-      }
-
-      if (language && Prism.languages[language]) {
-        try {
-          const code = block.textContent;
-          if (code && code.trim()) {
-            if (!block.className.includes(`language-${language}`)) {
-              block.className = `language-${language}`;
-            }
-
-            block.classList.remove("token");
-
-            const highlighted = Prism.highlight(
-              code,
-              Prism.languages[language],
-              language
-            );
-            block.innerHTML = highlighted;
-            console.log(`CodeHighlight: 程式碼高亮完成 (${language})`);
+          const pre = block.closest("pre");
+          if (pre) {
+            language = pre.className.match(/language-(\w+)/)?.[1];
           }
-        } catch (error) {
-          console.warn(`CodeHighlight: 程式碼高亮失敗 (${language}):`, error);
+          if (!language) {
+            language = "javascript";
+          }
         }
+
+        if (language && Prism.languages[language]) {
+          try {
+            const code = block.textContent;
+            if (code && code.trim()) {
+              if (!block.className.includes(`language-${language}`)) {
+                block.className = `language-${language}`;
+              }
+
+              block.classList.remove("token");
+
+              const highlighted = Prism.highlight(
+                code,
+                Prism.languages[language],
+                language
+              );
+
+              // 暫時斷開觀察器，避免觸發循環
+              if (mutationObserver) {
+                mutationObserver.disconnect();
+              }
+
+              block.innerHTML = highlighted;
+              // 標記已高亮
+              block.setAttribute("data-highlighted", "true");
+
+              // 重新連接觀察器
+              if (mutationObserver && containerRef.value) {
+                mutationObserver.observe(containerRef.value, {
+                  childList: true,
+                  subtree: true,
+                });
+              }
+
+              console.log(`CodeHighlight: 程式碼高亮完成 (${language})`);
+            }
+          } catch (error) {
+            console.warn(`CodeHighlight: 程式碼高亮失敗 (${language}):`, error);
+          }
+        }
+      });
+    } finally {
+      // 清除高亮標記
+      isHighlighting = false;
+    }
+  }, 150);
+};
+
+// 設置 MutationObserver（改進版）
+const setupMutationObserver = () => {
+  if (!containerRef.value) return;
+
+  mutationObserver = new MutationObserver((mutations) => {
+    // 如果正在高亮，忽略變更
+    if (isHighlighting) {
+      return;
+    }
+
+    let shouldHighlight = false;
+
+    mutations.forEach((mutation) => {
+      if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+        // 檢查是否有新的代碼塊
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node;
+            // 檢查是否包含未高亮的代碼塊
+            const codeBlocks = element.querySelectorAll(
+              "pre code:not([data-highlighted])"
+            );
+            if (codeBlocks.length > 0) {
+              shouldHighlight = true;
+            }
+          }
+        });
       }
     });
-  }, 150);
+
+    if (shouldHighlight && !props.isStreaming) {
+      console.log("MutationObserver: 檢測到新的代碼塊，觸發高亮");
+      highlightCodeBlocks();
+    }
+  });
+
+  mutationObserver.observe(containerRef.value, {
+    childList: true,
+    subtree: true,
+  });
+};
+
+// 清除所有高亮標記（用於重新渲染）
+const clearHighlightMarkers = () => {
+  if (!containerRef.value) return;
+
+  const highlightedBlocks = containerRef.value.querySelectorAll(
+    "code[data-highlighted]"
+  );
+  highlightedBlocks.forEach((block) => {
+    block.removeAttribute("data-highlighted");
+  });
 };
 
 // 渲染的內容
@@ -325,35 +451,184 @@ watch(
   { immediate: false }
 );
 
+// 監聽 store 主題變化
+watch(
+  () => appStore.theme,
+  (newTheme) => {
+    if (props.theme === "auto" && newTheme !== currentTheme.value) {
+      console.log(
+        `CodeHighlight: Store主題變化 ${currentTheme.value} → ${newTheme}`
+      );
+      currentTheme.value = newTheme;
+    }
+  }
+);
+
+// 監聽 props.theme 變化
+watch(
+  () => props.theme,
+  () => {
+    const newTheme = getCurrentTheme();
+    if (newTheme !== currentTheme.value) {
+      console.log(
+        `CodeHighlight: Props主題變化 ${currentTheme.value} → ${newTheme}`
+      );
+      currentTheme.value = newTheme;
+    }
+  }
+);
+
 // 監聽主題變化
 watch(
   isDarkTheme,
-  () => {
+  (newVal) => {
+    console.log(`CodeHighlight: 應用主題變化 isDarkTheme=${newVal}`);
     updateCodeTheme();
   },
   { immediate: true }
 );
 
-// 內容更新處理
-const handleContentUpdate = () => {
-  if (!props.isStreaming) {
-    highlightCodeBlocks();
+// 監聽內容變化
+watch(
+  () => props.content,
+  () => {
+    // 內容變化時清除高亮標記，允許重新高亮
+    clearHighlightMarkers();
+
+    if (!props.isStreaming) {
+      nextTick(() => {
+        highlightCodeBlocks();
+      });
+    }
   }
+);
+
+// 設置主題監聽器
+const setupThemeObserver = () => {
+  // 監聽 DOM 變化（class 和 data-theme 屬性）
+  const themeObserver = new MutationObserver((mutations) => {
+    let themeChanged = false;
+
+    mutations.forEach((mutation) => {
+      if (mutation.type === "attributes") {
+        const { attributeName, target } = mutation;
+        if (
+          (attributeName === "class" && target === document.documentElement) ||
+          (attributeName === "data-theme" &&
+            target === document.documentElement)
+        ) {
+          console.log(
+            `CodeHighlight: DOM屬性變化檢測 - ${attributeName}:`,
+            target.className,
+            target.getAttribute("data-theme")
+          );
+          themeChanged = true;
+        }
+      }
+    });
+
+    if (themeChanged) {
+      const newTheme = getCurrentTheme();
+      //code-highlight-container light-theme
+      document.querySelector(".code-highlight-container").className =
+        `code-highlight-container ${newTheme}-theme`;
+
+      // 重點是這裡
+      const codeHighlightContainers = document.querySelectorAll(
+        ".code-highlight-container"
+      );
+      codeHighlightContainers.forEach((container) => {
+        container.className = `code-highlight-container ${document.documentElement.getAttribute("data-theme")}-theme`;
+        console.log(container.className, "container.className");
+      });
+      console.log(
+        document.querySelector(".code-highlight-container").className,
+        "9090 document.querySelector('.code-highlight-container').className"
+      );
+
+      if (newTheme !== currentTheme.value) {
+        currentTheme.value = newTheme;
+      }
+    }
+  });
+
+  // 觀察 document.documentElement 的屬性變化
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class", "data-theme"],
+  });
+
+  // 監聽系統主題變化
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const handleMediaChange = () => {
+    if (props.theme === "auto") {
+      const newTheme = getCurrentTheme();
+      if (newTheme !== currentTheme.value) {
+        console.log(
+          `CodeHighlight: 系統主題變化檢測 ${currentTheme.value} → ${newTheme}`
+        );
+        currentTheme.value = newTheme;
+      }
+    }
+  };
+
+  mediaQuery.addEventListener("change", handleMediaChange);
+
+  // 返回清理函數
+  return () => {
+    themeObserver.disconnect();
+    mediaQuery.removeEventListener("change", handleMediaChange);
+  };
 };
 
 // 生命週期
 onMounted(() => {
+  // 初始化主題
+  currentTheme.value = getCurrentTheme();
+  console.log(`CodeHighlight: 初始主題設定為 ${currentTheme.value}`);
+
   updateCodeTheme();
+  setupMutationObserver();
+
+  // 設置主題監聽器
+  const cleanupThemeObserver = setupThemeObserver();
+
+  // 保存清理函數
+  window._codeHighlightThemeCleanup = cleanupThemeObserver;
 
   if (!props.isStreaming) {
     highlightCodeBlocks();
   }
 });
 
+onUnmounted(() => {
+  // 清理定時器
+  if (highlightTimeout) {
+    clearTimeout(highlightTimeout);
+    highlightTimeout = null;
+  }
+
+  // 清理 MutationObserver
+  if (mutationObserver) {
+    mutationObserver.disconnect();
+    mutationObserver = null;
+  }
+
+  // 清理主題監聽器
+  if (window._codeHighlightThemeCleanup) {
+    window._codeHighlightThemeCleanup();
+    delete window._codeHighlightThemeCleanup;
+  }
+
+  // 重置狀態
+  isHighlighting = false;
+});
+
 // 對外暴露的方法
 defineExpose({
   highlightCodeBlocks,
   updateCodeTheme,
+  clearHighlightMarkers,
 });
 </script>
 
@@ -361,6 +636,28 @@ defineExpose({
 .code-highlight-container {
   width: 100%;
   line-height: 1.6;
+}
+
+/* 錯誤信息樣式 */
+.markdown-content :deep(.error-message) {
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  color: #c33;
+}
+
+.markdown-content :deep(.error-message details) {
+  margin-top: 8px;
+}
+
+.markdown-content :deep(.error-message pre) {
+  background: #f9f9f9;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-x: auto;
 }
 
 /* 基本的 markdown 樣式 */
@@ -394,39 +691,43 @@ defineExpose({
   overflow-x: auto;
   margin: 12px 0;
   font-family:
-    "Arial", "Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace !important;
+    "Fira Code", "Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace !important;
   font-size: calc(var(--chat-font-size, 14px) - 1px);
   line-height: 1.5;
   border: 1px solid var(--custom-border-primary);
   position: relative;
-  background: #262626;
-  color: var(--code-text, #e2e8f0);
-  /* 明確移除陰影效果 */
+  background: var(--code-bg);
+  color: var(--code-text);
   box-shadow: none !important;
   text-shadow: none !important;
 }
 
+/* 移除錯誤的藍色背景 */
+
 .markdown-content :deep(pre[class*="language-"]) {
-  background: var(--code-bg, #2d3748) !important;
-  color: var(--code-text, #e2e8f0) !important;
+  background: var(--code-bg) !important;
+  color: var(--code-text) !important;
 }
 
+/* 程式碼塊內的程式碼字體樣式 */
 .markdown-content :deep(code[class*="language-"]) {
   background: transparent !important;
   color: inherit !important;
   padding: 0 !important;
   border: none !important;
-  /* 移除陰影效果 */
   box-shadow: none !important;
   text-shadow: none !important;
+  font-family: "Fira Code" !important;
 }
-
+.light-theme .markdown-content :deep(pre),
+.light-theme .markdown-content :deep(.code-block) {
+  background: var(--custom-bg-primary) !important;
+}
 .markdown-content :deep(code:not([class*="language-"])) {
   background: var(--custom-bg-tertiary);
   color: #0c9af9;
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: "Consolas", monospace;
   font-size: calc(var(--chat-font-size, 14px) - 1px);
   border: 1px solid var(--custom-border-primary);
 }
@@ -474,242 +775,156 @@ defineExpose({
 </style>
 
 <style>
-/* Prism.js 全局樣式 - 暗色主題 */
+/* CSS 變數定義 */
+:root {
+  /* 代碼主題變數 */
+  --code-bg: #f5f2f0;
+  --code-text: #ffffff;
+
+  /* Token 顏色變數 - 亮色主題 */
+  --token-comment: #708090;
+  --token-punctuation: #999999;
+  --token-property: #905;
+  --token-boolean: #905;
+  --token-number: #905;
+  --token-selector: #690;
+  --token-string: #690;
+  --token-entity: #9a6e3a;
+  --token-url: #9a6e3a;
+  --token-variable: #9a6e3a;
+  --token-atrule: #dd4a68;
+  --token-function: #dd4a68;
+  --token-keyword: #07a;
+  --token-regex: #e90;
+  --token-important: #e90;
+}
+
+/* 暗色主題變數 */
+[data-theme="dark"],
+.dark-theme {
+  --code-bg: #232323;
+  --code-text: #e2e8f0;
+
+  --token-comment: #8292a2;
+  --token-punctuation: #f8f8f2;
+  --token-property: #f92672;
+  --token-boolean: #ae81ff;
+  --token-number: #ae81ff;
+  --token-selector: #a6e22e;
+  --token-string: #a6e22e;
+  --token-entity: #f8f8f2;
+  --token-url: #f8f8f2;
+  --token-variable: #f8f8f2;
+  --token-atrule: #e6db74;
+  --token-function: #e6db74;
+  --token-keyword: #66d9ef;
+  --token-regex: #fd971f;
+  --token-important: #fd971f;
+}
+
+/* 亮色主題變數 */
+[data-theme="light"],
+.light-theme {
+  --code-bg: #f5f2f0;
+  --code-text: #403f53;
+
+  --token-comment: #708090;
+  --token-punctuation: #999999;
+  --token-property: #905;
+  --token-boolean: #905;
+  --token-number: #905;
+  --token-selector: #690;
+  --token-string: #690;
+  --token-entity: #9a6e3a;
+  --token-url: #9a6e3a;
+  --token-variable: #9a6e3a;
+  --token-atrule: #dd4a68;
+  --token-function: #dd4a68;
+  --token-keyword: #07a;
+  --token-regex: #e90;
+  --token-important: #e90;
+}
+
+/* 系統暗色主題檢測 */
 @media (prefers-color-scheme: dark) {
-  .token.comment,
-  .token.prolog,
-  .token.doctype,
-  .token.cdata {
-    color: transparent;
-  }
+  :root {
+    --code-bg: #2d3748;
+    --code-text: #f8f8;
 
-  .token.punctuation {
-    color: #f8f8f2;
-  }
-
-  .token.property,
-  .token.tag,
-  .token.constant,
-  .token.symbol,
-  .token.deleted {
-    color: #f92672;
-  }
-
-  .token.boolean,
-  .token.number {
-    color: #ae81ff;
-  }
-
-  .token.selector,
-  .token.attr-name,
-  .token.string,
-  .token.char,
-  .token.builtin,
-  .token.inserted {
-    color: #a6e22e;
-  }
-
-  .token.operator,
-  .token.entity,
-  .token.url,
-  .language-css .token.string,
-  .style .token.string,
-  .token.variable {
-    color: #f8f8f2;
-  }
-
-  .token.atrule,
-  .token.attr-value,
-  .token.function,
-  .token.class-name {
-    color: #e6db74;
-  }
-
-  .token.keyword {
-    color: #66d9ef;
-  }
-
-  .token.regex,
-  .token.important {
-    color: #fd971f;
+    --token-comment: #f8f8;
+    --token-punctuation: #f8f8f2;
+    --token-property: #f92672;
+    --token-boolean: #ae81ff;
+    --token-number: #ae81ff;
+    --token-selector: #a6e22e;
+    --token-string: #a6e22e;
+    --token-entity: #f8f8f2;
+    --token-url: #f8f8f2;
+    --token-variable: #f8f8f2;
+    --token-atrule: #e6db74;
+    --token-function: #e6db74;
+    --token-keyword: #66d9ef;
+    --token-regex: #fd971f;
+    --token-important: #fd971f;
   }
 }
 
-[data-theme="dark"] .token.comment,
-[data-theme="dark"] .token.prolog,
-[data-theme="dark"] .token.doctype,
-[data-theme="dark"] .token.cdata {
-  color: #8292a2;
+/* 使用 CSS 變數的 Prism.js 全局樣式 */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--token-comment);
 }
 
-[data-theme="dark"] .token.punctuation {
-  color: #f8f8f2;
+.token.punctuation {
+  color: var(--token-punctuation);
 }
 
-[data-theme="dark"] .token.property,
-[data-theme="dark"] .token.tag,
-[data-theme="dark"] .token.constant,
-[data-theme="dark"] .token.symbol,
-[data-theme="dark"] .token.deleted {
-  color: #f92672;
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: var(--token-property);
 }
 
-[data-theme="dark"] .token.boolean,
-[data-theme="dark"] .token.number {
-  color: #ae81ff;
+.token.boolean,
+.token.number {
+  color: var(--token-number);
 }
 
-[data-theme="dark"] .token.selector,
-[data-theme="dark"] .token.attr-name,
-[data-theme="dark"] .token.string,
-[data-theme="dark"] .token.char,
-[data-theme="dark"] .token.builtin,
-[data-theme="dark"] .token.inserted {
-  color: #a6e22e;
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: var(--token-string);
 }
 
-[data-theme="dark"] .token.operator,
-[data-theme="dark"] .token.entity,
-[data-theme="dark"] .token.url,
-[data-theme="dark"] .language-css .token.string,
-[data-theme="dark"] .style .token.string,
-[data-theme="dark"] .token.variable {
-  color: #f8f8f2;
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+  color: var(--token-variable);
 }
 
-[data-theme="dark"] .token.atrule,
-[data-theme="dark"] .token.attr-value,
-[data-theme="dark"] .token.function,
-[data-theme="dark"] .token.class-name {
-  color: #e6db74;
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+  color: var(--token-function);
 }
 
-[data-theme="dark"] .token.keyword {
-  color: #66d9ef;
+.token.keyword {
+  color: var(--token-keyword);
 }
 
-[data-theme="dark"] .token.regex,
-[data-theme="dark"] .token.important {
-  color: #fd971f;
-}
-
-/* Prism.js 全局樣式 - 亮色主題 */
-@media (prefers-color-scheme: light) {
-  .token.comment,
-  .token.prolog,
-  .token.doctype,
-  .token.cdata {
-    color: #708090;
-  }
-
-  .token.punctuation {
-    color: #999999;
-  }
-
-  .token.property,
-  .token.tag,
-  .token.constant,
-  .token.symbol,
-  .token.deleted {
-    color: #905;
-  }
-
-  .token.boolean,
-  .token.number {
-    color: #905;
-  }
-
-  .token.selector,
-  .token.attr-name,
-  .token.string,
-  .token.char,
-  .token.builtin,
-  .token.inserted {
-    color: #690;
-  }
-
-  .token.operator,
-  .token.entity,
-  .token.url,
-  .language-css .token.string,
-  .style .token.string,
-  .token.variable {
-    color: #9a6e3a;
-  }
-
-  .token.atrule,
-  .token.attr-value,
-  .token.function,
-  .token.class-name {
-    color: #dd4a68;
-  }
-
-  .token.keyword {
-    color: #07a;
-  }
-
-  .token.regex,
-  .token.important {
-    color: #e90;
-  }
-}
-
-[data-theme="light"] .token.comment,
-[data-theme="light"] .token.prolog,
-[data-theme="light"] .token.doctype,
-[data-theme="light"] .token.cdata {
-  color: #708090;
-}
-
-[data-theme="light"] .token.punctuation {
-  color: #999999;
-}
-
-[data-theme="light"] .token.property,
-[data-theme="light"] .token.tag,
-[data-theme="light"] .token.constant,
-[data-theme="light"] .token.symbol,
-[data-theme="light"] .token.deleted {
-  color: #905;
-}
-
-[data-theme="light"] .token.boolean,
-[data-theme="light"] .token.number {
-  color: #905;
-}
-
-[data-theme="light"] .token.selector,
-[data-theme="light"] .token.attr-name,
-[data-theme="light"] .token.string,
-[data-theme="light"] .token.char,
-[data-theme="light"] .token.builtin,
-[data-theme="light"] .token.inserted {
-  color: #690;
-}
-
-[data-theme="light"] .token.operator,
-[data-theme="light"] .token.entity,
-[data-theme="light"] .token.url,
-[data-theme="light"] .language-css .token.string,
-[data-theme="light"] .style .token.string,
-[data-theme="light"] .token.variable {
-  color: #9a6e3a;
-}
-
-[data-theme="light"] .token.atrule,
-[data-theme="light"] .token.attr-value,
-[data-theme="light"] .token.function,
-[data-theme="light"] .token.class-name {
-  color: #dd4a68;
-}
-
-[data-theme="light"] .token.keyword {
-  color: #07a;
-}
-
-[data-theme="light"] .token.regex,
-[data-theme="light"] .token.important {
-  color: #e90;
+.token.regex,
+.token.important {
+  color: var(--token-important);
 }
 
 .token.important,
@@ -719,5 +934,10 @@ defineExpose({
 
 .token.italic {
   font-style: italic;
+}
+
+.token.operator {
+  background: transparent !important;
+  color: inherit !important;
 }
 </style>
