@@ -14,6 +14,13 @@ export const useConfigStore = defineStore("config", () => {
   // 主題相關狀態
   const isDarkMode = ref(localStorage.getItem("theme") === "dark");
 
+  // 聊天設置狀態
+  const chatSettings = ref({
+    fontSize: parseInt(localStorage.getItem("chatFontSize")) || 14,
+    useStreamMode: localStorage.getItem("useStreamMode") !== "false", // 默認啟用串流
+    useRealtimeRender: localStorage.getItem("useRealtimeRender") === "true", // 默認為等待渲染
+  });
+
   // 載入配置文件
   const loadConfig = async () => {
     if (isLoaded.value) return;
@@ -87,6 +94,40 @@ export const useConfigStore = defineStore("config", () => {
     }
   };
 
+  // 更新聊天字體大小
+  const updateChatFontSize = (size) => {
+    chatSettings.value.fontSize = size;
+    localStorage.setItem("chatFontSize", size.toString());
+    console.log("聊天字體大小已更新為:", size);
+  };
+
+  // 切換串流模式
+  const toggleStreamMode = () => {
+    chatSettings.value.useStreamMode = !chatSettings.value.useStreamMode;
+    localStorage.setItem(
+      "useStreamMode",
+      chatSettings.value.useStreamMode.toString()
+    );
+    console.log(
+      "串流模式已切換為:",
+      chatSettings.value.useStreamMode ? "啟用" : "停用"
+    );
+  };
+
+  // 切換即時渲染模式
+  const toggleRealtimeRender = () => {
+    chatSettings.value.useRealtimeRender =
+      !chatSettings.value.useRealtimeRender;
+    localStorage.setItem(
+      "useRealtimeRender",
+      chatSettings.value.useRealtimeRender.toString()
+    );
+    console.log(
+      "即時渲染模式已切換為:",
+      chatSettings.value.useRealtimeRender ? "啟用" : "停用"
+    );
+  };
+
   return {
     apiBaseUrl,
     appName,
@@ -102,5 +143,10 @@ export const useConfigStore = defineStore("config", () => {
     isDarkMode,
     toggleTheme,
     initTheme,
+    // 聊天設置相關
+    chatSettings,
+    updateChatFontSize,
+    toggleStreamMode,
+    toggleRealtimeRender,
   };
 });

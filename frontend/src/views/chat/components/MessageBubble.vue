@@ -70,6 +70,8 @@
           :is-streaming="message.isStreaming"
           :enable-keyword-highlight="true"
           theme="auto"
+          :debug="true"
+          :realtime-render="configStore.chatSettings.useRealtimeRender"
           ref="codeHighlightRef" />
         <!-- 純文本（用戶消息） -->
         <div
@@ -154,7 +156,7 @@
       </div>
 
       <!-- AI回應工具欄 -->
-      <div
+      <!-- <div
         v-if="message.role === 'assistant'"
         class="ai-message-toolbar">
         <a-button
@@ -186,9 +188,11 @@
             <MessageOutlined />
           </template>
         </a-button>
-      </div>
+      </div> -->
 
-      <div class="message-actions">
+      <div
+        v-show="!message.isStreaming && message.status !== 'sending'"
+        class="message-actions">
         <a-tooltip title="複製消息">
           <a-button
             type="text"
@@ -251,6 +255,7 @@
 import { computed, ref, nextTick, onMounted } from "vue";
 import { message as antMessage } from "ant-design-vue";
 import { useChatStore } from "@/stores/chat";
+import { useConfigStore } from "@/stores/config";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
 
@@ -271,6 +276,7 @@ const emit = defineEmits(["quote-message", "regenerate-response"]);
 
 // Store
 const chatStore = useChatStore();
+const configStore = useConfigStore();
 
 // 響應式狀態
 const userMessageContent = ref(null);
@@ -418,6 +424,7 @@ const handleViewAttachment = (attachment) => {
   position: relative;
   padding-bottom: 40px; /* 為工具欄留出空間 */
   color: var(--custom-text-primary);
+  width: 80%;
 }
 
 .system-message {
@@ -463,7 +470,7 @@ const handleViewAttachment = (attachment) => {
   transition: opacity 0.2s;
   position: absolute;
   bottom: -35px;
-  right: -20px;
+  right: -10px;
   display: flex;
   gap: 4px;
   margin-top: 10px;
@@ -643,7 +650,7 @@ const handleViewAttachment = (attachment) => {
 .token-usage {
   opacity: 0.7;
 }
-
+/* 
 .ai-message-toolbar {
   position: absolute;
   bottom: 8px;
@@ -661,7 +668,7 @@ const handleViewAttachment = (attachment) => {
 
 .ai-message:hover .ai-message-toolbar {
   opacity: 1;
-}
+} */
 
 .toolbar-btn {
   width: 28px !important;

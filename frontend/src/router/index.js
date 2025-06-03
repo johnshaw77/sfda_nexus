@@ -71,6 +71,15 @@ const routes = [
           icon: "SettingOutlined",
         },
       },
+      {
+        path: "playground",
+        name: "Playground",
+        component: () => import("@/views/playground/index.vue"),
+        meta: {
+          title: "測試實驗室",
+          icon: "ExperimentOutlined",
+        },
+      },
     ],
   },
 

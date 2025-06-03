@@ -488,6 +488,12 @@ const mainMenuItems = ref([
     icon: "SettingOutlined",
     route: "Settings",
   },
+  {
+    key: "playground",
+    title: "測試實驗室",
+    icon: "ExperimentOutlined",
+    route: "Playground",
+  },
 ]);
 
 // 通知數據(TODO:未實做(假的))

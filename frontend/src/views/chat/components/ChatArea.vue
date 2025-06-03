@@ -390,6 +390,39 @@
                 新對話
               </a-button>
 
+              <!-- 即時渲染切換 -->
+              <a-tooltip
+                :title="
+                  configStore.chatSettings.useRealtimeRender
+                    ? '當前：即時渲染模式 - 串流過程中即時顯示內容'
+                    : '當前：等待渲染模式 - 串流結束後一次性渲染'
+                "
+                placement="top">
+                <a-button
+                  type="text"
+                  size="small"
+                  @click="handleToggleRealtimeRender"
+                  :class="{
+                    'active-toggle': configStore.chatSettings.useRealtimeRender,
+                  }">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="currentColor">
+                    <path
+                      v-if="configStore.chatSettings.useRealtimeRender"
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    <path
+                      v-else
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z M12 15.4l-3.76 2-0.7-4.2-3-2.9 4.2-0.6L12 6.1l1.9 3.8 4.2 0.6-3 2.9-0.7 4.2L12 15.4z" />
+                  </svg>
+                  {{
+                    configStore.chatSettings.useRealtimeRender ? "即時" : "等待"
+                  }}
+                </a-button>
+              </a-tooltip>
+
               <!-- 附件上傳 -->
               <a-upload
                 :show-upload-list="false"
@@ -546,12 +579,14 @@ import {
 } from "@ant-design/icons-vue";
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
+import { useConfigStore } from "@/stores/config";
 import MessageBubble from "./MessageBubble.vue";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 
 // Store
 const chatStore = useChatStore();
 const wsStore = useWebSocketStore();
+const configStore = useConfigStore();
 
 // 響應式狀態
 const loading = ref(false);
@@ -966,6 +1001,13 @@ const handleStopStream = () => {
   if (chatStore.isStreaming) {
     chatStore.stopCurrentStream();
   }
+};
+
+const handleToggleRealtimeRender = () => {
+  configStore.toggleRealtimeRender();
+  message.success(
+    `已切換為${configStore.chatSettings.useRealtimeRender ? "即時渲染" : "等待渲染"}模式`
+  );
 };
 
 // 根據智能體獲取快速提示
@@ -1551,6 +1593,32 @@ const handleCreateNewConversation = async () => {
 .char-count {
   font-size: 12px;
   color: var(--custom-text-tertiary);
+}
+
+/* 即時渲染切換按鈕樣式 */
+.toolbar-left .ant-btn.active-toggle {
+  background: rgba(24, 144, 255, 0.1) !important;
+  color: var(--primary-color) !important;
+  border-color: rgba(24, 144, 255, 0.3) !important;
+}
+
+.toolbar-left .ant-btn.active-toggle:hover {
+  background: rgba(24, 144, 255, 0.15) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.toolbar-left .ant-btn {
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  height: 32px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-left .ant-btn svg {
+  flex-shrink: 0;
 }
 
 /* 響應式設計 */

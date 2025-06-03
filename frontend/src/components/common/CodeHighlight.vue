@@ -1,32 +1,38 @@
 <template>
   <div
-    class="code-highlight-container"
-    :class="{ 'dark-theme': isDarkTheme, 'light-theme': !isDarkTheme }"
-    ref="containerRef">
+    ref="containerRef"
+    class="code-highlight-container">
     <div
-      v-if="content"
+      v-if="renderedHtml"
       class="markdown-content"
-      v-html="renderedContent"
-      @scroll="handleScroll"></div>
-    <slot v-else />
+      v-html="renderedHtml"
+      @scroll="handleScroll" />
+    <div
+      v-else
+      class="empty-content">
+      <slot />
+    </div>
 
+    <!-- 串流指示器 -->
     <div
       v-if="isStreaming"
       class="streaming-indicator">
-      <div class="typing-animation">
-        <span>{{ streamingText }}</span>
+      <div class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
       </div>
+      <span class="streaming-text">正在接收內容...</span>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
-import { useThrottleFn, useElementSize } from "@vueuse/core";
+import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { useThrottleFn } from "@vueuse/core";
 import MarkdownIt from "markdown-it";
-import Shiki from "@shikijs/markdown-it";
+import { codeToHtml } from "shiki";
 import DOMPurify from "dompurify";
-import { useAppStore } from "@/stores/app";
 
 // Props
 const props = defineProps({
@@ -38,126 +44,153 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  enableKeywordHighlight: {
-    type: Boolean,
-    default: true,
-  },
   theme: {
     type: String,
-    default: "auto", // 'auto', 'light', 'dark'
+    default: "auto",
     validator: (value) => ["auto", "light", "dark"].includes(value),
   },
   autoScroll: {
     type: Boolean,
     default: true,
   },
+  debug: {
+    type: Boolean,
+    default: false,
+  },
+  realtimeRender: {
+    type: Boolean,
+    default: false,
+  },
 });
 
+// Emits
 const emit = defineEmits(["scroll", "chunk-rendered"]);
 
 // Refs
 const containerRef = ref(null);
 const shouldAutoScroll = ref(true);
-const streamingText = ref("正在接收內容...");
-const mdInstance = ref(null);
 
-// 使用 Pinia store
-const appStore = useAppStore();
-
-// 使用 VueUse 的工具
-const { width, height } = useElementSize(containerRef);
-
-// 響應式主題狀態
-const currentTheme = ref("light");
-
-// 獲取當前主題
-function getCurrentTheme() {
+// 主題檢測函數
+const detectTheme = () => {
   if (props.theme === "dark") return "dark";
   if (props.theme === "light") return "light";
-
-  // auto 模式：優先使用 store 的主題，然後檢查 DOM 和系統主題
-  if (appStore.theme) {
-    return appStore.theme;
+  // auto 模式：檢查 HTML 元素的 data-theme 或 class
+  const htmlElement = document.documentElement;
+  const dataTheme = htmlElement.getAttribute("data-theme");
+  if (dataTheme === "dark" || dataTheme === "light") {
+    return dataTheme;
   }
+  return htmlElement.classList.contains("dark") ? "dark" : "light";
+};
 
-  return document.documentElement.classList.contains("dark") ||
-    document.documentElement.getAttribute("data-theme") === "dark" ||
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
+// 響應式主題狀態
+const currentTheme = ref(detectTheme());
 
-// 主題檢測
-const isDarkTheme = computed(() => {
-  return currentTheme.value === "dark";
-});
+// MarkdownIt 實例
+let md = null;
 
-// 初始化 Shiki 和 MarkdownIt
+// 初始化 Markdown 渲染器
 onMounted(async () => {
-  // 初始化主題
-  currentTheme.value = getCurrentTheme();
-  console.log(`CodeHighlight: 初始主題設定為 ${currentTheme.value}`);
+  md = new MarkdownIt({
+    html: true,
+    linkify: true,
+    typographer: true,
+    breaks: true,
+  });
 
-  try {
-    // 使用官方插件初始化 MarkdownIt
-    mdInstance.value = new MarkdownIt({
-      html: true,
-      linkify: true,
-      typographer: true,
-      breaks: true,
-    });
+  // 自定義程式碼塊渲染規則
+  md.renderer.rules.fence = (tokens, idx, options, env, slf) => {
+    const token = tokens[idx];
+    const code = token.content.trim();
+    const lang = token.info.trim() || "text";
 
-    // 配置 Shiki 插件
-    const shikiPlugin = await Shiki({
-      themes: {
-        light: "github-light",
-        dark: "github-dark",
-      },
-      langs: [
-        "javascript",
-        "typescript",
-        "python",
-        "java",
-        "cpp",
-        "c",
-        "css",
-        "html",
-        "json",
-        "bash",
-        "shell",
-        "sql",
-        "php",
-        "go",
-        "rust",
-        "swift",
-        "kotlin",
-        "dart",
-        "vue",
-        "jsx",
-        "tsx",
-        "yaml",
-        "xml",
-        "markdown",
-      ],
-      // 根據當前主題選擇
-      defaultTheme: isDarkTheme.value ? "dark" : "light",
-    });
+    if (props.debug) {
+      console.log("=== Fence 渲染 ===");
+      console.log("Language:", lang);
+      console.log("Code:", JSON.stringify(code));
+    }
 
-    mdInstance.value.use(shikiPlugin);
-    console.log("CodeHighlight: 官方 Shiki 插件初始化成功");
-  } catch (error) {
-    console.error("CodeHighlight: 初始化失敗:", error);
-  }
+    // 為程式碼塊添加包裝器
+    return `<div class="code-block-wrapper" data-lang="${lang}">
+      <div class="code-header">
+        <span class="language-label">${lang}</span>
+        <button class="copy-btn" onclick="copyCodeToClipboard(this)" title="複製程式碼">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+          複製
+        </button>
+      </div>
+      <div class="shiki-container" data-code="${encodeURIComponent(code)}" data-lang="${lang}"></div>
+    </div>`;
+  };
 
+  // 監聽 DOM 主題變化
   setupThemeObserver();
 });
 
-// HTML轉義函數
-const escapeHtml = (text) => {
-  if (typeof text !== "string") {
-    text = String(text || "");
-  }
+// 設置主題變化監聽器
+const setupThemeObserver = () => {
+  // 監聽 HTML 元素的屬性變化
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "attributes") {
+        const { attributeName, target } = mutation;
+        if (
+          target === document.documentElement &&
+          (attributeName === "data-theme" || attributeName === "class")
+        ) {
+          // 重新檢測主題並更新
+          const oldTheme = currentTheme.value;
+          const newTheme = detectTheme();
 
+          if (newTheme !== oldTheme) {
+            currentTheme.value = newTheme;
+            if (props.debug) {
+              console.log(
+                `主題切換檢測: ${oldTheme} → ${newTheme} (${attributeName} 變更)`
+              );
+            }
+          }
+        }
+      }
+    });
+  });
+
+  // 觀察 HTML 元素的屬性變化
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme", "class"],
+  });
+};
+
+// Shiki 高亮渲染
+const renderShikiCode = async (code, lang) => {
+  if (!code.trim()) return "";
+
+  try {
+    const html = await codeToHtml(code, {
+      lang: lang || "text",
+      theme: currentTheme.value === "dark" ? "github-dark" : "github-light",
+      transformers: [],
+    });
+
+    if (props.debug) {
+      console.log("=== Shiki 渲染結果 ===");
+      console.log("Input code:", JSON.stringify(code));
+      console.log("Output HTML:", html);
+    }
+
+    return html;
+  } catch (error) {
+    console.error("Shiki 渲染失敗:", error);
+    return `<pre><code>${escapeHtml(code)}</code></pre>`;
+  }
+};
+
+// HTML 轉義
+const escapeHtml = (text) => {
   const map = {
     "&": "&amp;",
     "<": "&lt;",
@@ -165,53 +198,61 @@ const escapeHtml = (text) => {
     '"': "&quot;",
     "'": "&#039;",
   };
-  return text.replace(/[&<>"']/g, function (m) {
-    return map[m];
-  });
+  return text.replace(/[&<>"']/g, (m) => map[m]);
 };
 
-// 簡化的 Markdown 渲染函數
-const renderMarkdown = (content) => {
-  if (!content || typeof content !== "string" || !mdInstance.value) {
-    console.warn("renderMarkdown: 無效的內容或未初始化");
-    return "";
-  }
+// 渲染 Markdown 內容
+const renderContent = async (content) => {
+  if (!content || !md) return "";
 
   try {
-    let html = mdInstance.value.render(content);
+    if (props.debug) {
+      console.log("=== 開始渲染 ===");
+      console.log("原始內容:", JSON.stringify(content));
+    }
 
-    // 添加複製按鈕到程式碼塊
-    html = html.replace(
-      /<pre[^>]*><code[^>]*class="language-([^"]*)"[^>]*>/g,
-      (match, lang) => {
-        const displayLang = lang || "text";
-        return `
-          <div class="code-block-wrapper" data-lang="${displayLang}">
-            <div class="code-header">
-              <span class="language-label">${displayLang}</span>
-              <button class="copy-btn" onclick="copyCodeToClipboard(this)" title="複製程式碼">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                </svg>
-                複製
-              </button>
-            </div>
-            ${match}
-        `;
+    // 使用 MarkdownIt 渲染
+    let html = md.render(content);
+
+    if (props.debug) {
+      console.log("=== MarkdownIt 渲染後 ===");
+      console.log(html);
+    }
+
+    // 查找並替換 Shiki 容器
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const shikiContainers = doc.querySelectorAll(".shiki-container");
+
+    for (const container of shikiContainers) {
+      const code = decodeURIComponent(
+        container.getAttribute("data-code") || ""
+      );
+      const lang = container.getAttribute("data-lang") || "text";
+
+      if (code) {
+        const shikiHtml = await renderShikiCode(code, lang);
+        container.innerHTML = shikiHtml;
       }
-    );
+    }
 
-    // 添加結束標籤
-    html = html.replace(/<\/code><\/pre>/g, "</code></pre></div>");
+    // 獲取更新後的 HTML
+    html = doc.body.innerHTML;
 
+    if (props.debug) {
+      console.log("=== 最終 HTML ===");
+      console.log(html);
+    }
+
+    // 清理 HTML
     return DOMPurify.sanitize(html, {
-      ADD_TAGS: ["span", "div", "button", "svg", "rect", "path"],
+      ADD_TAGS: ["span", "div", "button", "svg", "path", "rect"],
       ADD_ATTR: [
         "class",
         "onclick",
         "title",
         "data-lang",
+        "data-code",
         "width",
         "height",
         "viewBox",
@@ -226,45 +267,64 @@ const renderMarkdown = (content) => {
       ],
     });
   } catch (error) {
-    console.error("Markdown 渲染失敗:", error);
-    return `<div class="error-message" role="alert">
+    console.error("渲染失敗:", error);
+    return `<div class="error-message">
       <p>⚠️ 內容渲染失敗</p>
-      <details>
-        <summary>錯誤詳情</summary>
-        <pre>${escapeHtml(error.message)}</pre>
-      </details>
+      <pre>${escapeHtml(error.message)}</pre>
     </div>`;
   }
 };
 
-// 簡化的串流處理 - 只處理滾動
+// 計算渲染的 HTML
+const renderedHtml = ref("");
+
+// 監聽內容變化
 watch(
   () => props.content,
-  () => {
+  async (newContent) => {
+    if (!newContent) {
+      renderedHtml.value = "";
+      return;
+    }
+
+    if (props.isStreaming && !props.realtimeRender) {
+      // 串流中且非即時渲染：顯示原始文字
+      renderedHtml.value = `<pre class="streaming-raw">${escapeHtml(newContent)}</pre>`;
+    } else {
+      // 非串流或即時渲染：完整渲染
+      renderedHtml.value = await renderContent(newContent);
+
+      // 渲染完成後處理 Shiki 容器
+      await nextTick();
+      await processShikiContainers();
+    }
+
     // 自動滾動
     if (shouldAutoScroll.value && props.autoScroll) {
-      nextTick(() => {
-        scrollToBottom();
-      });
+      await nextTick();
+      scrollToBottom();
     }
   },
   { immediate: true }
 );
 
-// 計算最終渲染內容
-const renderedContent = computed(() => {
-  if (!props.content) return "";
+// 處理 Shiki 容器
+const processShikiContainers = async () => {
+  if (!containerRef.value) return;
 
-  if (props.isStreaming) {
-    // 串流模式：顯示原始文本，避免頻繁渲染 markdown
-    return `<div class="streaming-raw">${escapeHtml(props.content)}</div>`;
-  } else {
-    // 非串流時或串流完成後直接渲染完整內容
-    return renderMarkdown(props.content);
+  const containers = containerRef.value.querySelectorAll(".shiki-container");
+  for (const container of containers) {
+    const code = decodeURIComponent(container.getAttribute("data-code") || "");
+    const lang = container.getAttribute("data-lang") || "text";
+
+    if (code && !container.querySelector("pre")) {
+      const shikiHtml = await renderShikiCode(code, lang);
+      container.innerHTML = shikiHtml;
+    }
   }
-});
+};
 
-// 節流的滾動處理
+// 滾動處理
 const handleScroll = useThrottleFn(() => {
   if (!containerRef.value) return;
 
@@ -291,73 +351,20 @@ const scrollToBottom = () => {
   }
 };
 
-// 清理內容
-const clearContent = () => {
-  // 清理不再需要，因為已簡化為直接渲染模式
-};
-
 // 監聽串流狀態變化
 watch(
   () => props.isStreaming,
   async (newVal, oldVal) => {
     if (oldVal === true && newVal === false) {
-      console.log("CodeHighlight: 串流完成");
-
-      // 串流完成後重新渲染
+      // 串流完成，重新渲染
+      renderedHtml.value = await renderContent(props.content);
       await nextTick();
+      await processShikiContainers();
 
       if (shouldAutoScroll.value && props.autoScroll) {
         await nextTick();
         scrollToBottom();
       }
-    }
-  },
-  { immediate: false }
-);
-
-// 監聽主題變化並重新配置 Shiki
-watch(
-  () => isDarkTheme.value,
-  async (newIsDark) => {
-    if (mdInstance.value) {
-      console.log(
-        `CodeHighlight: 主題變化，重新配置 Shiki - ${newIsDark ? "dark" : "light"}`
-      );
-
-      // 重新配置 Shiki 插件
-      try {
-        mdInstance.value = new MarkdownIt({
-          html: true,
-          linkify: true,
-          typographer: true,
-          breaks: true,
-        });
-
-        const shikiPlugin = await Shiki({
-          themes: {
-            light: "github-light",
-            dark: "github-dark",
-          },
-          defaultTheme: newIsDark ? "dark" : "light",
-        });
-
-        mdInstance.value.use(shikiPlugin);
-      } catch (error) {
-        console.error("重新配置 Shiki 失敗:", error);
-      }
-    }
-  }
-);
-
-// 監聽 store 主題變化
-watch(
-  () => appStore.theme,
-  (newTheme) => {
-    if (props.theme === "auto" && newTheme !== currentTheme.value) {
-      console.log(
-        `CodeHighlight: Store主題變化 ${currentTheme.value} → ${newTheme}`
-      );
-      currentTheme.value = newTheme;
     }
   }
 );
@@ -366,101 +373,22 @@ watch(
 watch(
   () => props.theme,
   () => {
-    const newTheme = getCurrentTheme();
+    const newTheme = detectTheme();
     if (newTheme !== currentTheme.value) {
-      console.log(
-        `CodeHighlight: Props主題變化 ${currentTheme.value} → ${newTheme}`
-      );
       currentTheme.value = newTheme;
     }
   }
 );
 
-// 設置主題監聽器
-const setupThemeObserver = () => {
-  // 監聽 DOM 變化（class 和 data-theme 屬性）
-  const themeObserver = new MutationObserver((mutations) => {
-    let themeChanged = false;
-
-    mutations.forEach((mutation) => {
-      if (mutation.type === "attributes") {
-        const { attributeName, target } = mutation;
-        if (
-          (attributeName === "class" && target === document.documentElement) ||
-          (attributeName === "data-theme" &&
-            target === document.documentElement)
-        ) {
-          console.log(`CodeHighlight: DOM屬性變化檢測 - ${attributeName}`);
-          themeChanged = true;
-        }
-      }
-    });
-
-    if (themeChanged) {
-      const newTheme = getCurrentTheme();
-      if (newTheme !== currentTheme.value) {
-        currentTheme.value = newTheme;
-      }
-    }
-  });
-
-  // 觀察 document.documentElement 的屬性變化
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class", "data-theme"],
-  });
-
-  // 監聽系統主題變化
-  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  const handleMediaChange = () => {
-    if (props.theme === "auto") {
-      const newTheme = getCurrentTheme();
-      if (newTheme !== currentTheme.value) {
-        console.log(
-          `CodeHighlight: 系統主題變化檢測 ${currentTheme.value} → ${newTheme}`
-        );
-        currentTheme.value = newTheme;
-      }
-    }
-  };
-
-  mediaQuery.addEventListener("change", handleMediaChange);
-
-  // 返回清理函數
-  return () => {
-    themeObserver.disconnect();
-    mediaQuery.removeEventListener("change", handleMediaChange);
-  };
-};
-
-// 動畫文字效果
+// 監聽主題變化 - 重新渲染所有程式碼塊以更新 Shiki 主題
 watch(
-  () => props.isStreaming,
-  (streaming) => {
-    if (streaming) {
-      const texts = ["正在接收內容...", "處理中...", "渲染中..."];
-      let index = 0;
-      const interval = setInterval(() => {
-        streamingText.value = texts[index % texts.length];
-        index++;
-      }, 1500);
-
-      // 清理定時器
-      const stopInterval = () => {
-        clearInterval(interval);
-        streamingText.value = "完成";
-      };
-
-      // 當串流停止時清理
-      const unwatch = watch(
-        () => props.isStreaming,
-        (newStreaming) => {
-          if (!newStreaming) {
-            stopInterval();
-            unwatch();
-          }
-        }
-      );
+  () => currentTheme.value,
+  async (newTheme, oldTheme) => {
+    if (newTheme !== oldTheme && props.content) {
+      console.log(`主題切換: ${oldTheme} → ${newTheme}，重新渲染程式碼塊`);
+      renderedHtml.value = await renderContent(props.content);
+      await nextTick();
+      await processShikiContainers();
     }
   }
 );
@@ -469,18 +397,18 @@ watch(
 if (typeof window !== "undefined") {
   window.copyCodeToClipboard = function (button) {
     const wrapper = button.closest(".code-block-wrapper");
-    const code = wrapper.querySelector("code");
-    const text = code ? code.textContent : "";
+    const codeContainer = wrapper.querySelector(".shiki-container code");
+    const text = codeContainer ? codeContainer.textContent : "";
 
     navigator.clipboard
       .writeText(text)
       .then(() => {
         const originalText = button.innerHTML;
         button.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20,6 9,17 4,12"></polyline>
-          </svg>
-          已複製`;
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20,6 9,17 4,12"></polyline>
+        </svg>
+        已複製`;
         button.classList.add("copied");
 
         setTimeout(() => {
@@ -494,20 +422,8 @@ if (typeof window !== "undefined") {
   };
 }
 
-// 生命週期
-let cleanupThemeObserver = null;
-
-onUnmounted(() => {
-  // 清理主題監聽器
-  if (cleanupThemeObserver) {
-    cleanupThemeObserver();
-    cleanupThemeObserver = null;
-  }
-});
-
-// 對外暴露的方法
+// 對外暴露方法
 defineExpose({
-  clearContent,
   scrollToBottom,
 });
 </script>
@@ -515,7 +431,7 @@ defineExpose({
 <style scoped>
 .code-highlight-container {
   width: 100%;
-  line-height: 1.6;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -524,75 +440,69 @@ defineExpose({
 .markdown-content {
   flex: 1;
   overflow-y: auto;
-  font-size: 16px;
-  color: var(--custom-text-primary);
+  padding: 16px;
+  font-size: var(--chat-font-size, 16px);
+  line-height: 1.6;
+  color: var(--text-color, #333);
 }
 
-.streaming-indicator {
-  padding: 12px 20px;
-  background: linear-gradient(
-    90deg,
-    var(--custom-bg-secondary) 0%,
-    var(--custom-bg-tertiary) 100%
-  );
-  border-top: 1px solid var(--custom-border-primary);
+.empty-content {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--text-color-secondary, #666);
 }
 
-.typing-animation {
+/* 串流指示器 */
+.streaming-indicator {
+  padding: 12px 16px;
+  background: var(--bg-color-secondary, #f5f5f5);
+  border-top: 1px solid var(--border-color, #e8e8e8);
   display: flex;
   align-items: center;
-  color: var(--custom-text-secondary);
-  font-size: 14px;
-  font-weight: 500;
+  gap: 8px;
 }
 
-.typing-animation::after {
-  content: "";
-  width: 3px;
-  height: 18px;
-  background: var(--primary-color, #007bff);
-  margin-left: 8px;
-  border-radius: 2px;
-  animation: blink 1.2s infinite;
+.typing-dots {
+  display: flex;
+  gap: 4px;
 }
 
-@keyframes blink {
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-color, #1890ff);
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
   0%,
-  50% {
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
     opacity: 1;
   }
-  51%,
-  100% {
-    opacity: 0;
-  }
 }
 
-/* 錯誤信息樣式 */
-.markdown-content :deep(.error-message) {
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 12px 0;
-  color: #c33;
+.streaming-text {
+  font-size: calc(var(--chat-font-size, 16px) - 2px);
+  color: var(--text-color-secondary, #666);
 }
 
-.markdown-content :deep(.error-message details) {
-  margin-top: 8px;
-}
-
-.markdown-content :deep(.error-message pre) {
-  background: #f9f9f9;
-  padding: 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  overflow-x: auto;
-}
-
-/* 基本的 markdown 樣式 */
+/* 基本 Markdown 樣式 */
 .markdown-content :deep(h1),
 .markdown-content :deep(h2),
 .markdown-content :deep(h3),
@@ -601,19 +511,18 @@ defineExpose({
 .markdown-content :deep(h6) {
   margin: 16px 0 8px 0;
   font-weight: 600;
-  color: var(--custom-text-primary);
+  color: var(--text-color, #333);
 }
 
 .markdown-content :deep(p) {
   margin: 8px 0;
-  color: var(--custom-text-primary);
+  color: var(--text-color, #333);
 }
 
 .markdown-content :deep(ul),
 .markdown-content :deep(ol) {
   margin: 8px 0;
   padding-left: 20px;
-  color: var(--custom-text-primary);
 }
 
 .markdown-content :deep(li) {
@@ -621,196 +530,181 @@ defineExpose({
 }
 
 .markdown-content :deep(blockquote) {
-  border-left: 4px solid var(--primary-color, #007bff);
+  border-left: 4px solid var(--primary-color, #1890ff);
   padding-left: 16px;
   margin: 16px 0;
-  color: var(--custom-text-secondary);
-  background: var(--custom-bg-secondary);
+  color: var(--text-color-secondary, #666);
+  background: var(--bg-color-secondary, #f5f5f5);
   padding: 12px 16px;
   border-radius: 4px;
 }
 
-.markdown-content :deep(table) {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-}
-
-.markdown-content :deep(th),
-.markdown-content :deep(td) {
-  border: 1px solid var(--custom-border-primary);
-  padding: 8px 12px;
-  text-align: left;
-}
-
-.markdown-content :deep(th) {
-  background: var(--custom-bg-secondary);
-  font-weight: 600;
-}
-
-/* 程式碼塊樣式 - 簡化版本 */
+/* 程式碼塊包裝器 */
 .markdown-content :deep(.code-block-wrapper) {
   margin: 16px 0;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--custom-border-primary);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  position: relative;
-}
-
-.dark-theme .markdown-content :deep(.code-block-wrapper) {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color, #e8e8e8);
+  background: var(--bg-color-secondary, #f8f9fa);
 }
 
 .markdown-content :deep(.code-header) {
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  right: 0px;
-  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--custom-bg-secondary) !important;
   padding: 8px 16px;
+  background: var(--bg-color-tertiary, #f0f0f0);
+  border-bottom: 1px solid var(--border-color, #e8e8e8);
 }
 
 .markdown-content :deep(.language-label) {
-  color: var(--custom-text-secondary);
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.3px;
-  min-width: 20px;
-  text-align: center;
-  line-height: 1.2;
-}
-
-.dark-theme .markdown-content :deep(.language-label) {
-  background: rgba(100, 108, 255, 0.2);
-  color: #9ca3ff;
-  border-color: rgba(100, 108, 255, 0.4);
+  color: var(--text-color-secondary, #666);
+  background: var(--bg-color, #fff);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e8e8e8);
 }
 
 .markdown-content :deep(.copy-btn) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: var(--custom-bg-secondary);
+  background: transparent;
   border: none;
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
-  color: var(--custom-text-secondary);
+  color: var(--text-color-secondary, #666);
   transition: all 0.2s ease;
-  font-weight: 500;
 }
 
 .markdown-content :deep(.copy-btn:hover) {
-  background: var(--custom-bg-tertiary);
-  transform: translateY(-1px);
+  background: var(--bg-color, #fff);
+  color: var(--primary-color, #1890ff);
 }
 
 .markdown-content :deep(.copy-btn.copied) {
-  background: rgba(34, 197, 94, 0.8);
+  background: var(--success-color, #52c41a);
   color: white;
 }
 
-.markdown-content :deep(.copy-btn svg) {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
+/* Shiki 容器樣式 */
+.markdown-content :deep(.shiki-container) {
+  position: relative;
 }
 
-/* 讓 Shiki 生成的 pre 樣式正常顯示 */
-.markdown-content :deep(pre) {
+.markdown-content :deep(.shiki-container pre) {
   margin: 0 !important;
-  padding: 32px 16px 16px 16px !important;
-  font-family:
-    "Fira Code", "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace !important;
-  font-size: 16px !important;
-  line-height: 1.6 !important;
+  padding: 16px !important;
+  background: transparent !important;
   overflow-x: auto;
-}
-
-.markdown-content :deep(code) {
   font-family:
     "Fira Code", "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace !important;
+  font-size: calc(var(--chat-font-size, 16px) - 2px) !important;
+  line-height: 1.5 !important;
 }
 
-/* 行內代碼樣式 */
+.markdown-content :deep(.shiki-container code) {
+  background: transparent !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+}
+
+/* 串流原始文字 */
+.markdown-content :deep(.streaming-raw) {
+  background: var(--bg-color-secondary, #f5f5f5);
+  border: 1px solid var(--border-color, #e8e8e8);
+  border-radius: 4px;
+  padding: 16px;
+  font-family:
+    "Fira Code", "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
+  font-size: calc(var(--chat-font-size, 16px) - 2px);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-color-secondary, #666);
+  border-left: 3px solid var(--warning-color, #faad14);
+}
+
+/* 錯誤信息 */
+.markdown-content :deep(.error-message) {
+  background: var(--error-bg, #fff2f0);
+  border: 1px solid var(--error-color, #ff4d4f);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  color: var(--error-color, #ff4d4f);
+}
+
+.markdown-content :deep(.error-message pre) {
+  background: var(--bg-color-secondary, #f5f5f5);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+/* 行內代碼 */
 .markdown-content :deep(p code),
 .markdown-content :deep(li code),
 .markdown-content :deep(td code) {
-  /* background: var(--custom-bg-tertiary) !important; */
-  color: var(--primary-color, #007bff) !important;
-  padding: 2px 6px !important;
-  border-radius: 4px !important;
-  font-size: calc(var(--chat-font-size, 14px) - 1px) !important;
-  border: 0px solid var(--custom-border-primary) !important;
-}
-
-/* 串流樣式 */
-.markdown-content :deep(.streaming-chunk) {
-  opacity: 0.85;
-  transition: opacity 0.3s ease;
-  border-left: 3px solid var(--primary-color, #007bff);
-  padding-left: 12px;
-  margin: 8px 0;
-}
-
-.markdown-content :deep(.streaming-raw) {
-  color: var(--custom-text-secondary);
-  font-style: italic;
-  white-space: pre-wrap;
-  background: var(--custom-bg-tertiary);
-  padding: 8px 12px;
+  background: var(--bg-color-secondary, #f5f5f5);
+  color: var(--primary-color, #1890ff);
+  padding: 2px 6px;
   border-radius: 4px;
-  border-left: 3px solid #ffc107;
+  font-size: calc(var(--chat-font-size, 16px) - 3px);
+  font-family:
+    "Fira Code", "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
+}
+
+/* 亮色主題（默認） */
+.code-highlight-container {
+  --text-color: #262626;
+  --text-color-secondary: #8c8c8c;
+  --bg-color: #ffffff;
+  --bg-color-secondary: #fafafa;
+  --bg-color-tertiary: #f5f5f5;
+  --border-color: #d9d9d9;
+  --primary-color: #1890ff;
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #ff4d4f;
+  --error-bg: #fff2f0;
+}
+
+/* 深色主題 - 使用全局 dark class */
+
+[data-theme="dark"] .code-highlight-container {
+  --text-color: #ffffff;
+  --text-color-secondary: #b3b3b3;
+  --bg-color: #1f1f1f;
+  --bg-color-secondary: #2a2a2a;
+  --bg-color-tertiary: #3a3a3a;
+  --border-color: #404040;
+  --primary-color: #4096ff;
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #ff4d4f;
+  --error-bg: #2a1818;
 }
 
 /* 響應式設計 */
 @media (max-width: 768px) {
   .markdown-content {
-    font-size: 15px;
+    padding: 12px;
+    font-size: calc(var(--chat-font-size, 16px) - 2px);
   }
 
   .markdown-content :deep(.code-header) {
-    position: static;
-    background: var(--custom-bg-secondary);
-    padding: 8px 12px;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--custom-border-primary);
+    padding: 6px 12px;
   }
 
-  .markdown-content :deep(.language-label) {
-    background: rgba(100, 108, 255, 0.1);
-    color: var(--primary-color, #646cff);
-    border: 1px solid rgba(100, 108, 255, 0.2);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 10px;
-  }
-
-  .dark-theme .markdown-content :deep(.language-label) {
-    background: rgba(100, 108, 255, 0.2);
-    color: #9ca3ff;
-    border-color: rgba(100, 108, 255, 0.4);
-  }
-
-  .markdown-content :deep(.copy-btn) {
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: none;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-  }
-
-  .markdown-content :deep(pre) {
-    padding: 40px 12px 12px 12px !important;
+  .markdown-content :deep(.shiki-container pre) {
+    padding: 12px !important;
+    font-size: calc(var(--chat-font-size, 16px) - 3px) !important;
   }
 }
 
@@ -820,16 +714,16 @@ defineExpose({
 }
 
 .markdown-content::-webkit-scrollbar-track {
-  background: var(--custom-bg-secondary);
+  background: var(--bg-color-secondary, #f5f5f5);
   border-radius: 4px;
 }
 
-.markdown-content ::-webkit-scrollbar-thumb {
-  background: var(--custom-border-secondary);
+.markdown-content::-webkit-scrollbar-thumb {
+  background: var(--border-color, #e8e8e8);
   border-radius: 4px;
 }
 
 .markdown-content::-webkit-scrollbar-thumb:hover {
-  background: var(--custom-text-tertiary);
+  background: var(--text-color-secondary, #666);
 }
 </style>
