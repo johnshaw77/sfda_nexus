@@ -185,7 +185,7 @@ export const handleUpdateSystemConfig = catchAsync(async (req, res) => {
       ]
     );
 
-    res.json(createSuccessResponse("系統配置更新成功"));
+    res.json(createSuccessResponse(null, "系統配置更新成功"));
   } catch (error) {
     logger.error("更新系統配置失敗:", error);
     throw new BusinessError("更新系統配置失敗");

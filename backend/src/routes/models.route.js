@@ -389,7 +389,7 @@ router.post(
 router.put(
   "/:id",
   authenticateToken,
-  requireRole(["admin"]),
+  requireRole(["super_admin", "admin"]),
   ModelsController.handleUpdateModel
 );
 
@@ -417,7 +417,7 @@ router.put(
 router.delete(
   "/:id",
   authenticateToken,
-  requireRole(["admin"]),
+  requireRole(["super_admin", "admin"]),
   ModelsController.handleDeleteModel
 );
 
@@ -454,7 +454,7 @@ router.delete(
 router.patch(
   "/:id/default",
   authenticateToken,
-  requireRole(["admin"]),
+  requireRole(["super_admin", "admin"]),
   ModelsController.handleSetDefaultModel
 );
 
@@ -519,7 +519,7 @@ router.patch(
 router.post(
   "/:id/test",
   authenticateToken,
-  requireRole(["admin"]),
+  requireRole(["super_admin", "admin"]),
   ModelsController.handleTestModel
 );
 
@@ -581,7 +581,7 @@ router.post(
 router.post(
   "/sync",
   authenticateToken,
-  requireRole(["admin"]),
+  requireRole(["super_admin", "admin"]),
   ModelsController.handleSyncModelAvailability
 );
 

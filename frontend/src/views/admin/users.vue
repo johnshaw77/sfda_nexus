@@ -17,27 +17,29 @@
         <a-row :gutter="16">
           <a-col :span="8">
             <a-input-search
-              :value="searchText"
+              v-model:value="searchText"
               placeholder="搜索用戶名或郵箱"
               @search="handleSearch"
               allow-clear />
           </a-col>
           <a-col :span="6">
             <a-select
-              :value="filterRole"
+              v-model:value="filterRole"
               placeholder="選擇角色"
               style="width: 100%"
-              allow-clear>
+              allow-clear
+              @change="handleSearch">
               <a-select-option value="admin">管理員</a-select-option>
               <a-select-option value="user">普通用戶</a-select-option>
             </a-select>
           </a-col>
           <a-col :span="6">
             <a-select
-              :value="filterStatus"
+              v-model:value="filterStatus"
               placeholder="選擇狀態"
               style="width: 100%"
-              allow-clear>
+              allow-clear
+              @change="handleSearch">
               <a-select-option value="active">啟用</a-select-option>
               <a-select-option value="inactive">停用</a-select-option>
             </a-select>
@@ -131,7 +133,7 @@
               label="用戶名"
               name="username">
               <a-input
-                :value="formData.username"
+                v-model:value="formData.username"
                 placeholder="輸入用戶名" />
             </a-form-item>
           </a-col>
@@ -140,7 +142,7 @@
               label="郵箱"
               name="email">
               <a-input
-                :value="formData.email"
+                v-model:value="formData.email"
                 placeholder="輸入郵箱" />
             </a-form-item>
           </a-col>
@@ -152,7 +154,7 @@
               label="角色"
               name="role">
               <a-select
-                :value="formData.role"
+                v-model:value="formData.role"
                 placeholder="選擇角色">
                 <a-select-option value="admin">管理員</a-select-option>
                 <a-select-option value="user">普通用戶</a-select-option>
@@ -165,7 +167,7 @@
               name="password"
               v-if="!formData.id">
               <a-input-password
-                :value="formData.password"
+                v-model:value="formData.password"
                 placeholder="輸入密碼" />
             </a-form-item>
           </a-col>
@@ -178,6 +180,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
+import {
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  resetUserPassword,
+} from "@/api/users.js";
 
 // 響應式數據
 const loading = ref(false);
@@ -240,39 +249,8 @@ const pagination = reactive({
   showTotal: (total) => `共 ${total} 條記錄`,
 });
 
-// 模擬數據
-const users = ref([
-  {
-    id: 1,
-    username: "admin",
-    email: "admin@example.com",
-    role: "admin",
-    is_active: true,
-    last_login: "2025-01-15 10:30:00",
-    created_at: "2025-01-01 00:00:00",
-    updating: false,
-  },
-  {
-    id: 2,
-    username: "user001",
-    email: "user001@example.com",
-    role: "user",
-    is_active: true,
-    last_login: "2025-01-14 15:20:00",
-    created_at: "2025-01-02 10:00:00",
-    updating: false,
-  },
-  {
-    id: 3,
-    username: "user002",
-    email: "user002@example.com",
-    role: "user",
-    is_active: false,
-    last_login: "2025-01-10 09:15:00",
-    created_at: "2025-01-03 14:30:00",
-    updating: false,
-  },
-]);
+// 用戶數據
+const users = ref([]);
 
 // 表單數據
 const formData = reactive({
@@ -297,38 +275,55 @@ const formRules = {
 // 計算屬性
 const modalTitle = computed(() => (formData.id ? "編輯用戶" : "添加用戶"));
 
-const filteredUsers = computed(() => {
-  let result = users.value;
-
-  if (searchText.value) {
-    result = result.filter(
-      (user) =>
-        user.username.toLowerCase().includes(searchText.value.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchText.value.toLowerCase())
-    );
-  }
-
-  if (filterRole.value) {
-    result = result.filter((user) => user.role === filterRole.value);
-  }
-
-  if (filterStatus.value) {
-    const isActive = filterStatus.value === "active";
-    result = result.filter((user) => user.is_active === isActive);
-  }
-
-  return result;
-});
+// 使用後端數據，不需要前端篩選
+const filteredUsers = computed(() => users.value);
 
 // 方法
+
+/**
+ * 獲取用戶列表
+ */
+const fetchUsers = async () => {
+  loading.value = true;
+  try {
+    const params = {
+      page: pagination.current,
+      limit: pagination.pageSize,
+    };
+
+    // 添加搜索參數
+    if (searchText.value) {
+      params.search = searchText.value;
+    }
+    if (filterRole.value) {
+      params.role = filterRole.value;
+    }
+    if (filterStatus.value) {
+      params.is_active = filterStatus.value === "active" ? "true" : "false";
+    }
+
+    const response = await getUsers(params);
+    users.value = response.data.data || [];
+    pagination.total = response.data.pagination?.total || 0;
+  } catch (error) {
+    console.error("獲取用戶列表失敗:", error);
+    message.error("獲取用戶列表失敗");
+  } finally {
+    loading.value = false;
+  }
+};
+
 const handleSearch = () => {
-  console.log("搜索:", searchText.value);
+  pagination.current = 1; // 重置到第一頁
+  fetchUsers();
 };
 
 const handleReset = () => {
   searchText.value = "";
   filterRole.value = undefined;
   filterStatus.value = undefined;
+  pagination.current = 1;
+  fetchUsers();
 };
 
 const handleAddUser = () => {
@@ -343,36 +338,49 @@ const handleEdit = (record) => {
 
 const handleDelete = async (record) => {
   try {
-    const index = users.value.findIndex((u) => u.id === record.id);
-    if (index > -1) {
-      users.value.splice(index, 1);
-    }
+    await deleteUser(record.id);
     message.success("用戶刪除成功");
+    fetchUsers(); // 重新獲取用戶列表
   } catch (error) {
-    message.error("刪除失敗");
+    console.error("刪除用戶失敗:", error);
+    message.error("刪除用戶失敗");
   }
 };
 
 const handleStatusChange = async (record) => {
+  const originalStatus = record.is_active;
   record.updating = true;
+
   try {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await updateUser(record.id, { is_active: record.is_active });
     message.success(`用戶已${record.is_active ? "啟用" : "停用"}`);
   } catch (error) {
-    record.is_active = !record.is_active;
+    console.error("更新用戶狀態失敗:", error);
+    record.is_active = originalStatus; // 恢復原狀態
     message.error("狀態更新失敗");
   } finally {
     record.updating = false;
   }
 };
 
-const handleResetPassword = (record) => {
-  message.success(`已為用戶 ${record.username} 重置密碼`);
+const handleResetPassword = async (record) => {
+  try {
+    // 生成臨時密碼
+    const tempPassword = Math.random().toString(36).slice(-8);
+    await resetUserPassword(record.id, tempPassword);
+    message.success(
+      `已為用戶 ${record.username} 重置密碼，新密碼：${tempPassword}`
+    );
+  } catch (error) {
+    console.error("重置密碼失敗:", error);
+    message.error("重置密碼失敗");
+  }
 };
 
 const handleTableChange = (pag, filters, sorter) => {
   pagination.current = pag.current;
   pagination.pageSize = pag.pageSize;
+  fetchUsers(); // 重新獲取數據
 };
 
 const handleModalOk = async () => {
@@ -381,28 +389,31 @@ const handleModalOk = async () => {
 
     if (formData.id) {
       // 編輯用戶
-      const index = users.value.findIndex((u) => u.id === formData.id);
-      if (index > -1) {
-        users.value[index] = { ...formData };
-      }
+      const updateData = {
+        username: formData.username,
+        email: formData.email,
+        role: formData.role,
+      };
+      await updateUser(formData.id, updateData);
       message.success("用戶更新成功");
     } else {
       // 添加用戶
-      const newUser = {
-        ...formData,
-        id: Date.now(),
+      const userData = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
         is_active: true,
-        last_login: null,
-        created_at: new Date().toLocaleString("zh-CN"),
-        updating: false,
       };
-      users.value.unshift(newUser);
+      await createUser(userData);
       message.success("用戶添加成功");
     }
 
     modalVisible.value = false;
+    fetchUsers(); // 重新獲取用戶列表
   } catch (error) {
-    console.error("表單驗證失敗:", error);
+    console.error("保存用戶失敗:", error);
+    message.error(formData.id ? "更新用戶失敗" : "創建用戶失敗");
   }
 };
 
@@ -422,7 +433,7 @@ const resetForm = () => {
 
 // 生命週期
 onMounted(() => {
-  pagination.total = users.value.length;
+  fetchUsers(); // 頁面載入時獲取用戶數據
 });
 </script>
 

@@ -241,29 +241,6 @@ npm run dev
   - [x] 提升代碼可讀性和維護性
   - [x] 確保前後端數據交互的一致性和穩定性
 
-#### 🏗️ 後端架構重構 (v1.7.0) - 2025-06-04
-
-- [x] 後端服務架構模組化
-  - [x] 將 monolithic admin route (873 行) 拆分為三個專門模組
-  - [x] 創建 `/api/users` 用戶管理模組
-  - [x] 創建 `/api/system` 系統管理模組
-  - [x] 創建 `/api/agents` 智能體管理模組
-- [x] 控制器層重構
-  - [x] 從巨大的 admin.controller.js (1150 行) 拆分為專門控制器
-  - [x] 清理重複的 quickCommands 路由文件
-- [x] API 接口規範化
-  - [x] 統一 RESTful API 路由結構
-  - [x] 前端 API 同步更新
-  - [x] Swagger 文檔更新
-- [x] 前端狀態管理統一
-  - [x] 合併 agents.js 和 adminAgents.js stores
-  - [x] 統一 agents 狀態管理架構
-  - [x] 清理重複 API 文件
-- [x] 數據查詢錯誤修復
-  - [x] 修復 MySQL 查詢結果處理
-  - [x] 解決 "is not iterable" 錯誤
-  - [x] 確保查詢結果正確解析
-
 #### 🔧 前端管理優化 (v1.7.0) - 2025-06-04
 
 - [x] 模型管理頁面優化
@@ -677,10 +654,19 @@ npm run dev
 
 ### 📋 待辦事項
 
+#### ✅ 最近完成 (v1.7.0 - 2025-06-04)
+
+- [x] **後端架構重構** - 完成 monolithic 到模組化的重大重構
+- [x] **API 格式統一** - 修復所有 `createSuccessResponse` 參數順序問題
+- [x] **數據查詢修復** - 解決 MySQL 查詢結果格式錯誤 (`rows` vs `data`)
+- [x] **JSON 字段優化** - 移除不必要的 JSON.parse，利用 MySQL 自動解析
+- [x] **前端狀態統一** - 合併重複的 store，統一架構模式
+- [x] **QuickCommands 標準化** - 統一錯誤處理和響應格式
+- [x] **JSON 數據修復** - 清理 agents 表中的無效 JSON 字段
+
 #### 🔧 技術債務
 
 - [ ] 完善其他 store 的 API 層調用（chat、websocket 等）
-- [ ] 統一錯誤處理機制
 - [ ] 添加 API 請求重試機制
 - [ ] 完善 TypeScript 類型定義
 - [ ] **程式碼高亮內縮問題**：部分程式碼塊首行仍有輕微內縮，需要深入研究 Shiki 渲染機制和 CSS 繼承關係

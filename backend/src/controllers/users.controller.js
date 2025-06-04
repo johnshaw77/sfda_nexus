@@ -35,11 +35,6 @@ const schemas = {
     }),
     role: Joi.string().valid("user", "admin", "super_admin").default("user"),
     is_active: Joi.boolean().default(true),
-    profile: Joi.object({
-      display_name: Joi.string().max(50).optional(),
-      avatar_url: Joi.string().uri().optional(),
-      bio: Joi.string().max(500).optional(),
-    }).optional(),
   }),
 
   updateUser: Joi.object({
@@ -47,11 +42,6 @@ const schemas = {
     email: Joi.string().email().optional(),
     role: Joi.string().valid("user", "admin", "super_admin").optional(),
     is_active: Joi.boolean().optional(),
-    profile: Joi.object({
-      display_name: Joi.string().max(50).optional(),
-      avatar_url: Joi.string().uri().optional(),
-      bio: Joi.string().max(500).optional(),
-    }).optional(),
   }),
 };
 
@@ -87,7 +77,11 @@ const getUserStats = async (userId) => {
       FROM conversations 
       WHERE user_id = ?
     `;
-    const [conversationStats] = await query(conversationQuery, [userId]);
+    const conversationResult = await query(conversationQuery, [userId]);
+    const conversationStats =
+      conversationResult.rows && conversationResult.rows.length > 0
+        ? conversationResult.rows[0]
+        : {};
 
     // 獲取消息統計
     const messageQuery = `
@@ -100,7 +94,11 @@ const getUserStats = async (userId) => {
       JOIN conversations c ON m.conversation_id = c.id
       WHERE c.user_id = ?
     `;
-    const [messageStats] = await query(messageQuery, [userId]);
+    const messageResult = await query(messageQuery, [userId]);
+    const messageStats =
+      messageResult.rows && messageResult.rows.length > 0
+        ? messageResult.rows[0]
+        : {};
 
     // 獲取 token 統計
     const tokenQuery = `
@@ -116,7 +114,11 @@ const getUserStats = async (userId) => {
       JOIN conversations c ON m.conversation_id = c.id
       WHERE c.user_id = ? AND m.role = 'assistant'
     `;
-    const [tokenStats] = await query(tokenQuery, [userId]);
+    const tokenResult = await query(tokenQuery, [userId]);
+    const tokenStats =
+      tokenResult.rows && tokenResult.rows.length > 0
+        ? tokenResult.rows[0]
+        : {};
 
     return {
       conversations: conversationStats,
@@ -171,7 +173,7 @@ export const handleGetUsers = catchAsync(async (req, res) => {
   const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
   const countResult = await query(countQuery, queryParams);
   const total =
-    countResult && countResult.rows && countResult.rows.length > 0
+    countResult.rows && countResult.rows.length > 0
       ? countResult.rows[0].total
       : 0;
 
@@ -183,26 +185,21 @@ export const handleGetUsers = catchAsync(async (req, res) => {
   const usersQuery = `
     SELECT 
       id, username, email, role, is_active, 
-      profile, created_at, updated_at
+      created_at, updated_at
     FROM users 
     ${whereClause}
     ORDER BY ${sortBy} ${sortOrder}
-    LIMIT ? OFFSET ?
+    LIMIT ${parseInt(limit)} OFFSET ${offset}
   `;
 
-  const usersResult = await query(usersQuery, [
-    ...queryParams,
-    parseInt(limit),
-    offset,
-  ]);
+  const usersResult = await query(usersQuery, queryParams);
 
   // 從查詢結果中提取數據
-  const users = usersResult && usersResult.rows ? usersResult.rows : [];
+  const users = usersResult.rows || [];
 
-  // 解析 profile JSON
+  // 處理用戶數據
   const processedUsers = (users || []).map((user) => ({
     ...user,
-    profile: user.profile ? JSON.parse(user.profile) : null,
     is_active: Boolean(user.is_active),
   }));
 
@@ -233,11 +230,13 @@ export const handleGetUser = catchAsync(async (req, res) => {
 
   // 獲取用戶基本信息
   const userQuery = `
-    SELECT id, username, email, role, is_active, profile, created_at, updated_at
+    SELECT id, username, email, role, is_active, created_at, updated_at
     FROM users 
     WHERE id = ?
   `;
-  const [user] = await query(userQuery, [userId]);
+  const userResult = await query(userQuery, [userId]);
+  const user =
+    userResult.rows && userResult.rows.length > 0 ? userResult.rows[0] : null;
 
   if (!user) {
     throw new BusinessError("用戶不存在", 404);
@@ -249,7 +248,6 @@ export const handleGetUser = catchAsync(async (req, res) => {
   // 處理響應數據
   const responseData = {
     ...user,
-    profile: user.profile ? JSON.parse(user.profile) : null,
     is_active: Boolean(user.is_active),
     stats,
   };
@@ -269,7 +267,7 @@ export const handleCreateUser = catchAsync(async (req, res) => {
     throw new ValidationError(error.details[0].message);
   }
 
-  const { username, email, password, role, is_active, profile } = value;
+  const { username, email, password, role, is_active } = value;
 
   // 檢查用戶名是否已存在
   const existingUser = await UserModel.findByUsername(username);
@@ -301,7 +299,6 @@ export const handleCreateUser = catchAsync(async (req, res) => {
     password: hashedPassword,
     role,
     is_active,
-    profile: profile ? JSON.stringify(profile) : null,
   };
 
   const newUser = await UserModel.create(userData);
@@ -322,7 +319,6 @@ export const handleCreateUser = catchAsync(async (req, res) => {
   const { password: _, ...userResponse } = newUser;
   const responseData = {
     ...userResponse,
-    profile: userResponse.profile ? JSON.parse(userResponse.profile) : null,
     is_active: Boolean(userResponse.is_active),
   };
 
@@ -453,7 +449,7 @@ export const handleDeleteUser = catchAsync(async (req, res) => {
     ]
   );
 
-  res.json(createSuccessResponse("用戶刪除成功"));
+  res.json(createSuccessResponse(null, "用戶刪除成功"));
 });
 
 /**
@@ -505,7 +501,7 @@ export const handleResetUserPassword = catchAsync(async (req, res) => {
     ]
   );
 
-  res.json(createSuccessResponse("密碼重置成功"));
+  res.json(createSuccessResponse(null, "密碼重置成功"));
 });
 
 export default {

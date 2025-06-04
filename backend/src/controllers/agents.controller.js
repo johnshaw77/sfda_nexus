@@ -523,7 +523,7 @@ export const handleDeleteAgent = catchAsync(async (req, res) => {
       ]
     );
 
-    res.json(createSuccessResponse("智能體刪除成功"));
+    res.json(createSuccessResponse(null, "智能體刪除成功"));
   } catch (error) {
     logger.error("刪除智能體失敗:", error);
     throw new BusinessError("刪除智能體失敗");

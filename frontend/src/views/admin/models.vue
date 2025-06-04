@@ -17,14 +17,14 @@
         <a-row :gutter="16">
           <a-col :span="8">
             <a-input-search
-              v-model:value="searchText"
+              :value="searchText"
               placeholder="搜索模型名稱或提供商"
               @search="handleSearch"
               allow-clear />
           </a-col>
           <a-col :span="6">
             <a-select
-              v-model:value="filterProvider"
+              :value="filterProvider"
               placeholder="選擇提供商"
               style="width: 100%"
               allow-clear>
@@ -36,7 +36,7 @@
           </a-col>
           <a-col :span="6">
             <a-select
-              v-model:value="filterStatus"
+              :value="filterStatus"
               placeholder="選擇狀態"
               style="width: 100%"
               allow-clear>
@@ -120,7 +120,7 @@
 
     <!-- 添加/編輯模型對話框 -->
     <a-modal
-      v-model:open="modalVisible"
+      :open="modalVisible"
       :title="modalTitle"
       :width="600"
       @ok="handleModalOk"
@@ -132,9 +132,9 @@
         layout="vertical">
         <a-form-item
           label="模型名稱"
-          name="name">
+          name="model_name">
           <a-input
-            v-model:value="formData.name"
+            :value="formData.model_name"
             placeholder="輸入模型名稱" />
         </a-form-item>
 
@@ -142,7 +142,7 @@
           label="提供商"
           name="provider">
           <a-select
-            v-model:value="formData.provider"
+            :value="formData.provider"
             placeholder="選擇提供商">
             <a-select-option value="openai">OpenAI</a-select-option>
             <a-select-option value="gemini">Google Gemini</a-select-option>
@@ -155,7 +155,7 @@
           label="模型ID"
           name="model_id">
           <a-input
-            v-model:value="formData.model_id"
+            :value="formData.model_id"
             placeholder="輸入模型ID" />
         </a-form-item>
 
@@ -163,7 +163,7 @@
           label="API 端點"
           name="api_endpoint">
           <a-input
-            v-model:value="formData.api_endpoint"
+            :value="formData.api_endpoint"
             placeholder="輸入API端點URL" />
         </a-form-item>
 
@@ -171,7 +171,7 @@
           label="API 密鑰"
           name="api_key">
           <a-input-password
-            v-model:value="formData.api_key"
+            :value="formData.api_key"
             placeholder="輸入API密鑰" />
         </a-form-item>
 
@@ -179,7 +179,7 @@
           label="描述"
           name="description">
           <a-textarea
-            v-model:value="formData.description"
+            :value="formData.description"
             placeholder="輸入模型描述"
             :rows="3" />
         </a-form-item>
@@ -188,7 +188,7 @@
           label="配置參數"
           name="config">
           <a-textarea
-            v-model:value="formData.config"
+            :value="formData.config"
             placeholder="輸入JSON格式的配置參數"
             :rows="4" />
         </a-form-item>
@@ -197,7 +197,7 @@
 
     <!-- 配置查看對話框 -->
     <a-modal
-      v-model:open="configModalVisible"
+      :open="configModalVisible"
       title="模型配置"
       :footer="null"
       :width="500">
@@ -231,8 +231,8 @@ const formRef = ref();
 const columns = [
   {
     title: "模型名稱",
-    dataIndex: "name",
-    key: "name",
+    dataIndex: "model_name",
+    key: "model_name",
     sorter: true,
   },
   {
@@ -286,7 +286,7 @@ const models = ref([]);
 // 表單數據
 const formData = reactive({
   id: null,
-  name: "",
+  model_name: "",
   provider: "",
   model_id: "",
   api_endpoint: "",
@@ -297,7 +297,7 @@ const formData = reactive({
 
 // 表單驗證規則
 const formRules = {
-  name: [{ required: true, message: "請輸入模型名稱" }],
+  model_name: [{ required: true, message: "請輸入模型名稱" }],
   provider: [{ required: true, message: "請選擇提供商" }],
   model_id: [{ required: true, message: "請輸入模型ID" }],
   api_endpoint: [{ required: true, message: "請輸入API端點" }],
@@ -312,7 +312,9 @@ const filteredModels = computed(() => {
   if (searchText.value) {
     result = result.filter(
       (model) =>
-        model.name.toLowerCase().includes(searchText.value.toLowerCase()) ||
+        model.model_name
+          .toLowerCase()
+          .includes(searchText.value.toLowerCase()) ||
         model.provider.toLowerCase().includes(searchText.value.toLowerCase())
     );
   }
@@ -523,7 +525,7 @@ const handleModalCancel = () => {
 const resetForm = () => {
   Object.assign(formData, {
     id: null,
-    name: "",
+    model_name: "",
     provider: "",
     model_id: "",
     api_endpoint: "",

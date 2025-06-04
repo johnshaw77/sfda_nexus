@@ -1,4 +1,4 @@
-import { createSuccessResponse } from "./src/middleware/errorHandler.middleware.js";
+import { createSuccessResponse } from "../../src/middleware/errorHandler.middleware.js";
 
 // 測試 createSuccessResponse 的正確用法
 console.log("🔍 測試 createSuccessResponse 返回結構...\n");
