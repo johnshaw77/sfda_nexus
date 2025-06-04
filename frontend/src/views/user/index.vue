@@ -48,7 +48,6 @@ const authStore = useAuthStore();
 
 // 處理更新成功
 const handleUpdateSuccess = (updatedUser) => {
-  console.log("個人資料更新成功:", updatedUser);
   debugUserData(updatedUser, "更新後的用戶數據");
 };
 
@@ -64,10 +63,10 @@ const handleRetry = async () => {
 
 // 頁面載入時確保認證狀態已初始化
 onMounted(async () => {
-  console.log("🚀 User 頁面載入開始");
+  // console.log("🚀 User 頁面載入開始");
 
   if (!authStore.isInitialized) {
-    console.log("📡 初始化 authStore...");
+    // console.log("📡 初始化 authStore...");
     await authStore.handleInitialize();
   }
 
@@ -77,7 +76,7 @@ onMounted(async () => {
   // 如果沒有用戶數據，嘗試重新獲取
   if (!authStore.user && authStore.token) {
     try {
-      console.log("🔄 重新獲取用戶資料...");
+      //console.log("🔄 重新獲取用戶資料...");
       await authStore.handleGetProfile();
       debugAuthStore(authStore);
     } catch (error) {
@@ -85,7 +84,7 @@ onMounted(async () => {
     }
   }
 
-  console.log("✅ User 頁面載入完成");
+  // console.log("✅ User 頁面載入完成");
 });
 </script>
 

@@ -13,53 +13,46 @@
     @finish="handleSubmit">
     <!-- 頭像上傳 -->
     <a-form-item label="頭像">
-      <div class="avatar-upload-section">
-        <div class="avatar-preview">
+      <div class="avatar-upload-container">
+        <div
+          class="avatar-wrapper"
+          @paste="handlePaste"
+          tabindex="0">
           <a-avatar
-            :size="80"
+            :size="100"
             :src="formData.avatar"
             :icon="!formData.avatar ? h(UserOutlined) : undefined"
             class="profile-avatar" />
-        </div>
 
-        <a-upload
-          :show-upload-list="false"
-          :before-upload="handleBeforeUpload"
-          :custom-request="() => {}"
-          :accept="'image/*'"
-          :multiple="false"
-          class="avatar-uploader">
-          <div
-            class="upload-area"
-            @paste="handlePaste"
-            tabindex="0">
-            <p class="ant-upload-drag-icon">
+          <!-- 上傳按鈕 -->
+          <a-upload
+            :show-upload-list="false"
+            :before-upload="handleBeforeUpload"
+            :custom-request="() => {}"
+            :accept="'image/*'"
+            :multiple="false"
+            class="avatar-upload-trigger">
+            <div class="upload-icon">
               <UploadOutlined />
-            </p>
-            <p class="ant-upload-text">點擊或拖拽圖片到此處上傳</p>
-            <p class="ant-upload-hint">支持複製貼上圖片</p>
-          </div>
-        </a-upload>
+            </div>
+          </a-upload>
 
-        <div class="avatar-upload-controls">
-          <a-button
+          <!-- 移除按鈕 -->
+          <div
             v-if="formData.avatar"
-            type="text"
-            size="small"
-            danger
+            class="remove-icon"
             @click="handleRemoveAvatar">
             <DeleteOutlined />
-            移除
-          </a-button>
+          </div>
         </div>
-      </div>
 
-      <div class="avatar-tips">
-        <a-typography-text
-          type="secondary"
-          :style="{ fontSize: '12px' }">
-          支持 JPG、PNG 格式，建議尺寸 200x200 像素，文件大小不超過 2MB
-        </a-typography-text>
+        <div class="avatar-tips">
+          <a-typography-text
+            type="secondary"
+            :style="{ fontSize: '12px' }">
+            點擊右下角圖標上傳頭像，支持 JPG、PNG 格式，建議尺寸 200x200 像素
+          </a-typography-text>
+        </div>
       </div>
 
       <!-- 裁剪對話框 -->
@@ -215,7 +208,6 @@ const formRules = {
 // 初始化表單數據
 const initFormData = () => {
   const user = props.user || authStore.user;
-  console.log("initFormData 被調用，用戶數據:", user);
 
   if (user && Object.keys(user).length > 0) {
     const newData = {
@@ -229,9 +221,7 @@ const initFormData = () => {
       avatar: user.avatar || "",
     };
 
-    console.log("設置新的表單數據:", newData);
     Object.assign(formData, newData);
-    console.log("formData 更新後:", formData);
   } else {
     console.log("用戶數據為空，跳過初始化");
   }
@@ -351,28 +341,19 @@ const handleSubmit = async (values) => {
     // 如果有新頭像，添加到更新數據中
     if (formData.avatar) {
       updateData.avatar = formData.avatar;
-      console.log("準備更新頭像，大小:", formData.avatar.length);
     }
 
-    console.log("發送更新請求:", updateData);
     const result = await authStore.handleUpdateProfile(updateData);
-    console.log("更新結果:", result);
 
     if (result.success) {
-      console.log("更新成功，新用戶數據:", result.user);
-
       // 更新成功後，同步頭像數據
       if (formData.avatar) {
         formData.avatar = formData.avatar;
-        console.log("同步頭像到 formData.avatar");
       }
 
       // 重新初始化數據以確保所有字段都是最新的
       await nextTick(); // 等待響應式更新完成
       initFormData();
-
-      console.log("最終 formData.avatar:", formData.avatar);
-      console.log("最終 authStore.user.avatar:", authStore.user?.avatar);
 
       emit("update-success", result.user);
     }
@@ -393,7 +374,7 @@ const handleReset = () => {
 watch(
   () => authStore.user,
   (newUser) => {
-    console.log("authStore.user 更新:", newUser);
+    // console.log("authStore.user 更新:", newUser);
     if (newUser) {
       initFormData();
     }
@@ -405,7 +386,7 @@ watch(
 watch(
   () => props.user,
   (newUser) => {
-    console.log("props.user 更新:", newUser);
+    // console.log("props.user 更新:", newUser);
     if (newUser) {
       initFormData();
     }
@@ -419,49 +400,100 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.avatar-upload-section {
+.avatar-upload-container {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 16px;
-  border: 1px dashed var(--border-color);
-  border-radius: 6px;
-  transition: all 0.3s ease;
 }
 
-.avatar-upload-section:hover {
-  border-color: var(--ant-primary-color);
-  background: var(--ant-primary-1);
-}
-
-.avatar-preview {
-  flex-shrink: 0;
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  outline: none;
 }
 
 .profile-avatar {
-  border: 0px solid var(--ant-primary-color);
+  border: 3px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.profile-avatar:hover {
+  border-color: var(--ant-primary-color);
+  transform: scale(1.05);
+}
+
+.avatar-upload-trigger {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.upload-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--ant-primary-color);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.avatar-upload-controls {
+.upload-icon:hover {
+  background: var(--ant-primary-color-hover);
+  transform: scale(1.1);
+}
+
+.upload-icon .anticon {
+  color: #fff;
+  font-size: 14px;
+}
+
+.remove-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: #ff4d4f;
+  border: 2px solid #fff;
+  border-radius: 50%;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 3;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.avatar-wrapper:hover .remove-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.remove-icon:hover {
+  background: #ff7875;
+  transform: scale(1.1) !important;
+}
+
+.remove-icon .anticon {
+  color: #fff;
+  font-size: 12px;
 }
 
 .avatar-tips {
-  margin-top: 8px;
-}
-
-.hidden-input {
-  display: none;
-}
-
-.upload-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+  text-align: center;
+  max-width: 280px;
 }
 
 .cropper-container {
@@ -474,71 +506,44 @@ onMounted(() => {
   background: #f5f5f5;
 }
 
-.avatar-uploader {
-  width: 100%;
-  margin-top: 16px;
-}
-.avatar-uploader :hover {
-  background: var(--ant-primary-1);
-}
-
-.upload-area {
-  padding: 16px;
-  border: 2px dashed var(--ant-primary-color-deprecated-border);
-  border-radius: 8px;
-  background: var(--ant-primary-1);
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  outline: none;
-}
-
-.upload-area:hover,
-.upload-area:focus {
-  border-color: var(--ant-primary-color);
-  background: var(--ant-primary-1);
-}
-
-.ant-upload-drag-icon {
-  margin-bottom: 8px;
-  color: var(--ant-primary-color);
-}
-
-.ant-upload-text {
-  margin: 0 0 4px;
-  color: rgba(0, 0, 0, 0.88);
-  font-size: 16px;
-}
-
-.ant-upload-hint {
-  color: rgba(0, 0, 0, 0.45);
-  font-size: 14px;
-}
-
 /* 暗黑模式適配 */
-:root[data-theme="dark"] .upload-area {
-  background: rgba(255, 255, 255, 0.04);
+:root[data-theme="dark"] .profile-avatar {
   border-color: #434343;
 }
 
-:root[data-theme="dark"] .ant-upload-text {
-  color: rgba(255, 255, 255, 0.85);
+:root[data-theme="dark"] .upload-icon {
+  border-color: var(--background-color);
 }
 
-:root[data-theme="dark"] .ant-upload-hint {
-  color: rgba(255, 255, 255, 0.45);
+:root[data-theme="dark"] .remove-icon {
+  border-color: var(--background-color);
 }
 
 /* 響應式設計 */
 @media (max-width: 768px) {
-  .avatar-upload-section {
-    flex-direction: column;
-    text-align: center;
+  .profile-avatar {
+    width: 80px !important;
+    height: 80px !important;
   }
 
-  .avatar-upload-controls {
-    flex-direction: row;
-    justify-content: center;
+  .upload-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .upload-icon .anticon {
+    font-size: 12px;
+  }
+
+  .remove-icon {
+    width: 20px;
+    height: 20px;
+    top: -6px;
+    right: -6px;
+  }
+
+  .remove-icon .anticon {
+    font-size: 10px;
   }
 }
 </style>

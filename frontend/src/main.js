@@ -34,7 +34,6 @@ import * as Icons from "@ant-design/icons-vue";
 
 // 註冊所有 icon
 for (const [key, component] of Object.entries(Icons)) {
-  console.log(key, component);
   app.component(key, component);
 }
 

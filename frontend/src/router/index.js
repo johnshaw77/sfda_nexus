@@ -171,7 +171,7 @@ const router = createRouter({
 // 路由守衛
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  console.log(authStore.isAdmin, "authStore.isAdmin");
+  // console.log(authStore.isAdmin, "authStore.isAdmin");
   // 設置頁面標題
   if (to.meta.title) {
     document.title = to.meta.title;

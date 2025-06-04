@@ -1,3 +1,4 @@
+// TODO: why vall twice
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
@@ -69,7 +70,6 @@ export const useConfigStore = defineStore("config", () => {
   const updatePrimaryColor = (color) => {
     colorPrimary.value = color;
     localStorage.setItem("primaryColor", color);
-    console.log("主色調已更新為:", color);
   };
 
   // 切換主題
@@ -78,7 +78,6 @@ export const useConfigStore = defineStore("config", () => {
     const themeValue = isDarkMode.value ? "dark" : "light";
     localStorage.setItem("theme", themeValue);
     document.documentElement.setAttribute("data-theme", themeValue);
-    console.log("主題已切換為:", isDarkMode.value ? "暗黑" : "亮色");
   };
 
   // 初始化主題
@@ -98,7 +97,6 @@ export const useConfigStore = defineStore("config", () => {
   const updateChatFontSize = (size) => {
     chatSettings.value.fontSize = size;
     localStorage.setItem("chatFontSize", size.toString());
-    console.log("聊天字體大小已更新為:", size);
   };
 
   // 切換串流模式

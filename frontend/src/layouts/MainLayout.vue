@@ -90,23 +90,17 @@
         <div
           class="user-section"
           :class="{ collapsed: sidebarCollapsed }">
-          <div class="user-avatar">
-            <img
-              v-if="authStore.user?.avatar"
-              :src="authStore.user.avatar"
-              :alt="authStore.user.username"
-              class="user-image" />
-            <div
-              v-else
-              class="user-placeholder">
-              {{ authStore.user?.username?.charAt(0)?.toUpperCase() }}
-            </div>
-          </div>
+          <a-avatar
+            :size="40"
+            :src="authStore.user?.avatar"
+            class="user-avatar">
+            {{ authStore.user?.display_name?.charAt(0)?.toUpperCase() }}
+          </a-avatar>
 
           <div
             v-if="!sidebarCollapsed"
             class="user-info">
-            <span class="user-name">{{ authStore.user?.username }}</span>
+            <span class="user-name">{{ authStore.user?.display_name }}</span>
             <span class="user-role">{{ authStore.user?.role || "User" }}</span>
           </div>
 
@@ -228,22 +222,22 @@
           </div>
 
           <!-- 智能體狀態 -->
-          <div class="agent-status">
+          <!-- <div class="agent-status">
             <div
               class="status-indicator"
               :class="agent.avatar?.status || 'online'"
               :title="getStatusText(agent.avatar?.status || 'online')"></div>
-          </div>
+          </div> -->
 
           <!-- 智能體標籤 -->
-          <div class="agent-tags">
+          <!-- <div class="agent-tags">
             <span
               v-for="tag in (agent.tags || []).slice(0, 2)"
               :key="tag"
               class="agent-tag">
               {{ tag }}
             </span>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -1042,29 +1036,14 @@ onMounted(async () => {
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  overflow: hidden;
   flex-shrink: 0;
+  border: 2px solid var(--custom-border-primary);
+  transition: var(--transition-all);
 }
 
-.user-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.user-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 16px;
+.user-avatar:hover {
+  border-color: var(--primary-color);
+  transform: scale(1.05);
 }
 
 .user-info {

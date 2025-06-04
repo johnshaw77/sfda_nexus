@@ -40,15 +40,15 @@
               <span
                 v-else
                 class="agent-initial"
-                >{{ agent.name.charAt(0) }}</span
+                >{{ agent.display_name.charAt(0) }}</span
               >
             </div>
-            <div
+            <!-- <div
               class="status-dot"
-              :class="agent.status"></div>
+              :class="agent.status"></div> -->
           </div>
           <div class="agent-details">
-            <h3 class="agent-name">{{ agent.name }}</h3>
+            <h3 class="agent-name">{{ agent.display_name }}</h3>
             <p class="agent-description">{{ agent.description }}</p>
           </div>
         </div>
@@ -194,13 +194,15 @@
                   <span
                     v-else
                     class="agent-initial"
-                    >{{ agent.name.charAt(0) }}</span
+                    >{{ agent.display_name.charAt(0) }}</span
                   >
                 </div>
               </div>
               <MessageOutlined v-else />
             </div>
-            <h3>{{ agent ? `與 ${agent.name} 開始對話` : "開始對話" }}</h3>
+            <h3>
+              {{ agent ? `與 ${agent.display_name} 開始對話` : "開始對話" }}
+            </h3>
             <p>
               {{
                 agent
@@ -388,6 +390,33 @@
           <!-- 輸入工具欄 -->
           <div class="input-toolbar">
             <div class="toolbar-left">
+              <a-select
+                v-model:value="selectedModel"
+                placeholder="選擇 AI 模型"
+                style="width: 200px"
+                @change="handleModelChange"
+                :loading="chatStore.isLoading">
+                <a-select-option
+                  v-for="model in availableModels"
+                  :key="model.id"
+                  :value="model.id"
+                  :disabled="model.available === false">
+                  <div class="model-option">
+                    <span class="model-name">{{ model.name }}</span>
+                    <a-tag
+                      :color="getModelColor(model.provider)"
+                      size="small">
+                      {{ model.provider }}
+                    </a-tag>
+                    <a-tag
+                      v-if="model.available === false"
+                      color="red"
+                      size="small">
+                      不可用
+                    </a-tag>
+                  </div>
+                </a-select-option>
+              </a-select>
               <!-- 新對話按鈕 -->
               <a-button
                 type="text"
@@ -540,10 +569,34 @@
         </a-form-item>
 
         <a-form-item label="系統提示詞">
-          <a-textarea
-            v-model:value="chatSettings.systemPrompt"
-            placeholder="設置 AI 的行為和角色..."
-            :rows="14" />
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              ">
+              <span
+                style="font-size: 14px; color: var(--custom-text-secondary)">
+                {{
+                  props.agent
+                    ? `${props.agent.name} 的系統提示詞`
+                    : "全域系統提示詞"
+                }}
+              </span>
+              <a-button
+                v-if="props.agent"
+                type="link"
+                size="small"
+                @click="handleResetToDefaultPrompt">
+                恢復默認
+              </a-button>
+            </div>
+            <a-textarea
+              v-model:value="chatSettings.systemPrompt"
+              placeholder="設置 AI 的行為和角色..."
+              :rows="14" />
+          </div>
         </a-form-item>
 
         <a-form-item label="字體大小">
@@ -966,22 +1019,37 @@ const handleShowEmoji = () => {
 };
 
 const handleShowSettings = () => {
-  // 當有選中的智能體時，將其系統提示詞帶入（如果當前沒有自定義的系統提示詞）
-  if (props.agent && props.agent.system_prompt) {
-    // 如果當前系統提示詞為空或者與智能體的不同，則使用智能體的
-    if (
-      !chatSettings.value.systemPrompt ||
-      chatSettings.value.systemPrompt.trim() === ""
-    ) {
-      chatSettings.value.systemPrompt = props.agent.system_prompt;
-    }
-  }
+  // 載入智能體特定的系統提示詞
+  loadAgentSystemPrompt();
   settingsModalVisible.value = true;
 };
 
 const handleSaveSettings = () => {
-  // 保存聊天設置到本地存儲
-  localStorage.setItem("chat_settings", JSON.stringify(chatSettings.value));
+  // 保存基本聊天設置到本地存儲（排除系統提示詞）
+  const basicSettings = {
+    temperature: chatSettings.value.temperature,
+    maxTokens: chatSettings.value.maxTokens,
+    fontSize: chatSettings.value.fontSize,
+  };
+  localStorage.setItem("chat_settings", JSON.stringify(basicSettings));
+
+  // 如果有選中的智能體，保存該智能體特定的系統提示詞
+  if (props.agent && props.agent.id) {
+    const agentSettings = JSON.parse(
+      localStorage.getItem("agent_settings") || "{}"
+    );
+    agentSettings[props.agent.id] = {
+      customSystemPrompt: chatSettings.value.systemPrompt,
+      lastUpdated: new Date().toISOString(),
+    };
+    localStorage.setItem("agent_settings", JSON.stringify(agentSettings));
+  } else {
+    // 如果沒有選中智能體，保存為全域設定
+    localStorage.setItem(
+      "global_system_prompt",
+      chatSettings.value.systemPrompt
+    );
+  }
 
   // 應用字體大小設置
   document.documentElement.style.setProperty(
@@ -995,6 +1063,37 @@ const handleSaveSettings = () => {
 
 const handleCancelSettings = () => {
   settingsModalVisible.value = false;
+};
+
+// 載入智能體特定的系統提示詞
+const loadAgentSystemPrompt = () => {
+  if (props.agent && props.agent.id) {
+    // 嘗試載入該智能體的自定義系統提示詞
+    const agentSettings = JSON.parse(
+      localStorage.getItem("agent_settings") || "{}"
+    );
+    const agentSetting = agentSettings[props.agent.id];
+
+    if (agentSetting && agentSetting.customSystemPrompt) {
+      // 使用智能體的自定義系統提示詞
+      chatSettings.value.systemPrompt = agentSetting.customSystemPrompt;
+    } else {
+      // 使用智能體的默認系統提示詞
+      chatSettings.value.systemPrompt = props.agent.system_prompt || "";
+    }
+  } else {
+    // 沒有選中智能體時，使用全域設定
+    const globalPrompt = localStorage.getItem("global_system_prompt");
+    chatSettings.value.systemPrompt = globalPrompt || "";
+  }
+};
+
+// 恢復智能體的默認系統提示詞
+const handleResetToDefaultPrompt = () => {
+  if (props.agent && props.agent.system_prompt) {
+    chatSettings.value.systemPrompt = props.agent.system_prompt;
+    message.success("已恢復智能體的默認系統提示詞");
+  }
 };
 
 const handleExportConversation = async () => {
@@ -1036,7 +1135,7 @@ const getQuickPrompts = () => {
     return quickPrompts.value;
   }
 
-  // 根據智能體類型返回不同的快速提示
+  // 根據智能體類型返回不同的快速提示 TODO: database
   const agentPrompts = {
     1: [
       // Arthur - 教育
@@ -1121,19 +1220,11 @@ watch(
   }
 );
 
-// 監聽智能體變化，更新系統提示詞
+// 監聽智能體變化，載入對應的系統提示詞
 watch(
   () => props.agent,
-  (newAgent) => {
-    if (newAgent && newAgent.system_prompt) {
-      // 當切換智能體時，更新系統提示詞（如果當前沒有自定義的）
-      if (
-        !chatSettings.value.systemPrompt ||
-        chatSettings.value.systemPrompt === ""
-      ) {
-        chatSettings.value.systemPrompt = newAgent.system_prompt;
-      }
-    }
+  () => {
+    loadAgentSystemPrompt();
   },
   { immediate: true }
 );
@@ -1269,12 +1360,19 @@ onMounted(() => {
     useStreamMode.value = JSON.parse(savedStreamMode);
   }
 
-  // 恢復聊天設置
+  // 恢復基本聊天設置（不包含系統提示詞）
   const savedChatSettings = localStorage.getItem("chat_settings");
   if (savedChatSettings) {
     try {
       const settings = JSON.parse(savedChatSettings);
-      Object.assign(chatSettings.value, settings);
+      // 只恢復基本設置，系統提示詞通過 loadAgentSystemPrompt 載入
+      chatSettings.value.temperature =
+        settings.temperature || chatSettings.value.temperature;
+      chatSettings.value.maxTokens =
+        settings.maxTokens || chatSettings.value.maxTokens;
+      chatSettings.value.fontSize =
+        settings.fontSize || chatSettings.value.fontSize;
+
       // 應用字體大小設置
       document.documentElement.style.setProperty(
         "--chat-font-size",
@@ -1291,14 +1389,8 @@ onMounted(() => {
     );
   }
 
-  // 如果有智能體且沒有保存的系統提示詞，使用智能體的系統提示詞
-  if (
-    props.agent &&
-    props.agent.system_prompt &&
-    !chatSettings.value.systemPrompt
-  ) {
-    chatSettings.value.systemPrompt = props.agent.system_prompt;
-  }
+  // 載入智能體特定的系統提示詞
+  loadAgentSystemPrompt();
 });
 
 const handleCreateNewConversation = async () => {

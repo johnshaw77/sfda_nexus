@@ -135,7 +135,7 @@ const handleMenuClick = ({ key }) => {
 }
 
 .settings-menu {
-  border: none;
+  border: none !important;
   background: transparent;
 }
 
