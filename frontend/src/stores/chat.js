@@ -202,6 +202,7 @@ export const useChatStore = defineStore("chat", () => {
         temperature: options.temperature || 0.7,
         max_tokens: options.maxTokens || 8192,
         model_id: options.model_id, // 傳遞模型 ID
+        system_prompt: options.systemPrompt, // 傳遞系統提示詞
       };
 
       //console.log("請求數據:", requestData);
@@ -460,6 +461,7 @@ export const useChatStore = defineStore("chat", () => {
       model_id,
       temperature,
       max_tokens,
+      system_prompt,
       content_type = "text",
       attachments,
       metadata,
@@ -484,6 +486,7 @@ export const useChatStore = defineStore("chat", () => {
         model_id,
         temperature,
         max_tokens,
+        system_prompt,
       };
 
       //console.log("請求體:", requestBody);

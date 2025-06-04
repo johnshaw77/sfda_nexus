@@ -103,7 +103,10 @@
         </a-select>
 
         <!-- 串流模式切換 -->
-        <a-tooltip title="啟用後將使用類似 ChatGPT 的逐字顯示效果">
+        <a-tooltip
+          title="啟用後將使用類似 ChatGPT 的逐字顯示效果"
+          :arrow="false"
+          placement="bottom">
           <a-switch
             v-model:checked="useStreamMode"
             checked-children="串流"
@@ -114,9 +117,14 @@
         <a-dropdown
           :trigger="['click']"
           placement="bottomRight">
-          <a-button type="text">
-            <SettingOutlined />
-          </a-button>
+          <a-tooltip
+            title="聊天設置"
+            :arrow="false"
+            placement="bottom">
+            <a-button type="text">
+              <SettingOutlined />
+            </a-button>
+          </a-tooltip>
           <template #overlay>
             <a-menu>
               <a-menu-item @click="handleShowSettings">
@@ -535,7 +543,7 @@
           <a-textarea
             v-model:value="chatSettings.systemPrompt"
             placeholder="設置 AI 的行為和角色..."
-            :rows="4" />
+            :rows="14" />
         </a-form-item>
 
         <a-form-item label="字體大小">
@@ -780,6 +788,7 @@ const handleSendMessage = async () => {
           model_id: selectedModel.value,
           temperature: chatSettings.value.temperature,
           max_tokens: chatSettings.value.maxTokens,
+          system_prompt: chatSettings.value.systemPrompt,
         });
 
         message.success("串流消息發送成功");
@@ -793,6 +802,7 @@ const handleSendMessage = async () => {
             temperature: chatSettings.value.temperature,
             maxTokens: chatSettings.value.maxTokens,
             model_id: selectedModel.value,
+            systemPrompt: chatSettings.value.systemPrompt,
           }
         );
 
@@ -956,6 +966,16 @@ const handleShowEmoji = () => {
 };
 
 const handleShowSettings = () => {
+  // 當有選中的智能體時，將其系統提示詞帶入（如果當前沒有自定義的系統提示詞）
+  if (props.agent && props.agent.system_prompt) {
+    // 如果當前系統提示詞為空或者與智能體的不同，則使用智能體的
+    if (
+      !chatSettings.value.systemPrompt ||
+      chatSettings.value.systemPrompt.trim() === ""
+    ) {
+      chatSettings.value.systemPrompt = props.agent.system_prompt;
+    }
+  }
   settingsModalVisible.value = true;
 };
 
@@ -1099,6 +1119,23 @@ watch(
       scrollToBottom();
     }
   }
+);
+
+// 監聽智能體變化，更新系統提示詞
+watch(
+  () => props.agent,
+  (newAgent) => {
+    if (newAgent && newAgent.system_prompt) {
+      // 當切換智能體時，更新系統提示詞（如果當前沒有自定義的）
+      if (
+        !chatSettings.value.systemPrompt ||
+        chatSettings.value.systemPrompt === ""
+      ) {
+        chatSettings.value.systemPrompt = newAgent.system_prompt;
+      }
+    }
+  },
+  { immediate: true }
 );
 
 // 生命週期
@@ -1252,6 +1289,15 @@ onMounted(() => {
       "--chat-font-size",
       `${chatSettings.value.fontSize}px`
     );
+  }
+
+  // 如果有智能體且沒有保存的系統提示詞，使用智能體的系統提示詞
+  if (
+    props.agent &&
+    props.agent.system_prompt &&
+    !chatSettings.value.systemPrompt
+  ) {
+    chatSettings.value.systemPrompt = props.agent.system_prompt;
   }
 });
 

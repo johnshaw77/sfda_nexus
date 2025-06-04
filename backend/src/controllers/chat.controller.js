@@ -40,6 +40,7 @@ const schemas = {
     temperature: Joi.number().min(0).max(2).default(0.7),
     max_tokens: Joi.number().integer().min(1).max(32768).default(4096),
     model_id: Joi.number().integer().optional(), // 允許指定不同的模型
+    system_prompt: Joi.string().optional(), // 允許自定義系統提示詞
   }),
 
   updateConversation: Joi.object({
@@ -124,6 +125,7 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     temperature,
     max_tokens,
     model_id,
+    system_prompt,
   } = value;
   const { user } = req;
   const { conversationId } = req.params;
@@ -249,19 +251,27 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       max_tokens: max_tokens,
     };
 
-    // 如果有智能體，添加系統提示
-    if (conversation.agent_id) {
+    // 添加系統提示詞（優先使用自定義的，否則使用智能體的）
+    let systemPromptContent = system_prompt;
+
+    // 如果沒有自定義系統提示詞且有智能體，使用智能體的系統提示詞
+    if (!systemPromptContent && conversation.agent_id) {
       const { rows: agentRows } = await query(
         "SELECT system_prompt FROM agents WHERE id = ?",
         [conversation.agent_id]
       );
 
       if (agentRows.length > 0) {
-        aiOptions.messages.unshift({
-          role: "system",
-          content: agentRows[0].system_prompt,
-        });
+        systemPromptContent = agentRows[0].system_prompt;
       }
+    }
+
+    // 如果有系統提示詞，添加到消息開頭
+    if (systemPromptContent) {
+      aiOptions.messages.unshift({
+        role: "system",
+        content: systemPromptContent,
+      });
     }
 
     logger.debug("調用AI模型", {
@@ -363,6 +373,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     model_id,
     temperature = 0.7,
     max_tokens = 8192,
+    system_prompt,
   } = req.body;
 
   logger.info("開始串流聊天", {
@@ -501,19 +512,27 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
       stream: true, // 啟用串流模式
     };
 
-    // 如果有智能體，添加系統提示
-    if (conversation.agent_id) {
+    // 添加系統提示詞（優先使用自定義的，否則使用智能體的）
+    let systemPromptContent = system_prompt;
+
+    // 如果沒有自定義系統提示詞且有智能體，使用智能體的系統提示詞
+    if (!systemPromptContent && conversation.agent_id) {
       const { rows: agentRows } = await query(
         "SELECT system_prompt FROM agents WHERE id = ?",
         [conversation.agent_id]
       );
 
       if (agentRows.length > 0) {
-        aiOptions.messages.unshift({
-          role: "system",
-          content: agentRows[0].system_prompt,
-        });
+        systemPromptContent = agentRows[0].system_prompt;
       }
+    }
+
+    // 如果有系統提示詞，添加到消息開頭
+    if (systemPromptContent) {
+      aiOptions.messages.unshift({
+        role: "system",
+        content: systemPromptContent,
+      });
     }
 
     logger.info("開始調用AI模型串流", {
