@@ -123,8 +123,19 @@ export const handleUpdateModel = catchAsync(async (req, res) => {
     throw new NotFoundError("模型不存在");
   }
 
+  // 處理布林值欄位，確保 MySQL 相容性
+  const processedUpdateData = { ...updateData };
+
+  // 將 JavaScript 布林值轉換為 MySQL 相容的數字
+  const booleanFields = ["is_active", "is_default", "is_multimodal"];
+  booleanFields.forEach((field) => {
+    if (field in processedUpdateData) {
+      processedUpdateData[field] = processedUpdateData[field] ? 1 : 0;
+    }
+  });
+
   // 更新模型
-  await ModelModel.updateModel(parseInt(id), updateData);
+  await ModelModel.updateModel(parseInt(id), processedUpdateData);
 
   // 獲取更新後的模型
   const updatedModel = await ModelModel.getModelById(parseInt(id));

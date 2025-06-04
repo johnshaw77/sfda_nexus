@@ -894,24 +894,48 @@ export const handleGetAvailableModels = catchAsync(async (req, res) => {
     "SELECT * FROM ai_models WHERE is_active = TRUE ORDER BY is_default DESC, name ASC"
   );
 
-  // 獲取實際可用的模型
-  const availableModels = await AIService.getAvailableModels();
+  // 獲取實際可用的模型（如果 AIService 可用的話）
+  let availableModels = { ollama: [], gemini: [], openai: [], claude: [] };
+  try {
+    availableModels = await AIService.getAvailableModels();
+  } catch (error) {
+    console.warn("無法獲取實際可用模型，使用資料庫配置:", error.message);
+  }
+
+  // 支援的提供商列表
+  const supportedProviders = ["ollama", "gemini", "openai", "claude"];
 
   // 合併資料庫配置和實際可用性
-  const models = {
-    ollama: dbModels
-      .filter((m) => m.model_type === "ollama")
+  const models = {};
+
+  supportedProviders.forEach((provider) => {
+    models[provider] = dbModels
+      .filter((m) => m.model_type === provider)
       .map((m) => ({
-        ...m,
-        available: availableModels.ollama.some((am) => am.name === m.model_id),
-      })),
-    gemini: dbModels
-      .filter((m) => m.model_type === "gemini")
-      .map((m) => ({
-        ...m,
-        available: availableModels.gemini.some((am) => am.name === m.model_id),
-      })),
-  };
+        id: m.id,
+        name: m.name,
+        display_name: m.display_name || m.name,
+        model_id: m.model_id,
+        provider: m.model_type,
+        description: m.description,
+        max_tokens: m.max_tokens,
+        temperature: m.temperature,
+        pricing:
+          typeof m.pricing === "string" ? JSON.parse(m.pricing) : m.pricing,
+        capabilities:
+          typeof m.capabilities === "string"
+            ? JSON.parse(m.capabilities)
+            : m.capabilities,
+        is_active: m.is_active,
+        is_default: m.is_default,
+        is_multimodal: m.is_multimodal,
+        available: availableModels[provider]
+          ? availableModels[provider].some((am) => am.name === m.model_id)
+          : true, // 如果無法檢測實際可用性，默認為可用
+        created_at: m.created_at,
+        updated_at: m.updated_at,
+      }));
+  });
 
   res.json(createSuccessResponse(models, "獲取可用模型成功"));
 });

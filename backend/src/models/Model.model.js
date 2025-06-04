@@ -259,7 +259,7 @@ export const updateModel = async (modelId, updateData) => {
 
   params.push(modelId);
   const sql = `UPDATE ai_models SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-
+  console.log(sql, params);
   await query(sql, params);
 };
 

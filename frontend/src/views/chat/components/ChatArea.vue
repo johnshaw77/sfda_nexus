@@ -74,7 +74,7 @@
 
       <!-- 模型選擇和設置 -->
       <div class="chat-controls">
-        <a-select
+        <!-- <a-select
           v-model:value="selectedModel"
           placeholder="選擇 AI 模型"
           style="width: 200px"
@@ -100,7 +100,7 @@
               </a-tag>
             </div>
           </a-select-option>
-        </a-select>
+        </a-select> -->
 
         <!-- 串流模式切換 -->
         <a-tooltip
@@ -390,33 +390,9 @@
           <!-- 輸入工具欄 -->
           <div class="input-toolbar">
             <div class="toolbar-left">
-              <a-select
-                v-model:value="selectedModel"
-                placeholder="選擇 AI 模型"
-                style="width: 200px"
-                @change="handleModelChange"
-                :loading="chatStore.isLoading">
-                <a-select-option
-                  v-for="model in availableModels"
-                  :key="model.id"
-                  :value="model.id"
-                  :disabled="model.available === false">
-                  <div class="model-option">
-                    <span class="model-name">{{ model.name }}</span>
-                    <a-tag
-                      :color="getModelColor(model.provider)"
-                      size="small">
-                      {{ model.provider }}
-                    </a-tag>
-                    <a-tag
-                      v-if="model.available === false"
-                      color="red"
-                      size="small">
-                      不可用
-                    </a-tag>
-                  </div>
-                </a-select-option>
-              </a-select>
+              <ModelSelector
+                v-model:modelValue="selectedModel"
+                @change="handleModelChange" />
               <!-- 新對話按鈕 -->
               <a-button
                 type="text"
@@ -642,6 +618,7 @@ import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";
 import MessageBubble from "./MessageBubble.vue";
+import ModelSelector from "./ModelSelector.vue";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 import {
   getAgentQuickCommands,
@@ -719,11 +696,14 @@ const hasStartedReceivingAIResponse = computed(() => {
 });
 
 // 模型和設置
-const selectedModel = ref("");
+const selectedModel = ref(null); // 改為存儲完整的模型對象
+const selectedModelId = computed(() => selectedModel.value?.id || "");
 const availableModels = computed(() => {
   // 從 store 中獲取所有可用模型並平鋪
   const ollama = chatStore.availableModels.ollama || [];
   const gemini = chatStore.availableModels.gemini || [];
+  const openai = chatStore.availableModels.openai || [];
+  const claude = chatStore.availableModels.claude || [];
 
   return [
     ...ollama.map((model) => ({
@@ -737,6 +717,20 @@ const availableModels = computed(() => {
       id: model.id,
       name: model.display_name || model.name,
       provider: "gemini",
+      available: model.available,
+      is_default: model.is_default || false,
+    })),
+    ...openai.map((model) => ({
+      id: model.id,
+      name: model.display_name || model.name,
+      provider: "openai",
+      available: model.available,
+      is_default: model.is_default || false,
+    })),
+    ...claude.map((model) => ({
+      id: model.id,
+      name: model.display_name || model.name,
+      provider: "claude",
       available: model.available,
       is_default: model.is_default || false,
     })),
@@ -790,6 +784,17 @@ const getQuotePreview = (content) => {
   return content.length > 100 ? content.substring(0, 100) + "..." : content;
 };
 
+const findModelById = (modelId) => {
+  // 在所有提供商中搜尋指定ID的模型
+  const providers = ["ollama", "gemini", "openai", "claude"];
+  for (const provider of providers) {
+    const models = chatStore.availableModels[provider] || [];
+    const model = models.find((m) => m.id === modelId);
+    if (model) return model;
+  }
+  return null;
+};
+
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
@@ -799,17 +804,23 @@ const scrollToBottom = () => {
 };
 
 // 事件處理
-const handleModelChange = (modelId) => {
-  // chatStore.handleSetCurrentModel(modelId);
-  selectedModel.value = modelId;
-  message.success("已切換 AI 模型");
+const handleModelChange = (model) => {
+  // 新的 ModelSelector 組件傳遞完整的模型對象
+  if (model && typeof model === "object") {
+    selectedModel.value = model;
+    console.log("模型已切換:", model.display_name, "ID:", model.id);
+  } else {
+    // 向後兼容：如果傳遞的是 ID，需要找到完整的模型對象
+    const fullModel = findModelById(model);
+    selectedModel.value = fullModel;
+  }
 };
 
 const handleSendMessage = async () => {
   if (!messageText.value.trim()) return;
 
   // 確保選擇了模型
-  if (!selectedModel.value) {
+  if (!selectedModelId.value) {
     message.error("請先選擇 AI 模型");
     return;
   }
@@ -826,7 +837,7 @@ const handleSendMessage = async () => {
       const newConversation = await chatStore.handleCreateConversation({
         title: messageText.value.trim().substring(0, 50),
         agent_id: props.agent?.id,
-        model_id: selectedModel.value,
+        model_id: selectedModelId.value,
       });
       conversationId = newConversation?.id;
     }
@@ -844,7 +855,7 @@ const handleSendMessage = async () => {
         isStreaming.value = true;
 
         await chatStore.sendMessageStream(conversationId, content, {
-          model_id: selectedModel.value,
+          model_id: selectedModelId.value,
           temperature: chatSettings.value.temperature,
           max_tokens: chatSettings.value.maxTokens,
           system_prompt: chatSettings.value.systemPrompt,
@@ -860,7 +871,7 @@ const handleSendMessage = async () => {
             quotedMessage: quotedMessage.value,
             temperature: chatSettings.value.temperature,
             maxTokens: chatSettings.value.maxTokens,
-            model_id: selectedModel.value,
+            model_id: selectedModelId.value,
             systemPrompt: chatSettings.value.systemPrompt,
           }
         );
@@ -1306,7 +1317,10 @@ onMounted(async () => {
         availableModels.value[0];
 
       if (defaultModel && defaultModel.id) {
-        selectedModel.value = defaultModel.id;
+        // 從 store 中找到完整的模型對象
+        const fullModel = findModelById(defaultModel.id);
+        selectedModel.value = fullModel || defaultModel;
+        console.log("設置默認模型:", defaultModel.name, "ID:", defaultModel.id);
       } else {
         console.warn("無法找到有效的默認模型");
       }
@@ -1441,7 +1455,7 @@ const handleCreateNewConversation = async () => {
     creatingNewConversation.value = true;
 
     // 確保選擇了模型
-    if (!selectedModel.value) {
+    if (!selectedModelId.value) {
       message.error("請先選擇 AI 模型");
       return;
     }
@@ -1450,7 +1464,7 @@ const handleCreateNewConversation = async () => {
     const newConversation = await chatStore.handleCreateConversation({
       title: "新對話",
       agent_id: props.agent?.id,
-      model_id: selectedModel.value,
+      model_id: selectedModelId.value,
     });
 
     if (newConversation) {

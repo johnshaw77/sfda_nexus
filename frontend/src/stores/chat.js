@@ -15,7 +15,12 @@ export const useChatStore = defineStore("chat", () => {
   const conversations = ref([]);
   const currentConversation = ref(null);
   const messages = ref([]);
-  const availableModels = ref({ ollama: [], gemini: [] });
+  const availableModels = ref({
+    ollama: [],
+    gemini: [],
+    openai: [],
+    claude: [],
+  });
   const availableAgents = ref([]);
   const isLoading = ref(false);
   const isLoadingMessages = ref(false);
@@ -389,7 +394,7 @@ export const useChatStore = defineStore("chat", () => {
     } catch (error) {
       console.error("獲取可用模型失敗:", error);
       message.error("獲取可用模型失敗");
-      return { ollama: [], gemini: [] };
+      return { ollama: [], gemini: [], openai: [], claude: [] };
     }
   };
 

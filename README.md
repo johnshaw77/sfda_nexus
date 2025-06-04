@@ -199,6 +199,59 @@ npm run dev
   - [x] StatusTag.vue - 狀態標籤組件
 - [x] 完善狀態管理系統
 
+#### 🤖 模型選擇系統重構 (v1.7.1) - 2025-06-04
+
+- [x] 修復模型選擇器硬編碼問題
+  - [x] 移除模型分類（Premium、Intermediate、Basic）
+  - [x] 簡化為統一的模型列表顯示
+  - [x] 移除底部網際網路選項
+- [x] 擴展 AI 提供商支援
+  - [x] 新增 OpenAI 模型支援（GPT-4o、GPT-4.1、Grok 3）
+  - [x] 新增 Claude 模型支援（Claude 3.5/3.7/4 Sonnet、Claude 4 Opus）
+  - [x] 保持現有 Gemini 和 Ollama 支援
+- [x] 資料庫模型數據擴展
+  - [x] 插入 18 個全面的 AI 模型配置
+  - [x] 包含模型定價、功能和元數據
+  - [x] 支援四大 AI 提供商的完整模型庫
+- [x] 前端組件優化
+  - [x] 重構 ModelSelector.vue 組件
+  - [x] 使用 Ant Design 圖標替代自定義圖標
+  - [x] 修復模型對象傳遞和狀態管理
+  - [x] 更新 ChatArea.vue 中的模型處理邏輯
+- [x] 後端 API 增強
+  - [x] 修正 handleGetAvailableModels 支援所有提供商
+  - [x] 增強錯誤處理和後備機制
+  - [x] 返回完整模型信息和可用性狀態
+- [x] UI/UX 改進
+  - [x] 修復下拉選單位置問題，強制總是向上彈出（placement="top"）
+  - [x] 更改預設箭頭方向為向上（UpOutlined）
+  - [x] 完全移除 calculateDropdownPlacement 函數和所有位置計算邏輯
+  - [x] 簡化 handleDropdownVisibleChange，移除 nextTick 調用
+  - [x] 清理不必要的引入：DownOutlined、nextTick
+  - [x] 移除不必要的 CSS 動畫類和 transition 屬性
+  - [x] 優化選單最大高度和滾動處理
+
+#### 🤖 模型選擇系統重構 (v1.7.0) - 2025-06-04
+
+- [x] 重新設計模型選擇界面
+  - [x] 創建現代化 ModelSelector 組件
+  - [x] 按等級分類模型（高級、中級、基礎）
+  - [x] 支援多提供商圖標顯示
+  - [x] 美觀的下拉選單設計
+- [x] 後端模型數據優化
+  - [x] 修正 handleGetAvailableModels API
+  - [x] 支援四大提供商（OpenAI、Claude、Gemini、Ollama）
+  - [x] 添加完整模型配置信息
+- [x] 資料庫模型數據完善
+  - [x] 添加高級模型：Claude 4 Sonnet、Claude 4 Opus、GPT-4o、GPT-4.1
+  - [x] 添加中級模型：Claude 3.7 Sonnet、Claude 3.5 Sonnet V2
+  - [x] 添加基礎模型：Llama 3.1 405B、Perplexity、Grok 3
+  - [x] 總計 18 個不同等級的 AI 模型
+- [x] 模型選擇邏輯優化
+  - [x] 智能等級判斷（根據模型名稱）
+  - [x] 自動選擇默認模型
+  - [x] 優雅的錯誤處理
+
 #### 🏗️ 後端架構重構與 API 修復 (v1.7.0) - 2025-06-04
 
 - [x] **後端服務架構模組化重構**
@@ -808,6 +861,13 @@ npm run dev
 
 **當前版本：v1.8.0**
 **更新日期：2025-06-04**
+
+### v1.8.3 更新內容（2025-06-04）
+- ✅ **模型更新布林值修復** - 解決前端無法更新模型狀態問題
+  - 修復 `handleUpdateModel` 函數中的布林值處理邏輯
+  - 添加 JavaScript 布林值到 MySQL 數字的轉換
+  - 確保 `is_active`、`is_default`、`is_multimodal` 字段正確更新
+  - 解決前端發送 `true`/`false` 但資料庫期望 `1`/`0` 的兼容性問題
 
 ### v1.8.2 更新內容（2025-06-04）
 - ✅ **後端架構重構** - 完成管理模組的模組化拆分
