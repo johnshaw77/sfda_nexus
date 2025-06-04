@@ -115,6 +115,15 @@ const routes = [
         },
       },
       {
+        path: "quick-commands",
+        name: "QuickCommandManagement",
+        component: () => import("@/views/admin/quickCommands.vue"),
+        meta: {
+          title: "快速命令管理",
+          icon: "ThunderboltOutlined",
+        },
+      },
+      {
         path: "agents",
         name: "AgentManagement",
         component: () => import("@/views/admin/agents.vue"),

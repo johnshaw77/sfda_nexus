@@ -199,6 +199,100 @@ npm run dev
   - [x] StatusTag.vue - 狀態標籤組件
 - [x] 完善狀態管理系統
 
+#### 🏗️ 後端架構重構與 API 修復 (v1.7.0) - 2025-06-04
+
+- [x] **後端服務架構模組化重構**
+
+  - [x] 將 monolithic admin route (873 行) 拆分為三個專門模組
+  - [x] 創建 `/api/users` 用戶管理模組 - 處理用戶 CRUD、認證等
+  - [x] 創建 `/api/system` 系統管理模組 - 處理系統統計、配置等
+  - [x] 創建 `/api/agents` 智能體管理模組 - 處理 AI 助手管理
+  - [x] 從巨大的 admin.controller.js (1150 行) 拆分為專門控制器
+  - [x] 清理重複的 quickCommands 路由文件
+  - [x] 採用統一的控制器結構和錯誤處理
+
+- [x] **API 接口規範化與統一**
+
+  - [x] 統一 RESTful API 路由結構 (從 `/api/admin/*` 改為 `/api/*`)
+  - [x] 前端 API 同步更新 - 更新所有相關的 API 調用
+  - [x] Swagger 文檔更新 - 59 個路由正確註冊
+  - [x] 修復 `createSuccessResponse` 參數順序錯誤問題
+  - [x] 統一所有控制器的響應格式，包括 QuickCommands
+
+- [x] **前端狀態管理統一化**
+
+  - [x] 合併 agents.js 和 adminAgents.js stores
+  - [x] 統一 agents 狀態管理架構 - 一個 store 處理所有 agent 操作
+  - [x] 清理重複 API 文件 - 刪除冗余的 admin.js
+  - [x] 修復前端 `fetchAgentsForAdmin` 數據訪問問題
+
+- [x] **數據查詢錯誤修復與優化**
+
+  - [x] 修復 MySQL 查詢結果處理 - 正確處理查詢返回的對象格式
+  - [x] 解決 "is not iterable" 錯誤 - 確保數組操作的安全性
+  - [x] 確保查詢結果正確解析 - 從 `result.rows` 提取實際數據
+  - [x] 移除不必要的 JSON.parse（MySQL JSON 字段自動解析）
+  - [x] 修復 JSON 數據完整性問題 - 更新 agents 表無效 JSON tags
+
+- [x] **架構標準化與質量提升**
+  - [x] 統一錯誤處理機制 - 所有控制器使用 `catchAsync` 和標準錯誤類
+  - [x] 標準化 API 響應格式 - 統一使用 `createSuccessResponse`
+  - [x] 代碼模組化 - 從巨大單文件變為清晰模組結構
+  - [x] 提升代碼可讀性和維護性
+  - [x] 確保前後端數據交互的一致性和穩定性
+
+#### 🏗️ 後端架構重構 (v1.7.0) - 2025-06-04
+
+- [x] 後端服務架構模組化
+  - [x] 將 monolithic admin route (873 行) 拆分為三個專門模組
+  - [x] 創建 `/api/users` 用戶管理模組
+  - [x] 創建 `/api/system` 系統管理模組
+  - [x] 創建 `/api/agents` 智能體管理模組
+- [x] 控制器層重構
+  - [x] 從巨大的 admin.controller.js (1150 行) 拆分為專門控制器
+  - [x] 清理重複的 quickCommands 路由文件
+- [x] API 接口規範化
+  - [x] 統一 RESTful API 路由結構
+  - [x] 前端 API 同步更新
+  - [x] Swagger 文檔更新
+- [x] 前端狀態管理統一
+  - [x] 合併 agents.js 和 adminAgents.js stores
+  - [x] 統一 agents 狀態管理架構
+  - [x] 清理重複 API 文件
+- [x] 數據查詢錯誤修復
+  - [x] 修復 MySQL 查詢結果處理
+  - [x] 解決 "is not iterable" 錯誤
+  - [x] 確保查詢結果正確解析
+
+#### 🔧 前端管理優化 (v1.7.0) - 2025-06-04
+
+- [x] 模型管理頁面優化
+  - [x] 移除寫死的測試數據
+  - [x] 整合後端 API 拉取真實數據
+  - [x] 完善 CRUD 操作與錯誤處理
+  - [x] 添加模型測試功能
+- [x] 聊天界面優化
+  - [x] 移除重複的 ChatContainer.vue 組件
+  - [x] 將功能整合到 index.vue
+  - [x] 簡化組件架構
+  - [x] 優化 WebSocket 事件監聽
+
+#### 🛠️ 後端功能增強 (v1.7.0) - 2025-06-04
+
+- [x] 實現 PRINT_SQL 環境變數控制
+  - [x] 修改資料庫配置支援 PRINT_SQL 開關
+  - [x] 靈活控制 SQL 調試信息輸出
+  - [x] 建立測試腳本驗證功能
+- [x] 新增 Gemini AI 模型支援
+  - [x] Gemini 2.5 Pro 預覽版 (gemini-2.5-pro-preview-05-06)
+  - [x] Gemini 2.5 Flash 預覽版 (gemini-2.5-flash-preview-05-20)
+  - [x] Gemini 1.5 Flash (gemini-1.5-flash)
+  - [x] Gemini 1.5 Pro (gemini-1.5-pro)
+  - [x] 配置多模態和進階能力支援
+- [x] 資料庫腳本管理規範化
+  - [x] 建立 add_gemini_models.sql 腳本
+  - [x] 建立 test_print_sql.js 測試腳本
+
 #### 🤖 智能體系統提示詞增強 (v1.7.0) - 2025-01-27
 
 - [x] 聊天設置工具欄添加 tooltip 提示
@@ -315,8 +409,8 @@ npm run dev
   - 長用戶消息自動折疊（6 行以上）
   - 平滑展開/收起動畫效果
   - 漸變遮罩視覺提示
-  - [x] models.js - AI 模型狀態管理
-  - [x] agents.js - 智能體狀態管理
+- [x] models.js - AI 模型狀態管理
+- [x] agents.js - 智能體狀態管理
 
 #### 🐛 程式碼高亮系統調試功能 (v1.8.2) - 2025-06-02
 
@@ -721,3 +815,71 @@ npm run dev
 ## 🔧 開發指南
 
 ### 🏗️ 項目結構
+
+```
+
+## 版本信息
+
+**當前版本：v1.8.0**
+**更新日期：2025-06-04**
+
+### v1.8.2 更新內容（2025-06-04）
+- ✅ **後端架構重構** - 完成管理模組的模組化拆分
+  - 清理重複文件：移除 quickCommands.routes.js
+  - 拆分巨大的 admin.controller.js (1150行) 為三個專門模組
+  - 創建 users.controller.js - 用戶管理功能
+  - 創建 system.controller.js - 系統管理功能
+  - 創建 agents.controller.js - 代理管理功能
+  - 重構 admin.route.js 為模組化路由系統
+  - 建立清晰的路由結構：/users, /system, /agents
+  - 更新 index.route.js 主路由配置
+  - 修正所有導入路徑和 Swagger API 文檔
+  - 保持所有原有功能：速率限制、認證授權、審計日誌
+
+### v1.8.1 更新內容（2025-06-04）
+- ✅ **AI 模型管理系統** - 完整的模型 CRUD 管理功能
+  - 實現完整的 MVC 架構（Model/Controller/Route層）
+  - 創建 11 個核心資料庫操作方法
+  - 支援按提供商分組查詢和統計
+  - 實現模型測試和可用性同步功能
+  - 添加完整的 Swagger API 文檔
+  - 統一 response 和錯誤處理工具
+
+### v1.8.0 更新內容（2025-06-04）
+- ✅ **動態快速命令系統** - 完成前後端整合
+  - 新增快速命令數據庫表結構
+  - 實現後端 API 控制器和路由
+  - 完成前端動態載入和顯示快速命令
+  - 支援使用次數統計和智能體個性化
+  - 替換硬編碼快速命令為資料庫驅動的動態系統
+
+### v1.7.0 更新內容（2025-06-04）
+- ✅ **PRINT_SQL 環境變數控制** - 靈活管理 SQL 調試輸出
+- ✅ **新增 Gemini AI 模型** - 添加 4 個新的 Gemini 模型支援
+- ✅ **中文字符編碼修復** - 解決資料庫中文顯示問題
+
+## 功能特性
+
+### 核心功能
+- 🤖 **多智能體聊天** - 支援多種專業領域的 AI 智能體
+- 🔄 **多模型支援** - 整合 Ollama 和 Gemini AI 模型
+- 💬 **實時對話** - WebSocket 實時通訊和串流響應
+- 📊 **對話管理** - 完整的對話歷史和管理功能
+- ⚡ **動態快速命令** - 基於資料庫的個性化快速命令系統
+
+### 智能體系統
+- 🎓 **Arthur** - 教育專家，專精知識講解和學習指導
+- 🏃 **Fred** - 體育分析師，提供運動數據和比賽分析
+- 🥗 **Nikki** - 營養師，制定健康飲食計劃和營養建議
+- 💰 **Rich** - 金融顧問，提供投資理財和市場分析
+- ✈️ **Travis** - 旅遊專家，規劃行程和推薦景點
+- 📚 **Libby** - 閱讀顧問，推薦書籍和制定閱讀計劃
+- 💼 **Bizzy** - 商業分析師，提供商業策略和市場調研
+
+### 技術特性
+- 🔐 **用戶認證** - JWT Token 認證和權限管理
+- 🛡️ **安全機制** - Token 黑名單和密碼加密
+- 📱 **響應式設計** - 支援多種設備和螢幕尺寸
+- 🎨 **現代 UI** - 基於 Ant Design Vue 的美觀界面
+- 🐳 **Docker 支援** - 容器化部署和開發環境
+```

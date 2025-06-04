@@ -209,6 +209,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
+import {
+  getModels,
+  createModel,
+  updateModel,
+  deleteModel,
+  testModel,
+} from "@/api/models";
 
 // 響應式數據
 const loading = ref(false);
@@ -273,45 +280,8 @@ const pagination = reactive({
   showTotal: (total) => `共 ${total} 條記錄`,
 });
 
-// 模擬數據
-const models = ref([
-  {
-    id: 1,
-    name: "GPT-4",
-    provider: "openai",
-    model_id: "gpt-4",
-    api_endpoint: "https://api.openai.com/v1",
-    is_active: true,
-    description: "OpenAI GPT-4 模型",
-    config: '{"temperature": 0.7, "max_tokens": 2048}',
-    created_at: "2025-01-15 10:30:00",
-    updating: false,
-  },
-  {
-    id: 2,
-    name: "Gemini Pro",
-    provider: "gemini",
-    model_id: "gemini-pro",
-    api_endpoint: "https://generativelanguage.googleapis.com/v1",
-    is_active: true,
-    description: "Google Gemini Pro 模型",
-    config: '{"temperature": 0.8, "max_tokens": 1024}',
-    created_at: "2025-01-14 15:20:00",
-    updating: false,
-  },
-  {
-    id: 3,
-    name: "Claude 3",
-    provider: "claude",
-    model_id: "claude-3-sonnet",
-    api_endpoint: "https://api.anthropic.com/v1",
-    is_active: false,
-    description: "Anthropic Claude 3 模型",
-    config: '{"temperature": 0.6, "max_tokens": 4096}',
-    created_at: "2025-01-13 09:15:00",
-    updating: false,
-  },
-]);
+// 模型數據 - 從後端拉取
+const models = ref([]);
 
 // 表單數據
 const formData = reactive({
@@ -359,6 +329,38 @@ const filteredModels = computed(() => {
   return result;
 });
 
+// 初始化時載入數據
+onMounted(() => {
+  handleLoadModels();
+});
+
+// 載入模型數據
+const handleLoadModels = async () => {
+  try {
+    loading.value = true;
+    const response = await getModels({
+      page: pagination.current,
+      pageSize: pagination.pageSize,
+    });
+
+    if (response.success) {
+      models.value = response.data.models || response.data;
+      // 更新分頁信息
+      if (response.data.pagination) {
+        pagination.total = response.data.pagination.total;
+        pagination.current = response.data.pagination.current;
+      }
+    } else {
+      message.error(response.message || "載入模型數據失敗");
+    }
+  } catch (error) {
+    console.error("載入模型數據失敗:", error);
+    message.error("載入模型數據失敗，請稍後重試");
+  } finally {
+    loading.value = false;
+  }
+};
+
 // 方法
 const getProviderColor = (provider) => {
   const colors = {
@@ -397,96 +399,125 @@ const handleAddModel = () => {
 };
 
 const handleEdit = (record) => {
-  Object.assign(formData, record);
+  Object.assign(formData, {
+    ...record,
+    config:
+      typeof record.config === "object"
+        ? JSON.stringify(record.config, null, 2)
+        : record.config,
+  });
   modalVisible.value = true;
 };
 
 const handleDelete = async (record) => {
   try {
-    // 這裡應該調用API刪除模型
-    const index = models.value.findIndex((m) => m.id === record.id);
-    if (index > -1) {
-      models.value.splice(index, 1);
+    const response = await deleteModel(record.id);
+    if (response.success) {
+      message.success("刪除成功");
+      handleLoadModels(); // 重新載入數據
+    } else {
+      message.error(response.message || "刪除失敗");
     }
-    message.success("模型刪除成功");
   } catch (error) {
-    message.error("刪除失敗");
+    console.error("刪除模型失敗:", error);
+    message.error("刪除失敗，請稍後重試");
   }
 };
 
 const handleStatusChange = async (record) => {
-  record.updating = true;
   try {
-    // 這裡應該調用API更新狀態
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    message.success(`模型已${record.is_active ? "啟用" : "停用"}`);
+    record.updating = true;
+    const response = await updateModel(record.id, {
+      is_active: record.is_active,
+    });
+
+    if (response.success) {
+      message.success(record.is_active ? "模型已啟用" : "模型已停用");
+    } else {
+      // 恢復原狀態
+      record.is_active = !record.is_active;
+      message.error(response.message || "狀態更新失敗");
+    }
   } catch (error) {
+    console.error("更新模型狀態失敗:", error);
+    // 恢復原狀態
     record.is_active = !record.is_active;
-    message.error("狀態更新失敗");
+    message.error("狀態更新失敗，請稍後重試");
   } finally {
     record.updating = false;
   }
 };
 
 const handleViewConfig = (record) => {
-  try {
-    selectedConfig.value = JSON.stringify(JSON.parse(record.config), null, 2);
-  } catch {
-    selectedConfig.value = record.config;
-  }
+  selectedConfig.value =
+    typeof record.config === "object"
+      ? JSON.stringify(record.config, null, 2)
+      : record.config;
   configModalVisible.value = true;
 };
 
 const handleTest = async (record) => {
-  message.loading("正在測試模型連接...", 0);
   try {
-    // 這裡應該調用API測試模型
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    message.destroy();
-    message.success("模型測試成功");
+    loading.value = true;
+    const response = await testModel(record.id, {
+      message: "測試消息",
+    });
+
+    if (response.success) {
+      message.success("模型測試成功");
+    } else {
+      message.error(response.message || "模型測試失敗");
+    }
   } catch (error) {
-    message.destroy();
-    message.error("模型測試失敗");
+    console.error("測試模型失敗:", error);
+    message.error("測試失敗，請稍後重試");
+  } finally {
+    loading.value = false;
   }
 };
 
 const handleTableChange = (pag, filters, sorter) => {
   pagination.current = pag.current;
   pagination.pageSize = pag.pageSize;
+  handleLoadModels();
 };
 
 const handleModalOk = async () => {
   try {
     await formRef.value.validate();
 
+    const submitData = {
+      ...formData,
+      config: formData.config ? JSON.parse(formData.config) : {},
+    };
+
+    let response;
     if (formData.id) {
-      // 編輯模型
-      const index = models.value.findIndex((m) => m.id === formData.id);
-      if (index > -1) {
-        models.value[index] = { ...formData };
-      }
-      message.success("模型更新成功");
+      response = await updateModel(formData.id, submitData);
     } else {
-      // 添加模型
-      const newModel = {
-        ...formData,
-        id: Date.now(),
-        is_active: true,
-        created_at: new Date().toLocaleString("zh-CN"),
-        updating: false,
-      };
-      models.value.unshift(newModel);
-      message.success("模型添加成功");
+      response = await createModel(submitData);
     }
 
-    modalVisible.value = false;
+    if (response.success) {
+      message.success(formData.id ? "更新成功" : "添加成功");
+      modalVisible.value = false;
+      handleLoadModels(); // 重新載入數據
+    } else {
+      message.error(response.message || "操作失敗");
+    }
   } catch (error) {
-    console.error("表單驗證失敗:", error);
+    if (error.errorFields) {
+      message.error("請檢查輸入數據");
+    } else {
+      console.error("保存模型失敗:", error);
+      message.error("操作失敗，請稍後重試");
+    }
   }
 };
 
 const handleModalCancel = () => {
   modalVisible.value = false;
+  resetForm();
 };
 
 const resetForm = () => {
@@ -500,12 +531,10 @@ const resetForm = () => {
     description: "",
     config: "",
   });
+  if (formRef.value) {
+    formRef.value.resetFields();
+  }
 };
-
-// 生命週期
-onMounted(() => {
-  pagination.total = models.value.length;
-});
 </script>
 
 <style scoped>

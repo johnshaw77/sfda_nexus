@@ -643,6 +643,10 @@ import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";
 import MessageBubble from "./MessageBubble.vue";
 import { formatMessageTime } from "@/utils/datetimeFormat";
+import {
+  getAgentQuickCommands,
+  incrementCommandUsage,
+} from "@/api/quickCommands";
 
 // Store
 const chatStore = useChatStore();
@@ -665,6 +669,8 @@ const isResizing = ref(false);
 const minInputHeight = 200;
 const maxInputHeight = 600;
 const creatingNewConversation = ref(false);
+const agentQuickCommands = ref([]);
+const loadingQuickCommands = ref(false);
 
 // 計算 textarea 的高度
 const textareaHeight = computed(() => {
@@ -966,10 +972,38 @@ const handleSelectAgent = (agent) => {
   });
 };
 
-const handleQuickPrompt = (promptText) => {
+// 載入智能體的快速命令
+const loadAgentQuickCommands = async () => {
+  if (!props.agent?.id) {
+    agentQuickCommands.value = [];
+    return;
+  }
+
+  try {
+    loadingQuickCommands.value = true;
+    const commands = await getAgentQuickCommands(props.agent.id);
+    agentQuickCommands.value = commands || [];
+  } catch (error) {
+    console.warn("載入智能體快速命令失敗:", error);
+    agentQuickCommands.value = [];
+  } finally {
+    loadingQuickCommands.value = false;
+  }
+};
+
+const handleQuickPrompt = async (prompt) => {
+  // 如果是對象，提取 text；如果是字符串，直接使用
+  const promptText = typeof prompt === "object" ? prompt.text : prompt;
+  const commandId = typeof prompt === "object" ? prompt.id : null;
+
   messageText.value = promptText;
-  // 不自動發送，讓用戶可以繼續編輯
-  // handleSendMessage();
+
+  // 統計使用次數（後台進行，不影響用戶體驗）
+  if (commandId) {
+    incrementCommandUsage(commandId).catch((error) => {
+      console.warn("統計快速命令詞使用次數失敗:", error);
+    });
+  }
 
   // Focus 到輸入框
   nextTick(() => {
@@ -1135,7 +1169,12 @@ const getQuickPrompts = () => {
     return quickPrompts.value;
   }
 
-  // 根據智能體類型返回不同的快速提示 TODO: database
+  // 優先使用動態載入的快速命令
+  if (agentQuickCommands.value && agentQuickCommands.value.length > 0) {
+    return agentQuickCommands.value;
+  }
+
+  // 回退到硬編碼的快速提示（保持兼容性）
   const agentPrompts = {
     1: [
       // Arthur - 教育
@@ -1220,11 +1259,12 @@ watch(
   }
 );
 
-// 監聽智能體變化，載入對應的系統提示詞
+// 監聽智能體變化，載入對應的系統提示詞和快速命令
 watch(
   () => props.agent,
   () => {
     loadAgentSystemPrompt();
+    loadAgentQuickCommands();
   },
   { immediate: true }
 );
@@ -1245,6 +1285,9 @@ onMounted(async () => {
     // 載入可用模型和智能體
     await chatStore.handleGetAvailableModels();
     await chatStore.handleGetAvailableAgents();
+
+    // 載入智能體快速命令
+    await loadAgentQuickCommands();
 
     // 設置默認模型
     // 確保模型數據已載入

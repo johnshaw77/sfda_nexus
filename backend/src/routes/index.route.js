@@ -8,11 +8,12 @@ import express from "express";
 // 導入各模組路由
 import authRoutes from "./auth.route.js";
 import chatRoutes from "./chat.route.js";
-import adminRoutes from "./admin.route.js";
-// import modelsRoutes from './models.route.js';
-// import agentsRoutes from './agents.route.js';
+import usersRoutes from "./users.route.js";
+import systemRoutes from "./system.route.js";
+import agentsRoutes from "./agents.route.js";
+import quickCommandsRoutes from "./quickCommands.route.js";
+import modelsRoutes from "./models.route.js";
 // import workflowsRoutes from './workflows.route.js';
-// import usersRoutes from './users.route.js';
 // import toolsRoutes from './tools.route.js';
 
 const router = express.Router();
@@ -28,10 +29,11 @@ router.get("/", (req, res) => {
       chat: "/api/chat",
       models: "/api/models",
       agents: "/api/agents",
-      workflows: "/api/workflows",
       users: "/api/users",
+      system: "/api/system",
+      workflows: "/api/workflows",
       tools: "/api/tools",
-      admin: "/api/admin",
+      quickCommands: "/api/quick-commands",
     },
     status: "running",
     timestamp: new Date().toISOString(),
@@ -52,11 +54,12 @@ router.get("/health", (req, res) => {
 // API路由掛載
 router.use("/auth", authRoutes); // 認證相關路由
 router.use("/chat", chatRoutes); // 聊天功能路由
-router.use("/admin", adminRoutes); // 管理功能路由
-// router.use('/models', modelsRoutes);       // AI模型管理路由
-// router.use('/agents', agentsRoutes);       // 智能體管理路由
+router.use("/users", usersRoutes); // 用戶管理路由
+router.use("/system", systemRoutes); // 系統管理路由
+router.use("/agents", agentsRoutes); // 智能體管理路由
+router.use("/quick-commands", quickCommandsRoutes); // 快速命令詞路由
+router.use("/models", modelsRoutes); // AI模型管理路由
 // router.use('/workflows', workflowsRoutes); // 工作流管理路由
-// router.use('/users', usersRoutes);         // 用戶管理路由
 // router.use('/tools', toolsRoutes);         // 工具管理路由
 
 // 測試路由 (開發階段)

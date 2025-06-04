@@ -398,13 +398,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
-import { useAdminAgentsStore } from "@/stores/adminAgents";
+import { useAgentsStore } from "@/stores/agents";
 import { smartCompressImage, validateImage } from "@/utils/imageCompress";
 import { Cropper } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
 
 // Store
-const adminAgentsStore = useAdminAgentsStore();
+const agentsStore = useAgentsStore();
 
 // 響應式數據
 const searchText = ref("");
@@ -419,11 +419,11 @@ const cropperRef = ref(null);
 const imageUrl = ref("");
 
 // 分頁
-const pagination = computed(() => adminAgentsStore.getPagination);
+const pagination = computed(() => agentsStore.getPagination);
 
 // 計算屬性
-const agents = computed(() => adminAgentsStore.getAllAgents);
-const loading = computed(() => adminAgentsStore.isLoading);
+const agents = computed(() => agentsStore.getAllAgents);
+const loading = computed(() => agentsStore.isLoading);
 
 // 表單數據
 const formData = reactive({
@@ -524,7 +524,7 @@ const getCategoryName = (category) => {
 };
 
 const handleSearch = () => {
-  adminAgentsStore.fetchAgents({
+  agentsStore.fetchAgentsForAdmin({
     page: 1,
     limit: pagination.value.limit,
     category: filterCategory.value,
@@ -539,7 +539,7 @@ const handleReset = () => {
   filterStatus.value = undefined;
 
   // 重新獲取數據
-  adminAgentsStore.fetchAgents({
+  agentsStore.fetchAgentsForAdmin({
     page: 1,
     limit: pagination.value.limit,
   });
@@ -574,7 +574,7 @@ const handleEdit = (record) => {
 
 const handleClone = async (record) => {
   try {
-    await adminAgentsStore.duplicateAgent(record.id);
+    await agentsStore.duplicateAgent(record.id);
     message.success("智能體複製成功");
   } catch (error) {
     message.error("複製失敗");
@@ -583,7 +583,7 @@ const handleClone = async (record) => {
 
 const handleDelete = async (record) => {
   try {
-    await adminAgentsStore.deleteAgent(record.id);
+    await agentsStore.deleteAgent(record.id);
     message.success("智能體刪除成功");
   } catch (error) {
     message.error("刪除失敗");
@@ -598,7 +598,7 @@ const handleTest = (record) => {
 const handleStatusChange = async (record) => {
   record.updating = true;
   try {
-    await adminAgentsStore.updateAgentStatus(record.id, record.is_active);
+    await agentsStore.updateAgentStatus(record.id, record.is_active);
     message.success(`智能體已${record.is_active ? "啟用" : "停用"}`);
   } catch (error) {
     record.is_active = !record.is_active;
@@ -614,7 +614,7 @@ const handleImport = () => {
 
 const handlePageChange = (page, pageSize) => {
   // 重新獲取數據
-  adminAgentsStore.fetchAgents({
+  agentsStore.fetchAgentsForAdmin({
     page,
     limit: pageSize,
     category: filterCategory.value,
@@ -661,11 +661,11 @@ const handleModalOk = async () => {
 
     if (submitData.id) {
       // 編輯智能體
-      await adminAgentsStore.updateAgent(submitData.id, submitData);
+      await agentsStore.updateAgent(submitData.id, submitData);
       message.success("智能體更新成功");
     } else {
       // 創建智能體
-      await adminAgentsStore.createAgent(submitData);
+      await agentsStore.createAgent(submitData);
       message.success("智能體創建成功");
     }
 
@@ -673,7 +673,7 @@ const handleModalOk = async () => {
     resetForm();
 
     // 重新獲取數據以顯示最新的頭像
-    await adminAgentsStore.fetchAgents({
+    await agentsStore.fetchAgentsForAdmin({
       page: pagination.value.page,
       limit: pagination.value.limit,
       category: filterCategory.value,
@@ -825,7 +825,7 @@ const handleRemoveAvatar = () => {
 onMounted(async () => {
   try {
     // 初始化智能體數據
-    await adminAgentsStore.fetchAgents();
+    await agentsStore.fetchAgentsForAdmin();
   } catch (error) {
     console.error("載入智能體數據失敗:", error);
     message.error("載入智能體數據失敗");

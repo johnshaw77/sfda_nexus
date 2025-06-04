@@ -20,13 +20,16 @@ export const dbConfig = {
 
   // 連接池配置
   connectionLimit: 10,
-  acquireTimeout: 60000,
+  //acquireTimeout: 60000,
   timeout: 60000,
   reconnect: true,
 
   // 字符集和時區配置
   charset: "utf8mb4",
   timezone: "+08:00",
+
+  // 初始化 SQL 命令，確保字符集正確
+  initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
 
   // SSL配置 (生產環境建議啟用)
   ssl:
@@ -87,8 +90,13 @@ export const query = async (sql, params = []) => {
   try {
     const pool = getPool();
 
-    // 調試模式下打印完整的 SQL
-    if (process.env.NODE_ENV === "development") {
+    // 根據 PRINT_SQL 環境變數決定是否打印 SQL 調試信息
+    const shouldPrintSQL =
+      process.env.PRINT_SQL === "true" ||
+      (process.env.NODE_ENV === "development" &&
+        process.env.PRINT_SQL !== "false");
+
+    if (shouldPrintSQL) {
       console.log("🔍 執行 SQL 查詢:");
       console.log("SQL:", sql);
       console.log("參數:", params);
@@ -97,8 +105,8 @@ export const query = async (sql, params = []) => {
 
     const [rows, fields] = await pool.execute(sql, params);
 
-    // 調試模式下打印結果統計
-    if (process.env.NODE_ENV === "development") {
+    // 根據 PRINT_SQL 環境變數決定是否打印結果統計
+    if (shouldPrintSQL) {
       console.log(
         "✅ 查詢成功，返回",
         Array.isArray(rows) ? rows.length : "N/A",

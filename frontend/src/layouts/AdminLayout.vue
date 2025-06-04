@@ -149,6 +149,16 @@
             <span>智能體管理</span>
           </a-menu-item>
 
+          <a-menu-item key="models">
+            <ApiOutlined />
+            <span>模型管理</span>
+          </a-menu-item>
+
+          <a-menu-item key="quick-commands">
+            <ThunderboltOutlined />
+            <span>快速命令</span>
+          </a-menu-item>
+
           <a-menu-item key="system">
             <SettingOutlined />
             <span>系統設置</span>
@@ -359,6 +369,8 @@ const handleMenuClick = ({ key }) => {
     dashboard: "/admin/dashboard",
     users: "/admin/users",
     agents: "/admin/agents",
+    models: "/admin/models",
+    "quick-commands": "/admin/quick-commands",
     system: "/admin/system",
     logs: "/admin/logs",
     database: "/admin/database",
@@ -431,6 +443,8 @@ watch(
       "/admin/dashboard": "dashboard",
       "/admin/users": "users",
       "/admin/agents": "agents",
+      "/admin/models": "models",
+      "/admin/quick-commands": "quick-commands",
       "/admin/system": "system",
       "/admin/logs": "logs",
       "/admin/database": "database",
