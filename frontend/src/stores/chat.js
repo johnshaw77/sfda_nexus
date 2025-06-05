@@ -389,6 +389,7 @@ export const useChatStore = defineStore("chat", () => {
   const handleGetAvailableModels = async () => {
     try {
       const response = await api.get("/api/chat/models");
+      console.log("availableModels", response.data.data);
       availableModels.value = response.data.data;
       return availableModels.value;
     } catch (error) {

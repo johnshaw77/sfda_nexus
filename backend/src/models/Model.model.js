@@ -9,12 +9,11 @@ import { query } from "../config/database.config.js";
  * 獲取所有可用模型
  * @param {Object} options - 查詢選項
  * @param {string} [options.provider] - 提供商過濾 (ollama, gemini, openai, claude)
- * @param {boolean} [options.available] - 是否只獲取可用模型
- * @param {boolean} [options.active] - 是否只獲取啟用模型
+ * @param {boolean} [options.is_active] - 是否只獲取啟用模型
  * @returns {Promise<Array>} 模型列表
  */
 export const getAllModels = async (options = {}) => {
-  const { provider, available, active } = options;
+  const { provider, is_active } = options;
 
   let sql = `
     SELECT 
@@ -49,9 +48,9 @@ export const getAllModels = async (options = {}) => {
   }
 
   // 添加啟用狀態過濾
-  if (active !== undefined) {
+  if (is_active !== undefined) {
     sql += " AND is_active = ?";
-    params.push(active);
+    params.push(is_active);
   }
 
   sql += " ORDER BY model_type, display_name";
@@ -345,7 +344,7 @@ export const getModelStats = async () => {
 
 /**
  * 同步模型可用性狀態
- * @param {Array} modelUpdates - 模型更新數據 [{model_name, provider, available}, ...]
+ * @param {Array} modelUpdates - 模型更新數據 [{model_name, provider, is_active}, ...]
  * @returns {Promise<number>} 更新的模型數量
  */
 export const syncModelAvailability = async (modelUpdates) => {
@@ -356,7 +355,7 @@ export const syncModelAvailability = async (modelUpdates) => {
   let updatedCount = 0;
 
   for (const update of modelUpdates) {
-    const { model_name, provider, available } = update;
+    const { model_name, provider, is_active } = update;
 
     const sql = `
       UPDATE ai_models 
@@ -364,7 +363,7 @@ export const syncModelAvailability = async (modelUpdates) => {
       WHERE name = ? AND model_type = ?
     `;
 
-    const result = await query(sql, [available, model_name, provider]);
+    const result = await query(sql, [is_active, model_name, provider]);
     if (result.rows.affectedRows > 0) {
       updatedCount++;
     }

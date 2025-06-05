@@ -19,12 +19,11 @@ import logger from "../utils/logger.util.js";
  * @access Private
  */
 export const handleGetAllModels = catchAsync(async (req, res) => {
-  const { provider, available, active, group_by_provider } = req.query;
+  const { provider, is_active, group_by_provider } = req.query;
 
   const options = {};
   if (provider) options.provider = provider;
-  if (available !== undefined) options.available = available === "true";
-  if (active !== undefined) options.active = active === "true";
+  if (is_active !== undefined) options.is_active = is_active === "true";
 
   let models;
   if (group_by_provider === "true") {

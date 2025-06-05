@@ -250,9 +250,9 @@ const sendMessageLimiter = rateLimit({
  *         max_tokens:
  *           type: integer
  *           description: 最大token數
- *         available:
+ *         is_active:
  *           type: boolean
- *           description: 是否實際可用
+ *           description: 是否啟用
  *
  *     Agent:
  *       type: object

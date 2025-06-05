@@ -459,7 +459,7 @@
 
             <div class="toolbar-right">
               <!-- 字數統計 -->
-              <span class="char-count">{{ messageText.length }}</span>
+              <!-- <span class="char-count">{{ messageText.length }}</span> -->
 
               <!-- 發送按鈕 -->
               <a-button
@@ -710,28 +710,28 @@ const availableModels = computed(() => {
       id: model.id,
       name: model.display_name || model.name,
       provider: "ollama",
-      available: model.available,
+      available: model.is_active,
       is_default: model.is_default || false,
     })),
     ...gemini.map((model) => ({
       id: model.id,
       name: model.display_name || model.name,
       provider: "gemini",
-      available: model.available,
+      available: model.is_active,
       is_default: model.is_default || false,
     })),
     ...openai.map((model) => ({
       id: model.id,
       name: model.display_name || model.name,
       provider: "openai",
-      available: model.available,
+      available: model.is_active,
       is_default: model.is_default || false,
     })),
     ...claude.map((model) => ({
       id: model.id,
       name: model.display_name || model.name,
       provider: "claude",
-      available: model.available,
+      available: model.is_active,
       is_default: model.is_default || false,
     })),
   ].filter((model) => model.available !== false && model.id); // 只顯示可用且有ID的模型
@@ -1185,53 +1185,8 @@ const getQuickPrompts = () => {
     return agentQuickCommands.value;
   }
 
-  // 回退到硬編碼的快速提示（保持兼容性）
-  const agentPrompts = {
-    1: [
-      // Arthur - 教育
-      { id: 1, text: "解釋一個複雜的概念" },
-      { id: 2, text: "幫我學習新知識" },
-      { id: 3, text: "分析這個問題" },
-    ],
-    2: [
-      // Fred - 體育
-      { id: 1, text: "分析球隊表現" },
-      { id: 2, text: "預測比賽結果" },
-      { id: 3, text: "球員數據分析" },
-    ],
-    3: [
-      // Nikki - 營養
-      { id: 1, text: "制定健康飲食計劃" },
-      { id: 2, text: "分析營養成分" },
-      { id: 3, text: "推薦健康食譜" },
-    ],
-    4: [
-      // Rich - 金融
-      { id: 1, text: "投資建議" },
-      { id: 2, text: "理財規劃" },
-      { id: 3, text: "市場分析" },
-    ],
-    5: [
-      // Travis - 旅遊
-      { id: 1, text: "規劃旅行路線" },
-      { id: 2, text: "推薦旅遊景點" },
-      { id: 3, text: "酒店預訂建議" },
-    ],
-    6: [
-      // Libby - 閱讀
-      { id: 1, text: "推薦好書" },
-      { id: 2, text: "書籍評論" },
-      { id: 3, text: "閱讀計劃" },
-    ],
-    7: [
-      // Bizzy - 商業
-      { id: 1, text: "商業策略分析" },
-      { id: 2, text: "市場調研" },
-      { id: 3, text: "商業計劃書" },
-    ],
-  };
-
-  return agentPrompts[props.agent.id] || quickPrompts.value;
+  // 如果沒有載入到動態命令，則使用預設的通用快速提示
+  return quickPrompts.value;
 };
 
 // 監聽消息變化，自動滾動到底部

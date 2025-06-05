@@ -23,37 +23,37 @@
           <!-- Models List -->
           <div class="models-list">
             <div
-              v-for="model in allModels"
-              :key="`${model.provider}-${model.model_id}`"
+              v-for="model in models"
+              :key="model.id"
               class="model-item"
               :class="{
-                selected:
-                  selectedModel && selectedModel.model_id === model.model_id,
-                unavailable: !model.available,
+                active: selectedModel?.id === model.id,
+                unavailable: !model.is_active,
               }"
               @click="handleSelectModel(model)">
-              <div class="model-info">
+              <div class="model-content">
                 <div class="model-main">
                   <div class="model-name-row">
                     <component
                       :is="getProviderIcon(model.provider)"
                       class="provider-icon" />
-                    <span class="model-name">{{ model.display_name }}</span>
+                    <span class="model-name">{{
+                      model.display_name || model.name
+                    }}</span>
                     <span class="provider-tag">{{
                       getProviderLabel(model.provider)
                     }}</span>
                   </div>
                   <div class="model-details">
-                    <span class="model-id">{{ model.model_id }}</span>
-                    <div class="model-specs">
+                    <span class="model-id">{{
+                      model.model_id || model.name
+                    }}</span>
+                    <div
+                      class="model-specs"
+                      v-if="model.max_tokens">
                       <span class="spec-item">{{
                         formatMaxTokens(model.max_tokens)
                       }}</span>
-                      <span
-                        class="spec-item"
-                        v-if="model.pricing"
-                        >{{ formatPricing(model.pricing) }}</span
-                      >
                     </div>
                   </div>
                 </div>
@@ -61,11 +61,13 @@
                   <span
                     v-if="model.is_active"
                     class="status-available"
+                    title="可用"
                     >可用</span
                   >
                   <span
                     v-else
                     class="status-unavailable"
+                    title="不可用"
                     >不可用</span
                   >
                 </div>
@@ -83,7 +85,7 @@
 
           <!-- Empty State -->
           <div
-            v-if="!loading && allModels.length === 0"
+            v-if="!loading && models.length === 0"
             class="empty-state">
             <span>暫無可用模型</span>
           </div>
@@ -151,7 +153,7 @@ const selectedModel = computed({
 });
 
 // 將所有模型平鋪成一個列表
-const allModels = computed(() => {
+const models = computed(() => {
   const models = [];
   if (chatStore.availableModels) {
     // 遍歷所有提供商
@@ -164,7 +166,7 @@ const allModels = computed(() => {
   return models;
 });
 
-const totalModelsCount = computed(() => allModels.value.length);
+const totalModelsCount = computed(() => models.value.length);
 
 const handleDropdownVisibleChange = (visible) => {
   // if (visible) {
@@ -176,7 +178,7 @@ const handleDropdownVisibleChange = (visible) => {
 };
 
 const handleSelectModel = (model) => {
-  if (!model.available) return;
+  if (!model.is_active) return;
   selectedModel.value = model;
 };
 
@@ -337,7 +339,7 @@ onMounted(async () => {
   background-color: var(--custom-bg-tertiary);
 }
 
-.model-item.selected {
+.model-item.active {
   background-color: var(--custom-bg-tertiary);
   border-left-color: var(--custom-border-primary);
 }
@@ -347,7 +349,7 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-.model-info {
+.model-content {
   display: flex;
   justify-content: space-between;
   align-items: center;

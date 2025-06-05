@@ -146,12 +146,7 @@ const router = express.Router();
  *           enum: [ollama, gemini, openai, claude]
  *         description: 按提供商過濾
  *       - in: query
- *         name: available
- *         schema:
- *           type: boolean
- *         description: 只獲取可用模型
- *       - in: query
- *         name: active
+ *         name: is_active
  *         schema:
  *           type: boolean
  *         description: 只獲取啟用模型

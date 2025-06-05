@@ -928,4 +928,18 @@ npm run dev
 - 📱 **響應式設計** - 支援多種設備和螢幕尺寸
 - 🎨 **現代 UI** - 基於 Ant Design Vue 的美觀界面
 - 🐳 **Docker 支援** - 容器化部署和開發環境
+
+#### 🔧 程式碼優化 (v1.9.2) - 2025-01-02
+
+- [x] 移除前端硬編碼的智能體快速提示，統一使用資料庫動態載入
+- [x] 修正後端 models.controller.js 和 Model.model.js 中的欄位錯誤
+  - [x] 將所有 `available` 參數統一修正為 `is_active`（對應資料庫實際欄位）
+  - [x] 移除重複的 `active` 參數，簡化 API 參數結構
+  - [x] 更新 API 文檔註釋以反映正確的參數名稱
+- [x] 修正前端 ChatArea.vue 和 ModelSelector.vue 中的模型狀態判斷
+  - [x] 將 `model.available` 統一修正為 `model.is_active`
+- [x] 更新 Swagger API 文檔
+  - [x] 修正 models.route.js 中的參數說明
+  - [x] 修正 chat.route.js 中的 Model schema 定義
+- [x] 確保前後端資料欄位命名一致性
 ```
