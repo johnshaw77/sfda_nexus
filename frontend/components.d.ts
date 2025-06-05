@@ -65,6 +65,8 @@ declare module 'vue' {
     CodeHighlightCopy2: typeof import('./src/components/common/CodeHighlight-copy2.vue')['default']
     CodeHighlightResearch: typeof import('./src/components/common/CodeHighlight-research.vue')['default']
     CodeHighlightResearchCopy: typeof import('./src/components/common/CodeHighlight-research-copy.vue')['default']
+    FileAnalysisCard: typeof import('./src/components/common/FileAnalysisCard.vue')['default']
+    FilePreview: typeof import('./src/components/common/FilePreview.vue')['default']
     IconButton: typeof import('./src/components/common/IconButton.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

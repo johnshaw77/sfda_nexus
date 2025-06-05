@@ -13,6 +13,7 @@ import systemRoutes from "./system.route.js";
 import agentsRoutes from "./agents.route.js";
 import quickCommandsRoutes from "./quickCommands.route.js";
 import modelsRoutes from "./models.route.js";
+import filesRoutes from "./files.route.js";
 // import workflowsRoutes from './workflows.route.js';
 // import toolsRoutes from './tools.route.js';
 
@@ -31,6 +32,7 @@ router.get("/", (req, res) => {
       agents: "/api/agents",
       users: "/api/users",
       system: "/api/system",
+      files: "/api/files",
       workflows: "/api/workflows",
       tools: "/api/tools",
       quickCommands: "/api/quick-commands",
@@ -59,6 +61,7 @@ router.use("/system", systemRoutes); // 系統管理路由
 router.use("/agents", agentsRoutes); // 智能體管理路由
 router.use("/quick-commands", quickCommandsRoutes); // 快速命令詞路由
 router.use("/models", modelsRoutes); // AI模型管理路由
+router.use("/files", filesRoutes); // 檔案管理路由
 // router.use('/workflows', workflowsRoutes); // 工作流管理路由
 // router.use('/tools', toolsRoutes);         // 工具管理路由
 

@@ -326,7 +326,12 @@
 
       <!-- 輸入框 -->
       <div class="input-container">
-        <div class="input-wrapper">
+        <div
+          class="input-wrapper"
+          :class="{ 'drag-over': isDragOver }"
+          @dragover="handleDragOver"
+          @dragleave="handleDragLeave"
+          @drop="handleDrop">
           <!-- 調整大小按鈕 -->
           <div class="resize-buttons">
             <a-tooltip
@@ -371,6 +376,87 @@
             </a-tooltip>
           </div>
 
+          <!-- 檔案分析卡片 -->
+          <FileAnalysisCard
+            v-if="showFileAnalysisCard && currentFileInfo"
+            :file-info="currentFileInfo"
+            @close="showFileAnalysisCard = false"
+            class="inline-file-analysis" />
+
+          <!-- 預覽檔案縮圖 -->
+          <div
+            v-if="previewFiles.length > 0"
+            class="preview-files-container">
+            <div class="preview-files-list">
+              <div
+                v-for="file in previewFiles"
+                :key="file.id"
+                class="preview-file-item">
+                <!-- 檔案縮圖 -->
+                <div
+                  class="file-thumbnail"
+                  :class="{
+                    clickable:
+                      file.preview && file.mimeType.startsWith('image/'),
+                  }"
+                  @click="handlePreviewImage(file)">
+                  <!-- 圖片檔案顯示預覽 -->
+                  <img
+                    v-if="file.preview"
+                    :src="file.preview"
+                    :alt="file.filename"
+                    class="thumbnail-image" />
+                  <!-- 非圖片檔案顯示圖示 -->
+                  <div
+                    v-else
+                    class="thumbnail-icon">
+                    <FileImageOutlined />
+                  </div>
+                  <!-- 放大鏡圖示（僅圖片顯示） -->
+                  <div
+                    v-if="file.preview && file.mimeType.startsWith('image/')"
+                    class="zoom-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="white">
+                      <path
+                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                      <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" />
+                    </svg>
+                  </div>
+                  <!-- 移除按鈕 -->
+                  <a-button
+                    type="text"
+                    size="small"
+                    @click.stop="handleRemovePreviewFile(file.id)"
+                    class="remove-btn">
+                    <CloseOutlined />
+                  </a-button>
+                </div>
+                <!-- 檔案資訊 -->
+                <div class="file-info">
+                  <div class="filename">{{ file.filename }}</div>
+                  <div class="file-size">
+                    {{ formatFileSize(file.fileSize) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 拖拉提示覆蓋層 -->
+          <div
+            v-if="isDragOver"
+            class="drag-overlay">
+            <div class="drag-content">
+              <FileImageOutlined class="drag-icon" />
+              <div class="drag-text">拖放檔案到這裡</div>
+              <div class="drag-subtext">支援圖片、文件等多種格式</div>
+            </div>
+          </div>
+
           <a-textarea
             ref="messageInput"
             :value="messageText"
@@ -380,7 +466,8 @@
                 handleInputChange(e);
               }
             "
-            :placeholder="`向 ${agent?.name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送)`"
+            @paste="handlePaste"
+            :placeholder="`向 ${agent?.name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送，支援拖拉或貼上檔案)`"
             :auto-size="false"
             :disabled="sending"
             @keydown="handleKeyDown"
@@ -436,7 +523,7 @@
                 </a-button>
               </a-tooltip>
 
-              <!-- 附件上傳 -->
+              <!-- 直接上傳附件 -->
               <a-upload
                 :show-upload-list="false"
                 :before-upload="handleFileUpload"
@@ -445,6 +532,18 @@
                   type="text"
                   size="small">
                   <PaperClipOutlined />
+                </a-button>
+              </a-upload>
+
+              <!-- 預覽後上傳 -->
+              <a-upload
+                :show-upload-list="false"
+                :before-upload="handleFilePreview"
+                accept="*/*">
+                <a-button
+                  type="text"
+                  size="small">
+                  <FileImageOutlined />
                 </a-button>
               </a-upload>
 
@@ -465,7 +564,7 @@
               <a-button
                 type="primary"
                 :loading="sending"
-                :disabled="!messageText.trim()"
+                :disabled="!messageText.trim() && previewFiles.length === 0"
                 @click="handleSendMessage"
                 class="send-button">
                 <SendOutlined />
@@ -519,6 +618,24 @@
         </div>
       </div>
     </div>
+
+    <!-- 圖片預覽模態框 -->
+    <a-modal
+      v-model:open="imagePreviewVisible"
+      :title="null"
+      :footer="null"
+      width="30%"
+      centered
+      class="image-preview-modal">
+      <div
+        v-if="currentPreviewImage"
+        class="image-preview-content">
+        <img
+          :src="currentPreviewImage.url"
+          :alt="currentPreviewImage.filename"
+          class="preview-image" />
+      </div>
+    </a-modal>
 
     <!-- 聊天設置模態框 -->
     <a-modal
@@ -610,6 +727,7 @@ import {
   RobotOutlined,
   CloseOutlined,
   PaperClipOutlined,
+  FileImageOutlined,
   SmileOutlined,
   SendOutlined,
   PlusOutlined,
@@ -619,6 +737,7 @@ import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";
 import MessageBubble from "./MessageBubble.vue";
 import ModelSelector from "./ModelSelector.vue";
+import FileAnalysisCard from "@/components/common/FileAnalysisCard.vue";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 import {
   getAgentQuickCommands,
@@ -638,7 +757,10 @@ const quotedMessage = ref(null);
 const lastSentMessageId = ref(null);
 const messagesContainer = ref(null);
 const messageInput = ref(null);
+const pendingAttachments = ref([]);
 const settingsModalVisible = ref(false);
+const showFileAnalysisCard = ref(false);
+const currentFileInfo = ref(null);
 const showAgentMenu = ref(false);
 const agentMenuPosition = ref({ top: 0, left: 0 });
 const inputAreaHeight = ref(300);
@@ -648,6 +770,13 @@ const maxInputHeight = 600;
 const creatingNewConversation = ref(false);
 const agentQuickCommands = ref([]);
 const loadingQuickCommands = ref(false);
+
+// 預覽檔案相關狀態
+const previewFiles = ref([]);
+const maxPreviewFiles = 5;
+const imagePreviewVisible = ref(false);
+const currentPreviewImage = ref(null);
+const isDragOver = ref(false);
 
 // 計算 textarea 的高度
 const textareaHeight = computed(() => {
@@ -808,7 +937,7 @@ const handleModelChange = (model) => {
 };
 
 const handleSendMessage = async () => {
-  if (!messageText.value.trim()) return;
+  if (!messageText.value.trim() && previewFiles.value.length === 0) return;
 
   // 確保選擇了模型
   if (!selectedModelId.value) {
@@ -826,7 +955,7 @@ const handleSendMessage = async () => {
     let conversationId = chatStore.currentConversation?.id;
     if (!conversationId) {
       const newConversation = await chatStore.handleCreateConversation({
-        title: messageText.value.trim().substring(0, 50),
+        title: messageText.value.trim().substring(0, 50) || "檔案分析",
         agent_id: props.agent?.id,
         model_id: selectedModelId.value,
       });
@@ -835,10 +964,43 @@ const handleSendMessage = async () => {
 
     if (conversationId) {
       const content = messageText.value.trim();
+      let finalAttachments = [];
+
+      // 處理預覽檔案上傳
+      if (previewFiles.value.length > 0) {
+        const { uploadFile } = await import("@/api/files.js");
+
+        for (const previewFile of previewFiles.value) {
+          try {
+            const response = await uploadFile(previewFile.file);
+            if (response.success) {
+              finalAttachments.push({
+                id: response.data.id,
+                filename: response.data.filename,
+                file_size: response.data.file_size,
+                mime_type: response.data.mime_type,
+                file_type: response.data.file_type,
+              });
+            }
+          } catch (error) {
+            console.error(`上傳檔案 "${previewFile.filename}" 失敗:`, error);
+            message.error(`上傳檔案 "${previewFile.filename}" 失敗`);
+          }
+        }
+      }
+
+      // 合併現有附件和新上傳的附件
+      if (pendingAttachments.value.length > 0) {
+        finalAttachments = [...finalAttachments, ...pendingAttachments.value];
+      }
+
+      const attachments = finalAttachments.length > 0 ? finalAttachments : null;
 
       // 清空輸入框和重置狀態
       messageText.value = "";
       quotedMessage.value = null;
+      pendingAttachments.value = [];
+      previewFiles.value = []; // 清空預覽檔案
 
       if (useStreamMode.value) {
         // 使用串流模式
@@ -850,6 +1012,7 @@ const handleSendMessage = async () => {
           temperature: chatSettings.value.temperature,
           max_tokens: chatSettings.value.maxTokens,
           system_prompt: chatSettings.value.systemPrompt,
+          attachments: attachments,
         });
 
         message.success("串流消息發送成功");
@@ -864,6 +1027,7 @@ const handleSendMessage = async () => {
             maxTokens: chatSettings.value.maxTokens,
             model_id: selectedModelId.value,
             systemPrompt: chatSettings.value.systemPrompt,
+            attachments: attachments,
           }
         );
 
@@ -1044,11 +1208,260 @@ const handleRegenerateResponse = async (message) => {
   }
 };
 
-const handleFileUpload = (file) => {
-  // 處理文件上傳
-  console.log("上傳文件:", file);
-  message.info("文件上傳功能開發中");
+const handleFileUpload = async (file) => {
+  try {
+    // 檢查檔案大小 (10MB 限制)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      message.error("檔案大小不能超過 10MB");
+      return false;
+    }
+
+    // 檢查檔案類型
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+      "text/csv",
+      "text/markdown",
+      "text/x-markdown",
+
+      "xlsx",
+      "xls",
+      "csv",
+      "txt",
+      "docx",
+      "doc",
+      "pptx",
+      "ts",
+      "js",
+      "application/json",
+      "html",
+      "css",
+      "xml",
+      "yaml",
+      "yml",
+    ];
+
+    console.log("file.type", file.type);
+
+    if (!allowedTypes.includes(file.type)) {
+      message.error("不支援的檔案類型");
+      return false;
+    }
+
+    // 顯示上傳進度
+    let uploadProgressMessage = null;
+
+    // 上傳檔案
+    const { uploadFile } = await import("@/api/files.js");
+    const response = await uploadFile(file, {
+      onProgress: (progressEvent) => {
+        const percentCompleted = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total
+        );
+
+        // 關閉之前的進度消息
+        if (uploadProgressMessage) {
+          uploadProgressMessage();
+        }
+
+        // 顯示新的進度消息
+        uploadProgressMessage = message.loading(
+          `上傳進度: ${percentCompleted}%`,
+          0
+        );
+      },
+    });
+
+    // 關閉進度消息
+    if (uploadProgressMessage) {
+      uploadProgressMessage();
+    }
+
+    if (response.success) {
+      const uploadedFile = response.data;
+
+      // 將檔案信息添加到消息中
+      const fileAttachment = {
+        id: uploadedFile.id,
+        filename: uploadedFile.filename,
+        file_size: uploadedFile.file_size,
+        mime_type: uploadedFile.mime_type,
+        file_type: uploadedFile.file_type,
+      };
+
+      // 存儲檔案附件信息（用於發送消息時使用）
+      if (!pendingAttachments.value) {
+        pendingAttachments.value = [];
+      }
+      pendingAttachments.value.push(fileAttachment);
+
+      // 顯示檔案分析卡片
+      showFileAnalysisCard.value = true;
+      currentFileInfo.value = uploadedFile;
+
+      message.success(`檔案 "${uploadedFile.filename}" 上傳成功`);
+    } else {
+      message.error(response.message || "檔案上傳失敗");
+    }
+  } catch (error) {
+    console.error("檔案上傳失敗:", error);
+    message.error("檔案上傳失敗，請稍後重試");
+  }
+
+  return false; // 阻止 ant-design-vue 的自動上傳
+};
+
+const handleFilePreview = async (file) => {
+  try {
+    // 檢查檔案數量限制
+    if (previewFiles.value.length >= maxPreviewFiles) {
+      message.warning(`最多只能預覽 ${maxPreviewFiles} 個檔案`);
+      return false;
+    }
+
+    // 檢查檔案大小 (20MB 限制)
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      message.error("檔案大小不能超過 10MB");
+      return false;
+    }
+
+    // 檢查檔案類型
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+      "text/csv",
+      "text/markdown",
+      "text/x-markdown",
+      "application/json",
+      "text/javascript",
+      "text/css",
+      "text/html",
+      "application/xml",
+      "text/xml",
+      "application/x-yaml",
+      "text/yaml",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      message.error("不支援的檔案類型");
+      return false;
+    }
+
+    // 創建預覽物件
+    const previewFile = {
+      id: Date.now() + Math.random(), // 臨時ID
+      file: file, // 原始檔案物件
+      filename: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+      preview: null, // 預覽圖片 URL
+    };
+
+    // 如果是圖片，生成預覽
+    if (file.type.startsWith("image/")) {
+      try {
+        const previewUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        previewFile.preview = previewUrl;
+      } catch (error) {
+        console.error("生成圖片預覽失敗:", error);
+      }
+    }
+
+    // 添加到預覽列表
+    previewFiles.value.push(previewFile);
+
+    message.success(`檔案 "${file.name}" 已添加到預覽`);
+  } catch (error) {
+    console.error("檔案預覽失敗:", error);
+    message.error("檔案預覽失敗");
+  }
+
   return false; // 阻止自動上傳
+};
+
+const handleRemovePreviewFile = (fileId) => {
+  previewFiles.value = previewFiles.value.filter((f) => f.id !== fileId);
+};
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+const handlePreviewImage = (file) => {
+  if (file.preview && file.mimeType.startsWith("image/")) {
+    currentPreviewImage.value = {
+      url: file.preview,
+      filename: file.filename,
+      fileSize: file.fileSize,
+    };
+    imagePreviewVisible.value = true;
+  }
+};
+
+// 拖拉檔案處理
+const handleDragOver = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  isDragOver.value = true;
+};
+
+const handleDragLeave = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  // 只有當離開整個輸入區域時才設為 false
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    isDragOver.value = false;
+  }
+};
+
+const handleDrop = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  isDragOver.value = false;
+
+  const files = Array.from(e.dataTransfer.files);
+
+  for (const file of files) {
+    await handleFilePreview(file);
+  }
+};
+
+// 貼上檔案處理
+const handlePaste = async (e) => {
+  const items = Array.from(e.clipboardData.items);
+
+  for (const item of items) {
+    if (item.kind === "file") {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (file) {
+        await handleFilePreview(file);
+      }
+    }
+  }
 };
 
 const handleShowEmoji = () => {
@@ -2112,5 +2525,224 @@ const handleCreateNewConversation = async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 內聯檔案分析卡片樣式 */
+.inline-file-analysis {
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--custom-border-primary);
+  padding-bottom: 12px;
+}
+
+.input-wrapper {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.input-wrapper.drag-over {
+  border: 1px dashed var(--primary-color);
+  border-radius: 8px;
+  background: rgba(24, 144, 255, 0.05);
+}
+
+/* 當有檔案分析卡片時，調整輸入框的邊框 */
+.input-wrapper:has(.inline-file-analysis) .message-input {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* 預覽檔案容器樣式 */
+.preview-files-container {
+  padding: 12px;
+  border: 1px solid var(--custom-border-primary);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: var(--custom-bg-secondary);
+}
+
+.preview-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.preview-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--custom-bg-tertiary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 6px;
+  max-width: 200px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.file-thumbnail {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--custom-bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.file-thumbnail.clickable {
+  cursor: pointer;
+}
+
+.file-thumbnail.clickable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-icon {
+  color: var(--custom-text-secondary);
+  font-size: 18px;
+}
+
+.remove-btn {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  border-radius: 50%;
+  color: white !important;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.file-thumbnail:hover .remove-btn {
+  opacity: 1;
+}
+
+.zoom-icon {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.file-thumbnail.clickable:hover .zoom-icon {
+  opacity: 1;
+}
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.filename {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--custom-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.file-size {
+  font-size: 11px;
+  color: var(--custom-text-secondary);
+}
+
+/* 當有預覽檔案時，調整輸入框樣式 */
+.input-wrapper:has(.preview-files-container) .message-input {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.ant-modal-content {
+  border: 2px solid red !important;
+  padding: 0 !important;
+  margin: 40px;
+}
+/* 圖片預覽 Modal 樣式 */
+.image-preview-modal .ant-modal-body {
+  padding: 0;
+}
+
+.image-preview-modal .ant-modal-header {
+  display: none;
+}
+
+.image-preview-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* 拖拉覆蓋層樣式 */
+.drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(24, 144, 255, 0.1);
+  border: 2px dashed var(--primary-color);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: blur(2px);
+}
+
+.drag-content {
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.drag-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.drag-text {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.drag-subtext {
+  font-size: 14px;
+  opacity: 0.8;
 }
 </style>
