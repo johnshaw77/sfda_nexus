@@ -125,16 +125,24 @@
           class="attachment-item"
           @click="handleViewAttachment(attachment)">
           <div class="attachment-icon">
-            <FileOutlined v-if="attachment.type === 'file'" />
-            <PictureOutlined v-else-if="attachment.type === 'image'" />
-            <VideoCameraOutlined v-else-if="attachment.type === 'video'" />
-            <AudioOutlined v-else-if="attachment.type === 'audio'" />
+            <FileOutlined v-if="attachment.file_type === 'attachment'" />
+            <PictureOutlined
+              v-else-if="
+                attachment.file_type === 'image' ||
+                attachment.mime_type?.startsWith('image/')
+              " />
+            <VideoCameraOutlined
+              v-else-if="attachment.mime_type?.startsWith('video/')" />
+            <AudioOutlined
+              v-else-if="attachment.mime_type?.startsWith('audio/')" />
             <FileOutlined v-else />
           </div>
           <div class="attachment-info">
-            <div class="attachment-name">{{ attachment.name }}</div>
+            <div class="attachment-name">
+              {{ attachment.filename || attachment.name }}
+            </div>
             <div class="attachment-size">
-              {{ formatFileSize(attachment.size) }}
+              {{ formatFileSize(attachment.file_size || attachment.size) }}
             </div>
           </div>
         </div>
@@ -383,14 +391,20 @@ const handleDeleteMessage = async () => {
 
 const handleViewAttachment = (attachment) => {
   // 處理附件查看邏輯
-  if (attachment.type === "image") {
-    // 打開圖片預覽
-    window.open(attachment.url, "_blank");
+  const isImage =
+    attachment.file_type === "image" ||
+    attachment.mime_type?.startsWith("image/");
+
+  if (isImage) {
+    // 構建圖片預覽URL
+    const imageUrl = `${configStore.apiBaseUrl}/api/files/${attachment.id}/download`;
+    window.open(imageUrl, "_blank");
   } else {
     // 下載文件
+    const downloadUrl = `${configStore.apiBaseUrl}/api/files/${attachment.id}/download`;
     const link = document.createElement("a");
-    link.href = attachment.url;
-    link.download = attachment.name;
+    link.href = downloadUrl;
+    link.download = attachment.filename || attachment.name;
     link.click();
   }
 };

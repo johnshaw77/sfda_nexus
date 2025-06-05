@@ -243,10 +243,147 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     const aiOptions = {
       provider: model.model_type,
       model: model.model_id,
-      messages: contextMessages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      messages: await Promise.all(
+        contextMessages.map(async (msg) => {
+          const formattedMessage = {
+            role: msg.role,
+            content: msg.content,
+          };
+
+          // 處理附件（特別是圖片）
+          if (msg.attachments && msg.attachments.length > 0) {
+            const attachmentContents = [];
+
+            console.log(`=== 處理消息附件 ===`);
+            console.log("消息ID:", msg.id);
+            console.log("附件數量:", msg.attachments.length);
+            console.log("當前模型類型:", model.model_type);
+
+            for (const attachment of msg.attachments) {
+              console.log("處理附件:", {
+                id: attachment.id,
+                filename: attachment.filename,
+                mime_type: attachment.mime_type,
+                file_size: attachment.file_size,
+              });
+
+              // 檢查是否為圖片附件
+              if (
+                attachment.mime_type &&
+                attachment.mime_type.startsWith("image/")
+              ) {
+                try {
+                  // 獲取圖片文件信息
+                  const { rows: fileRows } = await query(
+                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
+                    [attachment.id]
+                  );
+
+                  console.log(`=== 處理圖片附件 ${attachment.id} ===`);
+                  console.log("檔案查詢結果:", fileRows);
+
+                  if (fileRows.length > 0) {
+                    const filePath = fileRows[0].file_path;
+                    console.log("圖片文件路徑:", filePath);
+
+                    // 讀取圖片文件並轉換為base64
+                    const fs = await import("fs/promises");
+
+                    try {
+                      const fileBuffer = await fs.readFile(filePath);
+                      const base64Image = fileBuffer.toString("base64");
+                      const mimeType = attachment.mime_type;
+
+                      console.log(
+                        "圖片讀取成功，base64長度:",
+                        base64Image.length
+                      );
+                      console.log("MIME類型:", mimeType);
+
+                      // 為多模態模型格式化圖片內容
+                      if (model.model_type === "gemini") {
+                        attachmentContents.push({
+                          type: "image",
+                          source: {
+                            type: "base64",
+                            media_type: mimeType,
+                            data: base64Image,
+                          },
+                        });
+                        console.log("已添加圖片到 Gemini 多模態內容");
+                      } else if (model.model_type === "ollama") {
+                        // Ollama 多模態格式（支援 llava, qwen2-vl 等視覺模型）
+                        attachmentContents.push({
+                          type: "image_url",
+                          image_url: `data:${mimeType};base64,${base64Image}`,
+                        });
+                        console.log("已添加圖片到 Ollama 多模態內容");
+                      }
+                    } catch (fileError) {
+                      console.error("讀取圖片文件失敗:", fileError);
+                      logger.warn("無法讀取圖片文件", {
+                        filePath,
+                        error: fileError.message,
+                        attachmentId: attachment.id,
+                      });
+                    }
+                  } else {
+                    console.warn("未找到檔案記錄:", attachment.id);
+                  }
+                } catch (dbError) {
+                  console.error("查詢檔案信息失敗:", dbError);
+                  logger.warn("無法獲取附件文件信息", {
+                    attachmentId: attachment.id,
+                    error: dbError.message,
+                  });
+                }
+              }
+            }
+
+            // 如果有圖片內容，將消息轉換為多模態格式
+            if (attachmentContents.length > 0) {
+              console.log(`=== 轉換為多模態格式 (${model.model_type}) ===`);
+              console.log("圖片內容數量:", attachmentContents.length);
+
+              if (model.model_type === "gemini") {
+                // Gemini格式：content是數組
+                formattedMessage.content = [
+                  {
+                    type: "text",
+                    text: msg.content,
+                  },
+                  ...attachmentContents,
+                ];
+                console.log("Gemini 多模態格式設置完成");
+              } else if (model.model_type === "ollama") {
+                // Ollama格式：保持OpenAI兼容的格式
+                formattedMessage.content = [
+                  {
+                    type: "text",
+                    text: msg.content,
+                  },
+                  ...attachmentContents,
+                ];
+                console.log("Ollama 多模態格式設置完成");
+              }
+
+              console.log("最終消息格式:", {
+                role: formattedMessage.role,
+                contentType: Array.isArray(formattedMessage.content)
+                  ? "multimodal"
+                  : "text",
+                partCount: Array.isArray(formattedMessage.content)
+                  ? formattedMessage.content.length
+                  : 1,
+              });
+            } else {
+              console.log("沒有可處理的圖片附件");
+            }
+          }
+
+          return formattedMessage;
+        })
+      ),
       temperature: temperature,
       max_tokens: max_tokens,
     };
@@ -503,10 +640,147 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     const aiOptions = {
       provider: model.model_type,
       model: model.model_id,
-      messages: contextMessages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      messages: await Promise.all(
+        contextMessages.map(async (msg) => {
+          const formattedMessage = {
+            role: msg.role,
+            content: msg.content,
+          };
+
+          // 處理附件（特別是圖片）
+          if (msg.attachments && msg.attachments.length > 0) {
+            const attachmentContents = [];
+
+            console.log(`=== 處理消息附件 ===`);
+            console.log("消息ID:", msg.id);
+            console.log("附件數量:", msg.attachments.length);
+            console.log("當前模型類型:", model.model_type);
+
+            for (const attachment of msg.attachments) {
+              console.log("處理附件:", {
+                id: attachment.id,
+                filename: attachment.filename,
+                mime_type: attachment.mime_type,
+                file_size: attachment.file_size,
+              });
+
+              // 檢查是否為圖片附件
+              if (
+                attachment.mime_type &&
+                attachment.mime_type.startsWith("image/")
+              ) {
+                try {
+                  // 獲取圖片文件信息
+                  const { rows: fileRows } = await query(
+                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
+                    [attachment.id]
+                  );
+
+                  console.log(`=== 處理圖片附件 ${attachment.id} ===`);
+                  console.log("檔案查詢結果:", fileRows);
+
+                  if (fileRows.length > 0) {
+                    const filePath = fileRows[0].file_path;
+                    console.log("圖片文件路徑:", filePath);
+
+                    // 讀取圖片文件並轉換為base64
+                    const fs = await import("fs/promises");
+
+                    try {
+                      const fileBuffer = await fs.readFile(filePath);
+                      const base64Image = fileBuffer.toString("base64");
+                      const mimeType = attachment.mime_type;
+
+                      console.log(
+                        "圖片讀取成功，base64長度:",
+                        base64Image.length
+                      );
+                      console.log("MIME類型:", mimeType);
+
+                      // 為多模態模型格式化圖片內容
+                      if (model.model_type === "gemini") {
+                        attachmentContents.push({
+                          type: "image",
+                          source: {
+                            type: "base64",
+                            media_type: mimeType,
+                            data: base64Image,
+                          },
+                        });
+                        console.log("已添加圖片到 Gemini 多模態內容");
+                      } else if (model.model_type === "ollama") {
+                        // Ollama 多模態格式（支援 llava, qwen2-vl 等視覺模型）
+                        attachmentContents.push({
+                          type: "image_url",
+                          image_url: `data:${mimeType};base64,${base64Image}`,
+                        });
+                        console.log("已添加圖片到 Ollama 多模態內容");
+                      }
+                    } catch (fileError) {
+                      console.error("讀取圖片文件失敗:", fileError);
+                      logger.warn("無法讀取圖片文件", {
+                        filePath,
+                        error: fileError.message,
+                        attachmentId: attachment.id,
+                      });
+                    }
+                  } else {
+                    console.warn("未找到檔案記錄:", attachment.id);
+                  }
+                } catch (dbError) {
+                  console.error("查詢檔案信息失敗:", dbError);
+                  logger.warn("無法獲取附件文件信息", {
+                    attachmentId: attachment.id,
+                    error: dbError.message,
+                  });
+                }
+              }
+            }
+
+            // 如果有圖片內容，將消息轉換為多模態格式
+            if (attachmentContents.length > 0) {
+              console.log(`=== 轉換為多模態格式 (${model.model_type}) ===`);
+              console.log("圖片內容數量:", attachmentContents.length);
+
+              if (model.model_type === "gemini") {
+                // Gemini格式：content是數組
+                formattedMessage.content = [
+                  {
+                    type: "text",
+                    text: msg.content,
+                  },
+                  ...attachmentContents,
+                ];
+                console.log("Gemini 多模態格式設置完成");
+              } else if (model.model_type === "ollama") {
+                // Ollama格式：保持OpenAI兼容的格式
+                formattedMessage.content = [
+                  {
+                    type: "text",
+                    text: msg.content,
+                  },
+                  ...attachmentContents,
+                ];
+                console.log("Ollama 多模態格式設置完成");
+              }
+
+              console.log("最終消息格式:", {
+                role: formattedMessage.role,
+                contentType: Array.isArray(formattedMessage.content)
+                  ? "multimodal"
+                  : "text",
+                partCount: Array.isArray(formattedMessage.content)
+                  ? formattedMessage.content.length
+                  : 1,
+              });
+            } else {
+              console.log("沒有可處理的圖片附件");
+            }
+          }
+
+          return formattedMessage;
+        })
+      ),
       temperature: temperature,
       max_tokens: max_tokens,
       stream: true, // 啟用串流模式

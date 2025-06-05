@@ -74,34 +74,6 @@
 
       <!-- 模型選擇和設置 -->
       <div class="chat-controls">
-        <!-- <a-select
-          v-model:value="selectedModel"
-          placeholder="選擇 AI 模型"
-          style="width: 200px"
-          @change="handleModelChange"
-          :loading="chatStore.isLoading">
-          <a-select-option
-            v-for="model in availableModels"
-            :key="model.id"
-            :value="model.id"
-            :disabled="model.is_active === false">
-            <div class="model-option">
-              <span class="model-name">{{ model.name }}</span>
-              <a-tag
-                :color="getModelColor(model.provider)"
-                size="small">
-                {{ model.provider }}
-              </a-tag>
-              <a-tag
-                v-if="model.is_active === false"
-                color="red"
-                size="small">
-                不可用
-              </a-tag>
-            </div>
-          </a-select-option>
-        </a-select> -->
-
         <!-- 串流模式切換 -->
         <a-tooltip
           title="啟用後將使用類似 ChatGPT 的逐字顯示效果"
@@ -391,56 +363,67 @@
               <div
                 v-for="file in previewFiles"
                 :key="file.id"
-                class="preview-file-item">
-                <!-- 檔案縮圖 -->
-                <div
-                  class="file-thumbnail"
-                  :class="{
-                    clickable:
-                      file.preview && file.mimeType.startsWith('image/'),
-                  }"
-                  @click="handlePreviewImage(file)">
-                  <!-- 圖片檔案顯示預覽 -->
-                  <img
-                    v-if="file.preview"
-                    :src="file.preview"
-                    :alt="file.filename"
-                    class="thumbnail-image" />
-                  <!-- 非圖片檔案顯示圖示 -->
-                  <div
-                    v-else
-                    class="thumbnail-icon">
-                    <FileImageOutlined />
-                  </div>
-                  <!-- 放大鏡圖示（僅圖片顯示） -->
-                  <div
-                    v-if="file.preview && file.mimeType.startsWith('image/')"
-                    class="zoom-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="12"
-                      height="12"
-                      fill="white">
-                      <path
-                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                      <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" />
-                    </svg>
-                  </div>
-                  <!-- 移除按鈕 -->
+                class="preview-file-wrapper">
+                <!-- 預覽卡片 -->
+                <div class="preview-file-item">
+                  <!-- 移除按鈕（放在卡片右上角） -->
                   <a-button
                     type="text"
                     size="small"
                     @click.stop="handleRemovePreviewFile(file.id)"
-                    class="remove-btn">
+                    class="card-remove-btn">
                     <CloseOutlined />
                   </a-button>
-                </div>
-                <!-- 檔案資訊 -->
-                <div class="file-info">
-                  <div class="filename">{{ file.filename }}</div>
-                  <div class="file-size">
-                    {{ formatFileSize(file.fileSize) }}
+
+                  <!-- 檔案縮圖 -->
+                  <div
+                    class="file-thumbnail"
+                    :class="{
+                      clickable:
+                        file.preview && file.mimeType.startsWith('image/'),
+                    }"
+                    @click="handlePreviewImage(file)">
+                    <!-- 圖片檔案顯示預覽 -->
+                    <img
+                      v-if="file.preview"
+                      :src="file.preview"
+                      :alt="file.filename"
+                      class="thumbnail-image" />
+                    <!-- 非圖片檔案顯示圖示 -->
+                    <div
+                      v-else
+                      class="thumbnail-icon">
+                      <FileImageOutlined />
+                    </div>
+                    <!-- 放大鏡圖示（僅圖片顯示） -->
+                    <div
+                      v-if="file.preview && file.mimeType.startsWith('image/')"
+                      class="zoom-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="white">
+                        <path
+                          d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                        <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" />
+                      </svg>
+                    </div>
                   </div>
+                </div>
+
+                <!-- 解釋此圖按鈕（放在卡片下方，僅圖片顯示） -->
+                <div
+                  v-if="file.preview && file.mimeType.startsWith('image/')"
+                  class="image-actions">
+                  <a-button
+                    type="text"
+                    size="small"
+                    @click="handleExplainImage(file)"
+                    class="explain-btn">
+                    <EyeOutlined />
+                    解釋此圖
+                  </a-button>
                 </div>
               </div>
             </div>
@@ -477,9 +460,11 @@
           <!-- 輸入工具欄 -->
           <div class="input-toolbar">
             <div class="toolbar-left">
+              <!-- 模型選擇器 -->
               <ModelSelector
                 v-model:modelValue="selectedModel"
                 @change="handleModelChange" />
+
               <!-- 新對話按鈕 -->
               <a-button
                 type="text"
@@ -523,29 +508,22 @@
                 </a-button>
               </a-tooltip>
 
-              <!-- 直接上傳附件 -->
-              <a-upload
-                :show-upload-list="false"
-                :before-upload="handleFileUpload"
-                accept="*/*">
-                <a-button
-                  type="text"
-                  size="small">
-                  <PaperClipOutlined />
-                </a-button>
-              </a-upload>
-
               <!-- 預覽後上傳 -->
-              <a-upload
-                :show-upload-list="false"
-                :before-upload="handleFilePreview"
-                accept="*/*">
-                <a-button
-                  type="text"
-                  size="small">
-                  <FileImageOutlined />
-                </a-button>
-              </a-upload>
+              <a-tooltip placement="top">
+                <template #title>
+                  <span v-html="uploadDescription"></span>
+                </template>
+                <a-upload
+                  :show-upload-list="false"
+                  :before-upload="handleFilePreview"
+                  accept="*/*">
+                  <a-button
+                    type="text"
+                    size="small">
+                    <PaperClipOutlined />
+                  </a-button>
+                </a-upload>
+              </a-tooltip>
 
               <!-- 表情符號 -->
               <a-button
@@ -731,6 +709,7 @@ import {
   SmileOutlined,
   SendOutlined,
   PlusOutlined,
+  EyeOutlined,
 } from "@ant-design/icons-vue";
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
@@ -763,14 +742,16 @@ const showFileAnalysisCard = ref(false);
 const currentFileInfo = ref(null);
 const showAgentMenu = ref(false);
 const agentMenuPosition = ref({ top: 0, left: 0 });
-const inputAreaHeight = ref(300);
+const inputAreaHeight = ref(320); // 增加默認高度以適應新的最小高度
 const isResizing = ref(false);
-const minInputHeight = 200;
+const minInputHeight = 280; // 增加最小高度以適應工具欄和附件
 const maxInputHeight = 600;
 const creatingNewConversation = ref(false);
 const agentQuickCommands = ref([]);
 const loadingQuickCommands = ref(false);
-
+const uploadDescription = `<li>» 文件數量:同時最多 5 個</li>
+  <li>» 文件大小: 單個文件大小不超過 20 MB</li>
+  <li>» 文件類型: pdf,txt,docs,xlsx,圖片和各類代碼文件格式等</li>`;
 // 預覽檔案相關狀態
 const previewFiles = ref([]);
 const maxPreviewFiles = 5;
@@ -780,13 +761,26 @@ const isDragOver = ref(false);
 
 // 計算 textarea 的高度
 const textareaHeight = computed(() => {
-  // 輸入區域總高度 - 引用消息區域高度 - 工具欄高度 - 內邊距
+  // 輸入區域總高度 - 引用消息區域高度 - 工具欄高度 - 內邊距 - 附件區域高度
   const quotedHeight = quotedMessage.value ? 60 : 0; // 引用消息區域高度
   const toolbarHeight = 60; // 工具欄高度
   const padding = 48; // 上下內邊距
+
+  // 計算預覽檔案容器高度
+  const previewFilesHeight = previewFiles.value.length > 0 ? 80 : 0;
+
+  // 計算檔案分析卡片高度
+  const fileAnalysisHeight =
+    showFileAnalysisCard.value && currentFileInfo.value ? 120 : 0;
+
   return Math.max(
-    60,
-    inputAreaHeight.value - quotedHeight - toolbarHeight - padding
+    80, // 增加最小 textarea 高度
+    inputAreaHeight.value -
+      quotedHeight -
+      toolbarHeight -
+      padding -
+      previewFilesHeight -
+      fileAnalysisHeight
   );
 });
 
@@ -1390,6 +1384,18 @@ const handleFilePreview = async (file) => {
     previewFiles.value.push(previewFile);
 
     message.success(`檔案 "${file.name}" 已添加到預覽`);
+
+    // 將焦點設置到輸入框
+    nextTick(() => {
+      if (messageInput.value) {
+        const textareaEl =
+          messageInput.value.$el?.querySelector("textarea") ||
+          messageInput.value.$el;
+        if (textareaEl) {
+          textareaEl.focus();
+        }
+      }
+    });
   } catch (error) {
     console.error("檔案預覽失敗:", error);
     message.error("檔案預覽失敗");
@@ -1400,6 +1406,33 @@ const handleFilePreview = async (file) => {
 
 const handleRemovePreviewFile = (fileId) => {
   previewFiles.value = previewFiles.value.filter((f) => f.id !== fileId);
+};
+
+const handleExplainImage = (file) => {
+  // 在消息輸入框中添加解釋此圖的文字
+  const explainText = "請解釋這張圖片的內容";
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + explainText;
+  } else {
+    messageText.value = explainText;
+  }
+
+  // 將焦點設置到輸入框
+  nextTick(() => {
+    if (messageInput.value) {
+      const textareaEl =
+        messageInput.value.$el?.querySelector("textarea") ||
+        messageInput.value.$el;
+      if (textareaEl) {
+        textareaEl.focus();
+        // 將游標移到文字末尾
+        textareaEl.setSelectionRange(
+          textareaEl.value.length,
+          textareaEl.value.length
+        );
+      }
+    }
+  });
 };
 
 const formatFileSize = (bytes) => {
@@ -2136,6 +2169,8 @@ const handleCreateNewConversation = async () => {
   background: var(--custom-bg-tertiary);
   border-top: 1px solid var(--custom-border-primary);
   flex-shrink: 0;
+  min-height: 60px; /* 確保工具欄有最小高度 */
+  gap: 8px; /* 添加元素間距 */
 }
 
 .toolbar-left,
@@ -2205,6 +2240,25 @@ const handleCreateNewConversation = async () => {
 
   .quoted-message-display {
     padding: 8px 16px;
+  }
+
+  /* 移動端工具欄優化 */
+  .input-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-right {
+    flex-shrink: 1;
   }
 }
 
@@ -2554,42 +2608,61 @@ const handleCreateNewConversation = async () => {
 
 /* 預覽檔案容器樣式 */
 .preview-files-container {
-  padding: 12px;
+  padding: 6px;
   border: 1px solid var(--custom-border-primary);
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   background: var(--custom-bg-secondary);
+  min-height: 48px; /* 確保容器有最小高度 */
+  max-height: 110px; /* 限制最大高度，超出時滾動 */
+  overflow-y: auto;
 }
 
 .preview-files-list {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  min-height: 40px; /* 確保列表有最小高度 */
+}
+
+.preview-file-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px; /* 卡片和下方按鈕的間距 */
 }
 
 .preview-file-item {
+  position: relative; /* 重要：為絕對定位的移除按鈕提供相對定位參考 */
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0px;
   background: var(--custom-bg-tertiary);
   border: 1px solid var(--custom-border-primary);
-  border-radius: 6px;
-  max-width: 200px;
+  border-radius: 8px;
+  max-width: 80px; /* 縮小寬度，因為只顯示縮圖 */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.preview-file-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .file-thumbnail {
   position: relative;
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
+  width: 60px; /* 增加寬度以便更好地顯示移除按鈕 */
+  height: 60px; /* 增加高度 */
+  border-radius: 8px;
   overflow: hidden;
   background: var(--custom-bg-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  border: 1px solid var(--custom-border-primary);
 }
 
 .file-thumbnail.clickable {
@@ -2597,7 +2670,7 @@ const handleCreateNewConversation = async () => {
 }
 
 .file-thumbnail.clickable:hover {
-  transform: scale(1.05);
+  transform: scale(1.02);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -2609,29 +2682,39 @@ const handleCreateNewConversation = async () => {
 
 .thumbnail-icon {
   color: var(--custom-text-secondary);
-  font-size: 18px;
+  font-size: 24px;
 }
 
-.remove-btn {
+/* 卡片右上角的移除按鈕 */
+.card-remove-btn {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 18px !important;
-  height: 18px !important;
+  top: -5px;
+  right: -5px;
+  width: 20px !important;
+  height: 20px !important;
   padding: 0 !important;
-  background: rgba(0, 0, 0, 0.6) !important;
+  background: var(--error-color) !important; /* 使用主色調 */
+  border: 0px solid var(--primary-color) !important;
   border-radius: 50%;
   color: white !important;
-  font-size: 10px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  opacity: 0; /* 預設隱藏 */
+  transition: all 0.2s ease;
+  z-index: 10;
 }
 
-.file-thumbnail:hover .remove-btn {
-  opacity: 1;
+.card-remove-btn:hover {
+  opacity: 1 !important;
+  background: var(--primary-color) !important;
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.3);
+}
+
+.preview-file-item:hover .card-remove-btn {
+  opacity: 1; /* 滑鼠移過卡片時顯示 */
 }
 
 .zoom-icon {
@@ -2671,6 +2754,33 @@ const handleCreateNewConversation = async () => {
 .file-size {
   font-size: 11px;
   color: var(--custom-text-secondary);
+}
+
+/* 解釋此圖按鈕樣式（放在卡片下方） */
+.image-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.explain-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--custom-text-primary) !important;
+  font-size: 11px;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: 6px; /* 更圓潤的外觀 */
+  border: 1px solid var(--custom-border-primary) !important;
+  background: var(--custom-bg-secondary) !important;
+  transition: all 0.2s ease;
+  white-space: nowrap; /* 防止文字換行 */
+}
+
+.explain-btn:hover {
+  background: var(--custom-bg-quaternary) !important;
+
+  transform: scale(1.02);
 }
 
 /* 當有預覽檔案時，調整輸入框樣式 */

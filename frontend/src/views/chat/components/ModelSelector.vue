@@ -296,7 +296,8 @@ onMounted(async () => {
 
 .model-dropdown {
   background: var(--custom-bg-primary);
-  border-radius: 8px;
+  border: 1px solid var(--custom-border-primary);
+  /* border-radius: 8px; */
   box-shadow:
     0 6px 16px 0 rgba(0, 0, 0, 0.08),
     0 3px 6px -4px rgba(0, 0, 0, 0.12),
@@ -310,7 +311,7 @@ onMounted(async () => {
 .dropdown-header {
   padding: 16px;
   border-bottom: 1px solid var(--custom-border-primary);
-  background: var(--custom-bg-primary);
+  background: var(--custom-bg-tertiary);
 }
 
 .header-content {
@@ -334,6 +335,7 @@ onMounted(async () => {
   max-height: 300px;
   overflow-y: auto;
   padding: 8px 0;
+  background-color: var(--custom-bg-primary);
 }
 
 .model-item {
@@ -341,6 +343,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: background-color 0.2s;
   border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--custom-border-primary);
 }
 
 .model-item:hover:not(.unavailable) {
