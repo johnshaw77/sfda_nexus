@@ -151,11 +151,7 @@
 <script setup>
 import { ref, reactive, h, onMounted, watch, nextTick } from "vue";
 import { message } from "ant-design-vue";
-import {
-  UserOutlined,
-  UploadOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import { useAuthStore } from "@/stores/auth";
 import { smartCompressImage, validateImage } from "@/utils/imageCompress";
 import { Cropper } from "vue-advanced-cropper";

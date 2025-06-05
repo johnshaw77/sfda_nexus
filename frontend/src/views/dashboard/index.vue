@@ -281,17 +281,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
-import {
-  PlusOutlined,
-  MessageOutlined,
-  SendOutlined,
-  RobotOutlined,
-  ClockCircleOutlined,
-  RightOutlined,
-  SettingOutlined,
-  QuestionCircleOutlined,
-  BulbOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useChatStore } from "@/stores/chat";

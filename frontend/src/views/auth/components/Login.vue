@@ -227,12 +227,7 @@
 import { ref, reactive, h, onMounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
-import {
-  UserOutlined,
-  LockOutlined,
-  CheckCircleOutlined,
-  BulbFilled,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import { useAuthStore } from "@/stores/auth";
 import { useConfigStore } from "@/stores/config";
 import { debugAuthStore, debugUserData } from "@/utils/debugAuth";

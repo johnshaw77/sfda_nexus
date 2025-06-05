@@ -243,6 +243,8 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     const aiOptions = {
       provider: model.model_type,
       model: model.model_id,
+      endpoint_url: model.endpoint_url, // 使用資料庫中的 endpoint URL
+      api_key: model.api_key_encrypted, // 使用資料庫中的 API key
       messages: await Promise.all(
         contextMessages.map(async (msg) => {
           const formattedMessage = {
@@ -640,6 +642,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     const aiOptions = {
       provider: model.model_type,
       model: model.model_id,
+      endpoint_url: model.endpoint_url, // 使用資料庫中的 endpoint URL
+      api_key: model.api_key_encrypted, // 使用資料庫中的 API key
       messages: await Promise.all(
         contextMessages.map(async (msg) => {
           const formattedMessage = {

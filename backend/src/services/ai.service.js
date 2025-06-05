@@ -20,19 +20,22 @@ export class AIService {
       temperature = 0.7,
       max_tokens = 4096,
       stream = false,
+      endpoint_url,
     } = options;
 
     try {
       const ollamaEndpoint =
-        process.env.OLLAMA_ENDPOINT || "http://localhost:11434";
+        endpoint_url || process.env.OLLAMA_ENDPOINT || "http://localhost:11434";
 
       // 檢查是否有多模態內容
       const hasMultimodal = messages.some((msg) => Array.isArray(msg.content));
 
       console.log("=== OLLAMA 調用開始 ===");
       console.log("模型:", model);
+      console.log("端點URL:", ollamaEndpoint);
       console.log("消息數量:", messages.length);
       console.log("多模態內容:", hasMultimodal ? "是" : "否");
+      console.log("使用資料庫配置的端點:", endpoint_url ? "是" : "否");
 
       if (hasMultimodal) {
         console.log("=== 多模態消息詳情 ===");
@@ -176,10 +179,11 @@ export class AIService {
       messages = [],
       temperature = 0.7,
       max_tokens = 8192,
+      api_key,
     } = options;
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = api_key || process.env.GEMINI_API_KEY;
       if (!apiKey) {
         throw new Error("Gemini API Key 未配置");
       }
@@ -214,6 +218,13 @@ export class AIService {
           },
         ],
       };
+
+      console.log("=== GEMINI 調用開始 ===");
+      console.log("模型:", model);
+      console.log("API密鑰來源:", api_key ? "資料庫" : "環境變數");
+      console.log("消息數量:", messages.length);
+      console.log("溫度:", temperature);
+      console.log("最大tokens:", max_tokens);
 
       logger.debug("調用 Gemini 模型", {
         model,
@@ -301,6 +312,8 @@ export class AIService {
    * @param {number} [options.temperature=0.7] - 溫度參數
    * @param {number} [options.max_tokens=4096] - 最大token數
    * @param {boolean} [options.stream=false] - 是否使用串流模式
+   * @param {string} [options.endpoint_url] - 自定義端點URL
+   * @param {string} [options.api_key] - 自定義API密鑰
    * @returns {Promise<Object|AsyncGenerator>} AI回應或串流生成器
    */
   static async callModel(options) {
@@ -311,6 +324,8 @@ export class AIService {
       temperature = 0.7,
       max_tokens = 4096,
       stream = false,
+      endpoint_url,
+      api_key,
     } = options;
 
     logger.info("AI模型調用開始", {
@@ -332,7 +347,8 @@ export class AIService {
               model,
               messages,
               temperature,
-              max_tokens
+              max_tokens,
+              endpoint_url
             );
           } else {
             return await this.callOllama({
@@ -341,6 +357,7 @@ export class AIService {
               temperature,
               max_tokens,
               stream,
+              endpoint_url,
             });
           }
 
@@ -350,7 +367,8 @@ export class AIService {
               model,
               messages,
               temperature,
-              max_tokens
+              max_tokens,
+              api_key
             );
           } else {
             return await this.callGemini({
@@ -358,6 +376,7 @@ export class AIService {
               messages,
               temperature,
               max_tokens,
+              api_key,
             });
           }
 
@@ -378,11 +397,18 @@ export class AIService {
   /**
    * 調用Ollama模型（串流模式）
    */
-  static async callOllamaStream(model, messages, temperature, max_tokens) {
+  static async callOllamaStream(
+    model,
+    messages,
+    temperature,
+    max_tokens,
+    endpoint_url
+  ) {
     const startTime = Date.now();
 
     try {
-      const ollamaUrl = process.env.OLLAMA_ENDPOINT || "http://localhost:11434";
+      const ollamaUrl =
+        endpoint_url || process.env.OLLAMA_ENDPOINT || "http://localhost:11434";
 
       // 檢查是否有多模態內容
       const hasMultimodal = messages.some((msg) => Array.isArray(msg.content));
@@ -390,9 +416,11 @@ export class AIService {
       console.log("=== OLLAMA 串流調用開始 ===");
       console.log("URL:", `${ollamaUrl}/api/chat`);
       console.log("模型:", model);
+      console.log("端點URL:", ollamaUrl);
       console.log("消息數量:", messages.length);
       console.log("多模態內容:", hasMultimodal ? "是" : "否");
       console.log("串流模式: 啟用");
+      console.log("使用資料庫配置的端點:", endpoint_url ? "是" : "否");
 
       if (hasMultimodal) {
         console.log("=== 串流多模態消息詳情 ===");
@@ -561,17 +589,24 @@ export class AIService {
   /**
    * 調用Gemini模型（串流模式）
    */
-  static async callGeminiStream(model, messages, temperature, max_tokens) {
+  static async callGeminiStream(
+    model,
+    messages,
+    temperature,
+    max_tokens,
+    api_key
+  ) {
     const startTime = Date.now();
 
     try {
-      const geminiApiKey = process.env.GEMINI_API_KEY;
+      const geminiApiKey = api_key || process.env.GEMINI_API_KEY;
       if (!geminiApiKey) {
         throw new Error("未配置Gemini API Key");
       }
 
       console.log("=== GEMINI 串流調用開始 ===");
       console.log("模型:", model);
+      console.log("API密鑰來源:", api_key ? "資料庫" : "環境變數");
       console.log("消息數量:", messages.length);
       console.log("串流模式: 啟用");
 

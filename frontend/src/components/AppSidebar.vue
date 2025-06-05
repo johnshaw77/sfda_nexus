@@ -102,19 +102,7 @@ import { ref, computed, watch, inject } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
-import {
-  DashboardOutlined,
-  MessageOutlined,
-  SettingOutlined,
-  CrownOutlined,
-  UserOutlined,
-  FileTextOutlined,
-  ApiOutlined,
-  RobotOutlined,
-  TeamOutlined,
-  MonitorOutlined,
-} from "@ant-design/icons-vue";
-
+// Icons are globally registered in main.js
 // Props
 const props = defineProps({
   collapsed: {

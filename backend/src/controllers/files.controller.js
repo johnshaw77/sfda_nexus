@@ -348,13 +348,72 @@ export const handleDownloadFile = catchAsync(async (req, res) => {
     filename: file.filename,
   });
 
-  // 設置響應頭
+  // 設置響應頭 - 允許 CORS 和內聯顯示
+  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
   res.setHeader(
     "Content-Disposition",
     `attachment; filename="${encodeURIComponent(file.filename)}"`
   );
   res.setHeader("Content-Type", file.mime_type);
   res.setHeader("Content-Length", file.file_size);
+
+  // 發送檔案
+  res.sendFile(path.resolve(file.file_path));
+});
+
+/**
+ * 預覽檔案（內聯顯示，適用於圖片）
+ * @route GET /api/files/:id/preview
+ * @access Private
+ */
+export const handlePreviewFile = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const file = await FileModel.getFileById(parseInt(id));
+  if (!file) {
+    throw new NotFoundError("檔案不存在");
+  }
+
+  // 檢查存取權限
+  const hasAccess = await FileModel.checkFileAccess(file.id, req.user.id);
+  if (!hasAccess) {
+    throw new BusinessError("沒有權限存取此檔案");
+  }
+
+  // 檢查檔案是否存在於磁碟
+  try {
+    await fs.access(file.file_path);
+  } catch {
+    throw new NotFoundError("檔案不存在於伺服器");
+  }
+
+  logger.info("檔案預覽", {
+    user_id: req.user.id,
+    file_id: file.id,
+    filename: file.filename,
+  });
+
+  // 設置響應頭 - 內聯顯示，允許跨域
+  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  res.setHeader("Content-Type", file.mime_type);
+  res.setHeader("Content-Length", file.file_size);
+  res.setHeader("Cache-Control", "public, max-age=31536000"); // 快取1年
+
+  // 對於圖片，使用 inline 顯示
+  if (file.mime_type.startsWith("image/")) {
+    res.setHeader("Content-Disposition", "inline");
+  } else {
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${encodeURIComponent(file.filename)}"`
+    );
+  }
 
   // 發送檔案
   res.sendFile(path.resolve(file.file_path));

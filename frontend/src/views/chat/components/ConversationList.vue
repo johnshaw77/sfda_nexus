@@ -124,15 +124,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { message, Empty } from "ant-design-vue";
-import {
-  PlusOutlined,
-  SearchOutlined,
-  MoreOutlined,
-  PushpinOutlined,
-  EditOutlined,
-  InboxOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
 import { formatChatTime } from "@/utils/datetimeFormat";

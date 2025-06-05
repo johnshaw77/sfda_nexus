@@ -8,6 +8,7 @@ import {
   handleUploadFile,
   handleUploadMultipleFiles,
   handleDownloadFile,
+  handlePreviewFile,
   handleGetFileInfo,
   handleGetUserFiles,
   handleDeleteFile,
@@ -347,6 +348,9 @@ router.get("/:id", authenticateToken, handleGetFileInfo);
  *         description: 沒有權限存取此檔案
  */
 router.get("/:id/download", authenticateToken, handleDownloadFile);
+
+// 預覽檔案（內聯顯示）
+router.get("/:id/preview", authenticateToken, handlePreviewFile);
 
 /**
  * @swagger

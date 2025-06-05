@@ -124,13 +124,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
-import {
-  UpOutlined,
-  ApiOutlined,
-  RobotOutlined,
-  CloudOutlined,
-  ThunderboltOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import { useChatStore } from "@/stores/chat";
 import { message } from "ant-design-vue";
 
@@ -190,6 +184,12 @@ const handleSelectModel = (model) => {
   selectedModel.value = model;
 };
 
+import {
+  CloudOutlined,
+  RobotOutlined,
+  ThunderboltOutlined,
+  ApiOutlined,
+} from "@ant-design/icons-vue";
 const getProviderIcon = (provider) => {
   const iconMap = {
     openai: CloudOutlined,

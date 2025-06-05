@@ -85,17 +85,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { message } from "ant-design-vue";
-import {
-  FileTextOutlined,
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileOutlined,
-  UnorderedListOutlined,
-  FileAddOutlined,
-  SendOutlined,
-  CloseOutlined,
-} from "@ant-design/icons-vue";
-
+// Icons are globally registered in main.js
 // Props
 const props = defineProps({
   fileInfo: {

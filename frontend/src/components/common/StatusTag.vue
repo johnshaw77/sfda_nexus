@@ -12,14 +12,7 @@
 </template>
 
 <script>
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  CloseCircleOutlined,
-  SyncOutlined,
-} from "@ant-design/icons-vue";
-
+// Icons are globally registered in main.js
 export default {
   name: "StatusTag",
   components: {

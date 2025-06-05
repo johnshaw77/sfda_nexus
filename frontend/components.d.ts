@@ -68,6 +68,7 @@ declare module 'vue' {
     FileAnalysisCard: typeof import('./src/components/common/FileAnalysisCard.vue')['default']
     FilePreview: typeof import('./src/components/common/FilePreview.vue')['default']
     IconButton: typeof import('./src/components/common/IconButton.vue')['default']
+    JsonHighlight: typeof import('./src/components/common/JsonHighlight.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StatusTag: typeof import('./src/components/common/StatusTag.vue')['default']

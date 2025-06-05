@@ -143,15 +143,13 @@
             <UserOutlined />
             <span>用戶管理</span>
           </a-menu-item>
-
-          <a-menu-item key="agents">
-            <RobotOutlined />
-            <span>智能體管理</span>
-          </a-menu-item>
-
           <a-menu-item key="models">
             <ApiOutlined />
             <span>模型管理</span>
+          </a-menu-item>
+          <a-menu-item key="agents">
+            <RobotOutlined />
+            <span>智能體管理</span>
           </a-menu-item>
 
           <a-menu-item key="quick-commands">
@@ -300,31 +298,6 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
-// import {
-//   DashboardOutlined,
-//   TeamOutlined,
-//   BellOutlined,
-//   CrownOutlined,
-//   DownOutlined,
-//   ArrowLeftOutlined,
-//   UserOutlined,
-//   LogoutOutlined,
-//   MenuUnfoldOutlined,
-//   MenuFoldOutlined,
-//   SettingOutlined,
-//   FileTextOutlined,
-//   ToolOutlined,
-//   DatabaseOutlined,
-//   CloudDownloadOutlined,
-//   LineChartOutlined,
-//   ReloadOutlined,
-//   PlusOutlined,
-//   HomeOutlined,
-//   FullscreenOutlined,
-//   RobotOutlined,
-//   BulbFilled,
-//   BulbOutlined,
-// } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";

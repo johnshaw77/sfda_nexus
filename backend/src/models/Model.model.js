@@ -3,7 +3,7 @@
  * 處理 AI 模型相關的數據庫操作
  */
 
-import { query } from "../config/database.config.js";
+import { query, transaction } from "../config/database.config.js";
 
 /**
  * 獲取所有可用模型
@@ -32,6 +32,7 @@ export const getAllModels = async (options = {}) => {
       is_default,
       is_multimodal,
       endpoint_url,
+      api_key_encrypted,
       usage_count,
       total_tokens_used,
       created_at,
@@ -101,6 +102,7 @@ export const getModelById = async (modelId) => {
       is_default,
       is_multimodal,
       endpoint_url,
+      api_key_encrypted,
       usage_count,
       total_tokens_used,
       created_at,
@@ -137,6 +139,7 @@ export const getModelByNameAndProvider = async (modelName, provider) => {
       is_default,
       is_multimodal,
       endpoint_url,
+      api_key_encrypted,
       usage_count,
       total_tokens_used,
       created_at,
@@ -169,14 +172,15 @@ export const createModel = async (modelData) => {
     is_default = false,
     is_multimodal = false,
     endpoint_url,
+    api_key_encrypted,
   } = modelData;
 
   const sql = `
     INSERT INTO ai_models (
       name, display_name, model_type, model_id, description,
       max_tokens, temperature, top_p, pricing, capabilities,
-      is_default, is_multimodal, endpoint_url
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      is_default, is_multimodal, endpoint_url, api_key_encrypted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const result = await query(sql, [
@@ -193,6 +197,7 @@ export const createModel = async (modelData) => {
     is_default,
     is_multimodal,
     endpoint_url,
+    api_key_encrypted,
   ]);
 
   return {
@@ -210,6 +215,7 @@ export const createModel = async (modelData) => {
     is_default,
     is_multimodal,
     endpoint_url,
+    api_key_encrypted,
   };
 };
 
@@ -232,7 +238,28 @@ export const updateModel = async (modelId, updateData) => {
     "is_active",
     "is_multimodal",
     "endpoint_url",
+    "api_key_encrypted",
   ];
+
+  // 檢查是否要設置為預設模型
+  const isSettingDefault =
+    updateData.is_default === true || updateData.is_default === 1;
+
+  // 如果要設置為預設模型，使用專門的 setDefaultModel 函數
+  if (isSettingDefault) {
+    // 獲取模型信息以確定提供商
+    const model = await getModelById(modelId);
+    if (!model) {
+      throw new Error("模型不存在");
+    }
+
+    // 使用 setDefaultModel 處理預設邏輯
+    await setDefaultModel(modelId, model.provider);
+
+    // 從 updateData 中移除 is_default，因為已經處理過了
+    const { is_default, ...remainingData } = updateData;
+    updateData = remainingData;
+  }
 
   const updates = [];
   const params = [];
@@ -252,14 +279,13 @@ export const updateModel = async (modelId, updateData) => {
     }
   });
 
-  if (updates.length === 0) {
-    throw new Error("沒有有效的更新字段");
+  // 如果還有其他欄位需要更新
+  if (updates.length > 0) {
+    params.push(modelId);
+    const sql = `UPDATE ai_models SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    console.log(sql, params);
+    await query(sql, params);
   }
-
-  params.push(modelId);
-  const sql = `UPDATE ai_models SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-  console.log(sql, params);
-  await query(sql, params);
 };
 
 /**
@@ -280,34 +306,25 @@ export const deleteModel = async (modelId) => {
  * @returns {Promise<void>}
  */
 export const setDefaultModel = async (modelId, provider = null) => {
-  // 開始事務
-  await query("START TRANSACTION");
-
-  try {
+  return await transaction(async (connection) => {
     // 清除其他默認模型
     let clearSql =
       "UPDATE ai_models SET is_default = FALSE WHERE is_default = TRUE";
-    const clearParams = [];
+    // const clearParams = [];
 
-    if (provider) {
-      clearSql += " AND provider = ?";
-      clearParams.push(provider);
-    }
+    // if (provider) {
+    //   clearSql += " AND model_type = ?";
+    //   clearParams.push(provider);
+    // }
 
-    await query(clearSql, clearParams);
+    await connection.execute(clearSql);
 
     // 設置新的默認模型
-    await query("UPDATE ai_models SET is_default = TRUE WHERE id = ?", [
-      modelId,
-    ]);
-
-    // 提交事務
-    await query("COMMIT");
-  } catch (error) {
-    // 回滾事務
-    await query("ROLLBACK");
-    throw error;
-  }
+    await connection.execute(
+      "UPDATE ai_models SET is_default = TRUE WHERE id = ?",
+      [modelId]
+    );
+  });
 };
 
 /**

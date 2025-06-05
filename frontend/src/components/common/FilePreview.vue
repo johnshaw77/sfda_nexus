@@ -61,20 +61,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { message } from "ant-design-vue";
-import {
-  EyeOutlined,
-  DownloadOutlined,
-  FileOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FileExcelOutlined,
-  FilePptOutlined,
-  FileTextOutlined,
-  FileZipOutlined,
-  SoundOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import {
   downloadFile,
   getFilePreviewUrl,

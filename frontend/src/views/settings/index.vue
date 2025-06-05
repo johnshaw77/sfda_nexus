@@ -75,12 +75,7 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import {
-  LockOutlined,
-  BellOutlined,
-  BgColorsOutlined,
-  MessageOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import SecuritySettings from "./components/SecuritySettings.vue";
 import NotificationSettings from "./components/NotificationSettings.vue";
 import AppearanceSettings from "./components/AppearanceSettings.vue";

@@ -17,14 +17,14 @@
         <a-row :gutter="16">
           <a-col :span="8">
             <a-input-search
-              :value="searchText"
+              v-model:value="searchText"
               placeholder="搜索模型名稱或提供商"
               @search="handleSearch"
               allow-clear />
           </a-col>
           <a-col :span="6">
             <a-select
-              :value="filterProvider"
+              v-model:value="filterProvider"
               placeholder="選擇提供商"
               style="width: 100%"
               allow-clear>
@@ -36,7 +36,7 @@
           </a-col>
           <a-col :span="6">
             <a-select
-              :value="filterStatus"
+              v-model:value="filterStatus"
               placeholder="選擇狀態"
               style="width: 100%"
               allow-clear>
@@ -71,6 +71,29 @@
             :checked="record.is_active"
             :loading="record.updating"
             @change="(checked) => handleStatusChange(record, checked)" />
+        </template>
+
+        <!-- 預設模型列 -->
+        <template #default="{ record }">
+          <a-switch
+            :checked="record.is_default"
+            :loading="record.defaultUpdating"
+            @change="(checked) => handleDefaultChange(record, checked)" />
+        </template>
+
+        <!-- 多模態列 -->
+        <template #multimodal="{ record }">
+          <a-tag
+            v-if="record.is_multimodal"
+            color="blue">
+            支援
+          </a-tag>
+          <span v-else>-</span>
+        </template>
+
+        <!-- 最大 Tokens 列 -->
+        <template #max_tokens="{ record }">
+          {{ formatNumber(record.max_tokens) }}
         </template>
 
         <!-- 配置列 -->
@@ -122,7 +145,7 @@
     <a-modal
       :open="modalVisible"
       :title="modalTitle"
-      :width="600"
+      :width="900"
       @ok="handleModalOk"
       @cancel="handleModalCancel">
       <a-form
@@ -130,68 +153,177 @@
         :model="formData"
         :rules="formRules"
         layout="vertical">
-        <a-form-item
-          label="模型名稱"
-          name="model_name">
-          <a-input
-            :value="formData.model_name"
-            placeholder="輸入模型名稱" />
-        </a-form-item>
+        <!-- 第一行：基本信息 -->
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item
+              label="模型名稱"
+              name="model_name">
+              <a-input
+                v-model:value="formData.model_name"
+                placeholder="輸入模型名稱" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="提供商"
+              name="provider">
+              <a-select
+                v-model:value="formData.provider"
+                placeholder="選擇提供商">
+                <a-select-option value="openai">OpenAI</a-select-option>
+                <a-select-option value="gemini">Google Gemini</a-select-option>
+                <a-select-option value="claude"
+                  >Anthropic Claude</a-select-option
+                >
+                <a-select-option value="ollama">Ollama</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="模型ID"
+              name="model_id">
+              <a-input
+                v-model:value="formData.model_id"
+                placeholder="輸入模型ID" />
+            </a-form-item>
+          </a-col>
+        </a-row>
 
-        <a-form-item
-          label="提供商"
-          name="provider">
-          <a-select
-            :value="formData.provider"
-            placeholder="選擇提供商">
-            <a-select-option value="openai">OpenAI</a-select-option>
-            <a-select-option value="gemini">Google Gemini</a-select-option>
-            <a-select-option value="claude">Anthropic Claude</a-select-option>
-            <a-select-option value="ollama">Ollama</a-select-option>
-          </a-select>
-        </a-form-item>
+        <!-- 第二行：API 配置 -->
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="API 端點"
+              name="endpoint_url">
+              <a-input
+                v-model:value="formData.endpoint_url"
+                placeholder="輸入API端點URL" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="API 密鑰"
+              name="api_key_encrypted">
+              <a-input-password
+                v-model:value="formData.api_key_encrypted"
+                placeholder="輸入API密鑰" />
+            </a-form-item>
+          </a-col>
+        </a-row>
 
-        <a-form-item
-          label="模型ID"
-          name="model_id">
-          <a-input
-            :value="formData.model_id"
-            placeholder="輸入模型ID" />
-        </a-form-item>
+        <!-- 第三行：參數配置 -->
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item
+              label="最大 Tokens"
+              name="max_tokens">
+              <a-input-number
+                v-model:value="formData.max_tokens"
+                placeholder="輸入最大 tokens"
+                :min="1"
+                :max="2097152"
+                style="width: 100%" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="溫度參數"
+              name="temperature">
+              <a-input-number
+                v-model:value="formData.temperature"
+                placeholder="0.0-2.0"
+                :min="0"
+                :max="2"
+                :step="0.01"
+                :precision="2"
+                style="width: 100%" />
+              <div style="margin-top: 4px; color: #666; font-size: 11px">
+                控制隨機性
+              </div>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="Top P 參數"
+              name="top_p">
+              <a-input-number
+                v-model:value="formData.top_p"
+                placeholder="0.0-1.0"
+                :min="0"
+                :max="1"
+                :step="0.01"
+                :precision="2"
+                style="width: 100%" />
+              <div style="margin-top: 4px; color: #666; font-size: 11px">
+                控制詞彙範圍
+              </div>
+            </a-form-item>
+          </a-col>
+        </a-row>
 
-        <a-form-item
-          label="API 端點"
-          name="api_endpoint">
-          <a-input
-            :value="formData.api_endpoint"
-            placeholder="輸入API端點URL" />
-        </a-form-item>
+        <!-- 第四行：開關配置 -->
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="預設模型"
+              name="is_default">
+              <a-switch v-model:checked="formData.is_default" />
+              <span style="margin-left: 8px; color: #666; font-size: 13px">
+                設為預設模型
+              </span>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="多模態支援"
+              name="is_multimodal">
+              <a-switch v-model:checked="formData.is_multimodal" />
+              <span style="margin-left: 8px; color: #666; font-size: 13px">
+                支援圖像、音頻等多模態輸入
+              </span>
+            </a-form-item>
+          </a-col>
+        </a-row>
 
-        <a-form-item
-          label="API 密鑰"
-          name="api_key">
-          <a-input-password
-            :value="formData.api_key"
-            placeholder="輸入API密鑰" />
-        </a-form-item>
+        <!-- 第五行：描述 -->
+        <a-row>
+          <a-col :span="24">
+            <a-form-item
+              label="描述"
+              name="description">
+              <a-textarea
+                v-model:value="formData.description"
+                placeholder="輸入模型描述"
+                :rows="2" />
+            </a-form-item>
+          </a-col>
+        </a-row>
 
-        <a-form-item
-          label="描述"
-          name="description">
-          <a-textarea
-            :value="formData.description"
-            placeholder="輸入模型描述"
-            :rows="3" />
-        </a-form-item>
-
-        <a-form-item
-          label="配置參數"
-          name="config">
-          <a-textarea
-            :value="formData.config"
-            placeholder="輸入JSON格式的配置參數"
-            :rows="4" />
-        </a-form-item>
+        <!-- 第六行：JSON 配置 -->
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="配置參數"
+              name="config">
+              <a-textarea
+                v-model:value="formData.config"
+                placeholder="輸入JSON格式的配置參數"
+                :rows="3" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="能力配置"
+              name="capabilities">
+              <a-textarea
+                v-model:value="formData.capabilities"
+                placeholder='例如：{"streaming": true, "multimodal": true}'
+                :rows="3" />
+            </a-form-item>
+          </a-col>
+        </a-row>
       </a-form>
     </a-modal>
 
@@ -199,9 +331,13 @@
     <a-modal
       :open="configModalVisible"
       title="模型配置"
-      :footer="null"
-      :width="500">
-      <pre class="config-display">{{ selectedConfig }}</pre>
+      :width="700"
+      @ok="configModalVisible = false"
+      @cancel="configModalVisible = false">
+      <template #footer>
+        <a-button @click="configModalVisible = false">關閉</a-button>
+      </template>
+      <JsonHighlight :content="selectedConfig" />
     </a-modal>
   </div>
 </template>
@@ -220,6 +356,7 @@ import {
   convertModelBoolFields,
   MODEL_BOOL_FIELDS,
 } from "@/utils/dataConverter";
+import JsonHighlight from "@/components/common/JsonHighlight.vue";
 
 // 響應式數據
 const loading = ref(false);
@@ -251,10 +388,37 @@ const columns = [
     key: "model_id",
   },
   {
-    title: "狀態",
+    title: "啟動",
     dataIndex: "is_active",
     key: "is_active",
     slots: { customRender: "status" },
+  },
+  {
+    title: "預設",
+    dataIndex: "is_default",
+    key: "is_default",
+    slots: { customRender: "default" },
+  },
+  {
+    title: "多模態",
+    dataIndex: "is_multimodal",
+    key: "is_multimodal",
+    slots: { customRender: "multimodal" },
+  },
+  {
+    title: "最大 Tokens",
+    dataIndex: "max_tokens",
+    key: "max_tokens",
+    align: "right",
+    sorter: true,
+    slots: { customRender: "max_tokens" },
+  },
+  {
+    title: "溫度",
+    dataIndex: "temperature",
+    key: "temperature",
+    align: "right",
+    sorter: true,
   },
   {
     title: "配置",
@@ -293,10 +457,16 @@ const formData = reactive({
   model_name: "",
   provider: "",
   model_id: "",
-  api_endpoint: "",
-  api_key: "",
+  endpoint_url: "",
+  api_key_encrypted: "",
   description: "",
   config: "",
+  is_default: false,
+  is_multimodal: false,
+  max_tokens: 4096,
+  temperature: 0.7,
+  top_p: 0.9,
+  capabilities: "",
 });
 
 // 表單驗證規則
@@ -304,7 +474,6 @@ const formRules = {
   model_name: [{ required: true, message: "請輸入模型名稱" }],
   provider: [{ required: true, message: "請選擇提供商" }],
   model_id: [{ required: true, message: "請輸入模型ID" }],
-  api_endpoint: [{ required: true, message: "請輸入API端點" }],
 };
 
 // 計算屬性
@@ -390,6 +559,11 @@ const getProviderName = (provider) => {
   return names[provider] || provider;
 };
 
+const formatNumber = (num) => {
+  if (num == null || num === "") return "-";
+  return Number(num).toLocaleString();
+};
+
 const handleSearch = () => {
   // 搜索邏輯
   console.log("搜索:", searchText.value);
@@ -409,10 +583,19 @@ const handleAddModel = () => {
 const handleEdit = (record) => {
   Object.assign(formData, {
     ...record,
+    // 確保數字類型正確
+    max_tokens: Number(record.max_tokens) || 4096,
+    temperature: Number(record.temperature) || 0.7,
+    top_p: Number(record.top_p) || 0.9,
+    // JSON 字符串轉換
     config:
       typeof record.config === "object"
         ? JSON.stringify(record.config, null, 2)
-        : record.config,
+        : record.config || "",
+    capabilities:
+      typeof record.capabilities === "object"
+        ? JSON.stringify(record.capabilities, null, 2)
+        : record.capabilities || "",
   });
   modalVisible.value = true;
 };
@@ -460,11 +643,71 @@ const handleStatusChange = async (record, checked) => {
   }
 };
 
+const handleDefaultChange = async (record, checked) => {
+  try {
+    record.defaultUpdating = true;
+
+    const response = await updateModel(record.id, {
+      is_default: checked,
+    });
+
+    if (response.success) {
+      // 如果設置為預設，需要更新其他同提供商的模型狀態
+      if (checked) {
+        models.value.forEach((model) => {
+          if (model.provider === record.provider && model.id !== record.id) {
+            model.is_default = false;
+          }
+        });
+        record.is_default = true;
+        message.success(
+          `${record.display_name} 已設為 ${getProviderName(record.provider)} 的預設模型`
+        );
+      } else {
+        record.is_default = false;
+        message.success(`已取消 ${record.display_name} 的預設狀態`);
+      }
+    } else {
+      message.error(response.message || "預設狀態更新失敗");
+    }
+  } catch (error) {
+    console.error("更新預設狀態失敗:", error);
+    message.error("預設狀態更新失敗，請稍後重試");
+  } finally {
+    record.defaultUpdating = false;
+  }
+};
+
 const handleViewConfig = (record) => {
-  selectedConfig.value =
-    typeof record.config === "object"
-      ? JSON.stringify(record.config, null, 2)
-      : record.config;
+  const configInfo = {
+    基本配置: {
+      模型名稱: record.model_name,
+      提供商: record.provider,
+      模型ID: record.model_id,
+      預設模型: record.is_default ? "是" : "否",
+      多模態支援: record.is_multimodal ? "是" : "否",
+    },
+    參數配置: {
+      最大Tokens: record.max_tokens,
+      溫度: record.temperature,
+      TopP: record.top_p,
+    },
+    詳細配置:
+      typeof record.config === "object"
+        ? record.config
+        : record.config
+          ? JSON.parse(record.config)
+          : {},
+    能力配置:
+      typeof record.capabilities === "object"
+        ? record.capabilities
+        : record.capabilities
+          ? JSON.parse(record.capabilities)
+          : {},
+  };
+
+  // 直接傳遞對象給 JsonHighlight 組件
+  selectedConfig.value = configInfo;
   configModalVisible.value = true;
 };
 
@@ -498,10 +741,21 @@ const handleModalOk = async () => {
   try {
     await formRef.value.validate();
 
+    // 處理數據類型轉換
     const submitData = {
       ...formData,
+      // 確保數字類型正確
+      max_tokens: Number(formData.max_tokens),
+      temperature: Number(formData.temperature),
+      top_p: Number(formData.top_p),
+      // JSON 字符串解析
       config: formData.config ? JSON.parse(formData.config) : {},
+      capabilities: formData.capabilities
+        ? JSON.parse(formData.capabilities)
+        : {},
     };
+
+    console.log("提交數據:", submitData); // 調試用
 
     let response;
     if (formData.id) {
@@ -520,6 +774,9 @@ const handleModalOk = async () => {
   } catch (error) {
     if (error.errorFields) {
       message.error("請檢查輸入數據");
+      console.log("表單驗證錯誤:", error.errorFields); // 調試用
+    } else if (error.name === "SyntaxError") {
+      message.error("JSON 格式錯誤，請檢查配置或能力配置的格式");
     } else {
       console.error("保存模型失敗:", error);
       message.error("操作失敗，請稍後重試");
@@ -538,10 +795,16 @@ const resetForm = () => {
     model_name: "",
     provider: "",
     model_id: "",
-    api_endpoint: "",
-    api_key: "",
+    endpoint_url: "",
+    api_key_encrypted: "",
     description: "",
     config: "",
+    is_default: false,
+    is_multimodal: false,
+    max_tokens: 4096,
+    temperature: 0.7,
+    top_p: 0.9,
+    capabilities: "",
   });
   if (formRef.value) {
     formRef.value.resetFields();

@@ -107,12 +107,7 @@
 import { ref, reactive, h, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
-import {
-  UserOutlined,
-  LockOutlined,
-  MailOutlined,
-  IdcardOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();

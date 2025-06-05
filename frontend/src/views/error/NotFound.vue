@@ -138,16 +138,7 @@
 
 <script setup>
 import { useRouter } from "vue-router";
-import {
-  HomeOutlined,
-  ArrowLeftOutlined,
-  ReloadOutlined,
-  DashboardOutlined,
-  MessageOutlined,
-  UserOutlined,
-  SettingOutlined,
-} from "@ant-design/icons-vue";
-
+// Icons are globally registered in main.js
 const router = useRouter();
 
 // 方法

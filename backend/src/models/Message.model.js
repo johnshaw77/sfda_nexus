@@ -104,18 +104,18 @@ export class MessageModel {
    */
   static async findById(id) {
     try {
-      logger.debug("查詢訊息", { id });
+      //logger.debug("查詢訊息", { id });
 
       const { rows } = await query(
         `SELECT * FROM messages WHERE id = ? AND is_deleted = FALSE`,
         [id]
       );
 
-      logger.debug("訊息查詢結果", {
-        id,
-        found: rows.length > 0,
-        rowCount: rows.length,
-      });
+      // logger.debug("訊息查詢結果", {
+      //   id,
+      //   found: rows.length > 0,
+      //   rowCount: rows.length,
+      // });
 
       return rows.length > 0 ? this.formatMessage(rows[0]) : null;
     } catch (error) {

@@ -696,21 +696,7 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { message } from "ant-design-vue";
-import {
-  MessageOutlined,
-  SettingOutlined,
-  ExportOutlined,
-  ClearOutlined,
-  UserOutlined,
-  RobotOutlined,
-  CloseOutlined,
-  PaperClipOutlined,
-  FileImageOutlined,
-  SmileOutlined,
-  SendOutlined,
-  PlusOutlined,
-  EyeOutlined,
-} from "@ant-design/icons-vue";
+// Icons are globally registered in main.js
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";

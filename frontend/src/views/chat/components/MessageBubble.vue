@@ -70,7 +70,7 @@
           :is-streaming="message.isStreaming"
           :enable-keyword-highlight="true"
           theme="auto"
-          :debug="true"
+          :debug="false"
           :realtime-render="configStore.chatSettings.useRealtimeRender"
           ref="codeHighlightRef" />
         <!-- 純文本（用戶消息） -->
@@ -115,12 +115,42 @@
         </div>
       </div>
 
-      <!-- 附件 -->
+      <!-- 圖片縮圖顯示（僅用戶訊息） -->
       <div
-        v-if="message.attachments && message.attachments.length > 0"
+        v-if="message.role === 'user' && imageAttachments.length > 0"
+        class="message-image-thumbnails">
+        <div
+          v-for="attachment in imageAttachments"
+          :key="attachment.id"
+          class="image-thumbnail-item"
+          @click="handleViewAttachment(attachment)">
+          <img
+            :src="getImageSrc(attachment.id)"
+            :alt="attachment.filename || attachment.name"
+            class="thumbnail-image"
+            @error="handleImageError" />
+          <div class="image-overlay">
+            <div class="image-filename">
+              {{ attachment.filename || attachment.name }}
+            </div>
+            <div class="zoom-icon">
+              <EyeOutlined />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 非圖片附件列表或AI消息的所有附件 -->
+      <div
+        v-if="
+          message.attachments &&
+          (message.role === 'assistant' || nonImageAttachments.length > 0)
+        "
         class="message-attachments">
         <div
-          v-for="attachment in message.attachments"
+          v-for="attachment in message.role === 'assistant'
+            ? message.attachments
+            : nonImageAttachments"
           :key="attachment.id"
           class="attachment-item"
           @click="handleViewAttachment(attachment)">
@@ -260,11 +290,12 @@
 </template>
 
 <script setup>
-import { computed, ref, nextTick, onMounted } from "vue";
+import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
 import { message as antMessage } from "ant-design-vue";
 import { useChatStore } from "@/stores/chat";
 import { useConfigStore } from "@/stores/config";
 import { formatMessageTime } from "@/utils/datetimeFormat";
+import { getFilePreviewUrl, getImageBlobUrl } from "@/api/files";
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
 
 // Props
@@ -295,11 +326,82 @@ const codeHighlightRef = ref(null);
 // 用戶消息的最大高度（行數）
 const MAX_USER_MESSAGE_LINES = 6;
 
+// 圖片 blob URLs 管理
+const imageBlobUrls = ref(new Map());
+const loadingImages = ref(new Set());
+
+// 計算屬性：分離圖片和非圖片附件
+const imageAttachments = computed(() => {
+  if (!props.message.attachments) return [];
+  return props.message.attachments.filter(
+    (attachment) =>
+      attachment.file_type === "image" ||
+      attachment.mime_type?.startsWith("image/")
+  );
+});
+
+const nonImageAttachments = computed(() => {
+  if (!props.message.attachments) return [];
+  return props.message.attachments.filter(
+    (attachment) =>
+      attachment.file_type !== "image" &&
+      !attachment.mime_type?.startsWith("image/")
+  );
+});
+
+// 獲取圖片 URL
+const getImageSrc = (fileId) => {
+  // 如果已經有 blob URL，返回它
+  if (imageBlobUrls.value.has(fileId)) {
+    return imageBlobUrls.value.get(fileId);
+  }
+
+  // 如果正在載入，返回占位符
+  if (loadingImages.value.has(fileId)) {
+    return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik03NSA2MEwxMjUgMTA1TDE2MCA3NUwxNzUgOTBWMTIwSDI1VjkwTDQwIDc1TDc1IDYwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8Y2lyY2xlIGN4PSI2NSIgY3k9IjQ1IiByPSIxMCIgZmlsbD0iI0NDQ0NDQyIvPgo8L3N2Zz4K";
+  }
+
+  // 開始載入圖片
+  loadImageBlob(fileId);
+  return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik03NSA2MEwxMjUgMTA1TDE2MCA3NUwxNzUgOTBWMTIwSDI1VjkwTDQwIDc1TDc1IDYwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8Y2lyY2xlIGN4PSI2NSIgY3k9IjQ1IiByPSIxMCIgZmlsbD0iI0NDQ0NDQyIvPgo8L3N2Zz4K";
+};
+
+// 載入圖片 blob
+const loadImageBlob = async (fileId) => {
+  if (loadingImages.value.has(fileId) || imageBlobUrls.value.has(fileId)) {
+    return;
+  }
+
+  loadingImages.value.add(fileId);
+
+  try {
+    const blobUrl = await getImageBlobUrl(fileId);
+    imageBlobUrls.value.set(fileId, blobUrl);
+  } catch (error) {
+    console.error("載入圖片失敗:", error);
+  } finally {
+    loadingImages.value.delete(fileId);
+  }
+};
+
 // 生命週期
 onMounted(() => {
   if (props.message.role === "user") {
     checkUserMessageHeight();
   }
+
+  // 預載入圖片
+  imageAttachments.value.forEach((attachment) => {
+    loadImageBlob(attachment.id);
+  });
+});
+
+// 清理 blob URLs
+onUnmounted(() => {
+  imageBlobUrls.value.forEach((blobUrl) => {
+    URL.revokeObjectURL(blobUrl);
+  });
+  imageBlobUrls.value.clear();
 });
 
 // 檢查用戶消息是否需要展開按鈕
@@ -397,16 +499,24 @@ const handleViewAttachment = (attachment) => {
 
   if (isImage) {
     // 構建圖片預覽URL
-    const imageUrl = `${configStore.apiBaseUrl}/api/files/${attachment.id}/download`;
+    const imageUrl = getFilePreviewUrl(attachment.id);
     window.open(imageUrl, "_blank");
   } else {
     // 下載文件
-    const downloadUrl = `${configStore.apiBaseUrl}/api/files/${attachment.id}/download`;
+    const downloadUrl = getFilePreviewUrl(attachment.id);
     const link = document.createElement("a");
     link.href = downloadUrl;
     link.download = attachment.filename || attachment.name;
     link.click();
   }
+};
+
+const handleImageError = (event) => {
+  console.error("圖片載入失敗:", event.target.src);
+  // 設置錯誤占位符
+  event.target.src =
+    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRkZFQkVFIiBzdHJva2U9IiNGRjc4NzUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iNSw1Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNzUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iI0ZGNzg3NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+5ZyW54mH6L275LiK5aSx5pWXPC90ZXh0Pgo8L3N2Zz4K";
+  antMessage.error("圖片載入失敗");
 };
 </script>
 
@@ -651,6 +761,93 @@ const handleViewAttachment = (attachment) => {
 .attachment-size {
   font-size: 11px;
   opacity: 0.7;
+}
+
+/* 圖片縮圖樣式 */
+.message-image-thumbnails {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.image-thumbnail-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 200px;
+  max-height: 150px;
+}
+
+.image-thumbnail-item:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: auto;
+  min-width: 120px;
+  max-width: 200px;
+  max-height: 150px;
+  object-fit: cover;
+  display: block;
+  border-radius: 8px;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0) 60%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.image-thumbnail-item:hover .image-overlay {
+  opacity: 1;
+}
+
+.image-filename {
+  font-size: 11px;
+  color: white;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: auto;
+}
+
+.zoom-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  backdrop-filter: blur(4px);
 }
 
 .model-info {

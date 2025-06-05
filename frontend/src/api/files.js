@@ -3,6 +3,7 @@
  */
 
 import api from "./index.js";
+import { useConfigStore } from "@/stores/config";
 
 /**
  * 上傳單個檔案
@@ -125,7 +126,26 @@ export const getFileStats = async () => {
  * @returns {string} 預覽 URL
  */
 export const getFilePreviewUrl = (fileId) => {
-  return `${api.defaults.baseURL}/api/files/${fileId}/download`;
+  const configStore = useConfigStore();
+  return `${configStore.apiBaseUrl}/api/files/${fileId}/preview`;
+};
+
+/**
+ * 獲取圖片 Blob URL（用於在 img 標籤中顯示）
+ * @param {number} fileId - 檔案 ID
+ * @returns {Promise<string>} Blob URL
+ */
+export const getImageBlobUrl = async (fileId) => {
+  try {
+    const response = await api.get(`/api/files/${fileId}/preview`, {
+      responseType: "blob",
+    });
+
+    return URL.createObjectURL(response.data);
+  } catch (error) {
+    console.error("獲取圖片失敗:", error);
+    throw error;
+  }
 };
 
 /**
@@ -267,6 +287,7 @@ export default {
   deleteFile,
   getFileStats,
   getFilePreviewUrl,
+  getImageBlobUrl,
   isImageFile,
   isDocumentFile,
   formatFileSize,

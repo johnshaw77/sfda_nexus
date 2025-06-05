@@ -28,8 +28,13 @@ export const dbConfig = {
   charset: "utf8mb4",
   timezone: "+08:00",
 
-  // 初始化 SQL 命令，確保字符集正確
-  initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+  // 確保使用正確的字符集
+  typeCast: function (field, next) {
+    if (field.type === "VAR_STRING" || field.type === "STRING") {
+      return field.string();
+    }
+    return next();
+  },
 
   // SSL配置 (生產環境建議啟用)
   ssl:
@@ -55,9 +60,17 @@ export const initializeDatabase = async () => {
   try {
     pool = mysql.createPool(dbConfig);
 
-    // 測試連接
+    // 測試連接並設置字符集
     const connection = await pool.getConnection();
+
+    // 確保字符集設置正確
+    await connection.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+    await connection.execute("SET character_set_client = utf8mb4");
+    await connection.execute("SET character_set_connection = utf8mb4");
+    await connection.execute("SET character_set_results = utf8mb4");
+
     logger.info("✅ 資料庫連接池初始化成功");
+    logger.info("✅ 字符集設置為 utf8mb4");
     logger.info(
       `📊 連接到資料庫: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`
     );
@@ -87,8 +100,11 @@ export const getPool = () => {
  * @returns {Promise<Object>} 查詢結果
  */
 export const query = async (sql, params = []) => {
+  const connection = await getPool().getConnection();
+
   try {
-    const pool = getPool();
+    // 確保每個連接都設置正確的字符集
+    await connection.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
 
     // 根據 PRINT_SQL 環境變數決定是否打印 SQL 調試信息
     const shouldPrintSQL =
@@ -103,7 +119,7 @@ export const query = async (sql, params = []) => {
       console.log("格式化 SQL:", formatQuery(sql, params));
     }
 
-    const [rows, fields] = await pool.execute(sql, params);
+    const [rows, fields] = await connection.execute(sql, params);
 
     // 根據 PRINT_SQL 環境變數決定是否打印結果統計
     if (shouldPrintSQL) {
@@ -137,6 +153,8 @@ export const query = async (sql, params = []) => {
       sqlState: error.sqlState,
     });
     throw error;
+  } finally {
+    connection.release();
   }
 };
 
