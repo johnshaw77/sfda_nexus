@@ -68,9 +68,9 @@
         <!-- 狀態列 -->
         <template #status="{ record }">
           <a-switch
-            v-model:checked="record.is_active"
+            :checked="record.is_active"
             :loading="record.updating"
-            @change="handleStatusChange(record)" />
+            @change="(checked) => handleStatusChange(record, checked)" />
         </template>
 
         <!-- 配置列 -->
@@ -216,6 +216,10 @@ import {
   deleteModel,
   testModel,
 } from "@/api/models";
+import {
+  convertModelBoolFields,
+  MODEL_BOOL_FIELDS,
+} from "@/utils/dataConverter";
 
 // 響應式數據
 const loading = ref(false);
@@ -346,7 +350,9 @@ const handleLoadModels = async () => {
     });
 
     if (response.success) {
-      models.value = response.data.models || response.data;
+      const rawModels = response.data.models || response.data;
+      // 轉換布林值欄位
+      models.value = convertModelBoolFields(rawModels);
       // 更新分頁信息
       if (response.data.pagination) {
         pagination.total = response.data.pagination.total;
@@ -426,24 +432,28 @@ const handleDelete = async (record) => {
   }
 };
 
-const handleStatusChange = async (record) => {
+const handleStatusChange = async (record, checked) => {
   try {
     record.updating = true;
+
+    // 更新本地狀態
+    record.is_active = checked;
+
     const response = await updateModel(record.id, {
-      is_active: record.is_active,
+      is_active: checked,
     });
 
     if (response.success) {
-      message.success(record.is_active ? "模型已啟用" : "模型已停用");
+      message.success(checked ? "模型已啟用" : "模型已停用");
     } else {
       // 恢復原狀態
-      record.is_active = !record.is_active;
+      record.is_active = !checked;
       message.error(response.message || "狀態更新失敗");
     }
   } catch (error) {
     console.error("更新模型狀態失敗:", error);
     // 恢復原狀態
-    record.is_active = !record.is_active;
+    record.is_active = !checked;
     message.error("狀態更新失敗，請稍後重試");
   } finally {
     record.updating = false;

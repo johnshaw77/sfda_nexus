@@ -40,24 +40,29 @@
                     <span class="model-name">{{
                       model.display_name || model.name
                     }}</span>
-                    <span class="provider-tag">{{
+                    <!-- <span class="provider-tag">{{
                       getProviderLabel(model.provider)
-                    }}</span>
+                    }}</span> -->
                   </div>
                   <div class="model-details">
                     <span class="model-id">{{
                       model.model_id || model.name
                     }}</span>
-                    <div
+                    <!-- <div
                       class="model-specs"
                       v-if="model.max_tokens">
                       <span class="spec-item">{{
                         formatMaxTokens(model.max_tokens)
                       }}</span>
-                    </div>
+                    </div> -->
                   </div>
                 </div>
                 <div class="model-status">
+                  <span class="provider-tag">{{
+                    getProviderLabel(model.provider)
+                  }}</span>
+                </div>
+                <!-- <div class="model-status">
                   <span
                     v-if="model.is_active"
                     class="status-available"
@@ -70,7 +75,7 @@
                     title="不可用"
                     >不可用</span
                   >
-                </div>
+                </div> -->
               </div>
             </div>
           </div>
@@ -155,9 +160,12 @@ const selectedModel = computed({
 // 將所有模型平鋪成一個列表
 const models = computed(() => {
   const models = [];
-  if (chatStore.availableModels) {
-    // 遍歷所有提供商
-    ["openai", "claude", "gemini", "ollama"].forEach((provider) => {
+  if (
+    chatStore.availableModels &&
+    typeof chatStore.availableModels === "object"
+  ) {
+    // 動態遍歷所有提供商
+    Object.keys(chatStore.availableModels).forEach((provider) => {
       if (chatStore.availableModels[provider]) {
         models.push(...chatStore.availableModels[provider]);
       }
@@ -379,7 +387,7 @@ onMounted(async () => {
 
 .provider-tag {
   padding: 2px 6px;
-  background: var(--custom-bg-tertiary);
+  background: var(--custom-bg-quaternary);
   border-radius: 4px;
   font-size: 11px;
   color: var(--custom-text-primary);

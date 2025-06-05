@@ -130,6 +130,7 @@ export const handleLogin = catchAsync(async (req, res) => {
     password,
     user.password_hash
   );
+
   if (!isPasswordValid) {
     logger.security(
       "登入失敗 - 密碼錯誤",

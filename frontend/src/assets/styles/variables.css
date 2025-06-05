@@ -115,6 +115,7 @@
   --custom-bg-primary: #141414;
   --custom-bg-secondary: #1f1f1f;
   --custom-bg-tertiary: #2a2a2a;
+  --custom-bg-quaternary: #777777;
 
   /* 自定義邊框色 */
   --custom-border-primary: #303030;
@@ -132,6 +133,7 @@
   --custom-bg-primary: #ffffff;
   --custom-bg-secondary: #f8fafc;
   --custom-bg-tertiary: #f1f5f9;
+  --custom-bg-quaternary: #eaeaea;
 
   /* 自定義邊框色 */
   --custom-border-primary: #e2e8f0;

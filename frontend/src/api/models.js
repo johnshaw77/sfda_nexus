@@ -3,6 +3,7 @@
  */
 
 import api from "./index.js";
+import { prepareDataForSubmit, MODEL_BOOL_FIELDS } from "@/utils/dataConverter";
 
 // ===== 模型管理 =====
 export const getModels = async (params = {}) => {
@@ -11,12 +12,16 @@ export const getModels = async (params = {}) => {
 };
 
 export const createModel = async (modelData) => {
-  const response = await api.post("/api/models", modelData);
+  // 準備提交資料，將布林值轉換為數字
+  const preparedData = prepareDataForSubmit(modelData, MODEL_BOOL_FIELDS);
+  const response = await api.post("/api/models", preparedData);
   return response.data;
 };
 
 export const updateModel = async (modelId, updateData) => {
-  const response = await api.put(`/api/models/${modelId}`, updateData);
+  // 準備提交資料，將布林值轉換為數字
+  const preparedData = prepareDataForSubmit(updateData, MODEL_BOOL_FIELDS);
+  const response = await api.put(`/api/models/${modelId}`, preparedData);
   return response.data;
 };
 

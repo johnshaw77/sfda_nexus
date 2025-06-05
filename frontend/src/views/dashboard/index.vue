@@ -321,10 +321,18 @@ const currentDate = computed(() => {
 });
 
 const modelStatus = computed(() => {
-  const ollamaCount = chatStore.availableModels.ollama?.length || 0;
-  const geminiCount = chatStore.availableModels.gemini?.length || 0;
+  let totalModels = 0;
 
-  if (ollamaCount > 0 || geminiCount > 0) {
+  if (
+    chatStore.availableModels &&
+    typeof chatStore.availableModels === "object"
+  ) {
+    Object.keys(chatStore.availableModels).forEach((provider) => {
+      totalModels += chatStore.availableModels[provider]?.length || 0;
+    });
+  }
+
+  if (totalModels > 0) {
     return { status: "success", text: "正常" };
   } else {
     return { status: "warning", text: "檢查中" };
@@ -332,9 +340,18 @@ const modelStatus = computed(() => {
 });
 
 const availableModelsCount = computed(() => {
-  const ollamaCount = chatStore.availableModels.ollama?.length || 0;
-  const geminiCount = chatStore.availableModels.gemini?.length || 0;
-  return ollamaCount + geminiCount;
+  let totalModels = 0;
+
+  if (
+    chatStore.availableModels &&
+    typeof chatStore.availableModels === "object"
+  ) {
+    Object.keys(chatStore.availableModels).forEach((provider) => {
+      totalModels += chatStore.availableModels[provider]?.length || 0;
+    });
+  }
+
+  return totalModels;
 });
 
 // 格式化時間

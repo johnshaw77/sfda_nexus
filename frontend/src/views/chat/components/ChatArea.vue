@@ -84,7 +84,7 @@
             v-for="model in availableModels"
             :key="model.id"
             :value="model.id"
-            :disabled="model.available === false">
+            :disabled="model.is_active === false">
             <div class="model-option">
               <span class="model-name">{{ model.name }}</span>
               <a-tag
@@ -93,7 +93,7 @@
                 {{ model.provider }}
               </a-tag>
               <a-tag
-                v-if="model.available === false"
+                v-if="model.is_active === false"
                 color="red"
                 size="small">
                 不可用
@@ -699,42 +699,29 @@ const hasStartedReceivingAIResponse = computed(() => {
 const selectedModel = ref(null); // 改為存儲完整的模型對象
 const selectedModelId = computed(() => selectedModel.value?.id || "");
 const availableModels = computed(() => {
-  // 從 store 中獲取所有可用模型並平鋪
-  const ollama = chatStore.availableModels.ollama || [];
-  const gemini = chatStore.availableModels.gemini || [];
-  const openai = chatStore.availableModels.openai || [];
-  const claude = chatStore.availableModels.claude || [];
+  // 動態地從 store 中獲取所有可用模型並平鋪
+  const allModels = [];
 
-  return [
-    ...ollama.map((model) => ({
-      id: model.id,
-      name: model.display_name || model.name,
-      provider: "ollama",
-      available: model.is_active,
-      is_default: model.is_default || false,
-    })),
-    ...gemini.map((model) => ({
-      id: model.id,
-      name: model.display_name || model.name,
-      provider: "gemini",
-      available: model.is_active,
-      is_default: model.is_default || false,
-    })),
-    ...openai.map((model) => ({
-      id: model.id,
-      name: model.display_name || model.name,
-      provider: "openai",
-      available: model.is_active,
-      is_default: model.is_default || false,
-    })),
-    ...claude.map((model) => ({
-      id: model.id,
-      name: model.display_name || model.name,
-      provider: "claude",
-      available: model.is_active,
-      is_default: model.is_default || false,
-    })),
-  ].filter((model) => model.available !== false && model.id); // 只顯示可用且有ID的模型
+  if (
+    chatStore.availableModels &&
+    typeof chatStore.availableModels === "object"
+  ) {
+    // 遍歷所有 provider
+    Object.keys(chatStore.availableModels).forEach((provider) => {
+      const models = chatStore.availableModels[provider] || [];
+      models.forEach((model) => {
+        allModels.push({
+          id: model.id,
+          name: model.display_name || model.name,
+          provider: provider,
+          is_active: model.is_active,
+          is_default: model.is_default || false,
+        });
+      });
+    });
+  }
+
+  return allModels.filter((model) => model.is_active !== false && model.id); // 只顯示可用且有ID的模型
 });
 
 const chatSettings = ref({
@@ -750,10 +737,10 @@ const isStreaming = ref(false); // 是否正在串流中
 
 // 快速提示
 const quickPrompts = ref([
-  { id: 1, text: "你好，請介紹一下自己" },
-  { id: 2, text: "幫我分析這個問題" },
-  { id: 3, text: "請提供一些建議" },
-  { id: 4, text: "解釋一下這個概念" },
+  // { id: 1, text: "你好，請介紹一下自己" },
+  // { id: 2, text: "幫我分析這個問題" },
+  // { id: 3, text: "請提供一些建議" },
+  // { id: 4, text: "解釋一下這個概念" },
 ]);
 
 // 從 store 中獲取可用智能體
@@ -785,12 +772,16 @@ const getQuotePreview = (content) => {
 };
 
 const findModelById = (modelId) => {
-  // 在所有提供商中搜尋指定ID的模型
-  const providers = ["ollama", "gemini", "openai", "claude"];
-  for (const provider of providers) {
-    const models = chatStore.availableModels[provider] || [];
-    const model = models.find((m) => m.id === modelId);
-    if (model) return model;
+  // 動態地在所有提供商中搜尋指定ID的模型
+  if (
+    chatStore.availableModels &&
+    typeof chatStore.availableModels === "object"
+  ) {
+    for (const provider of Object.keys(chatStore.availableModels)) {
+      const models = chatStore.availableModels[provider] || [];
+      const model = models.find((m) => m.id === modelId);
+      if (model) return model;
+    }
   }
   return null;
 };
@@ -993,6 +984,7 @@ const loadAgentQuickCommands = async () => {
   try {
     loadingQuickCommands.value = true;
     const commands = await getAgentQuickCommands(props.agent.id);
+    console.log("commands", commands);
     agentQuickCommands.value = commands || [];
   } catch (error) {
     console.warn("載入智能體快速命令失敗:", error);

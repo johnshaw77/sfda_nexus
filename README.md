@@ -199,6 +199,24 @@ npm run dev
   - [x] StatusTag.vue - 狀態標籤組件
 - [x] 完善狀態管理系統
 
+#### 🔧 資料轉換工具與狀態管理修復 (v1.7.0) - 2025-06-05
+
+- [x] 創建資料轉換工具 (`frontend/src/utils/dataConverter.js`)
+  - [x] MySQL TINYINT(1) 與 JavaScript 布林值轉換
+  - [x] 批量轉換物件和陣列中的布林欄位
+  - [x] 模型和用戶專用的轉換函數
+  - [x] 提交資料前的布林值預處理
+- [x] 修復模型管理頁面狀態開關問題
+  - [x] 修正 `a-switch` 組件的 `checked` 屬性綁定
+  - [x] 優化 `handleStatusChange` 方法的參數處理
+  - [x] 在 API 層添加資料轉換邏輯
+- [x] 修復用戶管理頁面狀態開關問題
+  - [x] 應用相同的布林值轉換邏輯
+  - [x] 統一狀態更新處理方式
+- [x] 完善 API 層的資料處理
+  - [x] `models.js` - 模型相關 API 的資料轉換
+  - [x] `users.js` - 用戶相關 API 的資料轉換
+
 #### 🤖 模型選擇系統重構 (v1.7.1) - 2025-06-04
 
 - [x] 修復模型選擇器硬編碼問題
@@ -941,5 +959,13 @@ npm run dev
 - [x] 更新 Swagger API 文檔
   - [x] 修正 models.route.js 中的參數說明
   - [x] 修正 chat.route.js 中的 Model schema 定義
+- [x] 移除前端硬編碼的 provider 列表
+  - [x] 修正 ChatArea.vue 中的 `availableModels` 計算，動態獲取所有 provider
+  - [x] 修正 ModelSelector.vue 中的模型列表，動態遍歷所有 provider
+  - [x] 修正 dashboard/index.vue 中的模型統計，動態計算所有 provider 的模型數量
+  - [x] 修正 `findModelById` 函數，動態搜索所有 provider
+- [x] 修正模型選擇器佈局問題
+  - [x] 重新設計模型項目結構，正確顯示模型名稱、提供商標籤和狀態
+  - [x] 新增提供商圖標和詳細信息顯示
 - [x] 確保前後端資料欄位命名一致性
 ```

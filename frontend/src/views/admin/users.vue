@@ -79,7 +79,7 @@
           <a-switch
             :checked="record.is_active"
             :loading="record.updating"
-            @change="handleStatusChange(record)" />
+            @change="(checked) => handleStatusChange(record, checked)" />
         </template>
 
         <!-- 操作列 -->
@@ -187,6 +187,7 @@ import {
   deleteUser,
   resetUserPassword,
 } from "@/api/users.js";
+import { convertUserBoolFields } from "@/utils/dataConverter";
 
 // 響應式數據
 const loading = ref(false);
@@ -303,7 +304,9 @@ const fetchUsers = async () => {
     }
 
     const response = await getUsers(params);
-    users.value = response.data.data || [];
+    const rawUsers = response.data.data || [];
+    // 轉換布林值欄位
+    users.value = convertUserBoolFields(rawUsers);
     pagination.total = response.data.pagination?.total || 0;
   } catch (error) {
     console.error("獲取用戶列表失敗:", error);
@@ -347,16 +350,18 @@ const handleDelete = async (record) => {
   }
 };
 
-const handleStatusChange = async (record) => {
-  const originalStatus = record.is_active;
+const handleStatusChange = async (record, checked) => {
   record.updating = true;
 
+  // 更新本地狀態
+  record.is_active = checked;
+
   try {
-    await updateUser(record.id, { is_active: record.is_active });
-    message.success(`用戶已${record.is_active ? "啟用" : "停用"}`);
+    await updateUser(record.id, { is_active: checked });
+    message.success(`用戶已${checked ? "啟用" : "停用"}`);
   } catch (error) {
     console.error("更新用戶狀態失敗:", error);
-    record.is_active = originalStatus; // 恢復原狀態
+    record.is_active = !checked; // 恢復原狀態
     message.error("狀態更新失敗");
   } finally {
     record.updating = false;
