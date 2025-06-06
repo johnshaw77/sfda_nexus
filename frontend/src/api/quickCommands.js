@@ -23,7 +23,6 @@ export const getAgentQuickCommands = async (agentId) => {
 /**
  * 獲取所有快速命令詞（通用版本）
  * @param {Object} params - 查詢參數
- * @param {string} [params.category] - 分類過濾
  * @param {boolean} [params.active=true] - 是否只獲取啟用的命令
  * @returns {Promise<Array>} 快速命令詞列表
  */
@@ -42,7 +41,6 @@ export const getAllQuickCommands = async (params = {}) => {
 /**
  * 獲取所有快速命令詞及智能體關聯（管理介面專用）
  * @param {Object} params - 查詢參數
- * @param {string} [params.category] - 分類過濾
  * @param {boolean} [params.active] - 是否只獲取啟用的命令（undefined = 不過濾）
  * @returns {Promise<Array>} 包含智能體關聯的快速命令詞列表
  */
@@ -77,7 +75,6 @@ export const incrementCommandUsage = async (commandId) => {
  * @param {Object} commandData - 命令詞數據
  * @param {string} commandData.command_text - 命令詞文字
  * @param {string} [commandData.description] - 命令說明
- * @param {string} [commandData.category='general'] - 分類
  * @param {string} [commandData.icon] - 圖標名稱
  * @returns {Promise<Object>} 創建的命令詞數據
  */

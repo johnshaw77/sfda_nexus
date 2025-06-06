@@ -39,14 +39,13 @@ export const getAgentQuickCommands = catchAsync(async (req, res) => {
 });
 
 /**
- * 獲取所有快速命令詞（按分類）
+ * 獲取所有快速命令詞
  * GET /api/quick-commands
  */
 export const getAllQuickCommands = catchAsync(async (req, res) => {
-  const { category, active = true } = req.query;
+  const { active = true } = req.query;
 
   const quickCommands = await QuickCommandModel.getAllQuickCommands({
-    category,
     active: active === "true",
   });
 
@@ -58,7 +57,7 @@ export const getAllQuickCommands = catchAsync(async (req, res) => {
  * GET /api/quick-commands/admin
  */
 export const getAllQuickCommandsForAdmin = catchAsync(async (req, res) => {
-  const { category, active } = req.query;
+  const { active } = req.query;
 
   let activeFilter;
   if (active === "true") {
@@ -70,7 +69,6 @@ export const getAllQuickCommandsForAdmin = catchAsync(async (req, res) => {
   }
 
   const quickCommands = await QuickCommandModel.getAllQuickCommandsWithAgents({
-    category,
     active: activeFilter,
   });
 
@@ -104,7 +102,7 @@ export const incrementCommandUsage = catchAsync(async (req, res) => {
  * POST /api/quick-commands
  */
 export const createQuickCommand = catchAsync(async (req, res) => {
-  const { command_text, description, category = "general", icon } = req.body;
+  const { command_text, description, icon } = req.body;
   const userId = req.user?.id;
 
   if (!command_text?.trim()) {
@@ -120,7 +118,6 @@ export const createQuickCommand = catchAsync(async (req, res) => {
   const newCommand = await QuickCommandModel.createQuickCommand({
     command_text,
     description,
-    category,
     icon,
     created_by: userId,
   });

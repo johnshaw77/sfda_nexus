@@ -15,7 +15,7 @@
       <!-- 搜索和篩選 -->
       <div class="search-section">
         <a-row :gutter="16">
-          <a-col :span="8">
+          <a-col :span="12">
             <a-input-search
               :value="searchText"
               placeholder="搜索命令文字或描述"
@@ -23,21 +23,7 @@
               @change="handleSearchChange"
               allow-clear />
           </a-col>
-          <a-col :span="6">
-            <a-select
-              :value="filterCategory"
-              placeholder="選擇分類"
-              style="width: 100%"
-              @change="handleCategoryChange"
-              allow-clear>
-              <a-select-option value="general">通用</a-select-option>
-              <a-select-option value="education">教育</a-select-option>
-              <a-select-option value="business">商業</a-select-option>
-              <a-select-option value="creative">創意</a-select-option>
-              <a-select-option value="technical">技術</a-select-option>
-            </a-select>
-          </a-col>
-          <a-col :span="6">
+          <a-col :span="8">
             <a-select
               :value="filterStatus"
               placeholder="選擇狀態"
@@ -74,13 +60,6 @@
           >
         </template>
 
-        <!-- 分類列 -->
-        <template #category="{ record }">
-          <a-tag :color="getCategoryColor(record.category)">
-            {{ getCategoryName(record.category) }}
-          </a-tag>
-        </template>
-
         <!-- 狀態列 -->
         <template #status="{ record }">
           <a-switch
@@ -99,7 +78,7 @@
 
         <!-- 操作列 -->
         <template #action="{ record }">
-          <a-space>
+          <a-space :size="0">
             <a-button
               type="text"
               size="small"
@@ -162,21 +141,6 @@
         </a-form-item>
 
         <a-form-item
-          label="分類"
-          name="category">
-          <a-select
-            :value="formData.category"
-            @change="handleFormCategoryChange"
-            placeholder="選擇分類">
-            <a-select-option value="general">通用</a-select-option>
-            <a-select-option value="education">教育</a-select-option>
-            <a-select-option value="business">商業</a-select-option>
-            <a-select-option value="creative">創意</a-select-option>
-            <a-select-option value="technical">技術</a-select-option>
-          </a-select>
-        </a-form-item>
-
-        <a-form-item
           label="圖標"
           name="icon">
           <a-input
@@ -220,7 +184,7 @@ import { getAgents } from "@/api/agents";
 // 響應式數據
 const loading = ref(false);
 const searchText = ref("");
-const filterCategory = ref(undefined);
+
 const filterStatus = ref(undefined);
 const modalVisible = ref(false);
 const formRef = ref();
@@ -233,6 +197,7 @@ const columns = [
     key: "agent_id",
     slots: { customRender: "agent" },
     width: 120,
+    sorter: true,
   },
   {
     title: "命令文字",
@@ -246,17 +211,14 @@ const columns = [
     key: "description",
     ellipsis: true,
   },
-  {
-    title: "分類",
-    dataIndex: "category",
-    key: "category",
-    slots: { customRender: "category" },
-  },
+
   {
     title: "使用次數",
     dataIndex: "usage_count",
     key: "usage_count",
     slots: { customRender: "usage" },
+    align: "right",
+    width: 120,
     sorter: true,
   },
   {
@@ -264,6 +226,7 @@ const columns = [
     dataIndex: "is_active",
     key: "is_active",
     slots: { customRender: "status" },
+    width: 60,
   },
   // 暫時註釋創建時間列，等待後端支援
   {
@@ -281,7 +244,7 @@ const columns = [
       if (!timeValue) {
         return "未知";
       }
-      // 如果是時間戳，轉換為日期
+      // 如果是時間戳，轉換為日期 TODO: 利用工具函數來處理
       if (typeof timeValue === "number") {
         return new Date(timeValue * 1000).toLocaleString("zh-TW");
       }
@@ -313,9 +276,8 @@ const availableAgents = ref([]);
 // 表單數據
 const formData = reactive({
   id: null,
-  text: "", // 使用 text 而不是 command_text
+  text: "",
   description: "",
-  category: "general",
   icon: "",
   agent_id: null,
 });
@@ -324,7 +286,6 @@ const formData = reactive({
 const formRules = {
   text: [{ required: true, message: "請輸入命令文字" }],
   description: [{ required: true, message: "請輸入命令描述" }],
-  category: [{ required: true, message: "請選擇分類" }],
 };
 
 // 計算屬性
@@ -346,10 +307,6 @@ const filteredCommands = computed(() => {
     );
   }
 
-  if (filterCategory.value) {
-    result = result.filter((cmd) => cmd.category === filterCategory.value);
-  }
-
   if (filterStatus.value) {
     const isActive = filterStatus.value === "active";
     result = result.filter((cmd) => cmd.is_active === isActive);
@@ -369,7 +326,6 @@ const handleLoadCommands = async () => {
   try {
     loading.value = true;
     const response = await getAllQuickCommandsForAdmin({
-      category: filterCategory.value,
       active:
         filterStatus.value === "active"
           ? true
@@ -419,27 +375,6 @@ const handleLoadAgents = async () => {
 };
 
 // 方法
-const getCategoryColor = (category) => {
-  const colors = {
-    general: "blue",
-    education: "green",
-    business: "orange",
-    creative: "purple",
-    technical: "red",
-  };
-  return colors[category] || "default";
-};
-
-const getCategoryName = (category) => {
-  const names = {
-    general: "通用",
-    education: "教育",
-    business: "商業",
-    creative: "創意",
-    technical: "技術",
-  };
-  return names[category] || category;
-};
 
 const getAgentName = (agentId) => {
   console.log("availableAgents", availableAgents);
@@ -455,17 +390,12 @@ const handleSearch = () => {
   console.log("搜索:", searchText.value);
 };
 
-const handleCategoryChange = (value) => {
-  filterCategory.value = value;
-};
-
 const handleStatusChange = (value) => {
   filterStatus.value = value;
 };
 
 const handleReset = () => {
   searchText.value = "";
-  filterCategory.value = undefined;
   filterStatus.value = undefined;
 };
 
@@ -479,7 +409,6 @@ const handleEdit = (record) => {
     id: record.id,
     text: record.text,
     description: record.description,
-    category: record.category,
     icon: record.icon || "",
     agent_id: record.agent_id,
   });
@@ -575,7 +504,6 @@ const resetForm = () => {
     id: null,
     text: "",
     description: "",
-    category: "general",
     icon: "",
     agent_id: null,
   });
@@ -591,10 +519,6 @@ const handleTextChange = (e) => {
 
 const handleDescriptionChange = (e) => {
   formData.description = e.target.value;
-};
-
-const handleFormCategoryChange = (value) => {
-  formData.category = value;
 };
 
 const handleIconChange = (e) => {

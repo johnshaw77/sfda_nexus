@@ -131,31 +131,47 @@ npm run dev
 
 ## 📊 項目進度
 
-### ✅ 最新完成功能 (v1.8.3) - 2025-01-27
+### ✅ 最新完成功能 (v1.9.1) - 2025-06-05
 
-#### 🛠️ 快速命令詞管理系統完善
+#### 🔄 QuickCommands 系統重構
 
-- [x] **後端 API 增強**
+- [x] **資料庫結構優化**
 
-  - [x] 新增 getAllQuickCommandsWithAgents 模型方法
-  - [x] 實現 getAllQuickCommandsForAdmin 控制器方法
-  - [x] 添加 /api/quick-commands/admin 路由
-  - [x] 支援智能體關聯資訊查詢（LEFT JOIN agents 表）
-  - [x] 完整的 Swagger API 文檔
+  - [x] 移除 quick_commands 表的 category 欄位
+  - [x] 移除相關索引 (idx_category)
+  - [x] 保持資料完整性，現有命令不受影響
+  - [x] 創建專用 SQL 腳本進行資料庫遷移
 
-- [x] **前端管理介面優化**
+- [x] **後端代碼重構**
 
-  - [x] 新增 getAllQuickCommandsForAdmin API 方法
-  - [x] 更新管理頁面使用新的 API 端點
-  - [x] 修正智能體欄位顯示邏輯
-  - [x] 實現智能體名稱解析和顯示
-  - [x] 添加"通用"標籤用於非智能體專用命令
+  - [x] 更新 QuickCommand.model.js 移除所有分類相關邏輯
+  - [x] 修改 getAllQuickCommands 和 getAllQuickCommandsWithAgents 方法
+  - [x] 更新 createQuickCommand 和 updateQuickCommand 方法
+  - [x] 調整 quickCommands.controller.js 移除分類參數
+  - [x] 更新 Swagger API 文檔移除分類相關欄位
 
-- [x] **資料庫查詢優化**
-  - [x] 使用 LEFT JOIN 查詢快速命令詞和智能體關聯
-  - [x] 支援按分類和啟用狀態過濾
-  - [x] 返回智能體 ID、顯示名稱和內部名稱
-  - [x] 保持向後兼容性
+- [x] **前端界面重構**
+
+  - [x] 移除管理頁面的分類選擇器和過濾器
+  - [x] 更新表格欄位定義，移除分類欄
+  - [x] 調整表單驗證規則，移除分類必填驗證
+  - [x] 重新設計搜尋區域佈局（12-8-4 Grid）
+  - [x] 更新 API 調用移除分類參數
+
+- [x] **測試驗證**
+
+  - [x] 創建專用測試腳本驗證重構結果
+  - [x] 測試所有 CRUD 操作正常運作
+  - [x] 確認分類欄位完全移除
+  - [x] 驗證智能體關聯功能正常
+  - [x] 所有測試通過 (4/4)
+
+- [x] **狀態切換修復 (v1.9.1)**
+  - [x] 修復 getQuickCommandById 方法中遺留的 category 欄位
+  - [x] 解決資料庫 0/1 與 JavaScript 布爾值比較問題
+  - [x] 增強 updateQuickCommand 方法的錯誤處理
+  - [x] 創建專用狀態切換測試腳本
+  - [x] 所有狀態切換測試通過 (3/3)
 
 #### 🤖 智能體系統優化 (v1.8.2)
 

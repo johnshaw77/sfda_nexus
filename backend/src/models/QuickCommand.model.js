@@ -16,7 +16,6 @@ export const getAgentQuickCommands = async (agentId) => {
       qc.id,
       COALESCE(aqc.custom_text, qc.command_text) as text,
       qc.description,
-      qc.category,
       qc.icon,
       aqc.display_order,
       aqc.is_enabled
@@ -35,19 +34,17 @@ export const getAgentQuickCommands = async (agentId) => {
 /**
  * 獲取所有快速命令詞
  * @param {Object} options - 查詢選項
- * @param {string} [options.category] - 分類過濾
  * @param {boolean} [options.active=true] - 是否只獲取啟用的命令
  * @returns {Promise<Array>} 快速命令詞列表
  */
 export const getAllQuickCommands = async (options = {}) => {
-  const { category, active = true } = options;
+  const { active = true } = options;
 
   let sql = `
     SELECT 
       id,
       command_text as text,
       description,
-      category,
       icon,
       usage_count,
       is_active,
@@ -59,18 +56,12 @@ export const getAllQuickCommands = async (options = {}) => {
   `;
   const params = [];
 
-  // 添加分類過濾
-  if (category) {
-    sql += " AND category = ?";
-    params.push(category);
-  }
-
   // 添加啟用狀態過濾
   if (active === true) {
     sql += " AND is_active = TRUE";
   }
 
-  sql += " ORDER BY category, usage_count DESC, id ASC";
+  sql += " ORDER BY usage_count DESC, id ASC";
 
   const result = await query(sql, params);
   return result.rows;
@@ -79,19 +70,17 @@ export const getAllQuickCommands = async (options = {}) => {
 /**
  * 獲取所有快速命令詞及其智能體關聯資訊（用於管理介面）
  * @param {Object} options - 查詢選項
- * @param {string} [options.category] - 分類過濾
  * @param {boolean} [options.active] - 是否只獲取啟用的命令
  * @returns {Promise<Array>} 包含智能體關聯的快速命令詞列表
  */
 export const getAllQuickCommandsWithAgents = async (options = {}) => {
-  const { category, active } = options;
+  const { active } = options;
 
   let sql = `
     SELECT 
       qc.id,
       qc.command_text as text,
       qc.description,
-      qc.category,
       qc.icon,
       qc.usage_count,
       qc.is_active,
@@ -108,19 +97,13 @@ export const getAllQuickCommandsWithAgents = async (options = {}) => {
   `;
   const params = [];
 
-  // 添加分類過濾
-  if (category) {
-    sql += " AND qc.category = ?";
-    params.push(category);
-  }
-
   // 添加啟用狀態過濾
   if (active !== undefined) {
     sql += " AND qc.is_active = ?";
     params.push(active);
   }
 
-  sql += " ORDER BY qc.category, qc.usage_count DESC, qc.id ASC";
+  sql += " ORDER BY qc.usage_count DESC, qc.id ASC";
 
   const result = await query(sql, params);
   return result.rows;
@@ -158,31 +141,23 @@ export const checkCommandExists = async (commandText) => {
  * @param {Object} commandData - 命令詞數據
  * @param {string} commandData.command_text - 命令詞文字
  * @param {string} [commandData.description] - 命令說明
- * @param {string} [commandData.category='general'] - 分類
  * @param {string} [commandData.icon] - 圖標名稱
  * @param {number} [commandData.created_by] - 創建者用戶 ID
  * @returns {Promise<Object>} 創建的命令詞數據
  */
 export const createQuickCommand = async (commandData) => {
-  const {
-    command_text,
-    description,
-    category = "general",
-    icon,
-    created_by,
-  } = commandData;
+  const { command_text, description, icon, created_by } = commandData;
 
   const sql = `
     INSERT INTO quick_commands (
-      command_text, description, category, icon, 
+      command_text, description, icon, 
       is_system, created_by
-    ) VALUES (?, ?, ?, ?, FALSE, ?)
+    ) VALUES (?, ?, ?, FALSE, ?)
   `;
 
   const result = await query(sql, [
     command_text.trim(),
     description?.trim() || null,
-    category,
     icon || null,
     created_by,
   ]);
@@ -191,7 +166,6 @@ export const createQuickCommand = async (commandData) => {
     id: result.rows.insertId,
     command_text: command_text.trim(),
     description: description?.trim() || null,
-    category,
     icon: icon || null,
   };
 };
@@ -207,7 +181,6 @@ export const getQuickCommandById = async (commandId) => {
       id,
       command_text,
       description,
-      category,
       icon,
       usage_count,
       is_active,
@@ -230,13 +203,7 @@ export const getQuickCommandById = async (commandId) => {
  * @returns {Promise<void>}
  */
 export const updateQuickCommand = async (commandId, updateData) => {
-  const allowedFields = [
-    "command_text",
-    "description",
-    "category",
-    "icon",
-    "is_active",
-  ];
+  const allowedFields = ["command_text", "description", "icon", "is_active"];
   const updates = [];
   const params = [];
 
@@ -254,7 +221,12 @@ export const updateQuickCommand = async (commandId, updateData) => {
   params.push(commandId);
   const sql = `UPDATE quick_commands SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
 
-  await query(sql, params);
+  const result = await query(sql, params);
+
+  // 檢查是否有記錄被更新
+  if (result.rows.affectedRows === 0) {
+    throw new Error(`快速命令詞不存在 (ID: ${commandId})`);
+  }
 };
 
 /**

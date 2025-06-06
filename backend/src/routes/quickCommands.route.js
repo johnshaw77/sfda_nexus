@@ -18,7 +18,6 @@ const router = express.Router();
  *       required:
  *         - id
  *         - text
- *         - category
  *       properties:
  *         id:
  *           type: integer
@@ -29,10 +28,6 @@ const router = express.Router();
  *         description:
  *           type: string
  *           description: 命令詞描述
- *         category:
- *           type: string
- *           description: 分類
- *           enum: [education, sports, nutrition, finance, travel, reading, business, general]
  *         icon:
  *           type: string
  *           description: 圖標名稱
@@ -46,7 +41,6 @@ const router = express.Router();
  *         id: 1
  *         text: "解釋一個複雜的概念"
  *         description: "請解釋一個複雜的概念，用簡單易懂的方式"
- *         category: "education"
  *         icon: "book"
  *         usage_count: 15
  *         is_active: true
@@ -62,18 +56,12 @@ const router = express.Router();
  *         description:
  *           type: string
  *           description: 命令詞描述
- *         category:
- *           type: string
- *           description: 分類
- *           enum: [education, sports, nutrition, finance, travel, reading, business, general]
- *           default: general
  *         icon:
  *           type: string
  *           description: 圖標名稱
  *       example:
  *         command_text: "分析市場趨勢"
  *         description: "請分析當前的市場趨勢和投資機會"
- *         category: "finance"
  *         icon: "chart"
  *
  *     ApiResponse:
@@ -145,12 +133,6 @@ router.get(
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *           enum: [education, sports, nutrition, finance, travel, reading, business, general]
- *         description: 按分類過濾
- *       - in: query
  *         name: active
  *         schema:
  *           type: boolean
@@ -215,12 +197,6 @@ router.get(
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *           enum: [education, sports, nutrition, finance, travel, reading, business, general]
- *         description: 按分類過濾
  *       - in: query
  *         name: active
  *         schema:
@@ -324,10 +300,6 @@ router.post("/", authenticateToken, quickCommandsController.createQuickCommand);
  *               description:
  *                 type: string
  *                 description: 命令詞描述
- *               category:
- *                 type: string
- *                 enum: [education, sports, nutrition, finance, travel, reading, business, general]
- *                 description: 分類
  *               icon:
  *                 type: string
  *                 description: 圖標名稱

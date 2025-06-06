@@ -2,29 +2,37 @@
 
 ## ✅ 最近完成項目（2025-01-27）
 
-### 🛠️ 快速命令詞管理系統完善
+### 🔄 QuickCommands 系統重構 (v1.9.0)
 
-- [x] **後端 API 增強**
+- [x] **資料庫結構優化**
 
-  - [x] 新增 getAllQuickCommandsWithAgents 模型方法
-  - [x] 實現 getAllQuickCommandsForAdmin 控制器方法
-  - [x] 添加 /api/quick-commands/admin 路由
-  - [x] 支援智能體關聯資訊查詢（LEFT JOIN agents 表）
-  - [x] 完整的 Swagger API 文檔
+  - [x] 移除 quick_commands 表的 category 欄位
+  - [x] 移除相關索引 (idx_category)
+  - [x] 創建資料庫遷移腳本
+  - [x] 保持現有資料完整性
 
-- [x] **前端管理介面優化**
+- [x] **後端代碼重構**
 
-  - [x] 新增 getAllQuickCommandsForAdmin API 方法
-  - [x] 更新管理頁面使用新的 API 端點
-  - [x] 修正智能體欄位顯示邏輯
-  - [x] 實現智能體名稱解析和顯示
-  - [x] 添加"通用"標籤用於非智能體專用命令
+  - [x] 更新 QuickCommand.model.js 移除分類邏輯
+  - [x] 修改所有查詢方法移除 category 欄位
+  - [x] 更新 Controller 移除分類參數處理
+  - [x] 調整 allowedFields 移除 category
+  - [x] 更新 Swagger 文檔移除分類相關定義
 
-- [x] **資料庫查詢優化**
-  - [x] 使用 LEFT JOIN 查詢快速命令詞和智能體關聯
-  - [x] 支援按分類和啟用狀態過濾
-  - [x] 返回智能體 ID、顯示名稱和內部名稱
-  - [x] 保持向後兼容性
+- [x] **前端界面重構**
+
+  - [x] 移除管理頁面分類選擇器
+  - [x] 更新表格欄位定義
+  - [x] 調整表單驗證規則
+  - [x] 重新設計搜尋區域佈局
+  - [x] 移除所有分類相關的方法和變數
+
+- [x] **測試與驗證**
+  - [x] 創建專用測試腳本
+  - [x] 驗證所有 CRUD 操作
+  - [x] 確認分類欄位完全移除
+  - [x] 測試智能體關聯功能
+  - [x] 4/4 測試全部通過
 
 ### 🤖 智能體系統優化
 
