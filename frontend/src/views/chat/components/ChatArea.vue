@@ -220,7 +220,10 @@
                 <span></span>
               </div>
               <span class="typing-text"
-                >{{ agent?.name || "AI" }} 正在思考中...</span
+                >{{
+                  agent?.display_name || agent?.name || "AI"
+                }}
+                正在思考中...</span
               >
             </div>
           </div>
@@ -995,7 +998,7 @@ const handleSendMessage = async () => {
           attachments: attachments,
         });
 
-        message.success("串流消息發送成功");
+        // message.success("串流消息發送成功");
       } else {
         // 使用普通模式
         const result = await chatStore.handleSendMessage(
@@ -1021,7 +1024,7 @@ const handleSendMessage = async () => {
     }
   } catch (error) {
     const errorMsg = useStreamMode.value ? "串流發送消息失敗" : "發送消息失敗";
-    message.error(`${errorMsg}: ${error.message}`);
+    // message.error(`${errorMsg}: ${error.message}`);
     console.error("發送消息失敗:", error);
   } finally {
     sending.value = false;
@@ -1286,7 +1289,7 @@ const handleFileUpload = async (file) => {
       showFileAnalysisCard.value = true;
       currentFileInfo.value = uploadedFile;
 
-      message.success(`檔案 "${uploadedFile.filename}" 上傳成功`);
+      // message.success(`檔案 "${uploadedFile.filename}" 上傳成功`);
     } else {
       message.error(response.message || "檔案上傳失敗");
     }
@@ -1309,7 +1312,7 @@ const handleFilePreview = async (file) => {
     // 檢查檔案大小 (20MB 限制)
     const maxSize = 20 * 1024 * 1024; // 20MB
     if (file.size > maxSize) {
-      message.error("檔案大小不能超過 10MB");
+      message.error("檔案大小不能超過 20MB");
       return false;
     }
 
@@ -1369,7 +1372,7 @@ const handleFilePreview = async (file) => {
     // 添加到預覽列表
     previewFiles.value.push(previewFile);
 
-    message.success(`檔案 "${file.name}" 已添加到預覽`);
+    // message.success(`檔案 "${file.name}" 已添加到預覽`);
 
     // 將焦點設置到輸入框
     nextTick(() => {
@@ -1988,7 +1991,7 @@ const handleCreateNewConversation = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 200px;
+  max-width: 300px;
 }
 
 .typing-dots {

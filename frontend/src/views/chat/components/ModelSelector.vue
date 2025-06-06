@@ -40,9 +40,6 @@
                     <span class="model-name">{{
                       model.display_name || model.name
                     }}</span>
-                    <!-- <span class="provider-tag">{{
-                      getProviderLabel(model.provider)
-                    }}</span> -->
                   </div>
                   <div class="model-details">
                     <span class="model-id">{{
@@ -58,6 +55,13 @@
                   </div>
                 </div>
                 <div class="model-status">
+                  <a-tag
+                    v-if="model.is_multimodal"
+                    color="purple"
+                    size="small"
+                    class="multimodal-tag">
+                    多模態
+                  </a-tag>
                   <span class="provider-tag">{{
                     getProviderLabel(model.provider)
                   }}</span>
@@ -107,6 +111,13 @@
             :is="getProviderIcon(selectedModel.provider)"
             class="selected-icon" />
           <span class="selected-name">{{ selectedModel.display_name }}</span>
+          <a-tag
+            v-if="selectedModel.is_multimodal"
+            color="purple"
+            size="small"
+            class="selected-multimodal-tag">
+            多模態
+          </a-tag>
           <span class="selected-provider">{{
             getProviderLabel(selectedModel.provider)
           }}</span>
@@ -446,5 +457,24 @@ onMounted(async () => {
   gap: 8px;
   padding: 24px 16px;
   color: var(--custom-text-primary);
+}
+
+/* 多模態標籤樣式 */
+.multimodal-tag {
+  margin-left: 4px !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  padding: 1px 4px !important;
+  height: auto !important;
+  border-radius: 3px !important;
+}
+
+.selected-multimodal-tag {
+  margin-left: 4px !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  padding: 1px 4px !important;
+  height: auto !important;
+  border-radius: 3px !important;
 }
 </style>

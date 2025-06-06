@@ -8,6 +8,7 @@
   --success-color: #52c41a;
   --warning-color: #faad14;
   --error-color: #ff4d4f;
+  --error-bg-color: #fff2f0;
   --info-color: #1890ff;
 
   /* 中性色 */
@@ -110,6 +111,7 @@
   --background-color: #141414;
   --background-color-light: #1f1f1f;
   --background-color-base: #000000;
+  --error-bg-color: #2c1618;
 
   /* 自定義背景色 */
   --custom-bg-primary: #141414;
@@ -129,6 +131,9 @@
 
 /* 亮色模式下的自定義變量 */
 [data-theme="light"] {
+  /* 錯誤背景色 */
+  --error-bg-color: #fff2f0;
+
   /* 自定義背景色 */
   --custom-bg-primary: #ffffff;
   --custom-bg-secondary: #f8fafc;

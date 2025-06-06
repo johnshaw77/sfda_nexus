@@ -178,14 +178,26 @@ export class MessageModel {
     try {
       // 獲取總數
       const { rows: countRows } = await query(
-        `SELECT COUNT(*) as total FROM messages ${whereClause}`,
+        `SELECT COUNT(*) as total 
+        FROM messages m
+        LEFT JOIN conversations c ON m.conversation_id = c.id
+        ${whereClause.replace("conversation_id", "m.conversation_id").replace("is_deleted", "m.is_deleted")}`,
         params
       );
       const total = countRows[0].total;
 
-      // 獲取訊息列表
+      // 獲取訊息列表，包含 agent 信息
       const { rows } = await query(
-        `SELECT * FROM messages ${whereClause} ${orderClause} LIMIT ${limit} OFFSET ${offset}`,
+        `SELECT 
+          m.*,
+          c.agent_id,
+          a.display_name as agent_name
+        FROM messages m
+        LEFT JOIN conversations c ON m.conversation_id = c.id
+        LEFT JOIN agents a ON c.agent_id = a.id
+        ${whereClause.replace("conversation_id", "m.conversation_id").replace("is_deleted", "m.is_deleted")} 
+        ${orderClause.replace("created_at", "m.created_at")} 
+        LIMIT ${limit} OFFSET ${offset}`,
         params
       );
 

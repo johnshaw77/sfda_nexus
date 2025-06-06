@@ -5,6 +5,7 @@
       'user-message': message.role === 'user',
       'ai-message': message.role === 'assistant',
       'system-message': message.role === 'system',
+      'error-message': isErrorMessage,
     }">
     <!-- 消息頭部信息 -->
     <!--
@@ -43,7 +44,7 @@
       
     </div> -->
 
-    <!-- 消息內容 TODO:TEST-->
+    <!-- 消息內容 TODO: 做TEST-->
     <div class="message-content">
       <!-- 引用的消息 -->
       <div
@@ -63,9 +64,15 @@
 
       <!-- 主要內容 -->
       <div class="message-text">
-        <!-- AI 消息使用 CodeHighlight 組件 -->
+        <!-- AI 消息 - 錯誤訊息使用純文本顯示 -->
+        <div
+          v-if="message.role === 'assistant' && isErrorMessage"
+          class="plain-text error-text">
+          {{ message.content }}
+        </div>
+        <!-- AI 消息 - 正常訊息使用 CodeHighlight 組件 -->
         <CodeHighlight
-          v-if="message.role === 'assistant'"
+          v-else-if="message.role === 'assistant'"
           :content="message.content"
           :is-streaming="message.isStreaming"
           :enable-keyword-highlight="true"
@@ -83,7 +90,7 @@
           ref="userMessageContent">
           {{ message.content }}
         </div>
-        <!-- 展開/收起按鈕（僅用戶消息） -->
+        <!-- 展開/收起按鈕（用戶消息） -->
         <div
           v-if="message.role === 'user' && shouldShowExpandButton"
           class="expand-button-container">
@@ -271,7 +278,6 @@
         </a-tooltip>
       </div>
     </div>
-
     <!-- 消息狀態 -->
     <div
       v-if="showStatus"
@@ -290,7 +296,7 @@
 </template>
 
 <script setup>
-import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
+import { computed, ref, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { message as antMessage } from "ant-design-vue";
 import { useChatStore } from "@/stores/chat";
 import { useConfigStore } from "@/stores/config";
@@ -306,7 +312,7 @@ const props = defineProps({
   },
   showStatus: {
     type: Boolean,
-    default: false,
+    default: true,
   },
 });
 
@@ -404,22 +410,24 @@ onUnmounted(() => {
   imageBlobUrls.value.clear();
 });
 
-// 檢查用戶消息是否需要展開按鈕
-const checkUserMessageHeight = async () => {
-  await nextTick();
-  if (userMessageContent.value) {
-    const element = userMessageContent.value;
-    const lineHeight = parseInt(window.getComputedStyle(element).lineHeight);
-    const maxHeight = lineHeight * MAX_USER_MESSAGE_LINES;
+// 檢查用戶消息高度並決定是否顯示展開按鈕
+const checkUserMessageHeight = () => {
+  if (!userMessageContent.value) return;
 
-    // 如果內容高度超過最大高度，顯示展開按鈕
-    if (element.scrollHeight > maxHeight) {
-      shouldShowExpandButton.value = true;
-    }
-  }
+  const element = userMessageContent.value;
+  const lineHeight = parseInt(window.getComputedStyle(element).lineHeight);
+  const maxHeight = lineHeight * MAX_USER_MESSAGE_LINES;
+
+  shouldShowExpandButton.value = element.scrollHeight > maxHeight;
+
+  console.log("檢查用戶消息高度:", {
+    scrollHeight: element.scrollHeight,
+    maxHeight,
+    shouldShow: shouldShowExpandButton.value,
+  });
 };
 
-// 切換用戶消息展開/收起
+// 切換用戶消息展開狀態
 const toggleUserMessageExpand = () => {
   isUserMessageCollapsed.value = !isUserMessageCollapsed.value;
 };
@@ -437,6 +445,41 @@ const getSenderName = () => {
       return "未知";
   }
 };
+
+// 監控消息內容變化（用戶消息）
+watch(
+  () => props.message.content,
+  () => {
+    if (props.message.role === "user") {
+      nextTick(() => {
+        checkUserMessageHeight();
+      });
+    }
+  },
+  { immediate: true }
+);
+
+// 錯誤檢測邏輯
+const isErrorMessage = computed(() => {
+  if (!props.message) return false;
+
+  const content = props.message.content || "";
+
+  // 優先檢查各種錯誤標記
+  const hasErrorFlag =
+    props.message.isError ||
+    props.message.error ||
+    (props.message.metadata && props.message.metadata.error);
+
+  // 優先檢查錯誤標記
+  if (hasErrorFlag) {
+    // console.log("✅ 通過錯誤標記檢測");
+    return true;
+  }
+
+  // console.log("❌ 未檢測到錯誤");
+  return false;
+});
 
 const getQuotePreview = (content) => {
   return content.length > 100 ? content.substring(0, 100) + "..." : content;
@@ -551,12 +594,83 @@ const handleImageError = (event) => {
   width: 80%;
 }
 
+/* 確保 AI 訊息在錯誤狀態下樣式優先級正確 */
+.ai-message.error-message {
+  background: var(--error-bg-color, #fff2f0) !important;
+  border: 1px solid var(--error-color, #ff4d4f) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  margin-bottom: 16px !important;
+  color: var(--error-color, #ff4d4f) !important;
+}
+
 .system-message {
   background: #fff7e6;
   border: 1px solid #ffd591;
   margin: 0 auto;
   text-align: center;
   max-width: 60%;
+}
+
+/* 錯誤訊息樣式 - 最高優先級 */
+.message-bubble.error-message {
+  background: var(--error-bg-color, #fff2f0) !important;
+  border: 1px solid var(--error-color, #ff4d4f) !important;
+  border-radius: 8px !important;
+  padding: 6px !important;
+  margin-bottom: 16px !important;
+  height: 40px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.message-bubble.error-message .message-content {
+  background: transparent !important;
+  color: var(--error-color, #ff4d4f) !important;
+}
+
+.message-bubble.error-message .code-highlight-container {
+  background: var(--error-bg-color, #fff2f0) !important;
+  border: none !important;
+  border-radius: 4px !important;
+}
+
+.message-bubble.error-message .markdown-content {
+  background: var(--error-bg-color, #fff2f0) !important;
+  color: var(--error-color, #ff4d4f) !important;
+}
+
+/* 錯誤訊息中的 CodeHighlight 組件樣式 */
+.message-bubble.error-message :deep(.code-highlight-container) {
+  background: var(--error-bg-color, #fff2f0) !important;
+  border: 1px solid var(--error-color, #ff4d4f) !important;
+  border-radius: 4px !important;
+}
+
+.message-bubble.error-message :deep(.markdown-content) {
+  background: var(--error-bg-color, #fff2f0) !important;
+  color: var(--error-color, #ff4d4f) !important;
+}
+
+.message-bubble.error-message :deep(.hljs) {
+  background: var(--error-bg-color, #fff2f0) !important;
+  color: var(--error-color, #ff4d4f) !important;
+}
+
+/* 串流狀態的錯誤訊息 */
+.message-bubble.error-message .streaming-indicator {
+  background: var(--error-bg-color, #fff2f0) !important;
+  border: 1px solid var(--error-color, #ff4d4f) !important;
+  color: var(--error-color, #ff4d4f) !important;
+}
+
+/* 確保錯誤訊息在串流時也能正確顯示 */
+.message-bubble.error-message .empty-content {
+  background: var(--error-bg-color, #fff2f0) !important;
+  color: var(--error-color, #ff4d4f) !important;
+  padding: 12px !important;
+  border-radius: 4px !important;
 }
 
 .message-header {
@@ -708,6 +822,17 @@ const handleImageError = (event) => {
 .user-message .expand-button:hover {
   color: var(--primary-color) !important;
   background: var(--custom-bg-secondary) !important;
+}
+
+/* 錯誤訊息特定樣式 */
+.error-text {
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 13px;
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
 }
 
 .message-attachments {
@@ -881,7 +1006,7 @@ const handleImageError = (event) => {
   opacity: 1;
 } */
 
-.toolbar-btn {
+/* .toolbar-btn {
   width: 28px !important;
   height: 28px !important;
   padding: 0 !important;
@@ -901,7 +1026,7 @@ const handleImageError = (event) => {
 
 .toolbar-btn:active {
   transform: scale(0.95);
-}
+} */
 
 .message-status {
   position: absolute;

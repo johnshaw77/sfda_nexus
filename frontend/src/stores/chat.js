@@ -107,7 +107,7 @@ export const useChatStore = defineStore("chat", () => {
       // 更新對話列表分頁信息
       conversationPagination.value.total += 1;
 
-      message.success("對話創建成功");
+      // message.success("對話創建成功");
       return newConversation;
     } catch (error) {
       console.error("創建對話失敗:", error);
@@ -821,7 +821,51 @@ export const useChatStore = defineStore("chat", () => {
       case "error":
         // 錯誤事件
         console.error("SSE 錯誤:", data.error);
-        message.error(data.error);
+
+        // 直接使用原始錯誤訊息，不進行處理
+        // message.error(data.error);
+
+        // 查找是否有正在串流的 assistant 訊息
+        const streamingMessageIndex = messages.value.findIndex(
+          (msg) =>
+            msg.role === "assistant" &&
+            msg.isStreaming &&
+            msg.conversation_id === conversationId
+        );
+
+        if (streamingMessageIndex !== -1) {
+          // 更新現有的串流訊息為錯誤訊息
+          messages.value[streamingMessageIndex].content = data.error;
+          messages.value[streamingMessageIndex].isStreaming = false;
+          messages.value[streamingMessageIndex].isError = true;
+          console.log(
+            "更新串流訊息為錯誤訊息:",
+            messages.value[streamingMessageIndex]
+          );
+        } else {
+          // 創建新的錯誤訊息記錄
+          const errorMessage = {
+            id: Date.now(), // 臨時 ID
+            conversation_id: conversationId,
+            role: "assistant",
+            content: data.error,
+            content_type: "text",
+            tokens_used: 0,
+            created_at: new Date().toISOString(),
+            isStreaming: false,
+            isError: true, // 標記為錯誤訊息
+          };
+
+          // 添加到當前對話的訊息列表
+          if (
+            currentConversation.value &&
+            currentConversation.value.id === conversationId
+          ) {
+            messages.value.push(errorMessage);
+            console.log("創建新的錯誤訊息:", errorMessage);
+          }
+        }
+
         throw new Error(data.error);
 
       default:
