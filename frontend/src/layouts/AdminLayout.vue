@@ -572,7 +572,7 @@ const loadSystemStats = () => {
 }
 
 .sider-trigger {
-  padding: 3px;
+  padding: 6px;
   border-bottom: 1px solid var(--custom-border-primary);
   text-align: center;
 }

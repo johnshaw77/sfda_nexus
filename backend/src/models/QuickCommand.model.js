@@ -77,6 +77,56 @@ export const getAllQuickCommands = async (options = {}) => {
 };
 
 /**
+ * 獲取所有快速命令詞及其智能體關聯資訊（用於管理介面）
+ * @param {Object} options - 查詢選項
+ * @param {string} [options.category] - 分類過濾
+ * @param {boolean} [options.active] - 是否只獲取啟用的命令
+ * @returns {Promise<Array>} 包含智能體關聯的快速命令詞列表
+ */
+export const getAllQuickCommandsWithAgents = async (options = {}) => {
+  const { category, active } = options;
+
+  let sql = `
+    SELECT 
+      qc.id,
+      qc.command_text as text,
+      qc.description,
+      qc.category,
+      qc.icon,
+      qc.usage_count,
+      qc.is_active,
+      qc.created_by,
+      qc.created_at,
+      qc.updated_at,
+      aqc.agent_id,
+      a.display_name as agent_name,
+      a.name as agent_internal_name
+    FROM quick_commands qc
+    LEFT JOIN agent_quick_commands aqc ON qc.id = aqc.quick_command_id AND aqc.is_enabled = TRUE
+    LEFT JOIN agents a ON aqc.agent_id = a.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  // 添加分類過濾
+  if (category) {
+    sql += " AND qc.category = ?";
+    params.push(category);
+  }
+
+  // 添加啟用狀態過濾
+  if (active !== undefined) {
+    sql += " AND qc.is_active = ?";
+    params.push(active);
+  }
+
+  sql += " ORDER BY qc.category, qc.usage_count DESC, qc.id ASC";
+
+  const result = await query(sql, params);
+  return result.rows;
+};
+
+/**
  * 增加快速命令詞使用次數
  * @param {number} commandId - 命令詞 ID
  * @returns {Promise<void>}
@@ -221,6 +271,7 @@ export const deleteQuickCommand = async (commandId) => {
 export default {
   getAgentQuickCommands,
   getAllQuickCommands,
+  getAllQuickCommandsWithAgents,
   incrementUsageCount,
   checkCommandExists,
   createQuickCommand,

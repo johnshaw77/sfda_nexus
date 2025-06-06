@@ -54,6 +54,30 @@ export const getAllQuickCommands = catchAsync(async (req, res) => {
 });
 
 /**
+ * 獲取所有快速命令詞及智能體關聯（用於管理介面）
+ * GET /api/quick-commands/admin
+ */
+export const getAllQuickCommandsForAdmin = catchAsync(async (req, res) => {
+  const { category, active } = req.query;
+
+  let activeFilter;
+  if (active === "true") {
+    activeFilter = true;
+  } else if (active === "false") {
+    activeFilter = false;
+  } else {
+    activeFilter = undefined; // 不過濾
+  }
+
+  const quickCommands = await QuickCommandModel.getAllQuickCommandsWithAgents({
+    category,
+    active: activeFilter,
+  });
+
+  res.json(createSuccessResponse(quickCommands, "獲取快速命令詞管理列表成功"));
+});
+
+/**
  * 增加快速命令詞使用次數統計
  * POST /api/quick-commands/:commandId/usage
  */
@@ -172,6 +196,7 @@ export const deleteQuickCommand = catchAsync(async (req, res) => {
 export default {
   getAgentQuickCommands,
   getAllQuickCommands,
+  getAllQuickCommandsForAdmin,
   incrementCommandUsage,
   createQuickCommand,
   getQuickCommandById,

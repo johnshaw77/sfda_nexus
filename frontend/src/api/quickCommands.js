@@ -13,7 +13,7 @@ import api from "./index.js";
 export const getAgentQuickCommands = async (agentId) => {
   try {
     const response = await api.get(`/api/quick-commands/agent/${agentId}`);
-    return response.data;
+    return response.data.data; // 提取實際的數據
   } catch (error) {
     console.error("獲取智能體快速命令詞失敗:", error);
     throw error;
@@ -21,18 +21,39 @@ export const getAgentQuickCommands = async (agentId) => {
 };
 
 /**
- * 獲取所有快速命令詞
+ * 獲取所有快速命令詞（通用版本）
  * @param {Object} params - 查詢參數
  * @param {string} [params.category] - 分類過濾
- * @param {boolean} [params.active=true] - 是否只獲取啟用的命令詞
+ * @param {boolean} [params.active=true] - 是否只獲取啟用的命令
  * @returns {Promise<Array>} 快速命令詞列表
  */
 export const getAllQuickCommands = async (params = {}) => {
   try {
     const response = await api.get("/api/quick-commands", { params });
-    return response.data; // 直接返回整個響應數據
+
+    // 返回 response.data.data（實際的數據陣列）
+    return response.data.data;
   } catch (error) {
-    console.error("獲取快速命令詞列表失敗:", error);
+    console.error("獲取快速命令詞失敗:", error);
+    throw error;
+  }
+};
+
+/**
+ * 獲取所有快速命令詞及智能體關聯（管理介面專用）
+ * @param {Object} params - 查詢參數
+ * @param {string} [params.category] - 分類過濾
+ * @param {boolean} [params.active] - 是否只獲取啟用的命令（undefined = 不過濾）
+ * @returns {Promise<Array>} 包含智能體關聯的快速命令詞列表
+ */
+export const getAllQuickCommandsForAdmin = async (params = {}) => {
+  try {
+    const response = await api.get("/api/quick-commands/admin", { params });
+
+    // 返回 response.data.data（實際的數據陣列）
+    return response.data.data;
+  } catch (error) {
+    console.error("獲取快速命令詞管理列表失敗:", error);
     throw error;
   }
 };
@@ -63,7 +84,7 @@ export const incrementCommandUsage = async (commandId) => {
 export const createQuickCommand = async (commandData) => {
   try {
     const response = await api.post("/api/quick-commands", commandData);
-    return response.data;
+    return response.data; // 保持完整響應，因為需要 success 字段
   } catch (error) {
     console.error("創建快速命令詞失敗:", error);
     throw error;
@@ -121,6 +142,7 @@ export const getQuickCommandStats = async () => {
 export default {
   getAgentQuickCommands,
   getAllQuickCommands,
+  getAllQuickCommandsForAdmin,
   incrementCommandUsage,
   createQuickCommand,
 };

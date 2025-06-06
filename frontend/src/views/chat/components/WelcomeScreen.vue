@@ -73,16 +73,6 @@
                     >
                   </div>
                 </div>
-
-                <!-- 狀態指示器 -->
-                <div class="status-indicator">
-                  <div
-                    class="status-dot"
-                    :class="agent.avatar?.status || 'online'"
-                    :title="
-                      getStatusText(agent.avatar?.status || 'online')
-                    "></div>
-                </div>
               </div>
             </div>
           </template>
@@ -161,15 +151,6 @@ const handleSelectAgent = (agent) => {
     params: { agentId: agent.id },
   });
   message.success(`已選擇智能體：${agent.display_name || agent.name}`);
-};
-
-const getStatusText = (status) => {
-  const statusMap = {
-    online: "在線",
-    away: "離開",
-    offline: "離線",
-  };
-  return statusMap[status] || "未知";
 };
 
 // 生命週期
@@ -303,34 +284,6 @@ onMounted(async () => {
 .agent-initial {
   font-size: 24px;
   font-weight: 600;
-}
-
-.status-indicator {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  background: var(--custom-bg-primary, white);
-  border-radius: 50%;
-  padding: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.status-indicator .status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.status-dot.online {
-  background: #48bb78;
-}
-
-.status-dot.away {
-  background: #ed8936;
-}
-
-.status-dot.offline {
-  background: #a0aec0;
 }
 
 /* 特性標籤 */

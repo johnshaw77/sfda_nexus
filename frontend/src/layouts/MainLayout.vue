@@ -616,16 +616,6 @@ const markAsRead = (notificationId) => {
   }
 };
 
-// 取得狀態文字
-const getStatusText = (status) => {
-  const statusMap = {
-    online: "在線",
-    away: "離開",
-    offline: "離線",
-  };
-  return statusMap[status] || "未知";
-};
-
 // 生命週期
 onMounted(async () => {
   try {

@@ -206,6 +206,61 @@ router.get(
  *       500:
  *         description: 服務器錯誤
  */
+/**
+ * @swagger
+ * /api/quick-commands/admin:
+ *   get:
+ *     summary: 獲取所有快速命令詞及智能體關聯（管理介面）
+ *     tags: [QuickCommands]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *           enum: [education, sports, nutrition, finance, travel, reading, business, general]
+ *         description: 按分類過濾
+ *       - in: query
+ *         name: active
+ *         schema:
+ *           type: string
+ *           enum: ["true", "false"]
+ *         description: 是否只獲取啟用的命令詞
+ *     responses:
+ *       200:
+ *         description: 成功獲取快速命令詞管理列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         allOf:
+ *                           - $ref: '#/components/schemas/QuickCommand'
+ *                           - type: object
+ *                             properties:
+ *                               agent_id:
+ *                                 type: integer
+ *                                 description: 關聯的智能體ID
+ *                               agent_name:
+ *                                 type: string
+ *                                 description: 智能體顯示名稱
+ *       401:
+ *         description: 未授權
+ *       500:
+ *         description: 服務器錯誤
+ */
+router.get(
+  "/admin",
+  authenticateToken,
+  quickCommandsController.getAllQuickCommandsForAdmin
+);
+
 router.get("/", authenticateToken, quickCommandsController.getAllQuickCommands);
 router.post("/", authenticateToken, quickCommandsController.createQuickCommand);
 

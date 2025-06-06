@@ -62,6 +62,18 @@
         :pagination="pagination"
         row-key="id"
         @change="handleTableChange">
+        <!-- 智能體列 -->
+        <template #agent="{ record }">
+          <span v-if="record.agent_id">
+            {{ getAgentName(record.agent_id) }}
+          </span>
+          <a-tag
+            v-else
+            color="default"
+            >通用</a-tag
+          >
+        </template>
+
         <!-- 分類列 -->
         <template #category="{ record }">
           <a-tag :color="getCategoryColor(record.category)">
@@ -198,7 +210,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import {
-  getAllQuickCommands,
+  getAllQuickCommandsForAdmin,
   createQuickCommand,
   updateQuickCommand,
   deleteQuickCommand,
@@ -215,6 +227,13 @@ const formRef = ref();
 
 // 表格配置
 const columns = [
+  {
+    title: "智能體",
+    dataIndex: "agent_id",
+    key: "agent_id",
+    slots: { customRender: "agent" },
+    width: 120,
+  },
   {
     title: "命令文字",
     dataIndex: "text", // 後端字段名是 text，不是 command_text
@@ -349,42 +368,36 @@ onMounted(() => {
 const handleLoadCommands = async () => {
   try {
     loading.value = true;
-    const response = await getAllQuickCommands({
-      page: pagination.current,
-      pageSize: pagination.pageSize,
+    const response = await getAllQuickCommandsForAdmin({
+      category: filterCategory.value,
+      active:
+        filterStatus.value === "active"
+          ? true
+          : filterStatus.value === "inactive"
+            ? false
+            : undefined,
     });
 
-    if (response.success) {
-      // 後端返回的是 { success: true, data: [...] } 格式
-      let rawData = Array.isArray(response.data)
-        ? response.data
-        : response.data.commands || response.data.data || [];
+    // 現在 response 直接是數據數組，因為 API 已經提取了 data 字段
+    let rawData = Array.isArray(response) ? response : [];
 
-      // 處理數據類型轉換，確保 is_active 是布爾值
-      commands.value = rawData.map((cmd) => {
-        // 調試：打印數據結構
-        if (commands.value.length === 0) {
-          // 只在第一次載入時打印
-          console.log("快速命令數據結構:", cmd);
-        }
-        return {
-          ...cmd,
-          is_active: Boolean(cmd.is_active), // 將 1/0 轉換為 true/false
-          updating: false, // 添加 updating 狀態
-        };
-      });
-
-      // 如果有分頁信息則更新
-      if (response.data && response.data.pagination) {
-        pagination.total = response.data.pagination.total;
-        pagination.current = response.data.pagination.current;
-      } else {
-        // 如果沒有分頁信息，設置總數為數據長度
-        pagination.total = commands.value.length;
+    console.log("rawData", rawData);
+    // 處理數據類型轉換，確保 is_active 是布爾值
+    commands.value = rawData.map((cmd) => {
+      // 調試：打印數據結構
+      if (commands.value.length === 0) {
+        // 只在第一次載入時打印
+        console.log("快速命令數據結構:", cmd);
       }
-    } else {
-      message.error(response.message || "載入快速命令數據失敗");
-    }
+      return {
+        ...cmd,
+        is_active: Boolean(cmd.is_active), // 將 1/0 轉換為 true/false
+        updating: false, // 添加 updating 狀態
+      };
+    });
+
+    // 設置總數為數據長度（如果後端沒有分頁信息）
+    pagination.total = commands.value.length;
   } catch (error) {
     console.error("載入快速命令數據失敗:", error);
     message.error("載入快速命令數據失敗，請稍後重試");
@@ -426,6 +439,12 @@ const getCategoryName = (category) => {
     technical: "技術",
   };
   return names[category] || category;
+};
+
+const getAgentName = (agentId) => {
+  console.log("availableAgents", availableAgents);
+  const agent = availableAgents.value.find((a) => a.id === agentId);
+  return agent ? agent.display_name || agent.name : "未知智能體";
 };
 
 const handleSearchChange = (e) => {

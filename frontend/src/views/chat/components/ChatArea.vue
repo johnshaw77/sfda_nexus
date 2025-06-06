@@ -43,9 +43,6 @@
                 >{{ agent.display_name.charAt(0) }}</span
               >
             </div>
-            <!-- <div
-              class="status-dot"
-              :class="agent.status"></div> -->
           </div>
           <div class="agent-details">
             <h3 class="agent-name">{{ agent.display_name }}</h3>
@@ -511,6 +508,37 @@
                 </a-button>
               </a-tooltip>
 
+              <!-- 思考模式切換 -->
+              <a-tooltip
+                :title="
+                  thinkingMode
+                    ? '當前：思考模式開啟 - AI 會顯示思考過程'
+                    : '當前：思考模式關閉 - AI 直接輸出結果'
+                "
+                placement="top">
+                <a-button
+                  type="text"
+                  size="small"
+                  @click="handleToggleThinkingMode"
+                  :class="{
+                    'active-toggle': thinkingMode,
+                  }">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="currentColor">
+                    <path
+                      v-if="thinkingMode"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path
+                      v-else
+                      d="M8 12.5c0 .41.34.75.75.75h2.5v2.5c0 .41.34.75.75.75s.75-.34.75-.75v-2.5h2.5c.41 0 .75-.34.75-.75s-.34-.75-.75-.75h-2.5v-2.5c0-.41-.34-.75-.75-.75s-.75.34-.75.75v2.5h-2.5c-.41 0-.75.34-.75.75zm-6 0c0 5.52 4.48 10 10 10s10-4.48 10-10S17.52 2.5 12 2.5 2 6.98 2 12.5z" />
+                  </svg>
+                  {{ thinkingMode ? "思考" : "直出" }}
+                </a-button>
+              </a-tooltip>
+
               <!-- 預覽後上傳 -->
               <a-tooltip placement="top">
                 <template #title>
@@ -738,6 +766,7 @@ const maxInputHeight = 600;
 const creatingNewConversation = ref(false);
 const agentQuickCommands = ref([]);
 const loadingQuickCommands = ref(false);
+const thinkingMode = ref(true); // 默認開啟思考模式
 const uploadDescription = `<li>» 文件數量:同時最多 5 個</li>
   <li>» 文件大小: 單個文件大小不超過 20 MB</li>
   <li>» 文件類型: pdf,txt,docs,xlsx,圖片和各類代碼文件格式等</li>`;
@@ -946,7 +975,13 @@ const handleSendMessage = async () => {
     }
 
     if (conversationId) {
-      const content = messageText.value.trim();
+      let content = messageText.value.trim();
+
+      // 處理思考模式：如果關閉思考模式，在消息前添加 /no_think 前綴
+      if (!thinkingMode.value && !content.startsWith("/no_think")) {
+        content = "/no_think " + content;
+      }
+
       let finalAttachments = [];
 
       // 處理預覽檔案上傳
@@ -1601,6 +1636,18 @@ const handleToggleRealtimeRender = () => {
   );
 };
 
+// 切換思考模式
+const handleToggleThinkingMode = () => {
+  thinkingMode.value = !thinkingMode.value;
+  console.log("思考模式切換:", thinkingMode.value ? "開啟" : "關閉");
+  // 保存用戶偏好到本地存儲
+  localStorage.setItem(
+    "chat_thinking_mode",
+    JSON.stringify(thinkingMode.value)
+  );
+  message.success(`已切換為${thinkingMode.value ? "思考模式" : "直出模式"}`);
+};
+
 // 根據智能體獲取快速提示
 const getQuickPrompts = () => {
   if (!props.agent) {
@@ -1797,6 +1844,12 @@ onMounted(() => {
   const savedStreamMode = localStorage.getItem("chat_stream_mode");
   if (savedStreamMode !== null) {
     useStreamMode.value = JSON.parse(savedStreamMode);
+  }
+
+  // 恢復思考模式設置
+  const savedThinkingMode = localStorage.getItem("chat_thinking_mode");
+  if (savedThinkingMode !== null) {
+    thinkingMode.value = JSON.parse(savedThinkingMode);
   }
 
   // 恢復基本聊天設置（不包含系統提示詞）
@@ -2292,29 +2345,6 @@ const handleCreateNewConversation = async () => {
 .agent-avatar .agent-initial {
   font-size: 16px;
   font-weight: 600;
-}
-
-.agent-avatar .status-dot {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.status-dot.online {
-  background: #48bb78;
-}
-
-.status-dot.away {
-  background: #ed8936;
-}
-
-.status-dot.offline {
-  background: #a0aec0;
 }
 
 .agent-details {

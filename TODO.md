@@ -1,8 +1,54 @@
 # 📋 SFDA Nexus 待辦事項
 
-## ✅ 最近完成項目（2025-06-06）
+## ✅ 最近完成項目（2025-01-27）
 
-### 🎨 錯誤處理系統完善
+### 🛠️ 快速命令詞管理系統完善
+
+- [x] **後端 API 增強**
+
+  - [x] 新增 getAllQuickCommandsWithAgents 模型方法
+  - [x] 實現 getAllQuickCommandsForAdmin 控制器方法
+  - [x] 添加 /api/quick-commands/admin 路由
+  - [x] 支援智能體關聯資訊查詢（LEFT JOIN agents 表）
+  - [x] 完整的 Swagger API 文檔
+
+- [x] **前端管理介面優化**
+
+  - [x] 新增 getAllQuickCommandsForAdmin API 方法
+  - [x] 更新管理頁面使用新的 API 端點
+  - [x] 修正智能體欄位顯示邏輯
+  - [x] 實現智能體名稱解析和顯示
+  - [x] 添加"通用"標籤用於非智能體專用命令
+
+- [x] **資料庫查詢優化**
+  - [x] 使用 LEFT JOIN 查詢快速命令詞和智能體關聯
+  - [x] 支援按分類和啟用狀態過濾
+  - [x] 返回智能體 ID、顯示名稱和內部名稱
+  - [x] 保持向後兼容性
+
+### 🤖 智能體系統優化
+
+- [x] **移除智能體狀態指示器**
+
+  - [x] 移除 WelcomeScreen.vue 中的 status-indicator 組件
+  - [x] 移除 ChatArea.vue 中的 status-dot 相關代碼
+  - [x] 清理 MainLayout.vue 中已註解的狀態相關代碼
+  - [x] 移除 getStatusText 方法和相關樣式
+
+- [x] **快速命令詞修復**
+
+  - [x] 修正前端 API 數據提取邏輯
+  - [x] 更新 getAgentQuickCommands 返回 response.data.data
+  - [x] 更新 getAllQuickCommands 返回 response.data.data
+  - [x] 確保快速命令詞正確顯示在聊天界面
+
+- [x] **思考模式功能**
+  - [x] 在消息輸入工具欄添加思考模式切換按鈕
+  - [x] 實現思考模式狀態管理和本地存儲
+  - [x] 當關閉思考模式時自動在消息前添加 /no_think 前綴
+  - [x] 添加思考模式的視覺指示和提示信息
+
+### 🎨 錯誤處理系統完善（2025-06-06）
 
 - [x] **錯誤訊息樣式修正**
 

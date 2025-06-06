@@ -125,7 +125,7 @@ export const handleUpdateModel = catchAsync(async (req, res) => {
   // 處理布林值欄位，確保 MySQL 相容性
   const processedUpdateData = { ...updateData };
 
-  // 將 JavaScript 布林值轉換為 MySQL 相容的數字
+  // 將 JavaScript 布林值轉換為 MySQL 相容的數字 //NOTE: 這個前端也能做
   const booleanFields = ["is_active", "is_default", "is_multimodal"];
   booleanFields.forEach((field) => {
     if (field in processedUpdateData) {
