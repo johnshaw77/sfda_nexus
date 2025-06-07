@@ -1,8 +1,8 @@
-import mcpSyncService from "./src/services/mcpSync.service.js";
+import mcpSyncService from "../../src/services/mcpSync.service.js";
 import {
   initializeDatabase,
   closeDatabase,
-} from "./src/config/database.config.js";
+} from "../../src/config/database.config.js";
 
 async function testSync() {
   try {

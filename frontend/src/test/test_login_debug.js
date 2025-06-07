@@ -1,21 +1,17 @@
 import bcrypt from "bcryptjs";
-import { query, initializeDatabase } from "./src/config/database.config.js";
+import { query } from "../../../backend/src/config/database.config.js";
 
 async function testLogin() {
   console.log("=== 登入測試開始 ===");
 
   try {
-    // 初始化資料庫
-    console.log("1. 初始化資料庫連接...");
-    await initializeDatabase();
-
     // 測試資料庫連接
-    console.log("2. 測試資料庫連接...");
+    console.log("1. 測試資料庫連接...");
     const { rows } = await query("SELECT 1 as test");
     console.log("✅ 資料庫連接正常");
 
     // 查找用戶
-    console.log("\n3. 查找用戶...");
+    console.log("\n2. 查找用戶...");
     const userResult = await query(
       "SELECT * FROM users WHERE username = ? AND is_active = 1",
       ["admin"]
@@ -35,7 +31,7 @@ async function testLogin() {
     });
 
     // 測試密碼驗證
-    console.log("\n4. 測試密碼驗證...");
+    console.log("\n3. 測試密碼驗證...");
     const testPassword = "admin123"; // 測試密碼
     console.log("測試密碼:", testPassword);
     console.log("儲存的哈希:", user.password_hash);
@@ -50,7 +46,7 @@ async function testLogin() {
 
       // 測試其他常見密碼
       const commonPasswords = ["password", "123456", "admin", "MyPwd@1234"];
-      console.log("\n5. 測試常見密碼...");
+      console.log("\n4. 測試常見密碼...");
 
       for (const pwd of commonPasswords) {
         const result = await bcrypt.compare(pwd, user.password_hash);

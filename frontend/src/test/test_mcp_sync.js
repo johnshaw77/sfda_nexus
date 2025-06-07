@@ -11,11 +11,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "backend", ".env") });
 
-import mcpSyncService from "./backend/src/services/mcpSync.service.js";
+import mcpSyncService from "../../../backend/src/services/mcpSync.service.js";
 import {
   initializeDatabase,
   closeDatabase,
-} from "./backend/src/config/database.config.js";
+} from "../../../backend/src/config/database.config.js";
 
 async function testMcpSync() {
   console.log("開始測試 MCP 同步...");

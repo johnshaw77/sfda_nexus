@@ -1,6 +1,6 @@
 <template>
   <a-config-provider
-    :locale="zh_TW"
+    :locale="zhTW"
     :theme="{
       token: {
         colorPrimary: configStore.colorPrimary,

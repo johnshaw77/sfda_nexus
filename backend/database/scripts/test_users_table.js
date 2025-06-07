@@ -1,4 +1,4 @@
-import { query, initializeDatabase } from "./src/config/database.config.js";
+import { query, initializeDatabase } from "../../src/config/database.config.js";
 
 console.log("🔍 檢查用戶表結構和數據...\n");
 

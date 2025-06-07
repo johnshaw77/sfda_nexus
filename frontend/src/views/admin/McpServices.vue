@@ -193,7 +193,7 @@
             <a-button
               type="link"
               size="small"
-              :href="record.endpoint_url || record.endpoint"
+              :href="(record.endpoint_url || record.endpoint) + '/tools'"
               target="_blank"
               style="padding: 0; height: auto">
               {{ formatEndpoint(record.endpoint_url || record.endpoint) }}
@@ -209,7 +209,7 @@
                 class="tools-tags"
                 v-if="record.tools && record.tools.length > 0">
                 <a-tooltip
-                  v-for="(tool, index) in record.tools.slice(0, 4)"
+                  v-for="(tool, index) in record.tools.slice(0, 5)"
                   :key="tool.name || tool"
                   :title="
                     typeof tool === 'string'
@@ -219,33 +219,21 @@
                   <a-tag
                     :color="getToolTagColor(tool)"
                     size="small"
-                    class="tool-tag"
                     @click="handleQuickToolToggle(record, tool)">
                     <ToolOutlined class="tool-icon" />
-                    {{
-                      typeof tool === "string"
-                        ? tool.slice(0, 12)
-                        : (tool.displayName || tool.name).slice(0, 12)
-                    }}
-                    {{
-                      (typeof tool === "string"
-                        ? tool.length
-                        : (tool.displayName || tool.name).length) > 12
-                        ? "..."
-                        : ""
-                    }}
+                    {{ tool.name }}
                   </a-tag>
                 </a-tooltip>
 
                 <!-- 更多工具指示器 -->
                 <a-tag
-                  v-if="record.tools.length > 4"
+                  v-if="record.tools.length > 5"
                   color="blue"
                   size="small"
                   class="more-tools-tag"
                   @click="handleViewTools(record)"
                   :title="`還有 ${record.tools.length - 4} 個工具，點擊查看全部`">
-                  +{{ record.tools.length - 4 }}
+                  +{{ record.tools.length - 5 }}
                 </a-tag>
               </div>
 
@@ -418,15 +406,14 @@
           <div
             v-for="tool in selectedService.tools"
             :key="tool.name"
-            class="tool-tag-wrapper"
-            style="display: inline-block; margin: 4px; position: relative">
+            class="tool-tag-wrapper">
             <!-- 主要工具標籤 -->
             <a-tag
               :color="getToolTagColor(tool)"
               :style="{
                 cursor: 'pointer',
-                fontSize: '13px',
-                padding: '4px 12px',
+                fontSize: '11px',
+                padding: '2px 6px',
                 borderRadius: '6px',
                 border: tool.enabled
                   ? '2px solid #52c41a'
@@ -435,43 +422,27 @@
                 minWidth: '120px',
                 textAlign: 'center',
               }"
-              @click="handleToolToggle(tool, !tool.enabled)"
-              @dblclick="handleViewSchema(tool)">
+              @click="handleToolToggle(tool, !tool.enabled)">
               <!-- 工具圖標 -->
-              <ToolOutlined
-                :style="{
-                  marginRight: '6px',
-                  color: tool.enabled ? '#52c41a' : '#999',
-                }" />
 
               <!-- 工具名稱 -->
               <span>{{ tool.displayName || tool.name }}</span>
-
-              <!-- 狀態指示器 -->
-              <span
-                :style="{
-                  marginLeft: '8px',
-                  display: 'inline-block',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: tool.enabled ? '#52c41a' : '#d9d9d9',
-                }">
-              </span>
             </a-tag>
 
             <!-- Schema 指示器 -->
             <a-tooltip
               v-if="hasSchema(tool)"
-              title="雙擊工具標籤查看 Schema">
+              title="雙擊工具標籤查看 Schema"
+              @click="handleViewSchema(tool)">
               <CodeOutlined
                 :style="{
                   position: 'absolute',
+                  cursor: 'pointer',
                   top: '-4px',
                   right: '-4px',
-                  fontSize: '10px',
-                  color: '#722ed1',
-                  background: '#fff',
+                  fontSize: '14px',
+                  color: 'var(--custom-text-primary)',
+                  background: 'var(--custom-bg-secondary)',
                   borderRadius: '50%',
                   padding: '2px',
                 }" />
@@ -484,14 +455,14 @@
               placement="bottom">
               <div
                 :style="{
+                  cursor: 'pointer',
                   fontSize: '10px',
                   color: '#999',
-                  textAlign: 'center',
+                  verticalAlign: 'top',
+                  textAlign: 'left',
                   marginTop: '2px',
                   maxWidth: '120px',
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
                 }">
                 {{ tool.description }}
               </div>
@@ -609,7 +580,7 @@ const serviceColumns = [
     dataIndex: "name",
     key: "name",
     slots: { customRender: "name" },
-    width: "15%",
+    width: "20%",
   },
   {
     title: "端點",
@@ -1120,7 +1091,7 @@ onMounted(() => {
   margin-bottom: 24px;
   padding: 16px;
   background: var(--custom-bg-secondary);
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--custom-border-secondary);
   border-radius: 6px;
 }
 
@@ -1139,7 +1110,7 @@ onMounted(() => {
 
 .service-description {
   font-size: 12px;
-  color: #666;
+  color: var(--custom-text-secondary);
   margin-top: 4px;
 }
 
@@ -1150,12 +1121,13 @@ onMounted(() => {
 }
 
 .schema-display {
-  background: #f5f5f5;
+  background: var(--custom-bg-tertiary);
   padding: 12px;
   border-radius: 4px;
   font-size: 12px;
   max-height: 400px;
   overflow-y: auto;
+  border: 1px solid var(--custom-border-secondary);
 }
 
 /* 工具標籤樣式 */
@@ -1163,14 +1135,18 @@ onMounted(() => {
   max-height: 400px;
   overflow-y: auto;
   padding: 8px;
-  background: #fafafa;
+  background: var(--custom-bg-tertiary);
   border-radius: 6px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--custom-border-secondary);
 }
 
 .tool-tag-wrapper {
   margin: 6px !important;
+  display: inline-block;
+  margin: 4px;
+  position: relative;
   transition: all 0.3s ease;
+  vertical-align: top;
 }
 
 .tool-tag-wrapper:hover {
@@ -1179,17 +1155,17 @@ onMounted(() => {
 }
 
 .tools-stats {
-  background: #fff;
+  background: var(--custom-bg-tertiary);
   padding: 16px;
   border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--custom-border-secondary);
 }
 
 .tools-actions {
-  background: #f8f9fa;
+  background: var(--custom-bg-tertiary);
   padding: 12px;
   border-radius: 6px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--custom-border-secondary);
 }
 
 /* 工具列樣式 */
@@ -1203,7 +1179,7 @@ onMounted(() => {
 .tool-tag {
   margin: 0 !important;
   cursor: pointer;
-  font-size: 11px !important;
+  font-size: 10px !important;
   padding: 2px 8px !important;
   border-radius: 4px !important;
   display: inline-flex;
