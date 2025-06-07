@@ -58,7 +58,9 @@ export const handleGetSystemStats = catchAsync(async (req, res) => {
         SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as new_users_30d
       FROM users
     `;
-    const [userStats] = await query(userStatsQuery);
+    const {
+      rows: [userStats],
+    } = await query(userStatsQuery);
 
     // 對話統計
     const conversationStatsQuery = `
@@ -68,7 +70,9 @@ export const handleGetSystemStats = catchAsync(async (req, res) => {
         SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as new_conversations_7d
       FROM conversations
     `;
-    const [conversationStats] = await query(conversationStatsQuery);
+    const {
+      rows: [conversationStats],
+    } = await query(conversationStatsQuery);
 
     // 消息統計
     const messageStatsQuery = `
@@ -79,7 +83,9 @@ export const handleGetSystemStats = catchAsync(async (req, res) => {
         SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 ELSE 0 END) as messages_24h
       FROM messages
     `;
-    const [messageStats] = await query(messageStatsQuery);
+    const {
+      rows: [messageStats],
+    } = await query(messageStatsQuery);
 
     // Token 統計
     const tokenStatsQuery = `
@@ -94,7 +100,9 @@ export const handleGetSystemStats = catchAsync(async (req, res) => {
       FROM messages 
       WHERE role = 'assistant'
     `;
-    const [tokenStats] = await query(tokenStatsQuery);
+    const {
+      rows: [tokenStats],
+    } = await query(tokenStatsQuery);
 
     const systemStats = {
       users: userStats,
@@ -241,7 +249,9 @@ export const handleGetAuditLogs = catchAsync(async (req, res) => {
     FROM audit_logs al 
     ${whereClause}
   `;
-  const [{ total }] = await query(countQuery, queryParams);
+  const {
+    rows: [{ total }],
+  } = await query(countQuery, queryParams);
 
   // 計算分頁
   const offset = (page - 1) * limit;

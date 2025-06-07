@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 更新後步驟：
 1. 檢查每一次的更新已完成。

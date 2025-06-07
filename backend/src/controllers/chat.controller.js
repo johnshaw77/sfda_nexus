@@ -6,6 +6,7 @@
 import ConversationModel from "../models/Conversation.model.js";
 import MessageModel from "../models/Message.model.js";
 import AIService from "../services/ai.service.js";
+import chatService from "../services/chat.service.js";
 import { query } from "../config/database.config.js";
 import {
   catchAsync,
@@ -390,20 +391,30 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       max_tokens: max_tokens,
     };
 
-    // 添加系統提示詞（優先使用自定義的，否則使用智能體的）
-    let systemPromptContent = system_prompt;
+    // 添加系統提示詞（整合 MCP 工具資訊）
+    let baseSystemPrompt = system_prompt;
 
     // 如果沒有自定義系統提示詞且有智能體，使用智能體的系統提示詞
-    if (!systemPromptContent && conversation.agent_id) {
+    if (!baseSystemPrompt && conversation.agent_id) {
       const { rows: agentRows } = await query(
         "SELECT system_prompt FROM agents WHERE id = ?",
         [conversation.agent_id]
       );
 
       if (agentRows.length > 0) {
-        systemPromptContent = agentRows[0].system_prompt;
+        baseSystemPrompt = agentRows[0].system_prompt;
       }
     }
+
+    // 生成包含 MCP 工具資訊的動態系統提示詞
+    const systemPromptContent = await chatService.generateSystemPrompt(
+      baseSystemPrompt || "",
+      {
+        user_id: user.id,
+        conversation_id: conversationId,
+        model_type: model.model_type,
+      }
+    );
 
     // 如果有系統提示詞，添加到消息開頭
     if (systemPromptContent) {
@@ -437,16 +448,35 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     console.log("處理時間:", aiResponse.processing_time, "ms");
     console.log("=== CHAT CONTROLLER 回應摘要結束 ===\n");
 
-    // 創建AI回應訊息
+    // 處理 AI 回應，包含 MCP 工具調用檢測和執行
+    const chatResult = await chatService.processChatMessage(
+      aiResponse.content,
+      {
+        user_id: user.id,
+        conversation_id: conversationId,
+        model_id: model.id,
+      }
+    );
+
+    // 使用處理後的回應內容
+    const finalContent = chatResult.final_response || aiResponse.content;
+
+    // 創建AI回應訊息（包含工具調用資訊）
     const assistantMessage = await MessageModel.create({
       conversation_id: conversationId,
       role: "assistant",
-      content: aiResponse.content,
+      content: finalContent,
       content_type: "text",
       tokens_used: aiResponse.tokens_used,
       cost: aiResponse.cost,
       model_info: aiResponse.model_info,
       processing_time: aiResponse.processing_time,
+      metadata: {
+        has_tool_calls: chatResult.has_tool_calls,
+        tool_calls: chatResult.tool_calls || [],
+        tool_results: chatResult.tool_results || [],
+        original_response: chatResult.original_response,
+      },
     });
 
     logger.info("AI回應生成成功", {
@@ -790,20 +820,30 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
       stream: true, // 啟用串流模式
     };
 
-    // 添加系統提示詞（優先使用自定義的，否則使用智能體的）
-    let systemPromptContent = system_prompt;
+    // 添加系統提示詞（整合 MCP 工具資訊）
+    let baseSystemPrompt = system_prompt;
 
     // 如果沒有自定義系統提示詞且有智能體，使用智能體的系統提示詞
-    if (!systemPromptContent && conversation.agent_id) {
+    if (!baseSystemPrompt && conversation.agent_id) {
       const { rows: agentRows } = await query(
         "SELECT system_prompt FROM agents WHERE id = ?",
         [conversation.agent_id]
       );
 
       if (agentRows.length > 0) {
-        systemPromptContent = agentRows[0].system_prompt;
+        baseSystemPrompt = agentRows[0].system_prompt;
       }
     }
+
+    // 生成包含 MCP 工具資訊的動態系統提示詞
+    const systemPromptContent = await chatService.generateSystemPrompt(
+      baseSystemPrompt || "",
+      {
+        user_id: user.id,
+        conversation_id: conversationId,
+        model_type: model.model_type,
+      }
+    );
 
     // 如果有系統提示詞，添加到消息開頭
     if (systemPromptContent) {
@@ -1255,6 +1295,107 @@ export const handleGetAgents = catchAsync(async (req, res) => {
   res.json(createSuccessResponse(rows, "獲取智能體列表成功"));
 });
 
+/**
+ * 獲取 MCP 工具統計資訊
+ */
+export const handleGetToolStats = catchAsync(async (req, res) => {
+  const { user } = req;
+
+  logger.debug("獲取工具統計資訊", {
+    userId: user.id,
+  });
+
+  try {
+    const stats = await chatService.getToolStats();
+
+    if (!stats) {
+      throw new BusinessError("無法獲取工具統計資訊");
+    }
+
+    logger.info("工具統計資訊獲取成功", {
+      userId: user.id,
+      totalTools: stats.total_tools,
+      enabledTools: stats.enabled_tools,
+    });
+
+    res.json(createSuccessResponse(stats, "工具統計資訊獲取成功"));
+  } catch (error) {
+    logger.error("獲取工具統計失敗", {
+      userId: user.id,
+      error: error.message,
+    });
+    throw new BusinessError(`獲取工具統計失敗: ${error.message}`);
+  }
+});
+
+/**
+ * 預覽動態系統提示詞
+ */
+export const handlePreviewSystemPrompt = catchAsync(async (req, res) => {
+  const { user } = req;
+  const { base_prompt = "", model_type = "ollama" } = req.body;
+
+  logger.debug("預覽系統提示詞", {
+    userId: user.id,
+    basePromptLength: base_prompt.length,
+    modelType: model_type,
+  });
+
+  try {
+    const systemPrompt = await chatService.generateSystemPrompt(base_prompt, {
+      user_id: user.id,
+      model_type: model_type,
+    });
+
+    const preview = {
+      base_prompt: base_prompt,
+      full_system_prompt: systemPrompt,
+      prompt_length: systemPrompt.length,
+      generated_at: new Date().toISOString(),
+    };
+
+    logger.info("系統提示詞預覽生成成功", {
+      userId: user.id,
+      promptLength: systemPrompt.length,
+    });
+
+    res.json(createSuccessResponse(preview, "系統提示詞預覽生成成功"));
+  } catch (error) {
+    logger.error("預覽系統提示詞失敗", {
+      userId: user.id,
+      error: error.message,
+    });
+    throw new BusinessError(`預覽系統提示詞失敗: ${error.message}`);
+  }
+});
+
+/**
+ * 清除系統提示詞快取
+ */
+export const handleClearPromptCache = catchAsync(async (req, res) => {
+  const { user } = req;
+
+  logger.debug("清除系統提示詞快取", {
+    userId: user.id,
+  });
+
+  try {
+    chatService.clearCache();
+
+    logger.info("系統提示詞快取清除成功", {
+      userId: user.id,
+    });
+
+    res.json(createSuccessResponse(null, "系統提示詞快取清除成功"));
+  } catch (error) {
+    logger.error("清除快取失敗", {
+      userId: user.id,
+      error: error.message,
+    });
+    throw new BusinessError(`清除快取失敗: ${error.message}`);
+  }
+});
+
 export default {
   handleCreateConversation,
   handleSendMessage,
@@ -1269,4 +1410,7 @@ export default {
   handleTogglePinConversation,
   handleGetAvailableModels,
   handleGetAgents,
+  handleGetToolStats,
+  handlePreviewSystemPrompt,
+  handleClearPromptCache,
 };

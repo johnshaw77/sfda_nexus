@@ -7,6 +7,7 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    AAffix: typeof import('ant-design-vue/es')['Affix']
     AAvatar: typeof import('ant-design-vue/es')['Avatar']
     ABadge: typeof import('ant-design-vue/es')['Badge']
     ABreadcrumb: typeof import('ant-design-vue/es')['Breadcrumb']
@@ -42,6 +43,7 @@ declare module 'vue' {
     AppSidebar: typeof import('./src/components/AppSidebar.vue')['default']
     AProgress: typeof import('ant-design-vue/es')['Progress']
     ARadio: typeof import('ant-design-vue/es')['Radio']
+    ARadioButton: typeof import('ant-design-vue/es')['RadioButton']
     ARadioGroup: typeof import('ant-design-vue/es')['RadioGroup']
     ARate: typeof import('ant-design-vue/es')['Rate']
     AResult: typeof import('ant-design-vue/es')['Result']
@@ -69,6 +71,7 @@ declare module 'vue' {
     FilePreview: typeof import('./src/components/common/FilePreview.vue')['default']
     IconButton: typeof import('./src/components/common/IconButton.vue')['default']
     JsonHighlight: typeof import('./src/components/common/JsonHighlight.vue')['default']
+    McpAgentPermissions: typeof import('./src/components/admin/McpAgentPermissions.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StatusTag: typeof import('./src/components/common/StatusTag.vue')['default']

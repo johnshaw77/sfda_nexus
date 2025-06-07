@@ -328,7 +328,9 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
       WHERE a.id = ?
     `;
 
-    const [newAgent] = await query(newAgentQuery, [agentId]);
+    const {
+      rows: [newAgent],
+    } = await query(newAgentQuery, [agentId]);
 
     // 記錄審計日誌
     await query(
@@ -451,7 +453,9 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
       WHERE a.id = ?
     `;
 
-    const [updatedAgent] = await query(updatedAgentQuery, [agentId]);
+    const {
+      rows: [updatedAgent],
+    } = await query(updatedAgentQuery, [agentId]);
 
     // 記錄審計日誌
     await query(
@@ -543,9 +547,9 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
   }
 
   // 檢查智能體是否存在
-  const [originalAgent] = await query("SELECT * FROM agents WHERE id = ?", [
-    agentId,
-  ]);
+  const {
+    rows: [originalAgent],
+  } = await query("SELECT * FROM agents WHERE id = ?", [agentId]);
   if (!originalAgent) {
     throw new BusinessError("智能體不存在", 404);
   }
@@ -604,7 +608,9 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
       WHERE a.id = ?
     `;
 
-    const [newAgent] = await query(newAgentQuery, [newAgentId]);
+    const {
+      rows: [newAgent],
+    } = await query(newAgentQuery, [newAgentId]);
 
     // 記錄審計日誌
     await query(

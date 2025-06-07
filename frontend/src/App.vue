@@ -21,6 +21,7 @@
 <script setup>
 import { onMounted, computed, watchEffect, provide } from "vue";
 import { theme } from "ant-design-vue";
+import zhTW from "ant-design-vue/es/locale/zh_TW";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";

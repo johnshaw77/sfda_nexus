@@ -157,6 +157,11 @@
             <span>快速命令</span>
           </a-menu-item>
 
+          <a-menu-item key="mcp-services">
+            <CloudServerOutlined />
+            <span>MCP 服務管理</span>
+          </a-menu-item>
+
           <a-menu-item key="system">
             <SettingOutlined />
             <span>系統設置</span>
@@ -344,6 +349,7 @@ const handleMenuClick = ({ key }) => {
     agents: "/admin/agents",
     models: "/admin/models",
     "quick-commands": "/admin/quick-commands",
+    "mcp-services": "/admin/mcp-services",
     system: "/admin/system",
     logs: "/admin/logs",
     database: "/admin/database",

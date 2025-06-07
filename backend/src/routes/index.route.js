@@ -14,6 +14,8 @@ import agentsRoutes from "./agents.route.js";
 import quickCommandsRoutes from "./quickCommands.route.js";
 import modelsRoutes from "./models.route.js";
 import filesRoutes from "./files.route.js";
+import mcpServicesRoutes from "./mcpServices.route.js";
+import mcpToolsRoutes from "./mcpTools.route.js";
 // import workflowsRoutes from './workflows.route.js';
 // import toolsRoutes from './tools.route.js';
 
@@ -36,6 +38,8 @@ router.get("/", (req, res) => {
       workflows: "/api/workflows",
       tools: "/api/tools",
       quickCommands: "/api/quick-commands",
+      mcpServices: "/api/mcp/services",
+      mcpTools: "/api/mcp/tools",
     },
     status: "running",
     timestamp: new Date().toISOString(),
@@ -62,6 +66,8 @@ router.use("/agents", agentsRoutes); // 智能體管理路由
 router.use("/quick-commands", quickCommandsRoutes); // 快速命令詞路由
 router.use("/models", modelsRoutes); // AI模型管理路由
 router.use("/files", filesRoutes); // 檔案管理路由
+router.use("/mcp/services", mcpServicesRoutes); // MCP 服務管理路由
+router.use("/mcp/tools", mcpToolsRoutes); // MCP 工具管理路由
 // router.use('/workflows', workflowsRoutes); // 工作流管理路由
 // router.use('/tools', toolsRoutes);         // 工具管理路由
 

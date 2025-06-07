@@ -881,4 +881,136 @@ router.get(
  */
 router.get("/agents", authenticateToken, chatController.handleGetAgents);
 
+/**
+ * @swagger
+ * /api/chat/tools/stats:
+ *   get:
+ *     tags: [Chat]
+ *     summary: 獲取 MCP 工具統計資訊
+ *     description: 獲取 MCP 工具的使用統計和狀態資訊
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 獲取工具統計成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         total_tools:
+ *                           type: integer
+ *                           description: 總工具數量
+ *                         enabled_tools:
+ *                           type: integer
+ *                           description: 已啟用工具數量
+ *                         total_usage:
+ *                           type: integer
+ *                           description: 總使用次數
+ *                         category_stats:
+ *                           type: object
+ *                           description: 分類統計
+ *                         last_updated:
+ *                           type: string
+ *                           format: date-time
+ *                           description: 最後更新時間
+ *       401:
+ *         description: 未認證
+ */
+router.get(
+  "/tools/stats",
+  authenticateToken,
+  chatController.handleGetToolStats
+);
+
+/**
+ * @swagger
+ * /api/chat/system-prompt/preview:
+ *   post:
+ *     tags: [Chat]
+ *     summary: 預覽動態系統提示詞
+ *     description: 預覽包含 MCP 工具資訊的動態系統提示詞
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               base_prompt:
+ *                 type: string
+ *                 description: 基礎系統提示詞
+ *                 example: "你是一個有用的AI助手"
+ *               model_type:
+ *                 type: string
+ *                 enum: [ollama, gemini, openai]
+ *                 default: ollama
+ *                 description: 模型類型
+ *     responses:
+ *       200:
+ *         description: 系統提示詞預覽生成成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         base_prompt:
+ *                           type: string
+ *                           description: 基礎提示詞
+ *                         full_system_prompt:
+ *                           type: string
+ *                           description: 完整系統提示詞
+ *                         prompt_length:
+ *                           type: integer
+ *                           description: 提示詞長度
+ *                         generated_at:
+ *                           type: string
+ *                           format: date-time
+ *                           description: 生成時間
+ *       401:
+ *         description: 未認證
+ */
+router.post(
+  "/system-prompt/preview",
+  authenticateToken,
+  chatController.handlePreviewSystemPrompt
+);
+
+/**
+ * @swagger
+ * /api/chat/system-prompt/clear-cache:
+ *   post:
+ *     tags: [Chat]
+ *     summary: 清除系統提示詞快取
+ *     description: 清除系統提示詞的快取，強制重新生成
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 快取清除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         description: 未認證
+ */
+router.post(
+  "/system-prompt/clear-cache",
+  authenticateToken,
+  chatController.handleClearPromptCache
+);
+
 export default router;

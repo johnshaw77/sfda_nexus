@@ -150,6 +150,15 @@ const routes = [
           icon: "SettingOutlined",
         },
       },
+      {
+        path: "mcp-services",
+        name: "McpServices",
+        component: () => import("@/views/admin/McpServices.vue"),
+        meta: {
+          title: "MCP 服務管理",
+          icon: "CloudServerOutlined",
+        },
+      },
     ],
   },
 
