@@ -5,7 +5,12 @@
       :bordered="false">
       <div class="admin-grid">
         <a-row :gutter="[24, 24]">
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-card
               class="admin-card"
               hoverable
@@ -21,7 +26,12 @@
             </a-card>
           </a-col>
 
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-card
               class="admin-card"
               hoverable
@@ -37,7 +47,12 @@
             </a-card>
           </a-col>
 
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-card
               class="admin-card"
               hoverable
@@ -53,7 +68,12 @@
             </a-card>
           </a-col>
 
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-card
               class="admin-card"
               hoverable

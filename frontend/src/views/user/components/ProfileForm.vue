@@ -8,8 +8,20 @@
     ref="formRef"
     :model="formData"
     :rules="formRules"
-    :label-col="{ span: 6 }"
-    :wrapper-col="{ span: 18 }"
+    :label-col="{
+      xs: { span: 24 },
+      sm: { span: 24 },
+      md: { span: 8 },
+      lg: { span: 6 },
+      xl: { span: 6 },
+    }"
+    :wrapper-col="{
+      xs: { span: 24 },
+      sm: { span: 24 },
+      md: { span: 16 },
+      lg: { span: 18 },
+      xl: { span: 18 },
+    }"
     @finish="handleSubmit">
     <!-- 頭像上傳 -->
     <a-form-item label="頭像">
@@ -19,7 +31,7 @@
           @paste="handlePaste"
           tabindex="0">
           <a-avatar
-            :size="100"
+            :size="avatarSize"
             :src="formData.avatar"
             :icon="!formData.avatar ? h(UserOutlined) : undefined"
             class="profile-avatar" />
@@ -133,7 +145,14 @@
         :rows="4" />
     </a-form-item>
 
-    <a-form-item :wrapper-col="{ offset: 6, span: 18 }">
+    <a-form-item
+      :wrapper-col="{
+        xs: { span: 24, offset: 0 },
+        sm: { span: 24, offset: 0 },
+        md: { span: 16, offset: 8 },
+        lg: { span: 18, offset: 6 },
+        xl: { span: 18, offset: 6 },
+      }">
       <a-space>
         <a-button
           type="primary"
@@ -149,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, h, onMounted, watch, nextTick } from "vue";
+import { ref, reactive, h, onMounted, watch, nextTick, computed } from "vue";
 import { message } from "ant-design-vue";
 // Icons are globally registered in main.js
 import { useAuthStore } from "@/stores/auth";
@@ -173,6 +192,15 @@ const uploadLoading = ref(false);
 const showCropModal = ref(false);
 const cropperRef = ref(null);
 const imageUrl = ref("");
+
+// 響應式頭像尺寸
+const avatarSize = computed(() => {
+  // 使用媒體查詢檢測螢幕寬度
+  if (typeof window !== "undefined") {
+    return window.innerWidth <= 767 ? 80 : 100;
+  }
+  return 100;
+});
 
 // 表單數據
 const formData = reactive({
@@ -409,7 +437,11 @@ onMounted(() => {
   outline: none;
 }
 
+/* 響應式頭像樣式 */
 .profile-avatar {
+  --avatar-size: 100px;
+  --upload-icon-size: 32px;
+  --remove-icon-size: 24px;
   border: 3px solid var(--border-color);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
@@ -429,8 +461,8 @@ onMounted(() => {
 }
 
 .upload-icon {
-  width: 32px;
-  height: 32px;
+  width: var(--upload-icon-size);
+  height: var(--upload-icon-size);
   background: var(--ant-primary-color);
   border: 2px solid #fff;
   border-radius: 50%;
@@ -456,8 +488,8 @@ onMounted(() => {
   position: absolute;
   top: -8px;
   right: -8px;
-  width: 24px;
-  height: 24px;
+  width: var(--remove-icon-size);
+  height: var(--remove-icon-size);
   background: #ff4d4f;
   border: 2px solid #fff;
   border-radius: 50%;
@@ -515,16 +547,12 @@ onMounted(() => {
   border-color: var(--background-color);
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
+/* 小螢幕響應式適配 */
+@media (max-width: 767px) {
   .profile-avatar {
-    width: 80px !important;
-    height: 80px !important;
-  }
-
-  .upload-icon {
-    width: 28px;
-    height: 28px;
+    --avatar-size: 80px;
+    --upload-icon-size: 28px;
+    --remove-icon-size: 20px;
   }
 
   .upload-icon .anticon {
@@ -532,8 +560,6 @@ onMounted(() => {
   }
 
   .remove-icon {
-    width: 20px;
-    height: 20px;
     top: -6px;
     right: -6px;
   }

@@ -14,8 +14,13 @@
 
       <!-- 搜索和篩選 -->
       <div class="search-section">
-        <a-row :gutter="16">
-          <a-col :span="12">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-input-search
               :value="searchText"
               placeholder="搜索命令文字或描述"
@@ -23,7 +28,12 @@
               @change="handleSearchChange"
               allow-clear />
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-select
               :value="filterStatus"
               placeholder="選擇狀態"
@@ -34,8 +44,17 @@
               <a-select-option value="inactive">停用</a-select-option>
             </a-select>
           </a-col>
-          <a-col :span="4">
-            <a-button @click="handleReset">重置</a-button>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="4"
+            :lg="4"
+            :xl="4">
+            <a-button
+              @click="handleReset"
+              style="width: 100%"
+              >重置</a-button
+            >
           </a-col>
         </a-row>
       </div>

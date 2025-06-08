@@ -57,7 +57,7 @@
               <a-button
                 type="text"
                 @click="handleSystemMonitor">
-                <LayoutDashboard :size="16" />
+                <DashboardOutlined />
               </a-button>
             </a-tooltip>
 
@@ -162,7 +162,7 @@
           class="admin-menu"
           @click="handleMenuClick">
           <a-menu-item key="dashboard">
-            <LayoutDashboard :size="16" />
+            <DashboardOutlined />
             <span>管理儀表板</span>
           </a-menu-item>
 
@@ -222,7 +222,7 @@
           </a-sub-menu>
         </a-menu>
 
-        <!-- 系統狀態 -->
+        <!-- 系統狀態 - 展開狀態 -->
         <div
           v-if="showSider && !collapsed && showSystemStatus"
           class="system-status">
@@ -242,6 +242,25 @@
                 wsStore.connectionStatus === 'connected' ? '已連接' : '未連接'
               " />
           </div>
+        </div>
+
+        <!-- 系統狀態 - 折疊狀態（只顯示燈號） -->
+        <div
+          v-if="showSider && collapsed && showSystemStatus"
+          class="system-status-collapsed">
+          <a-tooltip
+            title="系統正常"
+            placement="right">
+            <a-badge status="success" />
+          </a-tooltip>
+          <a-tooltip
+            :title="`WebSocket ${wsStore.connectionStatus === 'connected' ? '已連接' : '未連接'}`"
+            placement="right">
+            <a-badge
+              :status="
+                wsStore.connectionStatus === 'connected' ? 'success' : 'error'
+              " />
+          </a-tooltip>
         </div>
       </a-layout-sider>
 
@@ -302,13 +321,23 @@
       :z-index="1060">
       <div class="monitor-content">
         <a-row :gutter="16">
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-statistic
               title="CPU 使用率"
               :value="systemStats.cpu"
               suffix="%" />
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-statistic
               title="內存使用率"
               :value="systemStats.memory"
@@ -319,12 +348,22 @@
         <a-divider />
 
         <a-row :gutter="16">
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-statistic
               title="在線用戶"
               :value="systemStats.onlineUsers" />
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-statistic
               title="活躍會話"
               :value="systemStats.activeSessions" />
@@ -351,7 +390,7 @@
         class="mobile-menu"
         @click="handleMobileMenuClick">
         <a-menu-item key="dashboard">
-          <LayoutDashboard :size="16" />
+          <DashboardOutlined />
           <span>管理儀表板</span>
         </a-menu-item>
 
@@ -429,7 +468,6 @@ import {
   Minimize,
   MoonStar,
   Lightbulb,
-  LayoutDashboard,
   Users,
   Bell,
   LogOut,
@@ -804,6 +842,33 @@ const loadSystemStats = () => {
 
 .status-label {
   color: var(--custom-text-secondary);
+}
+
+/* 折疊狀態下的系統狀態樣式 */
+.system-status-collapsed {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: var(--custom-bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--custom-border-primary);
+}
+
+.system-status-collapsed .ant-badge {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.system-status-collapsed .ant-badge .ant-badge-status-dot {
+  margin: 0;
 }
 
 .admin-content {

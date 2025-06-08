@@ -14,15 +14,25 @@
 
       <!-- 搜索和篩選 -->
       <div class="search-section">
-        <a-row :gutter="16">
-          <a-col :span="8">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-input-search
               v-model:value="searchText"
               placeholder="搜索模型名稱或提供商"
               @search="handleSearch"
               allow-clear />
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-select
               v-model:value="filterProvider"
               placeholder="選擇提供商"
@@ -34,7 +44,12 @@
               <a-select-option value="ollama">Ollama</a-select-option>
             </a-select>
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-select
               v-model:value="filterStatus"
               placeholder="選擇狀態"
@@ -44,8 +59,17 @@
               <a-select-option value="inactive">停用</a-select-option>
             </a-select>
           </a-col>
-          <a-col :span="4">
-            <a-button @click="handleReset">重置</a-button>
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="4"
+            :lg="4"
+            :xl="4">
+            <a-button
+              @click="handleReset"
+              style="width: 100%"
+              >重置</a-button
+            >
           </a-col>
         </a-row>
       </div>
@@ -154,8 +178,13 @@
         :rules="formRules"
         layout="vertical">
         <!-- 第一行：基本信息 -->
-        <a-row :gutter="16">
-          <a-col :span="8">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="模型名稱"
               name="model_name">
@@ -164,7 +193,12 @@
                 placeholder="輸入模型名稱" />
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="提供商"
               name="provider">
@@ -180,7 +214,12 @@
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="模型ID"
               name="model_id">
@@ -193,7 +232,12 @@
 
         <!-- 第二行：API 配置 -->
         <a-row :gutter="16">
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="API 端點"
               name="endpoint_url">
@@ -202,7 +246,12 @@
                 placeholder="輸入API端點URL" />
             </a-form-item>
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="API 密鑰"
               name="api_key_encrypted">
@@ -215,7 +264,12 @@
 
         <!-- 第三行：參數配置 -->
         <a-row :gutter="16">
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="最大 Tokens"
               name="max_tokens">
@@ -227,7 +281,12 @@
                 style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="溫度參數"
               name="temperature">
@@ -244,7 +303,12 @@
               </div>
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="Top P 參數"
               name="top_p">
@@ -265,7 +329,12 @@
 
         <!-- 第四行：開關配置 -->
         <a-row :gutter="16">
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="預設模型"
               name="is_default">
@@ -275,7 +344,12 @@
               </span>
             </a-form-item>
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="多模態支援"
               name="is_multimodal">
@@ -303,7 +377,12 @@
 
         <!-- 第六行：JSON 配置 -->
         <a-row :gutter="16">
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="配置參數"
               name="config">
@@ -313,7 +392,12 @@
                 :rows="3" />
             </a-form-item>
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="能力配置"
               name="capabilities">

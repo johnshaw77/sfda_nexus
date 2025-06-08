@@ -4,7 +4,7 @@
       title="🧪 Markdown & Shiki 測試實驗室"
       class="playground-card">
       <template #extra>
-        <a-space>
+        <a-space wrap>
           <a-switch
             v-model:checked="debugMode"
             checked-children="調試"
@@ -28,13 +28,18 @@
         </a-space>
       </template>
 
-      <a-row :gutter="16">
+      <a-row :gutter="[16, 16]">
         <!-- 左側：輸入區域 -->
-        <a-col :span="12">
+        <a-col
+          :xs="24"
+          :sm="24"
+          :md="12"
+          :lg="12"
+          :xl="12">
           <div class="input-section">
             <div class="section-header">
               <h3>📝 Markdown 輸入</h3>
-              <a-space>
+              <a-space wrap>
                 <a-button
                   size="small"
                   @click="clearInput"
@@ -62,7 +67,7 @@
               :maxlength="10000" />
 
             <div class="input-stats">
-              <a-space>
+              <a-space wrap>
                 <span>字符數：{{ markdownInput.length }}</span>
                 <span>行數：{{ markdownInput.split("\n").length }}</span>
                 <span>程式碼塊：{{ codeBlockCount }}</span>
@@ -72,11 +77,16 @@
         </a-col>
 
         <!-- 右側：預覽區域 -->
-        <a-col :span="12">
+        <a-col
+          :xs="24"
+          :sm="24"
+          :md="12"
+          :lg="12"
+          :xl="12">
           <div class="preview-section">
             <div class="section-header">
               <h3>👀 渲染預覽</h3>
-              <a-space>
+              <a-space wrap>
                 <a-button
                   size="small"
                   @click="handleRefresh"
@@ -106,9 +116,13 @@
       <!-- 測試案例區域 -->
       <a-divider>🔧 預設測試案例</a-divider>
 
-      <a-row :gutter="8">
+      <a-row :gutter="[8, 8]">
         <a-col
-          :span="6"
+          :xs="12"
+          :sm="12"
+          :md="8"
+          :lg="6"
+          :xl="6"
           v-for="(testCase, index) in testCases"
           :key="index">
           <a-card
@@ -132,8 +146,13 @@
       <div v-if="deepDebugMode">
         <a-divider>🔬 深度縮排分析</a-divider>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-card
               size="small"
               title="🧪 渲染引擎對比測試">
@@ -169,7 +188,12 @@
             </a-card>
           </a-col>
 
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-card
               size="small"
               title="🔍 字符級別分析">
@@ -245,19 +269,34 @@
       <!-- 分析結果區域 -->
       <a-divider>📊 渲染分析</a-divider>
 
-      <a-row :gutter="16">
-        <a-col :span="8">
+      <a-row :gutter="[16, 16]">
+        <a-col
+          :xs="24"
+          :sm="8"
+          :md="8"
+          :lg="8"
+          :xl="8">
           <a-statistic
             title="處理時間"
             :value="renderTime"
             suffix="ms" />
         </a-col>
-        <a-col :span="8">
+        <a-col
+          :xs="24"
+          :sm="8"
+          :md="8"
+          :lg="8"
+          :xl="8">
           <a-statistic
             title="程式碼塊數量"
             :value="codeBlockCount" />
         </a-col>
-        <a-col :span="8">
+        <a-col
+          :xs="24"
+          :sm="8"
+          :md="8"
+          :lg="8"
+          :xl="8">
           <a-statistic
             title="渲染模式"
             :value="realtimeRender ? '即時渲染' : '等待渲染'" />
@@ -1010,14 +1049,19 @@ loadCodeBlockSample();
   font-size: 10px;
 }
 
-/* 響應式設計 */
-@media (max-width: 1200px) {
+/* 響應式容器 padding */
+.playground-container {
+  padding: 24px;
+}
+
+/* 移動端響應式調整 */
+@media (max-width: 991px) {
   .playground-container {
     padding: 16px;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .playground-container {
     padding: 8px;
   }
@@ -1026,25 +1070,6 @@ loadCodeBlockSample();
     flex-direction: column;
     gap: 8px;
     align-items: flex-start;
-  }
-
-  .markdown-input {
-    font-size: 12px;
-  }
-
-  .preview-container {
-    min-height: 300px;
-    max-height: 400px;
-  }
-
-  .analysis-output {
-    font-size: 11px;
-    max-height: 300px;
-  }
-
-  .comparison-preview {
-    max-height: 150px;
-    font-size: 9px;
   }
 }
 </style>

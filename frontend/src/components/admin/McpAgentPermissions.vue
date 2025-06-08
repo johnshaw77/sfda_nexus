@@ -8,10 +8,20 @@
         <a-row
           :gutter="16"
           align="middle">
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <span style="font-weight: 500">選擇智能體：</span>
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="18"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-select
               v-model:value="selectedAgentId"
               placeholder="請選擇要管理權限的智能體"
@@ -33,12 +43,18 @@
               </a-select-option>
             </a-select>
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="6"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-button
               type="primary"
               :disabled="!selectedAgentId"
               :loading="loadingPermissions"
-              @click="handleRefresh">
+              @click="handleRefresh"
+              style="width: 100%">
               <ReloadOutlined />
               重新加載權限
             </a-button>
@@ -51,7 +67,12 @@
         v-if="selectedAgentId"
         class="permissions-overview">
         <a-row :gutter="16">
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-statistic
               title="已分配服務"
               :value="assignedServicesCount"
@@ -61,7 +82,12 @@
               </template>
             </a-statistic>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-statistic
               title="可用服務"
               :value="availableServicesCount"
@@ -71,7 +97,12 @@
               </template>
             </a-statistic>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-statistic
               title="可用工具"
               :value="totalToolsCount"

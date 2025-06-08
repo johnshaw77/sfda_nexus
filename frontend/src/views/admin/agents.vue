@@ -21,14 +21,22 @@
       <!-- 搜索和篩選 -->
       <div class="search-section">
         <a-row :gutter="16">
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8">
             <a-input-search
               v-model:value="searchText"
               placeholder="搜索智能體名稱或描述"
               @search="handleSearch"
               allow-clear />
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="12"
+            :sm="8"
+            :md="6"
+            :lg="6">
             <a-select
               v-model:value="filterCategory"
               placeholder="選擇分類"
@@ -44,7 +52,11 @@
               >
             </a-select>
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="12"
+            :sm="8"
+            :md="6"
+            :lg="6">
             <a-select
               v-model:value="filterStatus"
               placeholder="選擇狀態"
@@ -54,8 +66,16 @@
               <a-select-option value="inactive">停用</a-select-option>
             </a-select>
           </a-col>
-          <a-col :span="4">
-            <a-button @click="handleReset">重置</a-button>
+          <a-col
+            :xs="24"
+            :sm="8"
+            :md="4"
+            :lg="4">
+            <a-button
+              block
+              @click="handleReset"
+              >重置</a-button
+            >
           </a-col>
         </a-row>
       </div>
@@ -202,21 +222,35 @@
         <!-- 基本信息區域 -->
         <a-row :gutter="24">
           <!-- 頭像 -->
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="6"
+            :lg="6">
             <a-form-item label="頭像">
-              <AvatarUpload
-                v-model="formData.avatar"
-                :size="80"
-                :default-icon="h(RobotOutlined)"
-                tips="支持 JPG、PNG 格式，建議 200x200 像素，可拖拉、貼上"
-                @change="handleAvatarChange" />
+              <div class="avatar-upload-section">
+                <AvatarUpload
+                  v-model="formData.avatar"
+                  :size="80"
+                  :default-icon="h(RobotOutlined)"
+                  tips="支持 JPG、PNG 格式，建議 200x200 像素，可拖拉、貼上"
+                  @change="handleAvatarChange" />
+              </div>
             </a-form-item>
           </a-col>
 
           <!-- 基本信息 -->
-          <a-col :span="18">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="18"
+            :lg="18">
             <a-row :gutter="16">
-              <a-col :span="12">
+              <a-col
+                :xs="24"
+                :sm="12"
+                :md="12"
+                :lg="12">
                 <a-form-item
                   label="智能體名稱"
                   name="name">
@@ -225,7 +259,11 @@
                     placeholder="輸入智能體名稱" />
                 </a-form-item>
               </a-col>
-              <a-col :span="12">
+              <a-col
+                :xs="24"
+                :sm="12"
+                :md="12"
+                :lg="12">
                 <a-form-item
                   label="顯示名稱"
                   name="display_name">
@@ -237,7 +275,11 @@
             </a-row>
 
             <a-row :gutter="16">
-              <a-col :span="12">
+              <a-col
+                :xs="24"
+                :sm="12"
+                :md="12"
+                :lg="12">
                 <a-form-item
                   label="分類"
                   name="category">
@@ -257,7 +299,11 @@
                   </a-select>
                 </a-form-item>
               </a-col>
-              <a-col :span="12">
+              <a-col
+                :xs="24"
+                :sm="12"
+                :md="12"
+                :lg="12">
                 <a-form-item
                   label="關聯模型"
                   name="model_id">
@@ -374,7 +420,11 @@
 
         <!-- 配置區域 -->
         <a-row :gutter="16">
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8">
             <a-form-item
               label="標籤"
               name="tags">
@@ -386,7 +436,11 @@
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8">
             <a-form-item label="狀態設置">
               <a-space
                 direction="vertical"
@@ -416,7 +470,11 @@
               </a-space>
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="8">
             <a-form-item
               label="能力配置"
               name="capabilities">
@@ -549,9 +607,22 @@ import { ref, reactive, computed, onMounted, h } from "vue";
 import { message, Modal } from "ant-design-vue";
 import { useAgentsStore } from "@/stores/agents";
 import { useModelsStore } from "@/stores/models";
+import { Grid } from "ant-design-vue";
 import AvatarUpload from "@/components/common/AvatarUpload.vue";
 import mcpApi from "@/api/mcp.js";
 import { getModels } from "@/api/models.js";
+
+// 響應式斷點
+const { useBreakpoint } = Grid;
+const screens = useBreakpoint();
+
+// 響應式計算屬性
+const isMobile = computed(() => !screens.value.md);
+
+// 動態樣式計算（僅保留必要的內聯樣式）
+const responsiveStyles = computed(() => ({
+  // 移除大部分內聯樣式，改用 CSS 類和響應式布局
+}));
 
 // Store
 const agentsStore = useAgentsStore();
@@ -1243,6 +1314,13 @@ onMounted(async () => {
   background: #fafafa;
 }
 
+/* 響應式 MCP 服務區域 - 小螢幕時縮小間距 */
+@media (max-width: 768px) {
+  .mcp-services-selector {
+    padding: 12px;
+  }
+}
+
 .services-overview {
   margin-bottom: 16px;
   padding: 12px;
@@ -1251,12 +1329,26 @@ onMounted(async () => {
   border: 1px solid #f0f0f0;
 }
 
+/* 響應式服務概覽 - 小螢幕時縮小間距 */
+@media (max-width: 768px) {
+  .services-overview {
+    padding: 8px;
+  }
+}
+
 .services-list {
   max-height: 200px;
   overflow-y: auto;
   background: white;
   border-radius: 4px;
   border: 1px solid #f0f0f0;
+}
+
+/* 響應式服務列表 - 小螢幕時增加高度 */
+@media (max-width: 768px) {
+  .services-list {
+    max-height: 250px;
+  }
 }
 
 .service-item {
@@ -1468,34 +1560,126 @@ onMounted(async () => {
   border-color: #434343;
 }
 
-/* 響應式設計 */
+/* 智能體卡片樣式 */
+.agents-grid .agent-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.agents-grid .agent-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.agents-grid .agent-card .ant-card-meta {
+  flex: 1;
+}
+
+.agent-description {
+  height: 2.4em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.2;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+:root[data-theme="dark"] .agent-description {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.agent-avatar {
+  padding: 24px;
+  text-align: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* 響應式頭像區域 - 小螢幕時縮小間距 */
 @media (max-width: 768px) {
-  .avatar-upload-section {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .avatar-upload-controls {
-    flex-direction: row;
-    justify-content: center;
-  }
-
-  .mcp-services-selector {
-    padding: 12px;
-  }
-
-  .services-overview {
-    padding: 8px;
-  }
-
-  .services-list {
-    max-height: 250px;
-  }
-
   .agent-avatar {
     padding: 16px;
   }
+}
 
+.avatar-container {
+  position: relative;
+  display: inline-block;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 2px solid #ffffff;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  transition: background-color 0.3s ease;
+}
+
+.status-indicator.active .status-dot {
+  background: #52c41a;
+}
+
+.agent-card.disabled {
+  opacity: 0.6;
+}
+
+.agent-stats {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.stat-item:last-child {
+  margin-bottom: 0;
+}
+
+.stat-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-value {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+.stat-value.model-name {
+  color: #722ed1;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 響應式文字大小 - 小螢幕時縮小 */
+@media (max-width: 768px) {
   .stat-item {
     font-size: 12px;
   }
@@ -1503,5 +1687,54 @@ onMounted(async () => {
   .stat-value.model-name {
     max-width: 80px;
   }
+}
+
+.stat-value.model-name.clickable {
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.stat-value.model-name.clickable:hover {
+  color: #531dab;
+}
+
+.stat-value.mcp-service {
+  color: #13c2c2;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.stat-value.mcp-service:hover {
+  color: #08979c;
+}
+
+/* 表單區域響應式樣式 */
+.avatar-upload-section {
+  text-align: center;
+}
+
+/* 響應式表單佈局 - 小螢幕時調整 */
+@media (max-width: 768px) {
+  .avatar-upload-section {
+    margin-bottom: 16px;
+  }
+}
+
+/* 暗黑模式適配 */
+:root[data-theme="dark"] .agent-avatar {
+  background: linear-gradient(135deg, #2a2a2a 0%, #3c3c3c 100%);
+}
+
+:root[data-theme="dark"] .agent-stats {
+  border-top-color: #434343;
+}
+
+:root[data-theme="dark"] .stat-label {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+:root[data-theme="dark"] .status-indicator {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: #434343;
 }
 </style>

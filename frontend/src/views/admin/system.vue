@@ -1,10 +1,13 @@
 <template>
   <div class="admin-page">
-    <a-row :gutter="24">
+    <a-row :gutter="[24, 24]">
       <!-- 系統信息 -->
       <a-col
-        :span="24"
-        :lg="12">
+        :xs="24"
+        :sm="24"
+        :md="24"
+        :lg="12"
+        :xl="12">
         <a-card
           title="系統信息"
           :bordered="false">
@@ -41,8 +44,11 @@
 
       <!-- 系統配置 -->
       <a-col
-        :span="24"
-        :lg="12">
+        :xs="24"
+        :sm="24"
+        :md="24"
+        :lg="12"
+        :xl="12">
         <a-card
           title="系統配置"
           :bordered="false">
@@ -88,29 +94,54 @@
 
     <!-- 數據庫管理 -->
     <a-row
-      :gutter="24"
+      :gutter="[24, 24]"
       style="margin-top: 24px">
-      <a-col :span="24">
+      <a-col
+        :xs="24"
+        :sm="24"
+        :md="24"
+        :lg="24"
+        :xl="24">
         <a-card
           title="數據庫管理"
           :bordered="false">
-          <a-row :gutter="16">
-            <a-col :span="6">
+          <a-row :gutter="[16, 16]">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="6"
+              :lg="6"
+              :xl="6">
               <a-statistic
                 title="總用戶數"
                 :value="dbStats.totalUsers" />
             </a-col>
-            <a-col :span="6">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="6"
+              :lg="6"
+              :xl="6">
               <a-statistic
                 title="總對話數"
                 :value="dbStats.totalConversations" />
             </a-col>
-            <a-col :span="6">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="6"
+              :lg="6"
+              :xl="6">
               <a-statistic
                 title="總消息數"
                 :value="dbStats.totalMessages" />
             </a-col>
-            <a-col :span="6">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="6"
+              :lg="6"
+              :xl="6">
               <a-statistic
                 title="數據庫大小"
                 :value="dbStats.dbSize"
@@ -144,9 +175,14 @@
 
     <!-- 系統日誌 -->
     <a-row
-      :gutter="24"
+      :gutter="[24, 24]"
       style="margin-top: 24px">
-      <a-col :span="24">
+      <a-col
+        :xs="24"
+        :sm="24"
+        :md="24"
+        :lg="24"
+        :xl="24">
         <a-card
           title="系統日誌"
           :bordered="false">

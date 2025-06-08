@@ -3,9 +3,20 @@
     :collapsed="collapsed"
     :trigger="null"
     collapsible
-    :width="240"
-    :collapsed-width="80"
-    class="app-sider">
+    :width="siderWidth"
+    :collapsed-width="collapsedWidth"
+    :class="[
+      'app-sider',
+      {
+        'mobile-visible': !collapsed && isMobile,
+        'mobile-hidden': collapsed && isMobile,
+      },
+    ]"
+    :style="{
+      position: isMobile ? 'fixed' : 'fixed',
+      zIndex: isMobile ? 1001 : 100,
+    }"
+    :data-collapsed="collapsed">
     <!-- Logo 區域 -->
     <div class="logo-container">
       <div class="logo">
@@ -63,14 +74,16 @@
           <template #icon>
             <component :is="menuItem.icon" />
           </template>
-          <template #title>{{ menuItem.title }}</template>
+          <template #title>
+            <span v-if="!collapsed">{{ menuItem.title }}</span>
+          </template>
 
           <a-menu-item
             v-for="child in menuItem.children"
             :key="child.key"
             :disabled="child.disabled">
             <component :is="child.icon" />
-            <span>{{ child.title }}</span>
+            <span v-if="!collapsed">{{ child.title }}</span>
           </a-menu-item>
         </a-sub-menu>
 
@@ -80,7 +93,7 @@
           :key="`menuitem-${menuItem.key}`"
           :disabled="menuItem.disabled">
           <component :is="menuItem.icon" />
-          <span>{{ menuItem.title }}</span>
+          <span v-if="!collapsed">{{ menuItem.title }}</span>
         </a-menu-item>
       </template>
     </a-menu>
@@ -98,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, inject } from "vue";
+import { ref, computed, watch, inject, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
@@ -125,6 +138,41 @@ const route = useRoute();
 // 響應式狀態
 const selectedKeys = ref([]);
 const openKeys = ref([]);
+
+// 響應式斷點偵測
+const screenWidth = ref(window.innerWidth);
+const isMobile = computed(() => screenWidth.value < 768);
+const isTablet = computed(
+  () => screenWidth.value >= 768 && screenWidth.value < 992
+);
+const isDesktop = computed(() => screenWidth.value >= 992);
+
+// 響應式寬度設定
+const siderWidth = computed(() => {
+  if (isMobile.value) return 280;
+  if (isTablet.value) return 260;
+  return 260;
+});
+
+const collapsedWidth = computed(() => {
+  if (isMobile.value) return 0;
+  if (isTablet.value) return 60;
+  return 80;
+});
+
+// 處理視窗大小變化
+const handleResize = () => {
+  screenWidth.value = window.innerWidth;
+};
+
+// 生命週期
+onMounted(() => {
+  window.addEventListener("resize", handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", handleResize);
+});
 
 // 圖標映射
 const iconMap = {
@@ -294,6 +342,19 @@ watch(
   bottom: 0;
   z-index: 100;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  transition:
+    transform 0.3s ease,
+    width 0.3s ease;
+}
+
+/* 手機端響應式樣式 */
+.app-sider.mobile-hidden {
+  transform: translateX(-100%);
+}
+
+.app-sider.mobile-visible {
+  transform: translateX(0);
+  z-index: 1001;
 }
 
 .logo-container {
@@ -304,6 +365,7 @@ watch(
   background: var(--custom-bg-secondary);
   margin: 16px;
   border-radius: 8px;
+  transition: margin 0.3s ease;
 }
 
 .logo {
@@ -316,12 +378,37 @@ watch(
   color: var(--custom-text-primary);
   font-size: 18px;
   font-weight: 600;
+  transition: opacity 0.3s ease;
 }
 
 .app-menu {
   border-right: none;
   height: calc(100vh - 160px);
   overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+/* 菜單項文字樣式優化 */
+.app-menu .ant-menu-item,
+.app-menu .ant-menu-submenu-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 16px !important;
+}
+
+.app-menu .ant-menu-item span,
+.app-menu .ant-menu-submenu-title span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  display: inline-block;
+}
+
+/* 手機端選單調整 */
+.app-sider.mobile-visible .app-menu {
+  height: calc(100vh - 140px);
 }
 
 .sider-footer {
@@ -329,6 +416,7 @@ watch(
   bottom: 16px;
   left: 16px;
   right: 16px;
+  transition: all 0.3s ease;
 }
 
 .connection-status {
@@ -337,17 +425,58 @@ watch(
   border-radius: 4px;
   text-align: center;
   color: var(--custom-text-secondary);
+  font-size: 12px;
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .app-sider {
-    transform: translateX(-100%);
-    transition: transform 0.3s;
+/* 折疊狀態下的調整 */
+.app-sider[data-collapsed="true"] .logo-container {
+  margin: 12px 8px;
+}
+
+.app-sider[data-collapsed="true"] .logo-text {
+  opacity: 0;
+  display: none;
+}
+
+.app-sider[data-collapsed="true"] .connection-status {
+  padding: 4px;
+  font-size: 0;
+}
+
+/* 額外的保險措施：確保任何殘留的文字都被隱藏 */
+.app-sider[data-collapsed="true"] .ant-menu-title-content,
+.app-sider[data-collapsed="true"] .ant-menu-item span,
+.app-sider[data-collapsed="true"] .ant-menu-submenu-title span,
+.app-sider[data-collapsed="true"] .ant-badge-status-text {
+  display: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* 平板端優化 */
+@media (min-width: 768px) and (max-width: 991px) {
+  .app-menu {
+    font-size: 14px;
   }
 
-  .app-sider.mobile-visible {
-    transform: translateX(0);
+  .logo-container {
+    margin: 12px;
+  }
+
+  .connection-status {
+    font-size: 11px;
+  }
+}
+
+/* 桌面端優化 */
+@media (min-width: 992px) {
+  .app-sider {
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .logo-container:hover {
+    background: var(--custom-bg-tertiary);
   }
 }
 </style>

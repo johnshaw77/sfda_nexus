@@ -14,15 +14,25 @@
 
       <!-- 搜索和篩選 -->
       <div class="search-section">
-        <a-row :gutter="16">
-          <a-col :span="8">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-input-search
               v-model:value="searchText"
               placeholder="搜索用戶名或郵箱"
               @search="handleSearch"
               allow-clear />
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-select
               v-model:value="filterRole"
               placeholder="選擇角色"
@@ -33,7 +43,12 @@
               <a-select-option value="user">普通用戶</a-select-option>
             </a-select>
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-select
               v-model:value="filterStatus"
               placeholder="選擇狀態"
@@ -44,8 +59,17 @@
               <a-select-option value="inactive">停用</a-select-option>
             </a-select>
           </a-col>
-          <a-col :span="4">
-            <a-button @click="handleReset">重置</a-button>
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="4"
+            :lg="4"
+            :xl="4">
+            <a-button
+              @click="handleReset"
+              style="width: 100%"
+              >重置</a-button
+            >
           </a-col>
         </a-row>
       </div>
@@ -127,8 +151,13 @@
         :model="formData"
         :rules="formRules"
         layout="vertical">
-        <a-row :gutter="16">
-          <a-col :span="12">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="用戶名"
               name="username">
@@ -137,7 +166,12 @@
                 placeholder="輸入用戶名" />
             </a-form-item>
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="郵箱"
               name="email">
@@ -148,8 +182,13 @@
           </a-col>
         </a-row>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="角色"
               name="role">
@@ -161,7 +200,12 @@
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="密碼"
               name="password"

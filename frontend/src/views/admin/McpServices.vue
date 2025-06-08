@@ -51,10 +51,20 @@
         <a-row
           :gutter="16"
           align="middle">
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <span style="font-weight: 500">MCP 服務器端點：</span>
           </a-col>
-          <a-col :span="12">
+          <a-col
+            :xs="24"
+            :sm="18"
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-input
               :value="customEndpoint"
               placeholder="輸入自定義端點，留空使用預設端點"
@@ -62,7 +72,12 @@
               @input="(e) => (customEndpoint = e.target.value)"
               style="width: 100%" />
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="6"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-space>
               <a-button
                 :loading="discovering"
@@ -83,7 +98,12 @@
       <!-- 狀態指示器 -->
       <div class="status-section">
         <a-row :gutter="16">
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-statistic
               :title="viewMode === 'discover' ? '已發現服務' : '已同步服務'"
               :value="currentServices.length"
@@ -93,7 +113,12 @@
               </template>
             </a-statistic>
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-statistic
               title="已啟用服務"
               :value="enabledServicesCount"
@@ -103,7 +128,12 @@
               </template>
             </a-statistic>
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-statistic
               :title="viewMode === 'discover' ? '可用工具' : '已啟用工具'"
               :value="totalToolsCount"
@@ -113,7 +143,12 @@
               </template>
             </a-statistic>
           </a-col>
-          <a-col :span="6">
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
+            :lg="6"
+            :xl="6">
             <a-statistic
               :title="viewMode === 'discover' ? '上次發現' : '上次同步'"
               :value="lastSyncTime"
@@ -350,7 +385,12 @@
           class="tools-stats"
           style="margin-bottom: 20px">
           <a-row :gutter="16">
-            <a-col :span="8">
+            <a-col
+              :xs="24"
+              :sm="24"
+              :md="8"
+              :lg="8"
+              :xl="8">
               <a-statistic
                 title="總工具數"
                 :value="selectedService.tools.length"
@@ -360,7 +400,12 @@
                 </template>
               </a-statistic>
             </a-col>
-            <a-col :span="8">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="8"
+              :lg="8"
+              :xl="8">
               <a-statistic
                 title="已啟用"
                 :value="enabledToolsCount"
@@ -370,7 +415,12 @@
                 </template>
               </a-statistic>
             </a-col>
-            <a-col :span="8">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="8"
+              :lg="8"
+              :xl="8">
               <a-statistic
                 title="有 Schema"
                 :value="toolsWithSchemaCount"
