@@ -16,6 +16,8 @@
         <!-- 設置菜單 -->
         <a-col
           :xs="24"
+          :sm="24"
+          :md="8"
           :lg="6">
           <a-card class="settings-menu-card">
             <a-menu
@@ -54,6 +56,8 @@
         <!-- 設置內容 -->
         <a-col
           :xs="24"
+          :sm="24"
+          :md="16"
           :lg="18">
           <!-- 安全設置 -->
           <SecuritySettings v-show="activeTab === 'security'" />
@@ -142,15 +146,23 @@ const handleMenuClick = ({ key }) => {
   border: 1px solid var(--custom-border-primary);
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .settings-container {
-    padding: 16px;
-  }
+/* 響應式設計 - 使用 Ant Design 響應式系統 */
+.settings-container {
+  padding: 24px;
+}
 
-  .settings-title {
-    font-size: 24px;
-  }
+/* 針對小屏幕的響應式調整 */
+:deep(.ant-col-xs-24) .settings-container {
+  padding: 16px;
+}
+
+:deep(.ant-col-xs-24) .settings-title {
+  font-size: 24px;
+}
+
+/* 中等屏幕優化 */
+:deep(.ant-col-md-8) + .ant-col-md-16 .settings-menu {
+  margin-bottom: 16px;
 }
 
 /* 表單樣式優化 */

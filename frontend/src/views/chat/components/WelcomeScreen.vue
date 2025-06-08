@@ -18,104 +18,114 @@
       </div>
 
       <!-- 智能體網格 -->
-      <div class="agents-showcase">
-        <a-card
+      <a-row
+        :gutter="[24, 24]"
+        class="agents-showcase">
+        <a-col
           v-for="agent in agents"
           :key="agent.id"
-          class="agent-showcase-card"
-          :hoverable="true"
-          @click="handleSelectAgent(agent)">
-          <!-- 卡片內容 -->
-          <template #cover>
-            <div class="card-cover">
-              <!-- 智能體頭像 -->
-              <div class="showcase-avatar">
-                <div class="avatar-container">
-                  <!-- 如果有 base64 圖片，顯示圖片 -->
-                  <img
-                    v-if="
-                      agent.avatar &&
-                      typeof agent.avatar === 'string' &&
-                      agent.avatar.startsWith('data:')
-                    "
-                    :src="agent.avatar"
-                    :alt="agent.display_name || agent.name"
-                    class="avatar-image" />
+          :xs="24"
+          :sm="24"
+          :md="12"
+          :lg="12"
+          :xl="8"
+          :xxl="8">
+          <a-card
+            class="agent-showcase-card"
+            :hoverable="true"
+            @click="handleSelectAgent(agent)">
+            <!-- 卡片內容 -->
+            <template #cover>
+              <div class="card-cover">
+                <!-- 智能體頭像 -->
+                <div class="showcase-avatar">
+                  <div class="avatar-container">
+                    <!-- 如果有 base64 圖片，顯示圖片 -->
+                    <img
+                      v-if="
+                        agent.avatar &&
+                        typeof agent.avatar === 'string' &&
+                        agent.avatar.startsWith('data:')
+                      "
+                      :src="agent.avatar"
+                      :alt="agent.display_name || agent.name"
+                      class="avatar-image" />
 
-                  <!-- 否則顯示漸變背景和圖標/首字母 -->
-                  <div
-                    v-else
-                    class="avatar-bg"
-                    :style="{
-                      background:
-                        agent.avatar?.gradient ||
-                        agent.avatar?.background ||
-                        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    }">
-                    <svg
-                      v-if="agent.avatar?.icon"
-                      class="agent-icon"
-                      viewBox="0 0 24 24"
-                      width="32"
-                      height="32">
-                      <path
-                        fill="white"
-                        :d="agent.avatar.icon" />
-                    </svg>
-                    <span
+                    <!-- 否則顯示漸變背景和圖標/首字母 -->
+                    <div
                       v-else
-                      class="agent-initial"
-                      >{{
-                        (agent.display_name || agent.name)
-                          ?.charAt(0)
-                          ?.toUpperCase() || "A"
-                      }}</span
-                    >
+                      class="avatar-bg"
+                      :style="{
+                        background:
+                          agent.avatar?.gradient ||
+                          agent.avatar?.background ||
+                          'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      }">
+                      <svg
+                        v-if="agent.avatar?.icon"
+                        class="agent-icon"
+                        viewBox="0 0 24 24"
+                        width="32"
+                        height="32">
+                        <path
+                          fill="white"
+                          :d="agent.avatar.icon" />
+                      </svg>
+                      <span
+                        v-else
+                        class="agent-initial"
+                        >{{
+                          (agent.display_name || agent.name)
+                            ?.charAt(0)
+                            ?.toUpperCase() || "A"
+                        }}</span
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
+            </template>
+
+            <!-- 卡片主體內容 -->
+            <a-card-meta
+              :title="agent.display_name || agent.name"
+              :description="agent.description">
+            </a-card-meta>
+
+            <!-- 特性標籤 -->
+            <div class="showcase-tags">
+              <a-tag
+                v-for="tag in (agent.tags || []).slice(0, 3)"
+                :key="tag"
+                color="blue">
+                {{ tag }}
+              </a-tag>
             </div>
-          </template>
 
-          <!-- 卡片主體內容 -->
-          <a-card-meta
-            :title="agent.display_name || agent.name"
-            :description="agent.description">
-          </a-card-meta>
-
-          <!-- 特性標籤 -->
-          <div class="showcase-tags">
-            <a-tag
-              v-for="tag in (agent.tags || []).slice(0, 3)"
-              :key="tag"
-              color="blue">
-              {{ tag }}
-            </a-tag>
-          </div>
-
-          <!-- 開始聊天按鈕 -->
-          <template #actions>
-            <div class="card-actions">
-              <a-button
-                type="primary"
-                class="start-chat-btn"
-                @click.stop="handleSelectAgent(agent)">
-                <template #icon>
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="16"
-                    height="16">
-                    <path
-                      fill="currentColor"
-                      d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
-                  </svg>
-                </template>
-                開始對話
-              </a-button>
-            </div>
-          </template>
-        </a-card>
-      </div>
+            <!-- 開始聊天按鈕 -->
+            <template #actions>
+              <div class="card-actions">
+                <a-button
+                  type="primary"
+                  class="start-chat-btn"
+                  @click.stop="handleSelectAgent(agent)">
+                  <template #icon>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16">
+                      <path
+                        fill="currentColor"
+                        d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+                    </svg>
+                  </template>
+                  開始對話
+                </a-button>
+              </div>
+            </template>
+          </a-card>
+        </a-col>
+      </a-row>
 
       <!-- 底部提示 -->
       <a-card
@@ -218,9 +228,6 @@ onMounted(async () => {
 
 /* 智能體展示網格 */
 .agents-showcase {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 24px;
   margin-bottom: 48px;
 }
 
@@ -348,7 +355,7 @@ onMounted(async () => {
   left: 0;
 }
 
-/* 響應式設計 */
+/* 響應式設計 - 針對小螢幕的額外調整 */
 @media (max-width: 768px) {
   .welcome-screen {
     padding: 20px 16px;
@@ -360,11 +367,6 @@ onMounted(async () => {
 
   .welcome-subtitle {
     font-size: 16px;
-  }
-
-  .agents-showcase {
-    grid-template-columns: 1fr;
-    gap: 16px;
   }
 
   .card-cover {

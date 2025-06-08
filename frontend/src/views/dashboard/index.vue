@@ -5,275 +5,332 @@
 
 <template>
   <div class="dashboard-container">
-    <!-- 歡迎區域 -->
-    <div class="welcome-section">
-      <div class="welcome-content">
-        <h1 class="welcome-title">
-          歡迎回來，{{
-            authStore.user?.display_name || authStore.user?.username
-          }}！
-        </h1>
-        <p class="welcome-subtitle">
-          今天是 {{ currentDate }}，準備好開始您的 AI 助手之旅了嗎？
-        </p>
-      </div>
-      <div class="welcome-actions">
-        <a-button
-          type="primary"
-          size="large"
-          @click="handleStartNewChat">
-          <template #icon>
-            <PlusOutlined />
-          </template>
-          開始新對話
-        </a-button>
-      </div>
-    </div>
-
-    <!-- 統計卡片 -->
-    <div class="stats-section">
-      <a-row :gutter="[16, 16]">
-        <a-col
-          :xs="24"
-          :sm="12"
-          :lg="6">
-          <a-card class="stat-card">
-            <a-statistic
-              title="總對話數"
-              :value="stats.totalConversations"
-              :loading="isLoadingStats">
-              <template #prefix>
-                <MessageOutlined class="stat-icon" />
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-        <a-col
-          :xs="24"
-          :sm="12"
-          :lg="6">
-          <a-card class="stat-card">
-            <a-statistic
-              title="今日消息"
-              :value="stats.todayMessages"
-              :loading="isLoadingStats">
-              <template #prefix>
-                <SendOutlined class="stat-icon" />
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-        <a-col
-          :xs="24"
-          :sm="12"
-          :lg="6">
-          <a-card class="stat-card">
-            <a-statistic
-              title="活躍智能體"
-              :value="stats.activeAgents"
-              :loading="isLoadingStats">
-              <template #prefix>
-                <RobotOutlined class="stat-icon" />
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-        <a-col
-          :xs="24"
-          :sm="12"
-          :lg="6">
-          <a-card class="stat-card">
-            <a-statistic
-              title="使用時長"
-              :value="stats.usageHours"
-              suffix="小時"
-              :loading="isLoadingStats">
-              <template #prefix>
-                <ClockCircleOutlined class="stat-icon" />
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-      </a-row>
-    </div>
-
-    <!-- 主要內容區域 -->
-    <a-row
-      :gutter="[24, 24]"
-      class="main-content">
-      <!-- 最近對話 -->
-      <a-col
-        :xs="24"
-        :lg="16">
-        <a-card
-          title="最近對話"
-          class="recent-conversations-card">
-          <template #extra>
-            <a-button
-              type="link"
-              @click="handleViewAllConversations">
-              查看全部
-            </a-button>
-          </template>
-
-          <div
-            v-if="isLoadingConversations"
-            class="loading-container">
-            <a-spin size="large" />
-          </div>
-
-          <div
-            v-else-if="recentConversations.length === 0"
-            class="empty-container">
-            <a-empty description="暫無對話記錄">
+    <a-space
+      direction="vertical"
+      size="large"
+      style="width: 100%">
+      <!-- 歡迎區域 -->
+      <div class="welcome-section">
+        <a-row
+          type="flex"
+          align="middle"
+          :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :md="16"
+            :lg="18"
+            class="welcome-content-col">
+            <div class="welcome-content">
+              <h1 class="welcome-title">
+                歡迎回來，{{
+                  authStore.user?.display_name || authStore.user?.username
+                }}！
+              </h1>
+              <p class="welcome-subtitle">
+                今天是 {{ currentDate }}，準備好開始您的 AI 助手之旅了嗎？
+              </p>
+            </div>
+          </a-col>
+          <a-col
+            :xs="24"
+            :md="8"
+            :lg="6"
+            class="welcome-actions-col">
+            <div class="welcome-actions">
               <a-button
                 type="primary"
+                size="large"
+                block
                 @click="handleStartNewChat">
-                開始第一個對話
+                <template #icon>
+                  <PlusOutlined />
+                </template>
+                開始新對話
               </a-button>
-            </a-empty>
-          </div>
+            </div>
+          </a-col>
+        </a-row>
+      </div>
 
-          <div
-            v-else
-            class="conversations-list">
+      <!-- 統計卡片 -->
+      <div class="stats-section">
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6">
+            <a-card class="stat-card">
+              <a-statistic
+                title="總對話數"
+                :value="stats.totalConversations"
+                :loading="isLoadingStats">
+                <template #prefix>
+                  <MessageOutlined class="stat-icon" />
+                </template>
+              </a-statistic>
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6">
+            <a-card class="stat-card">
+              <a-statistic
+                title="今日消息"
+                :value="stats.todayMessages"
+                :loading="isLoadingStats">
+                <template #prefix>
+                  <SendOutlined class="stat-icon" />
+                </template>
+              </a-statistic>
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6">
+            <a-card class="stat-card">
+              <a-statistic
+                title="活躍智能體"
+                :value="stats.activeAgents"
+                :loading="isLoadingStats">
+                <template #prefix>
+                  <RobotOutlined class="stat-icon" />
+                </template>
+              </a-statistic>
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="6">
+            <a-card class="stat-card">
+              <a-statistic
+                title="使用時長"
+                :value="stats.usageHours"
+                suffix="小時"
+                :loading="isLoadingStats">
+                <template #prefix>
+                  <ClockCircleOutlined class="stat-icon" />
+                </template>
+              </a-statistic>
+            </a-card>
+          </a-col>
+        </a-row>
+      </div>
+
+      <!-- 主要內容區域 -->
+      <a-row
+        :gutter="[24, 24]"
+        class="main-content">
+        <!-- 最近對話 -->
+        <a-col
+          :xs="24"
+          :lg="16">
+          <a-card
+            title="最近對話"
+            class="recent-conversations-card">
+            <template #extra>
+              <a-button
+                type="link"
+                @click="handleViewAllConversations">
+                查看全部
+              </a-button>
+            </template>
+
             <div
-              v-for="conversation in recentConversations"
-              :key="conversation.id"
-              class="conversation-item"
-              @click="handleOpenConversation(conversation)">
-              <div class="conversation-avatar">
-                <a-avatar :size="40">
-                  <template #icon>
-                    <RobotOutlined v-if="conversation.agent_id" />
-                    <MessageOutlined v-else />
-                  </template>
-                </a-avatar>
-              </div>
-              <div class="conversation-content">
-                <div class="conversation-title">
-                  {{ conversation.title || "新對話" }}
-                </div>
-                <div class="conversation-preview">
-                  {{ conversation.last_message_preview || "暫無消息" }}
-                </div>
-                <div class="conversation-meta">
-                  <span class="conversation-time">
-                    {{
-                      formatTime(
-                        conversation.last_message_at || conversation.created_at
-                      )
-                    }}
-                  </span>
-                  <a-tag
-                    v-if="conversation.agent_name"
-                    size="small"
-                    color="blue">
-                    {{ conversation.agent_name }}
-                  </a-tag>
-                </div>
-              </div>
-              <div class="conversation-actions">
+              v-if="isLoadingConversations"
+              class="loading-container">
+              <a-spin size="large" />
+            </div>
+
+            <div
+              v-else-if="recentConversations.length === 0"
+              class="empty-container">
+              <a-empty description="暫無對話記錄">
                 <a-button
-                  type="text"
-                  size="small">
-                  <RightOutlined />
+                  type="primary"
+                  @click="handleStartNewChat">
+                  開始第一個對話
                 </a-button>
-              </div>
+              </a-empty>
             </div>
-          </div>
-        </a-card>
-      </a-col>
 
-      <!-- 快速操作和系統狀態 -->
-      <a-col
-        :xs="24"
-        :lg="8">
-        <!-- 快速操作 -->
-        <a-card
-          title="快速操作"
-          class="quick-actions-card">
-          <div class="quick-actions-grid">
             <div
-              class="quick-action-item"
-              @click="handleStartNewChat">
-              <div class="action-icon">
-                <PlusOutlined />
+              v-else
+              class="conversations-list">
+              <div
+                v-for="conversation in recentConversations"
+                :key="conversation.id"
+                class="conversation-item"
+                @click="handleOpenConversation(conversation)">
+                <div class="conversation-avatar">
+                  <a-avatar :size="40">
+                    <template #icon>
+                      <RobotOutlined v-if="conversation.agent_id" />
+                      <MessageOutlined v-else />
+                    </template>
+                  </a-avatar>
+                </div>
+                <div class="conversation-content">
+                  <div class="conversation-title">
+                    {{ conversation.title || "新對話" }}
+                  </div>
+                  <div class="conversation-preview">
+                    {{ conversation.last_message_preview || "暫無消息" }}
+                  </div>
+                  <div class="conversation-meta">
+                    <span class="conversation-time">
+                      {{
+                        formatTime(
+                          conversation.last_message_at ||
+                            conversation.created_at
+                        )
+                      }}
+                    </span>
+                    <a-tag
+                      v-if="conversation.agent_name"
+                      size="small"
+                      color="blue">
+                      {{ conversation.agent_name }}
+                    </a-tag>
+                  </div>
+                </div>
+                <div class="conversation-actions">
+                  <a-button
+                    type="text"
+                    size="small">
+                    <RightOutlined />
+                  </a-button>
+                </div>
               </div>
-              <div class="action-text">新建對話</div>
             </div>
-            <div
-              class="quick-action-item"
-              @click="handleViewAgents">
-              <div class="action-icon">
-                <RobotOutlined />
-              </div>
-              <div class="action-text">智能體</div>
-            </div>
-            <div
-              class="quick-action-item"
-              @click="handleViewSettings">
-              <div class="action-icon">
-                <SettingOutlined />
-              </div>
-              <div class="action-text">設置</div>
-            </div>
-            <div
-              class="quick-action-item"
-              @click="handleViewHelp">
-              <div class="action-icon">
-                <QuestionCircleOutlined />
-              </div>
-              <div class="action-text">幫助</div>
-            </div>
-          </div>
-        </a-card>
+          </a-card>
+        </a-col>
 
-        <!-- 系統狀態 -->
-        <a-card
-          title="系統狀態"
-          class="system-status-card">
-          <div class="status-item">
-            <div class="status-label">WebSocket 連接</div>
-            <div class="status-value">
-              <a-badge
-                :status="wsStore.isConnected ? 'success' : 'error'"
-                :text="wsStore.isConnected ? '已連接' : '未連接'" />
-            </div>
-          </div>
-          <div class="status-item">
-            <div class="status-label">AI 模型狀態</div>
-            <div class="status-value">
-              <a-badge
-                :status="modelStatus.status"
-                :text="modelStatus.text" />
-            </div>
-          </div>
-          <div class="status-item">
-            <div class="status-label">可用模型</div>
-            <div class="status-value">{{ availableModelsCount }} 個</div>
-          </div>
-        </a-card>
+        <!-- 快速操作和系統狀態 -->
+        <a-col
+          :xs="24"
+          :lg="8">
+          <a-space
+            direction="vertical"
+            size="large"
+            style="width: 100%">
+            <!-- 快速操作 -->
+            <a-card
+              title="快速操作"
+              class="quick-actions-card">
+              <a-row :gutter="[16, 16]">
+                <a-col
+                  :xs="12"
+                  :sm="12"
+                  :md="12"
+                  :lg="12">
+                  <div
+                    class="quick-action-item"
+                    @click="handleStartNewChat">
+                    <div class="action-icon">
+                      <PlusOutlined />
+                    </div>
+                    <div class="action-text">新建對話</div>
+                  </div>
+                </a-col>
+                <a-col
+                  :xs="12"
+                  :sm="12"
+                  :md="12"
+                  :lg="12">
+                  <div
+                    class="quick-action-item"
+                    @click="handleViewAgents">
+                    <div class="action-icon">
+                      <RobotOutlined />
+                    </div>
+                    <div class="action-text">智能體</div>
+                  </div>
+                </a-col>
+                <a-col
+                  :xs="12"
+                  :sm="12"
+                  :md="12"
+                  :lg="12">
+                  <div
+                    class="quick-action-item"
+                    @click="handleViewSettings">
+                    <div class="action-icon">
+                      <SettingOutlined />
+                    </div>
+                    <div class="action-text">設置</div>
+                  </div>
+                </a-col>
+                <a-col
+                  :xs="12"
+                  :sm="12"
+                  :md="12"
+                  :lg="12">
+                  <div
+                    class="quick-action-item"
+                    @click="handleViewHelp">
+                    <div class="action-icon">
+                      <QuestionCircleOutlined />
+                    </div>
+                    <div class="action-text">幫助</div>
+                  </div>
+                </a-col>
+              </a-row>
+            </a-card>
 
-        <!-- 使用提示 -->
-        <a-card
-          title="使用提示"
-          class="tips-card">
-          <div class="tip-item">
-            <BulbOutlined class="tip-icon" />
-            <span>使用 @ 符號可以快速選擇智能體</span>
-          </div>
-          <div class="tip-item">
-            <BulbOutlined class="tip-icon" />
-            <span>支持 Markdown 格式的消息輸入</span>
-          </div>
-          <div class="tip-item">
-            <BulbOutlined class="tip-icon" />
-            <span>可以上傳文件與 AI 進行交互</span>
-          </div>
-        </a-card>
-      </a-col>
-    </a-row>
+            <!-- 系統狀態 -->
+            <a-card
+              title="系統狀態"
+              class="system-status-card">
+              <div class="status-item">
+                <div class="status-label">WebSocket 連接</div>
+                <div class="status-value">
+                  <a-badge
+                    :status="wsStore.isConnected ? 'success' : 'error'"
+                    :text="wsStore.isConnected ? '已連接' : '未連接'" />
+                </div>
+              </div>
+              <div class="status-item">
+                <div class="status-label">AI 模型狀態</div>
+                <div class="status-value">
+                  <a-badge
+                    :status="modelStatus.status"
+                    :text="modelStatus.text" />
+                </div>
+              </div>
+              <div class="status-item">
+                <div class="status-label">可用模型</div>
+                <div class="status-value">{{ availableModelsCount }} 個</div>
+              </div>
+            </a-card>
+
+            <!-- 使用提示 -->
+            <a-card
+              title="使用提示"
+              class="tips-card">
+              <div class="tip-item">
+                <BulbOutlined class="tip-icon" />
+                <span>使用 @ 符號可以快速選擇智能體</span>
+              </div>
+              <div class="tip-item">
+                <BulbOutlined class="tip-icon" />
+                <span>支持 Markdown 格式的消息輸入</span>
+              </div>
+              <div class="tip-item">
+                <BulbOutlined class="tip-icon" />
+                <span>可以上傳文件與 AI 進行交互</span>
+              </div>
+            </a-card>
+          </a-space>
+        </a-col>
+      </a-row>
+    </a-space>
   </div>
 </template>
 
@@ -445,11 +502,17 @@ onMounted(async () => {
   background: radial-gradient(circle, var(--primary-color), #541e9f);
   border-radius: 12px;
   padding: 32px;
-  margin-bottom: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   color: white;
+}
+
+.welcome-content-col {
+  display: flex;
+  align-items: center;
+}
+
+.welcome-content {
+  text-align: left;
+  width: 100%;
 }
 
 .welcome-title {
@@ -465,18 +528,30 @@ onMounted(async () => {
   opacity: 0.9;
 }
 
+.welcome-actions-col {
+  display: flex;
+  align-items: center;
+}
+
 .welcome-actions {
-  flex-shrink: 0;
+  width: 100%;
+}
+
+/* 使用 Ant Design 的響應式隱藏類來控制小螢幕的居中 */
+:deep(.welcome-content-col.ant-col-xs-24) {
+  text-align: center;
+}
+
+:deep(.welcome-actions-col.ant-col-xs-24) {
+  justify-content: center;
+  margin-top: 16px;
 }
 
 /* 統計區域 */
-.stats-section {
-  margin-bottom: 24px;
-}
-
 .stat-card {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
 }
 
 .stat-icon {
@@ -484,16 +559,28 @@ onMounted(async () => {
   font-size: 18px;
 }
 
-/* 主要內容 */
-.main-content {
-  margin-bottom: 24px;
+/* 統計卡片響應式優化 */
+:deep(.ant-col-xs-12 .stat-card) {
+  text-align: center;
+}
+
+:deep(.ant-col-xs-12 .ant-statistic-title) {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+:deep(.ant-col-xs-12 .ant-statistic-content) {
+  font-size: 20px;
+}
+
+:deep(.ant-col-xs-12 .stat-icon) {
+  font-size: 16px;
 }
 
 /* 最近對話 */
 .recent-conversations-card {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
 }
 
 .loading-container,
@@ -569,13 +656,6 @@ onMounted(async () => {
 .quick-actions-card {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
-}
-
-.quick-actions-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
 }
 
 .quick-action-item {
@@ -587,6 +667,8 @@ onMounted(async () => {
   border: 1px solid var(--custom-border-primary);
   cursor: pointer;
   transition: all 0.2s;
+  height: 100%;
+  text-align: center;
 }
 
 .quick-action-item:hover {
@@ -609,7 +691,6 @@ onMounted(async () => {
 .system-status-card {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
 }
 
 .status-item {
@@ -652,27 +733,6 @@ onMounted(async () => {
   color: var(--warning-color);
   margin-right: 8px;
   font-size: 16px;
-}
-
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .dashboard-container {
-    padding: 16px;
-  }
-
-  .welcome-section {
-    flex-direction: column;
-    text-align: center;
-    gap: 16px;
-  }
-
-  .welcome-title {
-    font-size: 24px;
-  }
-
-  .quick-actions-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* 卡片標題樣式 */

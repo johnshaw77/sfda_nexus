@@ -5,9 +5,24 @@
       <div class="header-content">
         <!-- 左側 Logo 和標題 -->
         <div class="header-left">
+          <!-- 手機端菜單按鈕 -->
+          <a-button
+            v-if="isMobile"
+            type="text"
+            class="mobile-menu-btn"
+            @click="showMobileMenu = true">
+            <MenuOutlined />
+          </a-button>
+
           <div class="admin-logo">
-            <span class="logo-text">Nexus 管理後台</span>
+            <Logo />
+            <span
+              v-show="showLogoText"
+              class="logo-text"
+              >Nexus 管理後台</span
+            >
             <a-tag
+              v-show="showAdminTag"
               color="gold"
               size="small"
               >管理員</a-tag
@@ -86,7 +101,11 @@
                 :style="{ backgroundColor: '#f56a00' }">
                 <CrownOutlined v-if="!authStore.user?.avatar" />
               </a-avatar>
-              <span class="username">{{ authStore.user?.username }}</span>
+              <span
+                v-show="showUsername"
+                class="username"
+                >{{ authStore.user?.username }}</span
+              >
               <DownOutlined />
             </a-button>
 
@@ -116,13 +135,16 @@
     <a-layout class="admin-main">
       <!-- 側邊欄 -->
       <a-layout-sider
+        v-show="showSider"
         v-model:collapsed="collapsed"
         :trigger="null"
         collapsible
         :width="240"
         :collapsed-width="80"
         class="admin-sider"
-        theme="light">
+        theme="light"
+        breakpoint="lg"
+        @breakpoint="handleSiderBreakpoint">
         <!-- 折疊按鈕 -->
         <div class="sider-trigger">
           <a-button
@@ -202,7 +224,7 @@
 
         <!-- 系統狀態 -->
         <div
-          v-show="!collapsed"
+          v-if="showSider && !collapsed && showSystemStatus"
           class="system-status">
           <div class="status-item">
             <span class="status-label">系統狀態</span>
@@ -226,7 +248,10 @@
       <!-- 內容區域 -->
       <a-layout-content
         class="admin-content"
-        :class="{ collapsed }">
+        :class="{
+          collapsed: collapsed && showSider,
+          'full-width': !showSider,
+        }">
         <!-- 內容頭部 -->
         <div class="content-header">
           <a-breadcrumb class="breadcrumb">
@@ -273,7 +298,8 @@
       v-model:open="monitorDrawerVisible"
       title="系統監控"
       placement="right"
-      :width="600">
+      :width="drawerWidth"
+      :z-index="1060">
       <div class="monitor-content">
         <a-row :gutter="16">
           <a-col :span="12">
@@ -306,17 +332,98 @@
         </a-row>
       </div>
     </a-drawer>
+
+    <!-- 手機端導航抽屜 -->
+    <a-drawer
+      v-model:open="showMobileMenu"
+      title="導航菜單"
+      placement="left"
+      :width="280"
+      :body-style="{ padding: 0 }"
+      :mask="true"
+      :mask-closable="true"
+      :closable="true"
+      :z-index="1050"
+      class="mobile-drawer">
+      <a-menu
+        v-model:selectedKeys="selectedKeys"
+        mode="inline"
+        class="mobile-menu"
+        @click="handleMobileMenuClick">
+        <a-menu-item key="dashboard">
+          <LayoutDashboard :size="16" />
+          <span>管理儀表板</span>
+        </a-menu-item>
+
+        <a-menu-item key="users">
+          <UserOutlined />
+          <span>用戶管理</span>
+        </a-menu-item>
+        <a-menu-item key="models">
+          <ApiOutlined />
+          <span>模型管理</span>
+        </a-menu-item>
+        <a-menu-item key="agents">
+          <RobotOutlined />
+          <span>智能體管理</span>
+        </a-menu-item>
+
+        <a-menu-item key="quick-commands">
+          <ThunderboltOutlined />
+          <span>快速命令</span>
+        </a-menu-item>
+
+        <a-menu-item key="mcp-services">
+          <CloudServerOutlined />
+          <span>MCP 服務管理</span>
+        </a-menu-item>
+
+        <a-menu-item key="system">
+          <SettingOutlined />
+          <span>系統設置</span>
+        </a-menu-item>
+
+        <a-menu-item key="logs">
+          <FileTextOutlined />
+          <span>審計日誌</span>
+        </a-menu-item>
+
+        <a-sub-menu key="advanced">
+          <template #icon>
+            <ToolOutlined />
+          </template>
+          <template #title>高級功能</template>
+
+          <a-menu-item key="database">
+            <DatabaseOutlined />
+            <span>數據庫管理</span>
+          </a-menu-item>
+
+          <a-menu-item key="backup">
+            <CloudDownloadOutlined />
+            <span>備份恢復</span>
+          </a-menu-item>
+
+          <a-menu-item key="performance">
+            <LineChartOutlined />
+            <span>性能監控</span>
+          </a-menu-item>
+        </a-sub-menu>
+      </a-menu>
+    </a-drawer>
   </a-layout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";
 import { useFullscreen } from "@vueuse/core";
+import { Grid } from "ant-design-vue";
+import Logo from "@/components/common/Logo.vue";
 import {
   Maximize,
   Minimize,
@@ -331,6 +438,10 @@ import {
   Home,
 } from "lucide-vue-next";
 
+// 響應式斷點
+const { useBreakpoint } = Grid;
+const screens = useBreakpoint();
+
 // Store
 const authStore = useAuthStore();
 const wsStore = useWebSocketStore();
@@ -344,6 +455,7 @@ const route = useRoute();
 const collapsed = ref(false);
 const selectedKeys = ref([]);
 const monitorDrawerVisible = ref(false);
+const showMobileMenu = ref(false);
 const onlineUsers = ref(12);
 const systemNotifications = ref(3);
 
@@ -360,9 +472,35 @@ const currentPageTitle = computed(() => {
   return route.meta?.title?.replace(" - SFDA Nexus", "") || "";
 });
 
+// 響應式計算屬性
+const isMobile = computed(() => !screens.value.md);
+const isTablet = computed(() => screens.value.md && !screens.value.lg);
+const isDesktop = computed(() => screens.value.lg);
+
+// 響應式顯示控制
+const showLogoText = computed(() => !isMobile.value);
+const showUsername = computed(() => !isMobile.value);
+const showSystemStatus = computed(() => !isMobile.value);
+const showAdminTag = computed(() => !isMobile.value);
+const showSider = computed(() => !isMobile.value);
+
+// 系統監控抽屜寬度
+const drawerWidth = computed(() => {
+  if (isMobile.value) return "100%";
+  if (isTablet.value) return 500;
+  return 600;
+});
+
 // 方法
 const toggleCollapsed = () => {
   collapsed.value = !collapsed.value;
+};
+
+const handleSiderBreakpoint = (broken) => {
+  // 在大屏幕斷點以下自動折疊側邊欄
+  if (broken) {
+    collapsed.value = true;
+  }
 };
 
 const handleMenuClick = ({ key }) => {
@@ -384,6 +522,13 @@ const handleMenuClick = ({ key }) => {
   if (path && path !== route.path) {
     router.push(path);
   }
+};
+
+const handleMobileMenuClick = ({ key }) => {
+  // 手機端菜單點擊後關閉抽屜
+  showMobileMenu.value = false;
+  // 執行相同的路由邏輯
+  handleMenuClick({ key });
 };
 
 // 系統監控抽屜開啟
@@ -459,6 +604,18 @@ watch(
   { immediate: true }
 );
 
+// 監聽手機端菜單狀態，處理背景滾動
+watch(showMobileMenu, (isOpen) => {
+  if (isMobile.value) {
+    // 手機端打開抽屜時禁止背景滾動
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }
+});
+
 // 生命週期
 onMounted(() => {
   // 檢查管理員權限
@@ -470,6 +627,11 @@ onMounted(() => {
 
   // 載入系統統計數據
   loadSystemStats();
+});
+
+onUnmounted(() => {
+  // 確保在組件卸載時恢復頁面滾動
+  document.body.style.overflow = "";
 });
 
 const loadSystemStats = () => {
@@ -513,6 +675,11 @@ const loadSystemStats = () => {
 .header-left {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.mobile-menu-btn {
+  color: var(--custom-text-primary);
 }
 
 .admin-logo {
@@ -654,6 +821,10 @@ const loadSystemStats = () => {
   margin-left: 80px;
 }
 
+.admin-content.full-width {
+  margin-left: 0;
+}
+
 .content-header {
   background: var(--custom-bg-primary);
   padding: 6px 12px;
@@ -687,37 +858,51 @@ const loadSystemStats = () => {
   padding: 16px 0;
 }
 
-/* 響應式設計 */
+/* 響應式設計 - 使用 Ant Design 響應式系統 */
+.admin-sider {
+  transition: all 0.2s;
+}
+
+.admin-content {
+  transition: margin-left 0.2s;
+}
+
+/* 手機端優化 */
+:deep(.ant-layout-sider-children) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 快速操作在小屏幕下的間距調整 */
+:deep(.quick-actions) {
+  gap: 8px;
+}
+
 @media (max-width: 768px) {
-  .header-content {
-    padding: 0 16px;
-  }
-
-  .admin-logo .logo-text {
-    display: none;
-  }
-
-  .username {
-    display: none;
-  }
-
-  .quick-actions {
+  :deep(.quick-actions) {
     gap: 4px;
   }
+}
 
+/* 內容頭部響應式調整 */
+.content-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
   .content-header {
     padding: 12px 16px;
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
   }
 
   .content-wrapper {
     padding: 16px;
   }
 
-  .system-status {
-    display: none;
+  .header-content {
+    padding: 0 16px;
   }
 }
 
@@ -732,5 +917,44 @@ const loadSystemStats = () => {
 
 .theme-switch.ant-switch-checked .ant-switch-handle::before {
   background-color: #fff;
+}
+
+/* 手機端菜單樣式 */
+.mobile-menu {
+  border-right: none;
+}
+
+.mobile-menu .ant-menu-item {
+  margin-bottom: 4px;
+}
+
+/* 手機端抽屜樣式 */
+.mobile-drawer {
+  z-index: 1050 !important;
+}
+
+/* 確保抽屜遮罩層正確顯示 */
+:deep(.ant-drawer-mask) {
+  z-index: 1040 !important;
+  background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* 確保抽屜主體在最上層 */
+:deep(.ant-drawer-content-wrapper) {
+  z-index: 1050 !important;
+}
+
+/* 手機端時確保主布局不會溢出 */
+@media (max-width: 767px) {
+  .admin-layout {
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* 確保內容區域在手機端正確顯示 */
+  .admin-content.full-width {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 </style>

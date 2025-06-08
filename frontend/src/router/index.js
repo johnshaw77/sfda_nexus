@@ -153,7 +153,7 @@ const routes = [
       {
         path: "mcp-services",
         name: "McpServices",
-        component: () => import("@/views/admin/McpServices.vue"),
+        component: () => import("@/views/admin/mcpServices.vue"),
         meta: {
           title: "MCP 服務管理",
           icon: "CloudServerOutlined",

@@ -24,204 +24,190 @@
     </div>
 
     <!-- 背景裝飾 -->
-    <div class="auth-background">
+    <div
+      class="auth-background"
+      :style="authBackgroundStyle">
       <div class="bg-pattern"></div>
       <div class="bg-gradient"></div>
     </div>
 
     <!-- 主要內容區域 -->
     <div class="auth-container">
-      <!-- 左側品牌區域 -->
-      <div class="auth-brand">
-        <div class="brand-content">
-          <!-- Logo -->
-          <div class="brand-logo">
-            <svg
-              width="80"
-              height="80"
-              viewBox="0 0 80 80"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <circle
-                cx="40"
-                cy="40"
-                r="35"
-                fill="#1890ff"
-                opacity="0.1" />
-              <circle
-                cx="40"
-                cy="40"
-                r="25"
-                fill="#1890ff"
-                opacity="0.2" />
-              <circle
-                cx="40"
-                cy="40"
-                r="15"
-                fill="#1890ff" />
-              <path
-                d="M32 35h16v2H32v-2zm0 4h12v2H32v-2zm0 4h8v2H32v-2z"
-                fill="white" />
-            </svg>
-          </div>
+      <a-row
+        type="flex"
+        align="middle"
+        justify="center"
+        :gutter="[60, 40]"
+        class="auth-row">
+        <!-- 左側品牌區域 -->
+        <a-col
+          :xs="24"
+          :sm="24"
+          :md="24"
+          :lg="14"
+          :xl="14"
+          :xxl="12">
+          <div class="auth-brand">
+            <div class="brand-content">
+              <!-- Logo -->
+              <div class="brand-logo">
+                <Logo :width="96" />
+              </div>
 
-          <!-- 品牌信息 -->
-          <h1 class="brand-title">
-            <span
-              ref="titleText"
-              class="typewriter-text"
-              >台郡科技 Nexus</span
-            >
-          </h1>
-          <p class="brand-subtitle">
-            <span
-              ref="subtitleText"
-              class="typewriter-text"
-              >企業級 AI 聊天助手</span
-            >
-          </p>
-          <p class="brand-description">
-            <span
-              ref="descriptionText"
-              class="slide-text">
-              Connect. Create. Collaborate.<br />
-              讓 AI 成為您工作中的得力助手
-            </span>
-          </p>
-
-          <!-- 特色功能 -->
-          <div
-            ref="featuresText"
-            class="feature-highlights"
-            style="opacity: 0">
-            <div class="feature-item">
-              <CheckCircleOutlined class="feature-icon" />
-              <span>多模型 AI 支持</span>
-            </div>
-            <div class="feature-item">
-              <CheckCircleOutlined class="feature-icon" />
-              <span>實時聊天體驗</span>
-            </div>
-            <div class="feature-item">
-              <CheckCircleOutlined class="feature-icon" />
-              <span>企業級安全保障</span>
-            </div>
-            <div class="feature-item">
-              <CheckCircleOutlined class="feature-icon" />
-              <span>智能工作流程</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右側表單區域 -->
-      <div class="auth-form">
-        <div class="form-container">
-          <!-- 表單頭部 -->
-          <div class="form-header">
-            <h2 class="form-title">歡迎回來</h2>
-            <p class="form-subtitle">登入您的 SFDA Nexus 帳號</p>
-          </div>
-
-          <!-- 表單內容 -->
-          <div class="form-content">
-            <div class="login-form-wrapper">
-              <!-- 登入表單 -->
-              <a-form
-                ref="formRef"
-                :model="formData"
-                :rules="formRules"
-                layout="vertical"
-                class="login-form"
-                @finish="handleSubmit">
-                <a-form-item
-                  name="username"
-                  label="用戶名">
-                  <a-input
-                    v-model:value="formData.username"
-                    size="large"
-                    placeholder="請輸入用戶名或郵箱"
-                    :prefix="h(UserOutlined)"
-                    :disabled="isLoading" />
-                </a-form-item>
-
-                <a-form-item
-                  name="password"
-                  label="密碼">
-                  <a-input-password
-                    v-model:value="formData.password"
-                    size="large"
-                    placeholder="請輸入密碼"
-                    :prefix="h(LockOutlined)"
-                    :disabled="isLoading" />
-                </a-form-item>
-
-                <a-form-item>
-                  <div class="login-options">
-                    <a-checkbox
-                      v-model:checked="formData.rememberMe"
-                      :disabled="isLoading">
-                      記住我
-                    </a-checkbox>
-                    <!-- <a-button
-                      type="link"
-                      size="small"
-                      @click="handleForgotPassword">
-                      忘記密碼？
-                    </a-button> -->
+              <!-- 品牌信息 -->
+              <h1 class="brand-title">
+                <span
+                  ref="titleText"
+                  class="typewriter-text"
+                  >台郡科技 Nexus</span
+                >
+              </h1>
+              <p class="brand-subtitle">
+                <span
+                  ref="subtitleText"
+                  class="typewriter-text"
+                  >企業級 AI 聊天助手</span
+                >
+              </p>
+              <p class="brand-description">
+                <span
+                  ref="descriptionText"
+                  class="slide-text">
+                  Connect. Create. Collaborate.<br />
+                  讓 AI 成為您工作中的得力助手<br /><br />
+                  <div style="text-align: left">
+                    <!-- 將特色功能移到這裡 -->
+                    <CheckCircleOutlined class="feature-icon" /> 多模型 AI
+                    支持<br />
+                    <CheckCircleOutlined class="feature-icon" />
+                    實時聊天體驗<br />
+                    <CheckCircleOutlined class="feature-icon" />
+                    企業級安全保障<br />
+                    <CheckCircleOutlined class="feature-icon" /> 智能工作流程
                   </div>
-                </a-form-item>
+                </span>
+              </p>
+            </div>
+          </div>
+        </a-col>
 
-                <a-form-item>
-                  <a-button
-                    type="primary"
-                    html-type="submit"
-                    size="large"
-                    block
-                    :loading="isLoading">
-                    登入
-                  </a-button>
-                </a-form-item>
+        <!-- 右側表單區域 -->
+        <a-col
+          :xs="24"
+          :sm="24"
+          :md="24"
+          :lg="10"
+          :xl="10"
+          :xxl="12">
+          <div class="auth-form">
+            <div class="form-container">
+              <!-- 表單頭部 -->
+              <div class="form-header">
+                <h2 class="form-title">歡迎回來</h2>
+                <p class="form-subtitle">登入您的 SFDA Nexus 帳號</p>
+              </div>
 
-                <!-- 快速登錄測試帳號 -->
-                <div class="quick-login-section">
-                  <a-divider>
-                    <span style="color: #999; font-size: 12px"
-                      >快速測試登錄</span
-                    >
-                  </a-divider>
-                  <div class="quick-login-buttons">
-                    <a-button
-                      type="text"
-                      size="small"
-                      @click="handleQuickLogin('admin', 'admin123')"
-                      :disabled="isLoading"
-                      class="quick-login-btn">
-                      蕭傳璋(SUPER_ADMIN)
-                    </a-button>
-                    <a-button
-                      type="text"
-                      size="small"
-                      @click="handleQuickLogin('user010', 'password123')"
-                      :disabled="isLoading"
-                      class="quick-login-btn">
-                      呂鈺泓(VP)
-                    </a-button>
-                    <a-button
-                      type="text"
-                      size="small"
-                      @click="handleQuickLogin('user007', 'password123')"
-                      :disabled="isLoading"
-                      class="quick-login-btn">
-                      鄭揚(CEO)
-                    </a-button>
-                  </div>
+              <!-- 表單內容 -->
+              <div class="form-content">
+                <div class="login-form-wrapper">
+                  <!-- 登入表單 -->
+                  <a-form
+                    ref="formRef"
+                    :model="formData"
+                    :rules="formRules"
+                    layout="vertical"
+                    class="login-form"
+                    @finish="handleSubmit">
+                    <a-form-item
+                      name="username"
+                      label="用戶名">
+                      <a-input
+                        v-model:value="formData.username"
+                        size="large"
+                        placeholder="請輸入用戶名或郵箱"
+                        :prefix="h(UserOutlined)"
+                        :disabled="isLoading" />
+                    </a-form-item>
+
+                    <a-form-item
+                      name="password"
+                      label="密碼">
+                      <a-input-password
+                        v-model:value="formData.password"
+                        size="large"
+                        placeholder="請輸入密碼"
+                        :prefix="h(LockOutlined)"
+                        :disabled="isLoading" />
+                    </a-form-item>
+
+                    <a-form-item>
+                      <div class="login-options">
+                        <a-checkbox
+                          v-model:checked="formData.rememberMe"
+                          :disabled="isLoading">
+                          記住我
+                        </a-checkbox>
+                        <!-- <a-button
+                          type="link"
+                          size="small"
+                          @click="handleForgotPassword">
+                          忘記密碼？
+                        </a-button> -->
+                      </div>
+                    </a-form-item>
+
+                    <a-form-item>
+                      <a-button
+                        type="primary"
+                        html-type="submit"
+                        size="large"
+                        block
+                        :loading="isLoading">
+                        登入
+                      </a-button>
+                    </a-form-item>
+
+                    <!-- 快速登錄測試帳號 -->
+                    <div class="quick-login-section">
+                      <a-divider>
+                        <span style="color: #999; font-size: 12px"
+                          >快速測試登錄</span
+                        >
+                      </a-divider>
+                      <div class="quick-login-buttons">
+                        <a-button
+                          type="text"
+                          size="small"
+                          @click="handleQuickLogin('admin', 'admin123')"
+                          :disabled="isLoading"
+                          class="quick-login-btn">
+                          蕭傳璋(SUPER_ADMIN)
+                        </a-button>
+                        <a-button
+                          type="text"
+                          size="small"
+                          @click="handleQuickLogin('user010', 'password123')"
+                          :disabled="isLoading"
+                          class="quick-login-btn">
+                          呂鈺泓(VP)
+                        </a-button>
+                        <a-button
+                          type="text"
+                          size="small"
+                          @click="handleQuickLogin('user007', 'password123')"
+                          :disabled="isLoading"
+                          class="quick-login-btn">
+                          鄭揚(CEO)
+                        </a-button>
+                      </div>
+                    </div>
+                  </a-form>
                 </div>
-              </a-form>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </a-col>
+      </a-row>
     </div>
 
     <!-- 頁腳 -->
@@ -258,11 +244,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, h, onMounted, nextTick } from "vue";
+import { ref, reactive, h, onMounted, nextTick, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { Lightbulb, MoonStar } from "lucide-vue-next";
-// Icons are globally registered in main.js
+import Logo from "@/components/common/Logo.vue";
+import {
+  CheckCircleOutlined,
+  UserOutlined,
+  LockOutlined,
+} from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useConfigStore } from "@/stores/config";
 import { debugAuthStore, debugUserData } from "@/utils/debugAuth";
@@ -282,7 +273,6 @@ const isLoading = ref(false);
 const titleText = ref();
 const subtitleText = ref();
 const descriptionText = ref();
-const featuresText = ref();
 
 // 表單數據
 const formData = reactive({
@@ -348,11 +338,10 @@ const handleQuickLogin = (username, password) => {
   });
 };
 
-// 標題循環動畫
+// 標題循環動畫 - 使用不影響布局的方式
 const titleCycleAnimation = () => {
   const titles = [
     "台郡科技 Nexus",
-
     "數據分析部開發",
     "千問 Qwen3 本地模型",
     "DeepSeek R1本地模型",
@@ -366,10 +355,14 @@ const titleCycleAnimation = () => {
 
   const cycleTitles = () => {
     if (titleText.value) {
+      // 確保只影響標題元素，使用絕對定位避免影響布局
+      gsap.killTweensOf(titleText.value);
+
+      // 使用 opacity 和 scale 動畫，不改變文字內容，避免觸發布局重計算
       gsap.to(titleText.value, {
         duration: 0.5,
         opacity: 0,
-        y: -20,
+        scale: 0.95,
         ease: "power2.in",
         onComplete: () => {
           currentIndex = (currentIndex + 1) % titles.length;
@@ -377,7 +370,7 @@ const titleCycleAnimation = () => {
           gsap.to(titleText.value, {
             duration: 0.5,
             opacity: 1,
-            y: 0,
+            scale: 1,
             ease: "power2.out",
           });
         },
@@ -423,7 +416,7 @@ const startAnimations = async () => {
       tl.to(
         subtitleText.value,
         {
-          duration: 1.2,
+          duration: 2,
           text: "企業級 AI 聊天助手",
           ease: "none",
           delay: 1.2,
@@ -452,39 +445,7 @@ const startAnimations = async () => {
       );
     }
 
-    // 4. GSAP 淡入和滑入效果：特色功能
-    if (featuresText.value) {
-      // 設置初始狀態
-      gsap.set(featuresText.value, { opacity: 0, y: 30 });
-
-      tl.to(
-        featuresText.value,
-        {
-          duration: 1,
-          opacity: 1,
-          y: 0,
-          ease: "power2.out",
-          delay: 0.5,
-        },
-        "-=1.5"
-      );
-
-      // 為每個功能項目添加交錯動畫
-      const featureItems = featuresText.value.querySelectorAll(".feature-item");
-      gsap.set(featureItems, { opacity: 0, x: -20 });
-
-      tl.to(
-        featureItems,
-        {
-          duration: 0.6,
-          opacity: 1,
-          x: 0,
-          ease: "power2.out",
-          stagger: 0.1,
-        },
-        "-=0.8"
-      );
-    }
+    // 4. 移除 featuresText 動畫，因為已合併到 descriptionText
 
     // 5. Logo 旋轉動畫
     const logo = document.querySelector(".brand-logo svg");
@@ -505,8 +466,39 @@ const startAnimations = async () => {
   }
 };
 
+// 背景
+const lightImages = ["bg-light1.png", "bg-light2.png", "bg-light3.png"];
+const darkImages = ["bg-dark1.png", "bg-dark2.png", "bg-dark3.png"];
+
+// 隨機選圖
+const randomIndex = ref(0);
+function pickRandom() {
+  randomIndex.value = Math.floor(Math.random() * 3);
+}
+
+const authBackgroundStyle = computed(() => ({
+  backgroundImage: `url('/images/${
+    configStore.isDarkMode
+      ? darkImages[randomIndex.value]
+      : lightImages[randomIndex.value]
+  }')`,
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+}));
+
+// 監聽暗黑模式變化
+watch(
+  () => configStore.isDarkMode,
+  () => {
+    console.log("🔍 暗黑模式", configStore.isDarkMode);
+    console.log("🔍 暗黑模式改變，重新選圖");
+    pickRandom();
+  }
+);
+
 // 檢查是否已登入
 onMounted(() => {
+  pickRandom();
   if (authStore.isAuthenticated) {
     router.push("/");
   } else {
@@ -514,6 +506,8 @@ onMounted(() => {
     startAnimations();
   }
 });
+
+console.log("🔍 暗黑模式", configStore.isDarkMode);
 </script>
 
 <style scoped>
@@ -574,15 +568,9 @@ html.dark .theme-toggle-btn:hover,
   right: 0;
   bottom: 0;
   z-index: 0;
-  background-image: url("@/assets/images/bg-light.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-}
-
-html.dark .auth-background,
-[data-theme="dark"] .auth-background {
-  background-image: url("@/assets/images/bg-dark3.png");
 }
 
 .bg-pattern {
@@ -661,18 +649,21 @@ html.dark .bg-pattern,
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  display: flex;
-  align-items: center;
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
 }
 
+.auth-row {
+  min-height: calc(100vh - 80px);
+  align-items: center;
+}
+
 .auth-brand {
-  flex: 1;
-  padding-right: 60px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .brand-content {
@@ -682,7 +673,7 @@ html.dark .bg-pattern,
 .brand-logo {
   margin-bottom: 32px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .brand-logo svg {
@@ -698,13 +689,12 @@ html.dark .bg-pattern,
   font-size: 48px;
   font-weight: 700;
   color: var(--primary-color);
-  color: linear-gradient(135deg, #1890ff, #52c41a);
   margin-bottom: 16px;
-  /* background: linear-gradient(135deg, #1890ff, #52c41a); */
-  /* -webkit-background-clip: text; */
-  /* -webkit-text-fill-color: transparent; */
   background-clip: text;
-  min-height: 60px; /* 保持高度一致 */
+  min-height: 60px;
+  /* 添加固定高度和定位，避免文字變化時影響布局 */
+  position: relative;
+  overflow: hidden;
 }
 
 .typewriter-text {
@@ -751,38 +741,13 @@ html.dark .bg-pattern,
   margin-bottom: 40px;
 }
 
-.feature-highlights {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  font-size: 16px;
-  color: var(--text-color);
-  opacity: 0; /* GSAP 將控制顯示 */
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 16px;
-  color: var(--text-color);
-  opacity: 0; /* GSAP 將控制顯示 */
-  transform: translateX(-20px); /* GSAP 初始位置 */
-  transition: all 0.3s ease;
-}
-
-.feature-item:hover {
-  transform: translateX(5px);
-  color: var(--primary-color);
-}
-
 .feature-icon {
   color: #52c41a;
   font-size: 18px;
+  margin-right: 8px;
 }
 
 .auth-form {
-  flex: 0 0 480px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -974,76 +939,6 @@ html.dark .floating-shape,
 :deep(.ant-btn-link) {
   padding: 0;
   height: auto;
-}
-
-/* 響應式設計 */
-@media (max-width: 1024px) {
-  .auth-container {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .auth-brand {
-    padding-right: 0;
-    margin-bottom: 40px;
-  }
-
-  .brand-content {
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .auth-form {
-    flex: none;
-    width: 100%;
-    max-width: 480px;
-  }
-}
-
-@media (max-width: 768px) {
-  .auth-container {
-    padding: 20px;
-  }
-
-  .brand-title {
-    font-size: 36px;
-  }
-
-  .brand-subtitle {
-    font-size: 20px;
-  }
-
-  .form-container {
-    padding: 32px 24px;
-  }
-
-  .footer-content {
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
-  }
-
-  .footer-links {
-    gap: 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  .auth-container {
-    padding: 16px;
-  }
-
-  .brand-title {
-    font-size: 28px;
-  }
-
-  .form-container {
-    padding: 24px 20px;
-  }
-
-  .feature-highlights {
-    display: none;
-  }
 }
 
 /* 快速登錄樣式 */
