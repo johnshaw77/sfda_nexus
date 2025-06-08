@@ -22,12 +22,17 @@
           <!-- 快速操作 -->
           <div class="quick-actions">
             <a-tooltip
-              title="開關燈光"
+              :title="configStore.isDarkMode ? '開燈' : '關燈'"
               :arrow="false">
               <a-button
                 type="text"
                 @click="configStore.toggleTheme">
-                <BulbOutlined />
+                <Lightbulb
+                  v-if="configStore.isDarkMode"
+                  :size="14" />
+                <MoonStar
+                  v-else
+                  :size="14" />
               </a-button>
             </a-tooltip>
 
@@ -37,7 +42,7 @@
               <a-button
                 type="text"
                 @click="handleSystemMonitor">
-                <DashboardOutlined />
+                <LayoutDashboard :size="16" />
               </a-button>
             </a-tooltip>
 
@@ -50,7 +55,7 @@
                 <a-button
                   type="text"
                   @click="handleOnlineUsers">
-                  <TeamOutlined />
+                  <Users :size="16" />
                 </a-button>
               </a-badge>
             </a-tooltip>
@@ -64,7 +69,7 @@
                 <a-button
                   type="text"
                   @click="handleSystemNotifications">
-                  <BellOutlined />
+                  <Bell :size="16" />
                 </a-button>
               </a-badge>
             </a-tooltip>
@@ -135,7 +140,7 @@
           class="admin-menu"
           @click="handleMenuClick">
           <a-menu-item key="dashboard">
-            <DashboardOutlined />
+            <LayoutDashboard :size="16" />
             <span>管理儀表板</span>
           </a-menu-item>
 
@@ -226,7 +231,7 @@
         <div class="content-header">
           <a-breadcrumb class="breadcrumb">
             <a-breadcrumb-item>
-              <HomeOutlined />
+              <Home :size="16" />
               <span>管理員</span>
             </a-breadcrumb-item>
             <a-breadcrumb-item>{{ currentPageTitle }}</a-breadcrumb-item>
@@ -241,11 +246,16 @@
               </a-button>
             </a-tooltip>
 
-            <a-tooltip title="全屏">
+            <a-tooltip :title="isFullscreen ? '退出全屏' : '進入全屏'">
               <a-button
                 type="text"
                 @click="handleFullscreen">
-                <FullscreenOutlined />
+                <Maximize
+                  v-if="!isFullscreen"
+                  :size="16" />
+                <Minimize
+                  v-else
+                  :size="16" />
               </a-button>
             </a-tooltip>
           </div>
@@ -307,6 +317,19 @@ import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useConfigStore } from "@/stores/config";
 import { useFullscreen } from "@vueuse/core";
+import {
+  Maximize,
+  Minimize,
+  MoonStar,
+  Lightbulb,
+  LayoutDashboard,
+  Users,
+  Bell,
+  LogOut,
+  User,
+  Settings,
+  Home,
+} from "lucide-vue-next";
 
 // Store
 const authStore = useAuthStore();

@@ -131,7 +131,47 @@ npm run dev
 
 ## 📊 項目進度
 
-### ✅ 最新完成功能 (v1.12.14) - 2025-06-07
+### ✅ 最新完成功能 (v1.12.15) - 2025-06-08
+
+#### 🎨 主題切換圖標系統統一化
+
+**UI/UX 優化完成：**
+
+- ✅ **圖標對齊問題修復**
+
+  - 解決 header 區域圖標不對齊的問題
+  - 統一所有圖標系統為 Lucide icons
+  - 移除混用的 Ant Design 圖標和自定義 SVG
+  - 建立一致的圖標尺寸規範
+
+- ✅ **主題切換圖標優化**
+
+  - MainLayout: 暗黑模式顯示 MoonStar，亮色模式顯示 Lightbulb
+  - AdminLayout: 同樣的圖標邏輯和視覺一致性
+  - Login 頁面: 從 ant-design 開關改為 Lucide 圖標按鈕，添加毛玻璃效果
+
+- ✅ **圖標系統重構**
+
+  - 側邊欄圖標: ChevronLeft/Right, Bot (統一 16-20px)
+  - 主選單圖標: LayoutDashboard, MessageCircle, User, Settings 等
+  - 通知系統圖標: Info, CheckCircle, AlertTriangle, XCircle
+  - 用戶選單圖標: MoreVertical, LogOut 等
+
+- ✅ **視覺一致性提升**
+
+  - 所有圖標使用相同的設計語言和線條風格
+  - 統一的尺寸規範：Header 按鈕 16px，側邊欄主選單 20px
+  - 完美的視覺對齊和間距
+  - 現代化的圖標風格
+
+**技術實現：**
+
+- 全面使用 Lucide Vue Next 圖標庫
+- 組件化圖標渲染：`<component :is="item.icon" :size="20" />`
+- 移除所有 Ant Design 圖標依賴
+- 建立圖標使用規範和最佳實踐
+
+### ✅ 已完成功能 (v1.12.14) - 2025-06-07
 
 #### 🔧 MCP 工具切換 API 修復
 

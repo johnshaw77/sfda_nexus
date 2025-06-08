@@ -30,7 +30,7 @@
           class="collapse-btn"
           @click="toggleSidebar"
           :title="sidebarCollapsed ? '展開側邊欄' : '收起側邊欄'">
-          <CaretLeftOutlined />
+          <ChevronLeft :size="16" />
           <!-- <svg
             viewBox="0 0 24 24"
             width="16"
@@ -61,7 +61,9 @@
             }"
             @click="handleMenuClick(item)">
             <div class="menu-icon">
-              <component :is="item.icon" />
+              <component
+                :is="item.icon"
+                :size="20" />
             </div>
             <span
               v-if="!sidebarCollapsed"
@@ -72,7 +74,7 @@
               v-if="!sidebarCollapsed && item.key === 'agents'"
               class="menu-arrow"
               :class="{ expanded: agentsSidebarVisible }">
-              <CaretRightOutlined />
+              <ChevronRight :size="16" />
               <!-- <svg
                 viewBox="0 0 24 24"
                 width="16"
@@ -109,29 +111,22 @@
             v-if="!sidebarCollapsed"
             placement="topRight">
             <button class="user-menu-btn">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16">
-                <path
-                  fill="currentColor"
-                  d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-              </svg>
+              <MoreVertical :size="16" />
             </button>
 
             <template #overlay>
               <a-menu>
                 <a-menu-item @click="handleProfile">
-                  <UserOutlined />
+                  <User :size="16" />
                   個人資料
                 </a-menu-item>
                 <a-menu-item @click="handleSettings">
-                  <SettingOutlined />
+                  <Settings :size="16" />
                   設置
                 </a-menu-item>
                 <a-menu-divider />
                 <a-menu-item @click="handleLogout">
-                  <LogoutOutlined />
+                  <LogOut :size="16" />
                   登出
                 </a-menu-item>
               </a-menu>
@@ -152,7 +147,7 @@
       <div class="agents-header">
         <div class="agents-title">
           <div class="title-icon">
-            <RobotOutlined />
+            <Bot :size="20" />
           </div>
           <h2>智能體</h2>
         </div>
@@ -160,7 +155,7 @@
           class="close-agents-btn"
           @click="closeAgentsSidebar"
           title="關閉智能體選單">
-          <CloseOutlined />
+          <X :size="16" />
         </button>
       </div>
 
@@ -310,13 +305,20 @@
         <div class="header-right">
           <!-- 主題切換開關 -->
           <a-tooltip
-            title="開關燈光"
+            :title="
+              configStore.isDarkMode ? '切換至亮色模式' : '切換至暗黑模式'
+            "
             :arrow="false">
             <a-button
               type="text"
               class="icon-btn"
               @click="configStore.toggleTheme">
-              <BulbOutlined />
+              <Lightbulb
+                v-if="configStore.isDarkMode"
+                :size="16" />
+              <MoonStar
+                v-else
+                :size="16" />
             </a-button>
           </a-tooltip>
 
@@ -328,7 +330,7 @@
               type="text"
               class="icon-btn"
               @click="handleSystemMonitor">
-              <DashboardOutlined />
+              <Bell :size="16" />
             </a-button>
           </a-tooltip>
 
@@ -341,22 +343,27 @@
               type="text"
               class="icon-btn"
               @click="toggleFullscreen">
-              <FullscreenOutlined v-if="!isFullscreen" />
-              <FullscreenExitOutlined v-else />
+              <Maximize
+                v-if="!isFullscreen"
+                :size="16" />
+              <Minimize
+                v-else
+                :size="16" />
             </a-button>
           </a-tooltip>
 
           <a-tooltip
             v-if="authStore.isAdmin"
             title="管理員"
+            class="icon-btn"
             placement="bottom"
             :arrow="false"
             ><a-button
               type="text"
-              class="icon-btn"
               @click="handleToAdminPage">
-              <InsuranceOutlined /> </a-button
-          ></a-tooltip>
+              <MonitorCog :size="16" />
+            </a-button>
+          </a-tooltip>
 
           <!-- 更多選項 -->
           <!-- <button
@@ -403,11 +410,18 @@
           class="notification-item"
           :class="{ unread: !notification.read }">
           <div class="notification-icon">
-            <InfoCircleOutlined v-if="notification.type === 'info'" />
-            <CheckCircleOutlined v-else-if="notification.type === 'success'" />
-            <ExclamationCircleOutlined
-              v-else-if="notification.type === 'warning'" />
-            <CloseCircleOutlined v-else />
+            <Info
+              v-if="notification.type === 'info'"
+              :size="16" />
+            <CheckCircle
+              v-else-if="notification.type === 'success'"
+              :size="16" />
+            <AlertTriangle
+              v-else-if="notification.type === 'warning'"
+              :size="16" />
+            <XCircle
+              v-else
+              :size="16" />
           </div>
 
           <div class="notification-content">
@@ -438,6 +452,30 @@ import { ref, computed, onMounted } from "vue";
 import { useFullscreen } from "@vueuse/core";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
+import {
+  Maximize,
+  Minimize,
+  Lightbulb,
+  Bell,
+  Shield,
+  MoonStar,
+  ChevronLeft,
+  ChevronRight,
+  Bot,
+  LayoutDashboard,
+  MessageCircle,
+  User,
+  Settings,
+  FlaskConical,
+  X,
+  MoreVertical,
+  LogOut,
+  Info,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  MonitorCog,
+} from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useAgentsStore } from "@/stores/agents";
@@ -475,37 +513,37 @@ const mainMenuItems = ref([
   {
     key: "dashboard",
     title: "儀表板",
-    icon: "DashboardOutlined",
+    icon: LayoutDashboard,
     route: "Dashboard",
   },
   {
     key: "chat",
     title: "聊天",
-    icon: "MessageOutlined",
+    icon: MessageCircle,
     route: "Chat",
   },
   {
     key: "agents",
     title: "智能體",
-    icon: "RobotOutlined",
+    icon: Bot,
     route: null, // 特殊處理
   },
   {
     key: "user",
     title: "個人資料",
-    icon: "UserOutlined",
+    icon: User,
     route: "UserProfile",
   },
   {
     key: "settings",
     title: "設置",
-    icon: "SettingOutlined",
+    icon: Settings,
     route: "Settings",
   },
   {
     key: "playground",
     title: "測試實驗室",
-    icon: "ExperimentOutlined",
+    icon: FlaskConical,
     route: "Playground",
   },
 ]);
@@ -1222,6 +1260,7 @@ onMounted(async () => {
 .icon-btn {
   width: 40px;
   height: 40px;
+  padding: 8px;
   border: none;
   background: var(--custom-bg-tertiary);
   border-radius: var(--radius-button);

@@ -218,7 +218,7 @@
                   ">
                   <a-tag
                     :color="getToolTagColor(tool)"
-                    size="small"
+                    style="font-size: 12px; cursor: help"
                     @click="handleQuickToolToggle(record, tool)">
                     <ToolOutlined class="tool-icon" />
                     {{ tool.name }}
@@ -227,13 +227,13 @@
 
                 <!-- 更多工具指示器 -->
                 <a-tag
-                  v-if="record.tools.length > 5"
+                  v-if="record.tools.length > 3"
                   color="blue"
                   size="small"
                   class="more-tools-tag"
                   @click="handleViewTools(record)"
-                  :title="`還有 ${record.tools.length - 4} 個工具，點擊查看全部`">
-                  +{{ record.tools.length - 5 }}
+                  :title="`還有 ${record.tools.length - 3} 個工具，點擊查看全部`">
+                  +{{ record.tools.length - 3 }}
                 </a-tag>
               </div>
 
@@ -253,18 +253,23 @@
               <div
                 class="tools-count"
                 v-if="record.tools && record.tools.length > 0">
-                <a-button
-                  type="link"
-                  size="small"
-                  @click="handleViewTools(record)"
-                  style="
-                    padding: 0;
-                    height: auto;
-                    font-size: 11px;
-                    color: #666;
-                  ">
-                  共 {{ record.tools.length }} 個工具
-                </a-button>
+                <a-tooltip
+                  title="點擊查看工具列表"
+                  :arrow="false">
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="handleViewTools(record)"
+                    style="
+                      padding: 0;
+                      height: auto;
+                      font-size: 11px;
+                      color: #666;
+                      cursor: help;
+                    ">
+                    共 {{ record.tools.length }} 個工具
+                  </a-button>
+                </a-tooltip>
               </div>
             </div>
           </template>
@@ -1121,12 +1126,6 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.tool-description {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
-}
-
 /* 工具標籤樣式 */
 .tools-tags-container {
   max-height: 400px;
@@ -1173,26 +1172,9 @@ onMounted(() => {
   gap: 6px;
 }
 
-.tool-tag {
-  margin: 0 !important;
-  cursor: pointer;
-  font-size: 10px !important;
-  padding: 2px 8px !important;
-  border-radius: 4px !important;
-  display: inline-flex;
-  align-items: center;
-  max-width: 120px;
-  transition: all 0.2s ease;
-}
-
-.tool-tag:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
 .tool-icon {
   margin-right: 3px !important;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .more-tools-tag {
@@ -1203,10 +1185,6 @@ onMounted(() => {
   border-radius: 4px !important;
   font-weight: 500;
   transition: all 0.2s ease;
-}
-
-.more-tools-tag:hover {
-  transform: scale(1.05);
 }
 
 .no-tools {

@@ -9,18 +9,17 @@
     <div class="theme-toggle-container">
       <a-tooltip
         :title="configStore.isDarkMode ? '切換至亮色模式' : '切換至暗黑模式'">
-        <a-switch
-          :checked="configStore.isDarkMode"
-          size="small"
-          @change="configStore.toggleTheme"
-          class="theme-switch">
-          <template #checkedChildren>
-            <bulb-filled style="color: yellow" />
-          </template>
-          <template #unCheckedChildren>
-            <bulb-filled style="color: gray" />
-          </template>
-        </a-switch>
+        <a-button
+          type="text"
+          @click="configStore.toggleTheme"
+          class="theme-toggle-btn">
+          <MoonStar
+            v-if="configStore.isDarkMode"
+            :size="24" />
+          <Lightbulb
+            v-else
+            :size="24" />
+        </a-button>
       </a-tooltip>
     </div>
 
@@ -262,6 +261,7 @@
 import { ref, reactive, h, onMounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
+import { Lightbulb, MoonStar } from "lucide-vue-next";
 // Icons are globally registered in main.js
 import { useAuthStore } from "@/stores/auth";
 import { useConfigStore } from "@/stores/config";
@@ -530,16 +530,41 @@ onMounted(() => {
   z-index: 1000;
 }
 
-.theme-switch .ant-switch-handle::before {
-  background-color: #fff;
+.theme-toggle-btn {
+  width: 36px;
+  padding: 8px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #5662b0;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.theme-switch.ant-switch-checked {
-  background-color: var(--ant-color-primary);
+.theme-toggle-btn:hover {
+  background: #6c7bdd;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
 }
 
-.theme-switch.ant-switch-checked .ant-switch-handle::before {
-  background-color: #fff;
+html.dark .theme-toggle-btn,
+[data-theme="dark"] .theme-toggle-btn {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+html.dark .theme-toggle-btn:hover,
+[data-theme="dark"] .theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .auth-background {
@@ -557,7 +582,7 @@ onMounted(() => {
 
 html.dark .auth-background,
 [data-theme="dark"] .auth-background {
-  background-image: url("@/assets/images/bg-dark.png");
+  background-image: url("@/assets/images/bg-dark3.png");
 }
 
 .bg-pattern {
