@@ -270,7 +270,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from "vue";
 import { message } from "ant-design-vue";
-import CodeHighlight from "@/components/common/CodeHighlight-copy2.vue";
+import CodeHighlight from "@/components/common/CodeHighlight-test.vue";
 
 // 響應式數據
 const markdownInput = ref("");

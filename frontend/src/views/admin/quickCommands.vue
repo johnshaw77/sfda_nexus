@@ -531,10 +531,6 @@ const handleAgentChange = (value) => {
 </script>
 
 <style scoped>
-.admin-page {
-  padding: 24px;
-}
-
 .search-section {
   margin-bottom: 16px;
   padding: 16px;

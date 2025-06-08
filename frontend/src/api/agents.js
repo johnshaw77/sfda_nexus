@@ -25,7 +25,7 @@ export const deleteAgent = async (agentId) => {
   return response.data;
 };
 
-export const duplicateAgent = async (agentId) => {
-  const response = await api.post(`/api/agents/${agentId}/duplicate`);
+export const duplicateAgent = async (agentId, data = {}) => {
+  const response = await api.post(`/api/agents/${agentId}/duplicate`, data);
   return response.data;
 };

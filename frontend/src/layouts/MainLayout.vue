@@ -8,14 +8,15 @@
       <div class="sidebar-header">
         <div class="logo-section">
           <div class="logo-icon">
-            <svg
+            <Logo />
+            <!-- <svg
               viewBox="0 0 24 24"
               width="24"
               height="24">
               <path
                 fill="currentColor"
                 d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-            </svg>
+            </svg> -->
           </div>
           <h1
             v-if="!sidebarCollapsed"
@@ -331,7 +332,22 @@
             </a-button>
           </a-tooltip>
 
+          <!-- 全屏切換按鈕 -->
           <a-tooltip
+            :title="isFullscreen ? '退出全屏' : '進入全屏'"
+            placement="bottom"
+            :arrow="false">
+            <a-button
+              type="text"
+              class="icon-btn"
+              @click="toggleFullscreen">
+              <FullscreenOutlined v-if="!isFullscreen" />
+              <FullscreenExitOutlined v-else />
+            </a-button>
+          </a-tooltip>
+
+          <a-tooltip
+            v-if="authStore.isAdmin"
             title="管理員"
             placement="bottom"
             :arrow="false"
@@ -419,6 +435,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import { useFullscreen } from "@vueuse/core";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import { useAuthStore } from "@/stores/auth";
@@ -426,7 +443,7 @@ import { useWebSocketStore } from "@/stores/websocket";
 import { useAgentsStore } from "@/stores/agents";
 import { useConfigStore } from "@/stores/config";
 import { formatRelativeTime } from "@/utils/datetimeFormat";
-
+import Logo from "@/components/common/Logo.vue";
 // Store
 const authStore = useAuthStore();
 const wsStore = useWebSocketStore();
@@ -440,6 +457,9 @@ const route = useRoute();
 // 響應式狀態
 const sidebarCollapsed = ref(false);
 const agentsSidebarVisible = ref(false);
+
+// 全屏功能 - 使用 VueUse
+const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
 const showNotifications = ref(false);
 const notificationCount = ref(2);

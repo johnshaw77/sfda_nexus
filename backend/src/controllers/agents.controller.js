@@ -14,6 +14,203 @@ import {
 import logger from "../utils/logger.util.js";
 import Joi from "joi";
 
+/**
+ * 為智能體填充MCP服務信息
+ * @param {Array} agents - 智能體列表
+ * @returns {Array} 填充了MCP服務信息的智能體列表
+ */
+const populateAgentMcpServices = async (agents) => {
+  if (!agents || agents.length === 0) return agents;
+
+  // 獲取所有智能體的ID
+  const agentIds = agents.map((agent) => agent.id);
+
+  // 批量查詢所有智能體的MCP服務
+  const mcpServicesQuery = `
+    SELECT 
+      mas.agent_id,
+      ms.id as service_id,
+      ms.name as service_name,
+      ms.description as service_description,
+      ms.endpoint_url,
+      ms.is_active as service_is_active,
+      GROUP_CONCAT(
+        JSON_OBJECT(
+          'id', mt.id,
+          'name', mt.name,
+          'description', mt.description,
+          'input_schema', mt.input_schema,
+          'is_enabled', mt.is_enabled
+        )
+      ) as tools
+    FROM mcp_agent_services mas
+    JOIN mcp_services ms ON mas.mcp_service_id = ms.id
+    LEFT JOIN mcp_tools mt ON ms.id = mt.mcp_service_id AND mt.is_enabled = 1
+    WHERE mas.agent_id IN (${agentIds.map(() => "?").join(",")}) 
+      AND mas.is_active = 1 
+      AND ms.is_deleted = 0
+    GROUP BY mas.agent_id, ms.id
+    ORDER BY mas.agent_id, ms.name
+  `;
+
+  const mcpResult = await query(mcpServicesQuery, agentIds);
+  const mcpServices = mcpResult.rows || [];
+
+  // 按智能體ID分組MCP服務
+  const mcpServicesByAgent = {};
+  mcpServices.forEach((service) => {
+    if (!mcpServicesByAgent[service.agent_id]) {
+      mcpServicesByAgent[service.agent_id] = [];
+    }
+
+    // 解析工具信息
+    let tools = [];
+    if (service.tools) {
+      try {
+        // 處理GROUP_CONCAT的結果
+        const toolsStr = service.tools.replace(/^\[|\]$/g, ""); // 移除首尾的[]
+        if (toolsStr) {
+          tools = toolsStr.split("},{").map((toolStr, index, arr) => {
+            // 重新添加大括號
+            if (index === 0 && arr.length > 1) toolStr += "}";
+            else if (index === arr.length - 1 && arr.length > 1)
+              toolStr = "{" + toolStr;
+            else if (arr.length > 1) toolStr = "{" + toolStr + "}";
+
+            return JSON.parse(toolStr);
+          });
+        }
+      } catch (error) {
+        logger.warn(`解析智能體 ${service.agent_id} 的工具信息失敗:`, error);
+        tools = [];
+      }
+    }
+
+    mcpServicesByAgent[service.agent_id].push({
+      id: service.service_id,
+      name: service.service_name,
+      description: service.service_description,
+      endpoint_url: service.endpoint_url,
+      is_active: Boolean(service.service_is_active),
+      tools: tools,
+    });
+  });
+
+  // 為每個智能體填充MCP服務信息
+  return agents.map((agent) => {
+    const agentMcpServices = mcpServicesByAgent[agent.id] || [];
+
+    // 解析現有的tools字段
+    let tools = {};
+    if (agent.tools) {
+      try {
+        tools =
+          typeof agent.tools === "string"
+            ? JSON.parse(agent.tools)
+            : agent.tools;
+      } catch (error) {
+        logger.warn(`解析智能體 ${agent.id} 的tools字段失敗:`, error);
+        tools = {};
+      }
+    }
+
+    // 添加MCP服務到tools字段
+    tools.mcp_services = agentMcpServices;
+
+    return {
+      ...agent,
+      tools: tools,
+    };
+  });
+};
+
+/**
+ * 處理智能體MCP服務的更新
+ * @param {number} agentId - 智能體ID
+ * @param {Object} tools - 工具配置對象
+ * @param {number} userId - 操作用戶ID
+ */
+const handleAgentMcpServicesUpdate = async (agentId, tools, userId) => {
+  if (!tools || !tools.mcp_services) {
+    // 如果沒有MCP服務配置，清空所有關聯
+    await query("DELETE FROM mcp_agent_services WHERE agent_id = ?", [agentId]);
+    return;
+  }
+
+  const mcpServices = tools.mcp_services;
+  const serviceIds = mcpServices
+    .map((service) => service.id)
+    .filter((id) => id);
+
+  if (serviceIds.length === 0) {
+    // 如果服務ID列表為空，清空所有關聯
+    await query("DELETE FROM mcp_agent_services WHERE agent_id = ?", [agentId]);
+    return;
+  }
+
+  // 驗證服務是否存在
+  const { rows: servicesCheck } = await query(
+    `SELECT id FROM mcp_services WHERE id IN (${serviceIds.map(() => "?").join(",")}) AND is_deleted = 0`,
+    serviceIds
+  );
+
+  if (servicesCheck.length !== serviceIds.length) {
+    throw new ValidationError("部分MCP服務不存在或已被刪除");
+  }
+
+  // 獲取現有關聯
+  const { rows: existingServices } = await query(
+    "SELECT mcp_service_id FROM mcp_agent_services WHERE agent_id = ?",
+    [agentId]
+  );
+
+  const existingServiceIds = existingServices.map(
+    (item) => item.mcp_service_id
+  );
+
+  // 計算需要添加和移除的服務
+  const toAdd = serviceIds.filter((id) => !existingServiceIds.includes(id));
+  const toRemove = existingServiceIds.filter((id) => !serviceIds.includes(id));
+
+  // 添加新關聯
+  for (const serviceId of toAdd) {
+    await query(
+      "INSERT INTO mcp_agent_services (agent_id, mcp_service_id, is_active) VALUES (?, ?, 1)",
+      [agentId, serviceId]
+    );
+  }
+
+  // 移除舊關聯
+  if (toRemove.length > 0) {
+    await query(
+      `DELETE FROM mcp_agent_services WHERE agent_id = ? AND mcp_service_id IN (${toRemove.map(() => "?").join(",")})`,
+      [agentId, ...toRemove]
+    );
+  }
+
+  logger.info(`智能體 ${agentId} MCP服務更新完成`, {
+    user_id: userId,
+    added: toAdd.length,
+    removed: toRemove.length,
+    total: serviceIds.length,
+  });
+};
+
+/**
+ * 清理tools字段中的MCP服務信息（保存前）
+ * @param {Object} tools - 工具配置對象
+ * @returns {Object} 清理後的工具配置
+ */
+const cleanToolsForStorage = (tools) => {
+  if (!tools) return tools;
+
+  const cleanedTools = { ...tools };
+  // 移除mcp_services，因為這些信息存儲在關聯表中
+  delete cleanedTools.mcp_services;
+
+  return cleanedTools;
+};
+
 // 輸入驗證模式
 const schemas = {
   createAgent: Joi.object({
@@ -231,8 +428,11 @@ export const handleGetAgents = catchAsync(async (req, res) => {
     is_public: Boolean(agent.is_public),
   }));
 
+  // 填充MCP服務信息
+  const agentsWithMcpServices = await populateAgentMcpServices(processedAgents);
+
   const responseData = {
-    data: processedAgents,
+    data: agentsWithMcpServices,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -272,15 +472,16 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
   } = value;
 
   // 檢查智能體名稱是否已存在
-  const existingAgent = await query("SELECT id FROM agents WHERE name = ?", [
-    name,
-  ]);
+  const { rows: existingAgent } = await query(
+    "SELECT id FROM agents WHERE name = ?",
+    [name]
+  );
   if (existingAgent.length > 0) {
     throw new BusinessError("智能體名稱已存在", 409);
   }
 
   // 檢查模型是否存在
-  const modelExists = await query(
+  const { rows: modelExists } = await query(
     "SELECT id FROM ai_models WHERE id = ? AND is_active = 1",
     [model_id]
   );
@@ -289,6 +490,9 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
   }
 
   try {
+    // 清理tools字段，移除MCP服務信息（這些將存儲在關聯表中）
+    const cleanedTools = cleanToolsForStorage(tools);
+
     // 創建智能體
     const insertQuery = `
       INSERT INTO agents (
@@ -308,14 +512,19 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
       category,
       tags ? JSON.stringify(tags) : null,
       capabilities ? JSON.stringify(capabilities) : null,
-      tools ? JSON.stringify(tools) : null,
+      cleanedTools ? JSON.stringify(cleanedTools) : null,
       is_active ? 1 : 0,
       is_public ? 1 : 0,
       req.user.id,
     ];
 
-    const result = await query(insertQuery, agentData);
+    const { rows: result } = await query(insertQuery, agentData);
     const agentId = result.insertId;
+
+    // 處理MCP服務關聯
+    if (tools) {
+      await handleAgentMcpServicesUpdate(agentId, tools, req.user.id);
+    }
 
     // 獲取創建的智能體詳情
     const newAgentQuery = `
@@ -328,9 +537,24 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
       WHERE a.id = ?
     `;
 
-    const {
-      rows: [newAgent],
-    } = await query(newAgentQuery, [agentId]);
+    const { rows } = await query(newAgentQuery, [agentId]);
+    let newAgent = rows[0];
+
+    // 處理JSON字段並填充MCP服務信息
+    newAgent = {
+      ...newAgent,
+      tags: newAgent.tags ? JSON.parse(newAgent.tags) : [],
+      capabilities: newAgent.capabilities
+        ? JSON.parse(newAgent.capabilities)
+        : {},
+      tools: newAgent.tools ? JSON.parse(newAgent.tools) : {},
+      is_active: Boolean(newAgent.is_active),
+      is_public: Boolean(newAgent.is_public),
+    };
+
+    // 填充MCP服務信息
+    const [agentWithMcpServices] = await populateAgentMcpServices([newAgent]);
+    newAgent = agentWithMcpServices;
 
     // 記錄審計日誌
     await query(
@@ -344,14 +568,24 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
       ]
     );
 
+    // 安全的 JSON 解析函數
+    const safeJsonParse = (str, fallback = null) => {
+      if (!str) return fallback;
+      if (typeof str === "object") return str; // 已經是對象
+      try {
+        return JSON.parse(str);
+      } catch (error) {
+        logger.warn(`JSON 解析失敗: ${str}`, error);
+        return fallback;
+      }
+    };
+
     // 處理響應數據
     const responseData = {
       ...newAgent,
-      tags: newAgent.tags ? JSON.parse(newAgent.tags) : [],
-      capabilities: newAgent.capabilities
-        ? JSON.parse(newAgent.capabilities)
-        : {},
-      tools: newAgent.tools ? JSON.parse(newAgent.tools) : {},
+      tags: safeJsonParse(newAgent.tags, []),
+      capabilities: safeJsonParse(newAgent.capabilities, {}),
+      tools: safeJsonParse(newAgent.tools, {}),
       is_active: Boolean(newAgent.is_active),
       is_public: Boolean(newAgent.is_public),
     };
@@ -382,16 +616,17 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
   }
 
   // 檢查智能體是否存在
-  const existingAgent = await query("SELECT * FROM agents WHERE id = ?", [
-    agentId,
-  ]);
+  const { rows: existingAgent } = await query(
+    "SELECT * FROM agents WHERE id = ?",
+    [agentId]
+  );
   if (existingAgent.length === 0) {
     throw new BusinessError("智能體不存在", 404);
   }
 
   // 檢查名稱唯一性
   if (value.name && value.name !== existingAgent[0].name) {
-    const nameExists = await query(
+    const { rows: nameExists } = await query(
       "SELECT id FROM agents WHERE name = ? AND id != ?",
       [value.name, agentId]
     );
@@ -402,7 +637,7 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
 
   // 檢查模型是否存在
   if (value.model_id) {
-    const modelExists = await query(
+    const { rows: modelExists } = await query(
       "SELECT id FROM ai_models WHERE id = ? AND is_active = 1",
       [value.model_id]
     );
@@ -412,6 +647,11 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
   }
 
   try {
+    // 處理MCP服務更新
+    if (value.tools) {
+      await handleAgentMcpServicesUpdate(agentId, value.tools, req.user.id);
+    }
+
     // 準備更新數據
     const updateFields = [];
     const updateValues = [];
@@ -419,8 +659,12 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
     Object.entries(value).forEach(([key, val]) => {
       if (val !== undefined) {
         updateFields.push(`${key} = ?`);
-        if (key === "tags" || key === "capabilities" || key === "tools") {
+        if (key === "tags" || key === "capabilities") {
           updateValues.push(val ? JSON.stringify(val) : null);
+        } else if (key === "tools") {
+          // 清理tools字段，移除MCP服務信息
+          const cleanedTools = cleanToolsForStorage(val);
+          updateValues.push(cleanedTools ? JSON.stringify(cleanedTools) : null);
         } else if (key === "is_active" || key === "is_public") {
           updateValues.push(val ? 1 : 0);
         } else {
@@ -453,9 +697,12 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
       WHERE a.id = ?
     `;
 
-    const {
-      rows: [updatedAgent],
-    } = await query(updatedAgentQuery, [agentId]);
+    const { rows } = await query(updatedAgentQuery, [agentId]);
+    let updatedAgent = rows[0];
+
+    if (!updatedAgent) {
+      throw new NotFoundError("更新後無法找到智能體");
+    }
 
     // 記錄審計日誌
     await query(
@@ -469,19 +716,34 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
       ]
     );
 
-    // 處理響應數據
-    const responseData = {
+    // 安全的 JSON 解析函數
+    const safeJsonParse = (str, fallback = null) => {
+      if (!str) return fallback;
+      if (typeof str === "object") return str; // 已經是對象
+      try {
+        return JSON.parse(str);
+      } catch (error) {
+        logger.warn(`JSON 解析失敗: ${str}`, error);
+        return fallback;
+      }
+    };
+
+    // 處理響應數據並填充MCP服務信息
+    updatedAgent = {
       ...updatedAgent,
-      tags: updatedAgent.tags ? JSON.parse(updatedAgent.tags) : [],
-      capabilities: updatedAgent.capabilities
-        ? JSON.parse(updatedAgent.capabilities)
-        : {},
-      tools: updatedAgent.tools ? JSON.parse(updatedAgent.tools) : {},
+      tags: safeJsonParse(updatedAgent.tags, []),
+      capabilities: safeJsonParse(updatedAgent.capabilities, {}),
+      tools: safeJsonParse(updatedAgent.tools, {}),
       is_active: Boolean(updatedAgent.is_active),
       is_public: Boolean(updatedAgent.is_public),
     };
 
-    res.json(createSuccessResponse(responseData, "智能體更新成功"));
+    // 填充MCP服務信息
+    const [agentWithMcpServices] = await populateAgentMcpServices([
+      updatedAgent,
+    ]);
+
+    res.json(createSuccessResponse(agentWithMcpServices, "智能體更新成功"));
   } catch (error) {
     logger.error("更新智能體失敗:", error);
     throw new BusinessError("更新智能體失敗");
@@ -501,9 +763,10 @@ export const handleDeleteAgent = catchAsync(async (req, res) => {
   }
 
   // 檢查智能體是否存在
-  const existingAgent = await query("SELECT * FROM agents WHERE id = ?", [
-    agentId,
-  ]);
+  const { rows: existingAgent } = await query(
+    "SELECT * FROM agents WHERE id = ?",
+    [agentId]
+  );
   if (existingAgent.length === 0) {
     throw new BusinessError("智能體不存在", 404);
   }
@@ -541,32 +804,54 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
   checkAdminPermission(req.user, "admin");
 
   const { agentId } = req.params;
+  const { name: customName, display_name: customDisplayName } = req.body;
 
   if (!agentId || isNaN(agentId)) {
     throw new ValidationError("智能體ID格式錯誤");
   }
 
   // 檢查智能體是否存在
-  const {
-    rows: [originalAgent],
-  } = await query("SELECT * FROM agents WHERE id = ?", [agentId]);
+  const { rows } = await query("SELECT * FROM agents WHERE id = ?", [agentId]);
+  const originalAgent = rows[0];
   if (!originalAgent) {
     throw new BusinessError("智能體不存在", 404);
   }
 
   try {
-    // 生成新的名稱
-    let copyName = `${originalAgent.name}_copy`;
-    let counter = 1;
+    // 確定新的名稱
+    let copyName;
+    let copyDisplayName;
 
-    while (true) {
-      const nameExists = await query("SELECT id FROM agents WHERE name = ?", [
-        copyName,
-      ]);
-      if (nameExists.length === 0) break;
+    if (customName) {
+      // 使用自定義名稱
+      copyName = customName.trim();
+      copyDisplayName = customDisplayName || customName.trim();
 
-      counter++;
-      copyName = `${originalAgent.name}_copy_${counter}`;
+      // 檢查名稱是否已存在
+      const { rows: nameExists } = await query(
+        "SELECT id FROM agents WHERE name = ?",
+        [copyName]
+      );
+      if (nameExists.length > 0) {
+        throw new BusinessError("智能體名稱已存在", 409);
+      }
+    } else {
+      // 自動生成名稱
+      copyName = `${originalAgent.name}_copy`;
+      copyDisplayName = `${originalAgent.display_name} (複製)`;
+      let counter = 1;
+
+      while (true) {
+        const { rows: nameExists } = await query(
+          "SELECT id FROM agents WHERE name = ?",
+          [copyName]
+        );
+        if (nameExists.length === 0) break;
+
+        counter++;
+        copyName = `${originalAgent.name}_copy_${counter}`;
+        copyDisplayName = `${originalAgent.display_name} (複製${counter})`;
+      }
     }
 
     // 複製智能體
@@ -580,7 +865,7 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
 
     const agentData = [
       copyName,
-      `${originalAgent.display_name} (複製)`,
+      copyDisplayName,
       originalAgent.description,
       originalAgent.avatar,
       originalAgent.system_prompt,
@@ -594,7 +879,7 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
       req.user.id,
     ];
 
-    const result = await query(insertQuery, agentData);
+    const { rows: result } = await query(insertQuery, agentData);
     const newAgentId = result.insertId;
 
     // 獲取複製的智能體詳情
@@ -608,9 +893,8 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
       WHERE a.id = ?
     `;
 
-    const {
-      rows: [newAgent],
-    } = await query(newAgentQuery, [newAgentId]);
+    const { rows: newAgentRows } = await query(newAgentQuery, [newAgentId]);
+    const newAgent = newAgentRows[0];
 
     // 記錄審計日誌
     await query(
@@ -628,14 +912,24 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
       ]
     );
 
+    // 安全的 JSON 解析函數
+    const safeJsonParse = (str, fallback = null) => {
+      if (!str) return fallback;
+      if (typeof str === "object") return str; // 已經是對象
+      try {
+        return JSON.parse(str);
+      } catch (error) {
+        logger.warn(`JSON 解析失敗: ${str}`, error);
+        return fallback;
+      }
+    };
+
     // 處理響應數據
     const responseData = {
       ...newAgent,
-      tags: newAgent.tags ? JSON.parse(newAgent.tags) : [],
-      capabilities: newAgent.capabilities
-        ? JSON.parse(newAgent.capabilities)
-        : {},
-      tools: newAgent.tools ? JSON.parse(newAgent.tools) : {},
+      tags: safeJsonParse(newAgent.tags, []),
+      capabilities: safeJsonParse(newAgent.capabilities, {}),
+      tools: safeJsonParse(newAgent.tools, {}),
       is_active: Boolean(newAgent.is_active),
       is_public: Boolean(newAgent.is_public),
     };

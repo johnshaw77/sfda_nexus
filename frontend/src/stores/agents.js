@@ -202,9 +202,9 @@ export const useAgentsStore = defineStore("agents", {
     },
 
     // 複製智能體（管理功能）
-    async duplicateAgent(agentId) {
+    async duplicateAgent(agentId, data = {}) {
       try {
-        const response = await agentsApi.duplicateAgent(agentId);
+        const response = await agentsApi.duplicateAgent(agentId, data);
 
         if (response.success) {
           // 將複製的智能體添加到列表

@@ -121,6 +121,17 @@ export default {
   },
 
   /**
+   * 批量更新智能體服務權限
+   * @param {number} agentId - 智能體 ID
+   * @param {Array} serviceIds - 服務 ID 列表
+   */
+  batchUpdateAgentServices(agentId, serviceIds) {
+    return request.put(`/api/mcp/agents/${agentId}/services/batch`, {
+      serviceIds,
+    });
+  },
+
+  /**
    * 刪除 MCP 服務（軟刪除）
    * @param {number} serviceId - 服務 ID
    */

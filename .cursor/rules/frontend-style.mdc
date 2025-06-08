@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+在設計頁面時，要記得先看 frontend/src/assets/styles/variables.css 的變數，並且在設計頁面時，要記得使用這些變數，以確保頁面的一致性。
+有暗色模式和亮色模式，要記得在設計頁面時，要記得使用這些變數，以確保頁面的一致性。
+
+頁面排版優先使用 ant design vue 的排版系統，並要考慮響應式設計
+
+在新增一些功能時，如果 vueuse 已有現成的就用 vueuse, 否則才自行設計

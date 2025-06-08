@@ -1,0 +1,8 @@
+---
+description: 需要用到資料庫操作或是前端頁面需要欄位定義時
+globs: 
+alwaysApply: false
+---
+不論是前端或後端，只要是有用到資料表欄位，應該都要先查 backend/database/DATABASE_SCHEMA.md
+
+以及 backend/src/model 底下的定義

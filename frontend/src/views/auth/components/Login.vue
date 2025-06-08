@@ -183,6 +183,41 @@
                     登入
                   </a-button>
                 </a-form-item>
+
+                <!-- 快速登錄測試帳號 -->
+                <div class="quick-login-section">
+                  <a-divider>
+                    <span style="color: #999; font-size: 12px"
+                      >快速測試登錄</span
+                    >
+                  </a-divider>
+                  <div class="quick-login-buttons">
+                    <a-button
+                      type="text"
+                      size="small"
+                      @click="handleQuickLogin('admin', 'admin123')"
+                      :disabled="isLoading"
+                      class="quick-login-btn">
+                      蕭傳璋(SUPER_ADMIN)
+                    </a-button>
+                    <a-button
+                      type="text"
+                      size="small"
+                      @click="handleQuickLogin('user010', 'password123')"
+                      :disabled="isLoading"
+                      class="quick-login-btn">
+                      呂鈺泓(VP)
+                    </a-button>
+                    <a-button
+                      type="text"
+                      size="small"
+                      @click="handleQuickLogin('user007', 'password123')"
+                      :disabled="isLoading"
+                      class="quick-login-btn">
+                      鄭揚(CEO)
+                    </a-button>
+                  </div>
+                </div>
               </a-form>
             </div>
           </div>
@@ -251,8 +286,8 @@ const featuresText = ref();
 
 // 表單數據
 const formData = reactive({
-  username: "admin",
-  password: "admin123",
+  username: "",
+  password: "",
   rememberMe: true,
 });
 
@@ -301,6 +336,16 @@ const handleSubmit = async (values) => {
 // 處理忘記密碼
 const handleForgotPassword = () => {
   message.info("忘記密碼功能開發中，請聯繫管理員");
+};
+
+// 處理快速登錄
+const handleQuickLogin = (username, password) => {
+  formData.username = username;
+  formData.password = password;
+  // 觸發表單提交
+  nextTick(() => {
+    formRef.value?.submit();
+  });
 };
 
 // 標題循環動畫
@@ -504,6 +549,15 @@ onMounted(() => {
   right: 0;
   bottom: 0;
   z-index: 0;
+  background-image: url("@/assets/images/bg-light.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+html.dark .auth-background,
+[data-theme="dark"] .auth-background {
+  background-image: url("@/assets/images/bg-dark.png");
 }
 
 .bg-pattern {
@@ -965,5 +1019,67 @@ html.dark .floating-shape,
   .feature-highlights {
     display: none;
   }
+}
+
+/* 快速登錄樣式 */
+.quick-login-section {
+  margin-top: 16px;
+}
+
+.quick-login-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.quick-login-btn {
+  font-size: 11px !important;
+  height: auto !important;
+  padding: 6px !important;
+  text-align: left !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 6px !important;
+  background: #fafafa !important;
+  transition: all 0.3s ease !important;
+}
+
+.quick-login-btn:hover {
+  border-color: #1890ff !important;
+  background: #f0f8ff !important;
+  color: #1890ff !important;
+}
+
+.quick-login-btn:hover .account-info {
+  color: #1890ff !important;
+}
+
+.account-info {
+  font-size: 11px;
+  color: #999;
+  font-weight: normal;
+}
+
+/* 暗黑模式快速登錄樣式 */
+:deep(.dark) .quick-login-btn,
+html.dark .quick-login-btn,
+[data-theme="dark"] .quick-login-btn {
+  border-color: #434343 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+:deep(.dark) .quick-login-btn:hover,
+html.dark .quick-login-btn:hover,
+[data-theme="dark"] .quick-login-btn:hover {
+  border-color: #1890ff !important;
+  background: rgba(24, 144, 255, 0.1) !important;
+  color: #1890ff !important;
+}
+
+:deep(.dark) .account-info,
+html.dark .account-info,
+[data-theme="dark"] .account-info {
+  color: rgba(255, 255, 255, 0.45) !important;
 }
 </style>

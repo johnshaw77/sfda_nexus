@@ -489,9 +489,7 @@
       width="600px"
       :footer="null">
       <div v-if="selectedTool">
-        <pre class="schema-display">{{
-          JSON.stringify(selectedTool.schema, null, 2)
-        }}</pre>
+        <JsonViewer :data="selectedTool.schema" />
       </div>
     </a-modal>
   </div>
@@ -500,6 +498,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { message, Modal } from "ant-design-vue";
+import JsonViewer from "@/components/common/JsonViewer.vue";
 
 import mcpApi from "@/api/mcp.js";
 
@@ -827,6 +826,7 @@ const handleDisableSingle = async (service) => {
   }
 };
 
+// 加載同步服務
 const handleLoadSyncedServices = async () => {
   loading.value = true;
   try {
@@ -847,11 +847,13 @@ const handleLoadSyncedServices = async () => {
   }
 };
 
+// 刷新同步服務
 const handleRefreshSynced = async () => {
   await handleLoadSyncedServices();
   message.success("刷新完成");
 };
 
+// 切換模式
 const handleViewModeChange = (e) => {
   viewMode.value = e.target.value;
   selectedServiceKeys.value = []; // 切換模式時清空選擇
@@ -860,16 +862,19 @@ const handleViewModeChange = (e) => {
   }
 };
 
+// 查看工具
 const handleViewTools = (service) => {
   selectedService.value = service;
   toolsModalVisible.value = true;
 };
 
+// 查看 Schema
 const handleViewSchema = (tool) => {
   selectedTool.value = tool;
   schemaModalVisible.value = true;
 };
 
+// 切換工具
 const handleToolToggle = async (tool, enabled) => {
   try {
     const response = await mcpApi.toggleTool(tool.id, enabled);
@@ -887,6 +892,7 @@ const handleToolToggle = async (tool, enabled) => {
   }
 };
 
+// 快速切換工具
 const handleQuickToolToggle = async (record, tool) => {
   try {
     // 如果工具是字符串，說明是簡化顯示，需要從完整工具列表中找到對應的工具對象
@@ -927,6 +933,7 @@ const handleQuickToolToggle = async (record, tool) => {
   }
 };
 
+// 批量啟用工具
 const handleEnableAllTools = async () => {
   if (!selectedService.value || !selectedService.value.tools) return;
 
@@ -949,6 +956,7 @@ const handleEnableAllTools = async () => {
   }
 };
 
+// 批量停用工具
 const handleDisableAllTools = async () => {
   if (!selectedService.value || !selectedService.value.tools) return;
 
@@ -971,6 +979,7 @@ const handleDisableAllTools = async () => {
   }
 };
 
+// 刪除服務
 const handleDeleteService = async (service, permanent = false) => {
   const action = permanent ? "永久刪除" : "軟刪除";
   Modal.confirm({
@@ -997,6 +1006,7 @@ const handleDeleteService = async (service, permanent = false) => {
   });
 };
 
+// 批量刪除服務
 const handleBatchDelete = async (permanent = false) => {
   if (selectedServiceKeys.value.length === 0) {
     message.warning("請選擇要刪除的服務");
@@ -1064,9 +1074,6 @@ onMounted(() => {
 
 <style scoped>
 /* 調試信息 - 確保頁面有足夠高度 */
-.admin-page {
-  padding: 24px;
-}
 
 /* 確保內容區域有足夠高度 */
 .services-section {
@@ -1118,16 +1125,6 @@ onMounted(() => {
   font-size: 12px;
   color: #666;
   margin-top: 4px;
-}
-
-.schema-display {
-  background: var(--custom-bg-tertiary);
-  padding: 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  max-height: 400px;
-  overflow-y: auto;
-  border: 1px solid var(--custom-border-secondary);
 }
 
 /* 工具標籤樣式 */

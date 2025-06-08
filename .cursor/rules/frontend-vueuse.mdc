@@ -1,0 +1,6 @@
+---
+description: 
+globs: frontend/src/**
+alwaysApply: false
+---
+優先使用 vueuse, 沒有才自己做
