@@ -80,6 +80,7 @@
         :data-source="filteredModels"
         :loading="loading"
         :pagination="pagination"
+        :scroll="{ x: isSmallScreen ? 600 : 'max-content' }"
         row-key="id"
         @change="handleTableChange">
         <!-- 提供商列 -->
@@ -134,7 +135,7 @@
 
         <!-- 操作列 -->
         <template #action="{ record }">
-          <a-space>
+          <a-space v-if="!isSmallScreen">
             <a-button
               type="text"
               size="small"
@@ -161,6 +162,36 @@
               </a-button>
             </a-popconfirm>
           </a-space>
+
+          <!-- 小螢幕下使用下拉菜單替代操作按鈕 -->
+          <a-dropdown v-else>
+            <a-button
+              size="small"
+              type="link">
+              <MoreOutlined style="font-size: 18px" />
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item @click="handleEdit(record)">
+                  <EditOutlined /> 編輯
+                </a-menu-item>
+                <a-menu-item @click="handleTest(record)">
+                  <PlayCircleOutlined /> 測試
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item
+                  danger
+                  @click="
+                    () => {
+                      const confirm = window.confirm('確定要刪除這個模型嗎？');
+                      if (confirm) handleDelete(record);
+                    }
+                  ">
+                  <DeleteOutlined /> 刪除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
         </template>
       </a-table>
     </a-card>
@@ -441,6 +472,14 @@ import {
   MODEL_BOOL_FIELDS,
 } from "@/utils/dataConverter";
 import JsonHighlight from "@/components/common/JsonHighlight.vue";
+import {
+  EyeOutlined,
+  EditOutlined,
+  PlayCircleOutlined,
+  DeleteOutlined,
+  MoreOutlined,
+  PlusOutlined,
+} from "@ant-design/icons-vue";
 
 // 響應式數據
 const loading = ref(false);
@@ -452,75 +491,110 @@ const configModalVisible = ref(false);
 const selectedConfig = ref("");
 const formRef = ref();
 
+// 響應式斷點
+const isSmallScreen = ref(false);
+const isMediumScreen = ref(false);
+
+// 監聽螢幕大小變化
+const updateScreenSize = () => {
+  isSmallScreen.value = window.innerWidth < 768;
+  isMediumScreen.value = window.innerWidth >= 768 && window.innerWidth < 992;
+};
+
 // 表格配置
-const columns = [
-  {
-    title: "模型名稱",
-    dataIndex: "model_name",
-    key: "model_name",
-    sorter: true,
-  },
-  {
-    title: "提供商",
-    dataIndex: "provider",
-    key: "provider",
-    slots: { customRender: "provider" },
-  },
-  {
-    title: "模型ID",
-    dataIndex: "model_id",
-    key: "model_id",
-  },
-  {
-    title: "啟動",
-    dataIndex: "is_active",
-    key: "is_active",
-    slots: { customRender: "status" },
-  },
-  {
-    title: "預設",
-    dataIndex: "is_default",
-    key: "is_default",
-    slots: { customRender: "default" },
-  },
-  {
-    title: "多模態",
-    dataIndex: "is_multimodal",
-    key: "is_multimodal",
-    slots: { customRender: "multimodal" },
-  },
-  {
-    title: "最大 Tokens",
-    dataIndex: "max_tokens",
-    key: "max_tokens",
-    align: "right",
-    sorter: true,
-    slots: { customRender: "max_tokens" },
-  },
-  {
-    title: "溫度",
-    dataIndex: "temperature",
-    key: "temperature",
-    align: "right",
-    sorter: true,
-  },
-  {
-    title: "配置",
-    key: "config",
-    slots: { customRender: "config" },
-  },
-  {
-    title: "創建時間",
-    dataIndex: "created_at",
-    key: "created_at",
-    sorter: true,
-  },
-  {
-    title: "操作",
-    key: "action",
-    slots: { customRender: "action" },
-  },
-];
+const columns = computed(() => {
+  // 基本列配置
+  const baseColumns = [
+    {
+      title: "模型名稱",
+      dataIndex: "model_name",
+      key: "model_name",
+      sorter: true,
+      width: 150,
+      fixed: isSmallScreen.value ? "left" : undefined,
+    },
+    {
+      title: "提供商",
+      dataIndex: "provider",
+      key: "provider",
+      slots: { customRender: "provider" },
+      width: 100,
+    },
+    {
+      title: "模型ID",
+      dataIndex: "model_id",
+      key: "model_id",
+      width: 120,
+      responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
+    },
+    {
+      title: "啟動",
+      dataIndex: "is_active",
+      key: "is_active",
+      slots: { customRender: "status" },
+      width: 80,
+    },
+    {
+      title: "預設",
+      dataIndex: "is_default",
+      key: "is_default",
+      slots: { customRender: "default" },
+      width: 80,
+      responsive: ["sm", "md", "lg", "xl"], // 在超小螢幕上隱藏
+    },
+    {
+      title: "多模態",
+      dataIndex: "is_multimodal",
+      key: "is_multimodal",
+      slots: { customRender: "multimodal" },
+      width: 80,
+      responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
+    },
+    {
+      title: "最大 Tokens",
+      dataIndex: "max_tokens",
+      key: "max_tokens",
+      align: "right",
+      sorter: true,
+      slots: { customRender: "max_tokens" },
+      width: 120,
+      responsive: ["lg", "xl"], // 僅在大螢幕上顯示
+    },
+    {
+      title: "溫度",
+      dataIndex: "temperature",
+      key: "temperature",
+      align: "right",
+      sorter: true,
+      width: 80,
+      responsive: ["lg", "xl"], // 僅在大螢幕上顯示
+    },
+    {
+      title: "配置",
+      key: "config",
+      slots: { customRender: "config" },
+      width: 70,
+      responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
+    },
+    {
+      title: "創建時間",
+      dataIndex: "created_at",
+      key: "created_at",
+      sorter: true,
+      width: 150,
+      responsive: ["lg", "xl"], // 僅在大螢幕上顯示
+    },
+    {
+      title: "操作",
+      key: "action",
+      slots: { customRender: "action" },
+      width: isSmallScreen.value ? 80 : 180,
+      fixed: "right",
+    },
+  ];
+
+  return baseColumns;
+});
 
 // 分頁配置
 const pagination = reactive({
@@ -591,6 +665,8 @@ const filteredModels = computed(() => {
 // 初始化時載入數據
 onMounted(() => {
   handleLoadModels();
+  updateScreenSize();
+  window.addEventListener("resize", updateScreenSize);
 });
 
 // 載入模型數據

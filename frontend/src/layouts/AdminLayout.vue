@@ -15,7 +15,7 @@
           </a-button>
 
           <div class="admin-logo">
-            <Logo />
+            <Logo :size="42" />
             <span
               v-show="showLogoText"
               class="logo-text"
@@ -275,7 +275,6 @@
         <div class="content-header">
           <a-breadcrumb class="breadcrumb">
             <a-breadcrumb-item>
-              <Home :size="16" />
               <span>管理員</span>
             </a-breadcrumb-item>
             <a-breadcrumb-item>{{ currentPageTitle }}</a-breadcrumb-item>
@@ -473,7 +472,6 @@ import {
   LogOut,
   User,
   Settings,
-  Home,
 } from "lucide-vue-next";
 
 // 響應式斷點

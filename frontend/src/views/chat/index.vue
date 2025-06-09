@@ -5,15 +5,44 @@
       <!-- 左側對話列表側邊欄 -->
       <a-layout-sider
         v-model:collapsed="sidebarCollapsed"
-        :collapsed-width="0"
+        :collapsed-width="60"
         :width="300"
         :trigger="null"
         :breakpoint="breakpoint"
+        :class="{
+          'conversation-sider': true,
+          'mobile-hidden': isMobile && !sidebarVisible,
+          'sider-collapsed': sidebarCollapsed,
+        }"
         @breakpoint="handleBreakpointChange"
-        @collapse="handleSidebarCollapse"
-        class="conversation-sider"
-        :class="{ 'mobile-hidden': isMobile && !sidebarVisible }">
-        <ConversationList @conversation-selected="handleConversationSelected" />
+        @collapse="handleSidebarCollapse">
+        <ConversationList
+          @conversation-selected="handleConversationSelected"
+          @toggle-collapse="handleToggleCollapse"
+          :expanding="isExpanding"
+          :is-mobile="isMobile"
+          :parentCollapsed="sidebarCollapsed" />
+
+        <!-- 側邊欄摺疊時的展開按鈕 (桌面端) -->
+        <div
+          v-if="!isMobile && sidebarCollapsed"
+          class="collapsed-sidebar-content">
+          <!-- <div class="collapsed-sidebar-logo">
+            <MessageCircleMore :size="24" />
+          </div>
+          <div class="collapsed-sidebar-text">聊天</div>
+          <div class="collapsed-sidebar-divider"></div> -->
+          <a-tooltip
+            title="展開對話面板"
+            placement="right">
+            <a-button
+              type="text"
+              @click="handleExpandSidebar"
+              class="collapsed-expand-btn">
+              <PanelLeftOpen :size="20" />
+            </a-button>
+          </a-tooltip>
+        </div>
       </a-layout-sider>
 
       <!-- 主要聊天內容區域 -->
@@ -23,12 +52,17 @@
           v-if="isMobile"
           class="chat-mobile-header">
           <div class="mobile-header-left">
-            <a-button
-              type="text"
-              @click="toggleSidebar"
-              class="mobile-menu-btn">
-              <MenuOutlined />
-            </a-button>
+            <a-tooltip
+              title="展開對話面板"
+              placement="bottom"
+              :arrow="false">
+              <a-button
+                type="text"
+                @click="toggleSidebar"
+                class="mobile-menu-btn">
+                <PanelLeftOpen :size="18" />
+              </a-button>
+            </a-tooltip>
             <span class="current-conversation-title">
               {{ currentConversationTitle }}
             </span>
@@ -73,7 +107,7 @@ import { Grid } from "ant-design-vue";
 import ChatArea from "./components/ChatArea.vue";
 import WelcomeScreen from "./components/WelcomeScreen.vue";
 import ConversationList from "./components/ConversationList.vue";
-import { MenuOutlined, PlusOutlined } from "@ant-design/icons-vue";
+import { PanelLeftOpen, MessageCircleMore } from "lucide-vue-next";
 
 // Props
 const props = defineProps({
@@ -91,6 +125,7 @@ const screens = useBreakpoint();
 const sidebarCollapsed = ref(false);
 const sidebarVisible = ref(false);
 const breakpoint = ref("lg");
+const isExpanding = ref(false);
 
 // 計算屬性
 const isMobile = computed(() => !screens.value.md);
@@ -110,7 +145,10 @@ const selectedAgent = computed(() => {
 
 // 當前對話標題
 const currentConversationTitle = computed(() => {
-  return chatStore.currentConversation?.title || "新對話";
+  return (
+    chatStore.currentConversation?.title ||
+    "新對話(未實做，這應該要顯示當前對話的標題)"
+  );
 });
 
 // 響應式控制方法
@@ -147,6 +185,22 @@ const handleConversationSelected = (conversation) => {
 
 const handleNewConversation = () => {
   chatStore.createNewConversation();
+};
+
+// 處理來自 ConversationList 的摺疊事件
+const handleToggleCollapse = (collapsed) => {
+  sidebarCollapsed.value = collapsed;
+};
+
+// 展開側邊欄
+const handleExpandSidebar = () => {
+  isExpanding.value = true;
+  sidebarCollapsed.value = false;
+
+  // 重置展開動畫狀態
+  setTimeout(() => {
+    isExpanding.value = false;
+  }, 300);
 };
 
 // 監聽響應式變化
@@ -251,7 +305,7 @@ onUnmounted(() => {
 
 <style scoped>
 .chat-page {
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -263,12 +317,81 @@ onUnmounted(() => {
 .conversation-sider {
   background: var(--custom-bg-primary);
   border-right: 1px solid var(--custom-border-primary);
-  z-index: 100;
+  z-index: 40;
   transition: all 0.3s ease;
 }
 
 .conversation-sider.mobile-hidden {
   transform: translateX(-100%);
+}
+
+.conversation-sider.sider-collapsed {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-right: 1px solid var(--custom-border-primary);
+}
+
+/* 摺疊狀態的側邊欄內容 */
+.collapsed-sidebar-content {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--custom-bg-primary);
+}
+
+.collapsed-expand-btn {
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 8px;
+  color: var(--custom-text-primary);
+  transition: all 0.2s ease;
+}
+
+.collapsed-expand-btn:hover {
+  background: var(--custom-bg-tertiary);
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.collapsed-sidebar-logo {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+}
+
+.collapsed-sidebar-divider {
+  width: 30px;
+  height: 1px;
+  background: var(--custom-border-primary);
+  margin: 16px 0;
+}
+
+.collapsed-sidebar-text {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  letter-spacing: 2px;
+  font-size: 12px;
+  color: var(--custom-text-secondary);
+  margin: 10px 0;
+  user-select: none;
 }
 
 /* 主聊天布局 */
@@ -298,8 +421,9 @@ onUnmounted(() => {
 
 .mobile-menu-btn,
 .mobile-new-btn {
-  width: 40px;
-  height: 40px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -356,7 +480,7 @@ onUnmounted(() => {
     top: 0;
     left: 0;
     bottom: 0;
-    z-index: 100;
+    z-index: 101;
     width: 280px !important;
     max-width: 280px !important;
     min-width: 280px !important;

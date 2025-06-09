@@ -1,7 +1,7 @@
 <template>
   <div class="conversation-list">
     <!-- 新建對話按鈕 -->
-    <div class="conversation-header">
+    <!-- <div class="conversation-header">
       <a-button
         type="primary"
         block
@@ -10,22 +10,45 @@
         <PlusOutlined />
         新建對話
       </a-button>
-    </div>
+    </div> -->
 
     <!-- 搜索框 -->
-    <div class="conversation-search">
+    <div
+      class="conversation-search"
+      :class="{
+        'fading-out': isFadingOut,
+        'fading-in': props.expanding,
+        hidden: props.parentCollapsed,
+      }">
       <a-input
         v-model:value="searchKeyword"
-        placeholder="搜索對話..."
-        @input="handleSearch">
+        placeholder="搜尋對話..."
+        @input="handleSearch"
+        class="search-input">
         <template #prefix>
           <SearchOutlined />
         </template>
       </a-input>
+      <a-tooltip
+        v-if="!props.isMobile"
+        title="摺疊對話面板"
+        placement="right">
+        <a-button
+          type="text"
+          class="collapse-btn"
+          @click="handleToggleCollapse">
+          <PanelLeftClose :size="18" />
+        </a-button>
+      </a-tooltip>
     </div>
 
     <!-- 對話列表 -->
-    <div class="conversation-items">
+    <div
+      class="conversation-items"
+      :class="{
+        'fading-out': isFadingOut,
+        'fading-in': props.expanding,
+      }">
       <a-spin :spinning="loading">
         <div
           v-if="filteredConversations.length === 0"
@@ -50,14 +73,15 @@
               <PushpinOutlined
                 v-if="conversation.is_pinned"
                 class="pin-icon" />
+              <MessageCircleMore :size="16" />
               {{ conversation.title || "新對話" }}
             </div>
-            <div class="conversation-preview">
-              {{ getLastMessagePreview(conversation) }}
-            </div>
+            <!-- <div class="conversation-preview">
+              {{ getLastMessagePreview(conversation) }} whatthis
+            </div> -->
             <div class="conversation-meta">
               <span class="conversation-time">
-                {{ formatTime(conversation.updated_at) }}
+                {{ formatChatTime(conversation.updated_at) }}
               </span>
               <span
                 v-if="conversation.unread_count > 0"
@@ -128,6 +152,25 @@ import { message, Empty } from "ant-design-vue";
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
 import { formatChatTime } from "@/utils/datetimeFormat";
+import { PanelLeftClose, MessageCircleMore } from "lucide-vue-next";
+// Define emits
+const emit = defineEmits(["toggle-collapse"]);
+
+// Define props
+const props = defineProps({
+  expanding: {
+    type: Boolean,
+    default: false,
+  },
+  isMobile: {
+    type: Boolean,
+    default: false,
+  },
+  parentCollapsed: {
+    type: Boolean,
+    default: false,
+  },
+});
 
 // Store
 const chatStore = useChatStore();
@@ -140,6 +183,7 @@ const searchKeyword = ref("");
 const renameModalVisible = ref(false);
 const newConversationTitle = ref("");
 const currentRenameConversation = ref(null);
+const isFadingOut = ref(false);
 
 // 計算屬性
 const filteredConversations = computed(() => {
@@ -159,6 +203,19 @@ const filteredConversations = computed(() => {
 });
 
 // 方法
+const handleToggleCollapse = () => {
+  // 開始淡出動畫
+  isFadingOut.value = true;
+
+  // 等待淡出動畫完成後再摺疊側邊欄
+  setTimeout(() => {
+    // 通知父組件摺疊側邊欄
+    emit("toggle-collapse", true);
+    // 重置淡出狀態
+    isFadingOut.value = false;
+  }, 150); // 縮短為 150ms 的淡出時間
+};
+
 const handleCreateConversation = async () => {
   try {
     creating.value = true;
@@ -249,6 +306,7 @@ const handleDeleteConversation = async (conversation) => {
   }
 };
 
+//TODO: 這是for what ??
 const getLastMessagePreview = (conversation) => {
   if (!conversation.last_message) {
     return "暫無消息";
@@ -257,8 +315,6 @@ const getLastMessagePreview = (conversation) => {
   const content = conversation.last_message.content;
   return content.length > 50 ? content.substring(0, 50) + "..." : content;
 };
-
-const formatTime = formatChatTime;
 
 // 生命週期
 onMounted(async () => {
@@ -279,22 +335,122 @@ onMounted(async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--custom-bg-primary);
 }
 
 .conversation-header {
-  padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 2px;
+  border-bottom: 1px solid var(--custom-border-primary);
+  display: flex;
+  justify-content: space-between;
 }
 
 .conversation-search {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--custom-border-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition:
+    opacity 0.15s ease-out,
+    visibility 0.15s ease-out;
+}
+
+.conversation-search.fading-out {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none;
+}
+
+.conversation-search.hidden {
+  display: none !important;
+}
+
+.conversation-search.fading-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.collapse-btn {
+  flex-shrink: 0;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 4px !important;
+  border-radius: 4px;
+  color: var(--custom-text-secondary);
+  transition: all 0.2s;
+}
+
+.collapse-btn:hover {
+  background: var(--custom-bg-tertiary);
+  color: var(--custom-text-primary);
+  border-radius: 6px;
+  /* transform: scale(1.05); */
+}
+
+.collapse-btn:active {
+  transform: scale(0.95);
+}
+
+.search-input {
+  flex: 1;
 }
 
 .conversation-items {
   flex: 1;
   overflow-y: auto;
+  transition:
+    opacity 0.15s ease-out,
+    visibility 0.15s ease-out,
+    transform 0.15s ease-out;
+  transform-origin: center top;
+}
+
+.conversation-items.fading-out {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: scale(0.95) translateX(-30px);
+  pointer-events: none;
+}
+
+/* 確保所有文字內容在淡出時都不可見 */
+.conversation-items.fading-out * {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.conversation-search.fading-out * {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* 保護摺疊按鈕在動畫期間依然可見 */
+.conversation-search.fading-out .collapse-btn {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.conversation-items.fading-in {
+  animation: fadeInSlideDown 0.3s ease-out forwards;
+}
+
+@keyframes fadeInSlideDown {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .empty-state {
@@ -303,8 +459,8 @@ onMounted(async () => {
 }
 
 .conversation-item {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 16px 8px 6px 20px;
+  border-bottom: 1px solid var(--custom-border-primary);
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -314,7 +470,7 @@ onMounted(async () => {
 }
 
 .conversation-item:hover {
-  background: #f8f9fa;
+  background: var(--custom-bg-tertiary);
 }
 
 .conversation-item.active {
@@ -365,6 +521,8 @@ onMounted(async () => {
 .conversation-time {
   color: #999;
   font-size: 11px;
+  padding-top: 6px;
+  padding-left: 20px;
 }
 
 .unread-count {

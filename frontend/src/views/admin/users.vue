@@ -80,6 +80,7 @@
         :data-source="filteredUsers"
         :loading="loading"
         :pagination="pagination"
+        :scroll="{ x: isSmallScreen ? 500 : 'max-content' }"
         row-key="id"
         @change="handleTableChange">
         <!-- 頭像列 -->
@@ -108,7 +109,7 @@
 
         <!-- 操作列 -->
         <template #action="{ record }">
-          <a-space>
+          <a-space v-if="!isSmallScreen">
             <a-button
               type="text"
               size="small"
@@ -135,6 +136,36 @@
               </a-button>
             </a-popconfirm>
           </a-space>
+
+          <!-- 小螢幕下使用下拉菜單替代操作按鈕 -->
+          <a-dropdown v-else>
+            <a-button
+              size="small"
+              type="link">
+              <MoreOutlined style="font-size: 18px" />
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item @click="handleEdit(record)">
+                  <EditOutlined /> 編輯
+                </a-menu-item>
+                <a-menu-item @click="handleResetPassword(record)">
+                  <KeyOutlined /> 重置密碼
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item
+                  danger
+                  @click="
+                    () => {
+                      const confirm = window.confirm('確定要刪除這個用戶嗎？');
+                      if (confirm) handleDelete(record);
+                    }
+                  ">
+                  <DeleteOutlined /> 刪除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
         </template>
       </a-table>
     </a-card>
@@ -232,6 +263,13 @@ import {
   resetUserPassword,
 } from "@/api/users.js";
 import { convertUserBoolFields } from "@/utils/dataConverter";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  KeyOutlined,
+  MoreOutlined,
+  PlusOutlined,
+} from "@ant-design/icons-vue";
 
 // 響應式數據
 const loading = ref(false);
@@ -241,48 +279,81 @@ const filterStatus = ref(undefined);
 const modalVisible = ref(false);
 const formRef = ref();
 
+// 響應式斷點
+const isSmallScreen = ref(false);
+const isMediumScreen = ref(false);
+
+// 監聽螢幕大小變化
+const updateScreenSize = () => {
+  isSmallScreen.value = window.innerWidth < 768;
+  isMediumScreen.value = window.innerWidth >= 768 && window.innerWidth < 992;
+};
+
+// 監聽視窗大小變化
+onMounted(() => {
+  updateScreenSize();
+  window.addEventListener("resize", updateScreenSize);
+});
+
 // 表格配置
-const columns = [
-  {
-    title: "頭像",
-    key: "avatar",
-    slots: { customRender: "avatar" },
-  },
-  {
-    title: "用戶名",
-    dataIndex: "username",
-    key: "username",
-    sorter: true,
-  },
-  {
-    title: "郵箱",
-    dataIndex: "email",
-    key: "email",
-  },
-  {
-    title: "角色",
-    dataIndex: "role",
-    key: "role",
-    slots: { customRender: "role" },
-  },
-  {
-    title: "狀態",
-    dataIndex: "is_active",
-    key: "is_active",
-    slots: { customRender: "status" },
-  },
-  {
-    title: "最後登入",
-    dataIndex: "last_login",
-    key: "last_login",
-    sorter: true,
-  },
-  {
-    title: "操作",
-    key: "action",
-    slots: { customRender: "action" },
-  },
-];
+const columns = computed(() => {
+  // 基本列配置
+  const baseColumns = [
+    {
+      title: "頭像",
+      key: "avatar",
+      slots: { customRender: "avatar" },
+      width: 80,
+      responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
+    },
+    {
+      title: "用戶名",
+      dataIndex: "username",
+      key: "username",
+      sorter: true,
+      width: 120,
+      fixed: isSmallScreen.value ? "left" : undefined,
+    },
+    {
+      title: "郵箱",
+      dataIndex: "email",
+      key: "email",
+      width: 200,
+      responsive: ["sm", "md", "lg", "xl"], // 在小螢幕上隱藏
+    },
+    {
+      title: "角色",
+      dataIndex: "role",
+      key: "role",
+      slots: { customRender: "role" },
+      width: 100,
+    },
+    {
+      title: "狀態",
+      dataIndex: "is_active",
+      key: "is_active",
+      slots: { customRender: "status" },
+      width: 100,
+    },
+    {
+      title: "最後登入",
+      dataIndex: "last_login",
+      key: "last_login",
+      sorter: true,
+      width: 150,
+      responsive: ["lg", "xl"], // 僅在大螢幕上顯示
+    },
+    {
+      title: "操作",
+      key: "action",
+      slots: { customRender: "action" },
+      width: isSmallScreen.value ? 100 : 200,
+      fixed: "right",
+    },
+  ];
+
+  return baseColumns;
+});
 
 // 分頁配置
 const pagination = reactive({

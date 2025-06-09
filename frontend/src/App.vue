@@ -70,17 +70,20 @@ watchEffect(() => {
 </script>
 
 <style>
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 #app {
-  min-height: 100vh;
+  height: 100vh;
   background: var(--custom-bg-primary);
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  margin: 0;
-  padding: 0;
 }
 
 /* 暗黑模式下的全局背景顏色設定 */

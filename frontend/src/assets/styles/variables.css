@@ -75,10 +75,10 @@
   --header-height: 60px;
 
   /* Z-index 層級 */
-  --z-sidebar: 100;
-  --z-agents-sidebar: 90;
+  /* --z-sidebar: 101;
+  --z-agents-sidebar: 102;
   --z-overlay: 80;
-  --z-notification: 1010;
+  --z-notification: 1010; */
 
   /* 動畫變量 */
   --transition-sidebar: width 0.3s ease;

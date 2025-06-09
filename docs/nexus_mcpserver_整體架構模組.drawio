@@ -1,0 +1,336 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/27.0.9 Chrome/134.0.6998.205 Electron/35.4.0 Safari/537.36" version="27.0.9">
+  <diagram name="第1頁" id="X1kBVkhw2im30u2DfUvW">
+    <mxGraphModel dx="3902" dy="1872" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-71" value="" style="whiteSpace=wrap;strokeWidth=2;verticalAlign=top;container=0;" vertex="1" parent="1">
+          <mxGeometry x="50.00000000000006" y="70" width="1390" height="1970" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-107" value="Nexus AI 模型層" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="924.6686449060337" y="661.4091308165057" width="182.17111770524235" height="287.11150131694467" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-109" value="Nexus 後端模組" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="286.0385756676558" y="522.1773485513609" width="230.2917903066271" height="646.8656716417911" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-105" value="sfda_mcpserver - MCP 工具服務" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="542.4482294757665" y="1210.0047673397717" width="564.3867457962414" height="805.9877085162424" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-106" value="MCP 工具模組" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="593.3234421364986" y="1220.9306409130816" width="223.4174085064293" height="377.0500438981563" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-72" value="人資系統" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1267.700296735905" y="1470.85601404741" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-74" value="前端層 - Vue 3 + Ant Design Vue" style="whiteSpace=wrap;strokeWidth=2;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" vertex="1" parent="1">
+          <mxGeometry x="311.47378832838774" y="291.2774363476734" width="178.73392680514343" height="67.45390693590869" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-75" value="後端層 - Node.js + Express" style="whiteSpace=wrap;strokeWidth=2;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" vertex="1" parent="1">
+          <mxGeometry x="619.4460929772503" y="777.2914837576822" width="171.8595450049456" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-76" value="資料層 - MySQL + Redis" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;fillColor=#60a917;fontColor=#ffffff;strokeColor=#2D7600;" vertex="1" parent="1">
+          <mxGeometry x="1209.9984866468844" y="150.00200175592624" width="123.05143422354105" height="71.77787532923617" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-77" value="Ollama - 本地模型" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="950.1038575667656" y="691.6769095697981" width="130.61325420375866" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-78" value="Gemini - 雲端API" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="953.5410484668646" y="781.6154521510097" width="124.42631058358062" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-79" value="其他AI服務" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="967.9772502472799" y="871.5539947322213" width="94.86646884272997" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-80" value="MCP Server" style="whiteSpace=wrap;strokeWidth=2;fillColor=#6a00ff;fontColor=#ffffff;strokeColor=#3700CC;" vertex="1" parent="1">
+          <mxGeometry x="967.2898120672603" y="1521.0140474100087" width="96.24134520276954" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-81" value="財務系統" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1267.700296735905" y="1560.7945566286216" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-82" value="任務管理系統" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1256.7012858555886" y="1650.7330992098332" width="107.24035608308606" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-83" value="資料庫系統" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1262.2007912957467" y="1740.6716417910447" width="96.24134520276954" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-84" value="聊天介面" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="112.80415430267061" y="121.77787532923617" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-85" value="管理後台" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="112.80415430267061" y="211.71641791044777" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-86" value="用戶管理" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="112.80415430267061" y="301.6549604916594" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-87" value="MCP管理界面" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="103.18001978239369" y="391.59350307287093" width="105.86547972304649" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-88" value="智能體配置" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="107.30464886251235" y="481.5320456540826" width="96.24134520276954" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-89" value="認證模組" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="358.2195845697329" y="552.4451273046532" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-90" value="對話管理" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="358.2195845697329" y="642.3836698858648" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-91" value="模型管理" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="358.2195845697329" y="732.3222124670764" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-92" value="檔案處理" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="358.2195845697329" y="822.2607550482879" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-93" value="MCP客戶端" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="353.4075173095945" y="912.1992976294996" width="94.86646884272997" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-94" value="權限控制" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="358.2195845697329" y="1002.1378402107111" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-95" value="WebSocket服務" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="342.40850642927796" y="1092.0763827919227" width="116.86449060336301" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-96" value="人資工具" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="662.7546983184966" y="1251.198419666374" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-97" value="財務工具" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="662.7546983184966" y="1341.1369622475856" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-98" value="任務管理工具" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="651.7556874381801" y="1431.0755048287972" width="107.24035608308606" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-99" value="知識庫工具" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="657.2551928783383" y="1521.0140474100087" width="96.24134520276954" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-110" value="Nexus 前端模組" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="77.05736894164193" y="91.5100965759438" width="157.42334322453019" height="466.9885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-111" value="" style="curved=1;startArrow=block;endArrow=block;exitX=1;exitY=0.5;entryX=0.47;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-74" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="325.00438981562775" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-112" value="" style="curved=1;startArrow=block;endArrow=block;exitX=0.52;exitY=0;entryX=0;entryY=0.5;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-75" target="yY56IZ2PQVQRs6_cBHF9-76">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="816.7408506429279" y="140.80333625987709" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-113" value="" style="curved=1;startArrow=block;endArrow=block;exitX=0.68;exitY=0;entryX=0;entryY=0.51;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-75" target="yY56IZ2PQVQRs6_cBHF9-77">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="816.7408506429279" y="715.0263388937665" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-114" value="" style="curved=1;startArrow=block;endArrow=block;exitX=1;exitY=0.58;entryX=0;entryY=0.51;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-75" target="yY56IZ2PQVQRs6_cBHF9-78">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="816.7408506429279" y="804.964881474978" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-115" value="" style="curved=1;startArrow=block;endArrow=block;exitX=0.66;exitY=1;entryX=0;entryY=0.51;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-75" target="yY56IZ2PQVQRs6_cBHF9-79">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="816.7408506429279" y="894.9034240561896" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-116" value="MCP客戶端" style="curved=1;startArrow=none;endArrow=block;exitX=0.55;exitY=1;entryX=0.45;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-75" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="816.7408506429279" y="1123.2089552238806" />
+              <mxPoint x="924.6686449060337" y="1123.2089552238806" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-117" value="工具調用" style="curved=1;startArrow=none;endArrow=block;exitX=0.94;exitY=0;entryX=0;entryY=0.49;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-80" target="yY56IZ2PQVQRs6_cBHF9-72">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1106.839762611276" y="1494.2054433713784" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-118" value="工具調用" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.95;entryX=0;entryY=0.49;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-80" target="yY56IZ2PQVQRs6_cBHF9-81">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1106.839762611276" y="1584.14398595259" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-119" value="工具調用" style="curved=1;startArrow=none;endArrow=block;exitX=0.67;exitY=1;entryX=0;entryY=0.49;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-80" target="yY56IZ2PQVQRs6_cBHF9-82">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1106.839762611276" y="1674.0825285338017" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-120" value="工具調用" style="curved=1;startArrow=none;endArrow=block;exitX=0.6;exitY=1;entryX=0;entryY=0.49;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-80" target="yY56IZ2PQVQRs6_cBHF9-83">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1106.839762611276" y="1764.0210711150132" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-121" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.38;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-84" target="yY56IZ2PQVQRs6_cBHF9-74">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="286.0385756676558" y="145.12730465320453" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-122" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.26;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-85" target="yY56IZ2PQVQRs6_cBHF9-74">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="286.0385756676558" y="235.0658472344162" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-123" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-86" target="yY56IZ2PQVQRs6_cBHF9-74">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-124" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.26;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-87" target="yY56IZ2PQVQRs6_cBHF9-74">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="286.0385756676558" y="414.9429323968393" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-125" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.38;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-88" target="yY56IZ2PQVQRs6_cBHF9-74">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="286.0385756676558" y="504.88147497805085" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-126" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.43;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-89" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="575.7945566286216" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-127" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.39;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-90" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="665.7330992098332" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-128" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.16;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-91" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="755.6716417910447" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-129" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.16;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-92" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="845.6101843722564" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-130" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.39;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-93" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="935.5487269534678" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-131" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.43;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-94" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="1025.4872695346794" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-132" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.45;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-95" target="yY56IZ2PQVQRs6_cBHF9-75">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="593.3234421364986" y="1115.4258121158912" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-133" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.42;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-96" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="924.6686449060337" y="1274.5478489903423" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-134" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.38;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-97" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="924.6686449060337" y="1364.486391571554" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-135" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.26;entryY=0;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-98" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="924.6686449060337" y="1454.4249341527657" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-136" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-99" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-137" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.32;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-100" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="924.6686449060337" y="1668.8937664618086" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-138" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.4;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-101" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="924.6686449060337" y="1758.8323090430201" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-139" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.43;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-102" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="924.6686449060337" y="1848.770851624232" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-140" value="" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.45;entryY=1;rounded=0;" edge="1" parent="1" source="yY56IZ2PQVQRs6_cBHF9-103" target="yY56IZ2PQVQRs6_cBHF9-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="924.6686449060337" y="1938.7093942054435" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-104" value="MCP 服務層" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="593.3234421364987" y="1619.9965583845478" width="223.4174085064293" height="377.0500438981563" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-101" value="API客戶端" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="660.0049455984174" y="1735.4828797190519" width="90.0544015825915" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-102" value="日誌記錄" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="662.7546983184966" y="1825.4214223002634" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-103" value="錯誤處理" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="662.7546983184966" y="1915.3599648814752" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <mxCell id="yY56IZ2PQVQRs6_cBHF9-100" value="服務發現" style="whiteSpace=wrap;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="662.7546983184966" y="1645.5443371378403" width="85.24233432245302" height="46.69885864793679" as="geometry" />
+        </mxCell>
+        <UserObject label="&lt;h2 style=&quot;font-weight: 600; margin: 16px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;sfda_nexus 與 sfda_mcpserver 專案架構解析&lt;/h2&gt;&lt;h3 style=&quot;font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;整體系統概述&lt;/h3&gt;&lt;p style=&quot;margin: 0px 0px 16px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;這兩個專案組成了一個完整的企業 AI 聊天生態系統：&lt;/p&gt;&lt;ol style=&quot;padding-inline-start: 28px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;p style=&quot;margin: 0px;&quot;&gt;&lt;strong&gt;sfda_nexus&lt;/strong&gt;&lt;span&gt;&amp;nbsp;&lt;/span&gt;- 企業 AI 聊天系統&lt;/p&gt;&lt;ul style=&quot;padding-inline-start: 24px;&quot;&gt;&lt;li&gt;提供用戶介面、聊天功能和管理後台&lt;/li&gt;&lt;li&gt;處理用戶認證、對話管理和模型配置&lt;/li&gt;&lt;li&gt;整合 AI 模型 (本地 Ollama 和雲端 Gemini)&lt;/li&gt;&lt;li&gt;作為 MCP 的客戶端，讓 AI 能夠調用企業工具&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;li&gt;&lt;p style=&quot;margin: 0px;&quot;&gt;&lt;strong&gt;sfda_mcpserver&lt;/strong&gt;&lt;span&gt;&amp;nbsp;&lt;/span&gt;- MCP 工具服務&lt;/p&gt;&lt;ul style=&quot;padding-inline-start: 24px;&quot;&gt;&lt;li&gt;作為 AI 系統和企業後端之間的橋樑&lt;/li&gt;&lt;li&gt;提供標準化的工具介面 (Model Context Protocol)&lt;/li&gt;&lt;li&gt;管理和暴露各種企業工具 (人資、財務、任務等)&lt;/li&gt;&lt;li&gt;處理 API 請求轉換和錯誤處理&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;/ol&gt;&lt;h3 style=&quot;font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;核心技術棧&lt;/h3&gt;&lt;h4 style=&quot;color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;sfda_nexus&lt;/h4&gt;&lt;ul style=&quot;padding-inline-start: 24px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;前端&lt;/strong&gt;：Vue 3 + Ant Design Vue + Pinia&lt;/li&gt;&lt;li&gt;&lt;strong&gt;後端&lt;/strong&gt;：Node.js + Express.js&lt;/li&gt;&lt;li&gt;&lt;strong&gt;資料庫&lt;/strong&gt;：MySQL 8.0 + Redis (緩存)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;AI 整合&lt;/strong&gt;：Ollama (本地模型)、Gemini API (雲端)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;通訊&lt;/strong&gt;：WebSocket 即時通訊、HTTP API&lt;/li&gt;&lt;/ul&gt;&lt;h4 style=&quot;color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;sfda_mcpserver&lt;/h4&gt;&lt;ul style=&quot;padding-inline-start: 24px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;運行環境&lt;/strong&gt;：Node.js&lt;/li&gt;&lt;li&gt;&lt;strong&gt;通訊協議&lt;/strong&gt;：HTTP + Server-Sent Events (SSE)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;資料格式&lt;/strong&gt;：JSON-RPC 2.0 (MCP 標準)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;部署&lt;/strong&gt;：Docker 容器化&lt;/li&gt;&lt;/ul&gt;&lt;h3 style=&quot;font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;系統交互流程&lt;/h3&gt;&lt;ol style=&quot;padding-inline-start: 28px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;用戶請求&lt;/strong&gt;：用戶透過 sfda_nexus 前端發送請求&lt;/li&gt;&lt;li&gt;&lt;strong&gt;AI 處理&lt;/strong&gt;：AI 模型 (Ollama/Gemini) 分析用戶意圖&lt;/li&gt;&lt;li&gt;&lt;strong&gt;工具調用&lt;/strong&gt;：若需要調用企業工具，sfda_nexus 的 MCP 客戶端會發送請求到 sfda_mcpserver&lt;/li&gt;&lt;li&gt;&lt;strong&gt;執行工具&lt;/strong&gt;：sfda_mcpserver 處理請求，調用對應的企業後端 API&lt;/li&gt;&lt;li&gt;&lt;strong&gt;結果返回&lt;/strong&gt;：結果通過 MCP Server 返回到 sfda_nexus，再由 AI 模型整合到回應中&lt;/li&gt;&lt;li&gt;&lt;strong&gt;用戶回應&lt;/strong&gt;：最終結果顯示給用戶&lt;/li&gt;&lt;/ol&gt;&lt;h3 style=&quot;font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;創新特點&lt;/h3&gt;&lt;ol style=&quot;padding-inline-start: 28px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;動態服務發現&lt;/strong&gt;：sfda_nexus 能夠自動探索 MCP Server 上的可用服務，無需硬編碼&lt;/li&gt;&lt;li&gt;&lt;strong&gt;細粒度權限控制&lt;/strong&gt;：智能體級別的 MCP 服務權限管理&lt;/li&gt;&lt;li&gt;&lt;strong&gt;混合架構模式&lt;/strong&gt;：從輕量執行腳本到核心業務邏輯、API 介面和前端管理界面的完整解決方案&lt;/li&gt;&lt;li&gt;&lt;strong&gt;多執行方式&lt;/strong&gt;：支援手動、定時任務、前端觸發的靈活同步機制&lt;/li&gt;&lt;/ol&gt;" link="&lt;h2 style=&quot;font-size: 16px; font-weight: 600; margin: 16px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;sfda_nexus 與 sfda_mcpserver 專案架構解析&lt;/h2&gt;&lt;h3 style=&quot;font-size: 13px; font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;整體系統概述&lt;/h3&gt;&lt;p style=&quot;margin: 0px 0px 16px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;這兩個專案組成了一個完整的企業 AI 聊天生態系統：&lt;/p&gt;&lt;ol style=&quot;padding-inline-start: 28px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;p style=&quot;margin: 0px;&quot;&gt;&lt;strong&gt;sfda_nexus&lt;/strong&gt;&lt;span&gt;&amp;nbsp;&lt;/span&gt;- 企業 AI 聊天系統&lt;/p&gt;&lt;ul style=&quot;padding-inline-start: 24px;&quot;&gt;&lt;li&gt;提供用戶介面、聊天功能和管理後台&lt;/li&gt;&lt;li&gt;處理用戶認證、對話管理和模型配置&lt;/li&gt;&lt;li&gt;整合 AI 模型 (本地 Ollama 和雲端 Gemini)&lt;/li&gt;&lt;li&gt;作為 MCP 的客戶端，讓 AI 能夠調用企業工具&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;li&gt;&lt;p style=&quot;margin: 0px;&quot;&gt;&lt;strong&gt;sfda_mcpserver&lt;/strong&gt;&lt;span&gt;&amp;nbsp;&lt;/span&gt;- MCP 工具服務&lt;/p&gt;&lt;ul style=&quot;padding-inline-start: 24px;&quot;&gt;&lt;li&gt;作為 AI 系統和企業後端之間的橋樑&lt;/li&gt;&lt;li&gt;提供標準化的工具介面 (Model Context Protocol)&lt;/li&gt;&lt;li&gt;管理和暴露各種企業工具 (人資、財務、任務等)&lt;/li&gt;&lt;li&gt;處理 API 請求轉換和錯誤處理&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;/ol&gt;&lt;h3 style=&quot;font-size: 13px; font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;核心技術棧&lt;/h3&gt;&lt;h4 style=&quot;color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;sfda_nexus&lt;/h4&gt;&lt;ul style=&quot;padding-inline-start: 24px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;前端&lt;/strong&gt;：Vue 3 + Ant Design Vue + Pinia&lt;/li&gt;&lt;li&gt;&lt;strong&gt;後端&lt;/strong&gt;：Node.js + Express.js&lt;/li&gt;&lt;li&gt;&lt;strong&gt;資料庫&lt;/strong&gt;：MySQL 8.0 + Redis (緩存)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;AI 整合&lt;/strong&gt;：Ollama (本地模型)、Gemini API (雲端)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;通訊&lt;/strong&gt;：WebSocket 即時通訊、HTTP API&lt;/li&gt;&lt;/ul&gt;&lt;h4 style=&quot;color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;sfda_mcpserver&lt;/h4&gt;&lt;ul style=&quot;padding-inline-start: 24px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;運行環境&lt;/strong&gt;：Node.js&lt;/li&gt;&lt;li&gt;&lt;strong&gt;通訊協議&lt;/strong&gt;：HTTP + Server-Sent Events (SSE)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;資料格式&lt;/strong&gt;：JSON-RPC 2.0 (MCP 標準)&lt;/li&gt;&lt;li&gt;&lt;strong&gt;部署&lt;/strong&gt;：Docker 容器化&lt;/li&gt;&lt;/ul&gt;&lt;h3 style=&quot;font-size: 13px; font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;系統交互流程&lt;/h3&gt;&lt;ol style=&quot;padding-inline-start: 28px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;用戶請求&lt;/strong&gt;：用戶透過 sfda_nexus 前端發送請求&lt;/li&gt;&lt;li&gt;&lt;strong&gt;AI 處理&lt;/strong&gt;：AI 模型 (Ollama/Gemini) 分析用戶意圖&lt;/li&gt;&lt;li&gt;&lt;strong&gt;工具調用&lt;/strong&gt;：若需要調用企業工具，sfda_nexus 的 MCP 客戶端會發送請求到 sfda_mcpserver&lt;/li&gt;&lt;li&gt;&lt;strong&gt;執行工具&lt;/strong&gt;：sfda_mcpserver 處理請求，調用對應的企業後端 API&lt;/li&gt;&lt;li&gt;&lt;strong&gt;結果返回&lt;/strong&gt;：結果通過 MCP Server 返回到 sfda_nexus，再由 AI 模型整合到回應中&lt;/li&gt;&lt;li&gt;&lt;strong&gt;用戶回應&lt;/strong&gt;：最終結果顯示給用戶&lt;/li&gt;&lt;/ol&gt;&lt;h3 style=&quot;font-size: 13px; font-weight: unset; margin: 0px 0px 8px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;創新特點&lt;/h3&gt;&lt;ol style=&quot;padding-inline-start: 28px; color: rgb(59, 59, 59); font-family: -apple-system, &amp;quot;system-ui&amp;quot;, &amp;quot;PingFang TC&amp;quot;, sans-serif; font-size: 13px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(248, 248, 248); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;li&gt;&lt;strong&gt;動態服務發現&lt;/strong&gt;：sfda_nexus 能夠自動探索 MCP Server 上的可用服務，無需硬編碼&lt;/li&gt;&lt;li&gt;&lt;strong&gt;細粒度權限控制&lt;/strong&gt;：智能體級別的 MCP 服務權限管理&lt;/li&gt;&lt;li&gt;&lt;strong&gt;混合架構模式&lt;/strong&gt;：從輕量執行腳本到核心業務邏輯、API 介面和前端管理界面的完整解決方案&lt;/li&gt;&lt;li&gt;&lt;strong&gt;多執行方式&lt;/strong&gt;：支援手動、定時任務、前端觸發的靈活同步機制&lt;/li&gt;&lt;/ol&gt;" id="yY56IZ2PQVQRs6_cBHF9-142">
+          <mxCell style="text;whiteSpace=wrap;html=1;fontSize=24;" vertex="1" parent="1">
+            <mxGeometry x="1520" y="60" width="730" height="1008.42" as="geometry" />
+          </mxCell>
+        </UserObject>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

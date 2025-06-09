@@ -3,20 +3,34 @@
     <!-- 主側邊欄 -->
     <div
       class="main-sidebar"
-      :class="{ collapsed: sidebarCollapsed }">
+      :class="{
+        collapsed: sidebarCollapsed,
+        'mobile-visible': mobileSidebarVisible && isMobile,
+        'mobile-hidden': !mobileSidebarVisible && isMobile,
+      }"
+      :style="{
+        width: isMobile
+          ? mobileSidebarVisible
+            ? `${sidebarWidth}px`
+            : '0'
+          : sidebarCollapsed
+            ? '60px'
+            : `${sidebarWidth}px`,
+        position: isMobile ? 'fixed' : 'relative',
+        zIndex: isMobile ? 60 : 60,
+        minWidth: isMobile
+          ? mobileSidebarVisible
+            ? `${sidebarWidth}px`
+            : '0'
+          : sidebarCollapsed
+            ? '100px'
+            : `${sidebarWidth}px`,
+      }">
       <!-- 頂部 Logo -->
       <div class="sidebar-header">
         <div class="logo-section">
           <div class="logo-icon">
-            <Logo />
-            <!-- <svg
-              viewBox="0 0 24 24"
-              width="24"
-              height="24">
-              <path
-                fill="currentColor"
-                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-            </svg> -->
+            <Logo :width="64" />
           </div>
           <h1
             v-if="!sidebarCollapsed"
@@ -142,6 +156,12 @@
       :class="{
         visible: agentsSidebarVisible,
         'main-collapsed': sidebarCollapsed,
+        'mobile-mode': isMobile,
+      }"
+      :style="{
+        width: agentsSidebarWidth,
+        left: isMobile ? '0' : sidebarCollapsed ? '100px' : `${sidebarWidth}px`,
+        zIndex: isMobile ? 80 : 50,
       }">
       <!-- 智能體側邊欄頭部 -->
       <div class="agents-header">
@@ -243,13 +263,35 @@
       class="main-content"
       :class="{
         'sidebar-collapsed': sidebarCollapsed,
-        'agents-visible': agentsSidebarVisible,
+        'mobile-mode': isMobile,
+      }"
+      :style="{
+        marginLeft: '0',
       }">
       <!-- 頂部工具欄 -->
       <div class="content-header">
         <div class="header-left">
+          <!-- 手機端漢堡菜單按鈕 -->
+          <a-button
+            v-if="isMobile"
+            type="text"
+            class="mobile-menu-btn"
+            @click="toggleMobileSidebar">
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20">
+              <path
+                fill="currentColor"
+                d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+            </svg>
+          </a-button>
           <!-- 搜尋框 -->
-          <div class="search-section">
+          <div
+            class="search-section"
+            :style="{
+              minWidth: isMobile ? '150px' : isTablet ? '200px' : '300px',
+            }">
             <div class="search-box">
               <svg
                 class="search-icon"
@@ -387,6 +429,12 @@
       </div>
     </div>
 
+    <!-- 手機端主側邊欄遮罩 -->
+    <div
+      v-if="isMobile && mobileSidebarVisible"
+      class="mobile-sidebar-overlay"
+      @click="toggleMobileSidebar"></div>
+
     <!-- 智能體側邊欄遮罩 -->
     <div
       v-if="agentsSidebarVisible"
@@ -448,7 +496,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useFullscreen } from "@vueuse/core";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
@@ -494,15 +542,54 @@ const route = useRoute();
 
 // 響應式狀態
 const sidebarCollapsed = ref(false);
-const agentsSidebarVisible = ref(false);
+const agentsSidebarVisible = ref(false); // 確保初始狀態為隱藏
 
 // 全屏功能 - 使用 VueUse
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
+const notificationDrawerVisible = ref(false);
 const showNotifications = ref(false);
 const notificationCount = ref(2);
 const searchQuery = ref("");
 const showLogoText = ref(!sidebarCollapsed.value); // 初始化時根據sidebar狀態設置
+
+// 響應式斷點偵測系統
+const screenWidth = ref(window.innerWidth);
+const isMobile = computed(() => screenWidth.value < 768);
+const isTablet = computed(
+  () => screenWidth.value >= 768 && screenWidth.value < 992
+);
+const isDesktop = computed(() => screenWidth.value >= 992);
+
+// 動態尺寸配置
+const sidebarWidth = computed(() => {
+  if (isMobile.value) return 280;
+  if (isTablet.value) return 200;
+  return 200;
+});
+
+const agentsSidebarWidth = computed(() => {
+  if (isMobile.value) return "100vw";
+  if (isTablet.value) return "300px";
+  return "320px";
+});
+
+// 手機端側邊欄顯示狀態
+const mobileSidebarVisible = ref(false);
+
+// 響應式處理
+const handleResize = () => {
+  screenWidth.value = window.innerWidth;
+
+  // 手機端自動隱藏主側邊欄
+  if (isMobile.value) {
+    mobileSidebarVisible.value = false;
+    // 手機端也自動關閉智能體側邊欄
+    if (agentsSidebarVisible.value) {
+      agentsSidebarVisible.value = false;
+    }
+  }
+};
 
 // 計算屬性
 const agents = computed(() => agentsStore.availableAgents);
@@ -570,16 +657,34 @@ const notifications = ref([
 
 // 控制方法
 const toggleSidebar = () => {
-  sidebarCollapsed.value = !sidebarCollapsed.value;
-
-  if (sidebarCollapsed.value) {
-    // 折疊時立即隱藏logo文字
-    showLogoText.value = false;
+  if (isMobile.value) {
+    // 手機端切換側邊欄顯示
+    toggleMobileSidebar();
   } else {
-    // 展開時延遲0.5秒顯示logo文字
-    setTimeout(() => {
-      showLogoText.value = true;
-    }, 200);
+    // 桌面端切換折疊狀態
+    sidebarCollapsed.value = !sidebarCollapsed.value;
+
+    if (sidebarCollapsed.value) {
+      // 折疊時立即隱藏logo文字
+      showLogoText.value = false;
+    } else {
+      // 展開時延遲0.5秒顯示logo文字
+      setTimeout(() => {
+        showLogoText.value = true;
+      }, 200);
+    }
+  }
+};
+
+// 手機端側邊欄控制
+const toggleMobileSidebar = () => {
+  mobileSidebarVisible.value = !mobileSidebarVisible.value;
+
+  // 控制背景滾動
+  if (mobileSidebarVisible.value) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
   }
 };
 
@@ -591,6 +696,11 @@ const openAgentsSidebar = () => {
 // 智能體側邊欄關閉
 const closeAgentsSidebar = () => {
   agentsSidebarVisible.value = false;
+
+  // 手機端同時關閉主側邊欄
+  if (isMobile.value && mobileSidebarVisible.value) {
+    toggleMobileSidebar();
+  }
 };
 
 // 主選單點擊事件
@@ -629,6 +739,11 @@ const handleSearch = () => {
     // 實現搜索功能
     console.log("搜索:", searchQuery.value);
   }
+};
+
+// 通知抽屜開啟
+const handleSystemMonitor = () => {
+  notificationDrawerVisible.value = true;
 };
 
 // 通知抽屜開啟(TODO:未實做(假的))
@@ -679,14 +794,47 @@ onMounted(async () => {
   try {
     // 初始化智能體數據
     await agentsStore.initialize();
+
+    // 添加視窗大小監聽器
+    window.addEventListener("resize", handleResize);
+
+    // 初始檢查螢幕尺寸
+    handleResize();
   } catch (error) {
     console.error("初始化智能體數據失敗:", error);
     message.error("載入智能體數據失敗");
   }
 });
+
+// 清理事件監聽器
+onUnmounted(() => {
+  window.removeEventListener("resize", handleResize);
+  // 恢復背景滾動
+  document.body.style.overflow = "";
+});
 </script>
 
 <style scoped>
+/* CSS 變數定義 */
+:root {
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 60px;
+  --agents-sidebar-width: 320px;
+  --header-height: 64px;
+  --spacing-sidebar: 16px;
+  --spacing-card: 16px;
+  --spacing-small: 8px;
+  --radius-button: 8px;
+  --radius-card: 12px;
+  --radius-input: 6px;
+  --transition-all: all 0.3s ease;
+  --transition-sidebar: width 0.3s ease;
+  --transition-transform: transform 0.3s ease;
+  --z-sidebar: 101;
+  --z-agents-sidebar: 102;
+  --z-overlay: 109;
+}
+
 .main-layout {
   display: flex;
   height: 100vh;
@@ -698,22 +846,23 @@ onMounted(async () => {
 
 /* 主側邊欄 */
 .main-sidebar {
-  width: var(--sidebar-width);
   background: var(--custom-bg-primary);
   border-right: 1px solid var(--custom-border-primary);
   display: flex;
   flex-direction: column;
   transition: var(--transition-sidebar);
   position: relative;
-  z-index: var(--z-sidebar);
+  z-index: 180;
+  flex-shrink: 0;
 }
 
-.main-sidebar.collapsed {
-  width: var(--sidebar-collapsed-width);
+/* 主側邋欄折疊狀態 */
+.main-sidebar.collapsed .collapse-btn {
+  transform: rotate(180deg);
 }
 
 .collapsed .sidebar-header {
-  padding: 5px 10px 0px 20px;
+  padding: 5px 10px 0px 30px;
 }
 
 /* 側邊欄頭部 */
@@ -730,18 +879,20 @@ onMounted(async () => {
 .logo-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .logo-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  padding-top: 4px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: var(--radius-button);
+  border-radius: 80%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  overflow: hidden;
 }
 
 .logo-text {
@@ -772,10 +923,6 @@ onMounted(async () => {
   cursor: pointer;
   color: var(--custom-text-secondary);
   transition: var(--transition-all);
-}
-
-.collapsed .collapse-btn {
-  transform: rotate(180deg);
 }
 
 .collapse-btn:hover {
@@ -815,14 +962,19 @@ onMounted(async () => {
 }
 
 .menu-item.collapsed-item {
-  justify-content: center;
-  margin: 0 16px 8px;
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px 12px 24px;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: var(--transition-all);
+  color: var(--custom-text-secondary);
+  position: relative;
 }
 
 .menu-icon {
-  font-size: 18px;
-  flex-shrink: 0;
+  font-size: 14px;
 }
 
 .menu-title {
@@ -831,7 +983,7 @@ onMounted(async () => {
 }
 
 .menu-arrow {
-  font-size: 14px;
+  font-size: 12px;
   transition: transform 0.2s;
 }
 
@@ -841,26 +993,36 @@ onMounted(async () => {
 
 /* 智能體側邊欄 */
 .agents-sidebar {
-  width: var(--agents-sidebar-width);
   background: var(--custom-bg-primary);
   border-right: 1px solid var(--custom-border-primary);
-  position: absolute;
-  left: var(--sidebar-width);
+  position: fixed;
   top: 0;
   height: 100%;
-  transform: translateX(-100%);
-  transition: var(--transition-transform);
-  z-index: var(--z-agents-sidebar);
+  transform: translateX(-100%); /* 改回從左側隱藏 */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
   display: flex;
   flex-direction: column;
+  visibility: hidden; /* 確保完全隱藏 */
 }
 
 .agents-sidebar.visible {
   transform: translateX(0);
+  visibility: visible; /* 顯示時才可見 */
 }
 
-.agents-sidebar.main-collapsed {
-  left: var(--sidebar-collapsed-width);
+/* 手機端智能體側邊欄特殊處理 */
+.agents-sidebar.mobile-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 105;
+  transform: translateX(-100%); /* 手機端也從左側滑入 */
+}
+
+.agents-sidebar.mobile-mode.visible {
+  transform: translateX(0);
 }
 
 .agents-header {
@@ -1012,6 +1174,7 @@ onMounted(async () => {
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1137,14 +1300,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   transition: margin-left 0.3s ease;
-}
-
-.main-content.agents-visible {
-  margin-left: var(--agents-sidebar-width);
-}
-
-.main-content.sidebar-collapsed.agents-visible {
-  margin-left: var(--agents-sidebar-width);
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* 內容頭部 */
@@ -1297,7 +1454,7 @@ onMounted(async () => {
   flex: 1;
   overflow-y: auto;
   background: var(--custom-bg-secondary);
-  height: calc(100vh - var(--header-height));
+  min-height: 0;
 }
 
 /* 智能體側邊欄遮罩 */
@@ -1396,49 +1553,88 @@ onMounted(async () => {
   background-color: #fff;
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .main-sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100vh;
-    z-index: 1000;
-    transform: translateX(-100%);
-    transition: var(--transition-transform);
-  }
+/* 響應式樣式 */
 
-  .main-sidebar.mobile-open {
-    transform: translateX(0);
-  }
+/* 手機端主側邊欄樣式 */
+.main-sidebar.mobile-hidden {
+  transform: translateX(-100%);
+  visibility: hidden;
+}
 
-  .agents-sidebar {
-    left: 0;
-    width: 100vw;
-  }
+.main-sidebar.mobile-visible {
+  transform: translateX(0);
+  visibility: visible;
+}
 
-  .main-content {
-    margin-left: 0;
-  }
+/* 手機端漢堡菜單按鈕 */
+.mobile-menu-btn {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--custom-text-secondary);
+}
 
-  .main-content.agents-visible {
-    margin-left: 0;
-  }
+.mobile-menu-btn:hover {
+  color: var(--custom-text-primary);
+  background: var(--custom-bg-tertiary);
+}
 
+/* 手機端主側邊欄遮罩 */
+.mobile-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 101;
+  opacity: 0;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* 響應式內容頭部調整 */
+.main-content.mobile-mode .content-header {
+  padding: 0 16px;
+}
+
+.main-content.mobile-mode .header-left {
+  gap: 12px;
+}
+
+/* 平板端優化 */
+@media (min-width: 768px) and (max-width: 991px) {
   .content-header {
-    padding: 0 16px;
+    padding: 0 20px;
   }
 
   .header-left {
     gap: 16px;
   }
 
-  .search-section {
-    min-width: 200px;
+  .search-input {
+    font-size: 13px;
+  }
+}
+
+/* 桌面端優化 */
+@media (min-width: 992px) {
+  .main-sidebar:hover {
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
   }
 
-  .current-agent-desc {
-    display: none;
+  .agents-sidebar.visible {
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .search-section {
+    transition: min-width 0.3s ease;
+  }
+
+  .search-section:focus-within {
+    min-width: 350px;
   }
 }
 </style>
