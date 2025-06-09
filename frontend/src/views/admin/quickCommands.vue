@@ -19,8 +19,8 @@
             :xs="24"
             :sm="24"
             :md="12"
-            :lg="12"
-            :xl="12">
+            :lg="14"
+            :xl="16">
             <a-input-search
               :value="searchText"
               placeholder="搜索命令文字或描述"
@@ -29,11 +29,11 @@
               allow-clear />
           </a-col>
           <a-col
-            :xs="12"
-            :sm="12"
+            :xs="16"
+            :sm="16"
             :md="8"
-            :lg="8"
-            :xl="8">
+            :lg="6"
+            :xl="5">
             <a-select
               :value="filterStatus"
               placeholder="選擇狀態"
@@ -45,11 +45,11 @@
             </a-select>
           </a-col>
           <a-col
-            :xs="12"
-            :sm="12"
+            :xs="8"
+            :sm="8"
             :md="4"
             :lg="4"
-            :xl="4">
+            :xl="3">
             <a-button
               @click="handleReset"
               style="width: 100%"
@@ -61,10 +61,11 @@
 
       <!-- 快速命令列表 -->
       <a-table
-        :columns="columns"
+        :columns="responsiveColumns"
         :data-source="filteredCommands"
         :loading="loading"
         :pagination="pagination"
+        :scroll="{ x: isSmallScreen ? 600 : 900 }"
         row-key="id"
         @change="handleTableChange">
         <!-- 智能體列 -->
@@ -97,20 +98,22 @@
 
         <!-- 操作列 -->
         <template #action="{ record }">
-          <a-space :size="0">
+          <a-space
+            :size="0"
+            :direction="isSmallScreen ? 'vertical' : 'horizontal'">
             <a-button
               type="text"
               size="small"
               @click="handleEdit(record)">
               <EditOutlined />
-              編輯
+              <span v-if="!isSmallScreen">編輯</span>
             </a-button>
             <a-button
               type="text"
               size="small"
               @click="handleTest(record)">
               <PlayCircleOutlined />
-              測試
+              <span v-if="!isSmallScreen">測試</span>
             </a-button>
             <a-popconfirm
               title="確定要刪除這個快速命令嗎？"
@@ -120,7 +123,7 @@
                 size="small"
                 danger>
                 <DeleteOutlined />
-                刪除
+                <span v-if="!isSmallScreen">刪除</span>
               </a-button>
             </a-popconfirm>
           </a-space>
@@ -191,7 +194,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
-import { message } from "ant-design-vue";
+import { message, Grid } from "ant-design-vue";
 import {
   getAllQuickCommandsForAdmin,
   createQuickCommand,
@@ -199,6 +202,13 @@ import {
   deleteQuickCommand,
 } from "@/api/quickCommands";
 import { getAgents } from "@/api/agents";
+
+// 響應式斷點檢測
+const { useBreakpoint } = Grid;
+const screens = useBreakpoint();
+
+const isSmallScreen = computed(() => !screens.value.md);
+const isMediumScreen = computed(() => screens.value.md && !screens.value.lg);
 
 // 響應式數據
 const loading = ref(false);
@@ -217,20 +227,22 @@ const columns = [
     slots: { customRender: "agent" },
     width: 120,
     sorter: true,
+    responsive: ["md", "lg", "xl"],
   },
   {
     title: "命令文字",
     dataIndex: "text", // 後端字段名是 text，不是 command_text
     key: "text",
     sorter: true,
+    ellipsis: true,
   },
   {
     title: "描述",
     dataIndex: "description",
     key: "description",
     ellipsis: true,
+    responsive: ["sm", "md", "lg", "xl"],
   },
-
   {
     title: "使用次數",
     dataIndex: "usage_count",
@@ -239,6 +251,7 @@ const columns = [
     align: "right",
     width: 120,
     sorter: true,
+    responsive: ["md", "lg", "xl"],
   },
   {
     title: "狀態",
@@ -246,6 +259,7 @@ const columns = [
     key: "is_active",
     slots: { customRender: "status" },
     width: 60,
+    align: "center",
   },
   // 暫時註釋創建時間列，等待後端支援
   {
@@ -253,6 +267,7 @@ const columns = [
     dataIndex: "created_at",
     key: "created_at",
     sorter: true,
+    responsive: ["lg", "xl"],
     customRender: ({ text, record }) => {
       // 檢查多個可能的時間字段
       const timeValue =
@@ -275,8 +290,36 @@ const columns = [
     title: "操作",
     key: "action",
     slots: { customRender: "action" },
+    width: isSmallScreen.value ? 100 : 150,
+    fixed: "right",
   },
 ];
+
+// 響應式表格列配置 - 根據螢幕大小動態調整表格列
+const responsiveColumns = computed(() => {
+  return columns.filter((column) => {
+    // 如果沒有 responsive 屬性，則始終顯示
+    if (!column.responsive) return true;
+
+    // 根據當前屏幕尺寸判斷是否顯示該列
+    if (isSmallScreen.value && !column.responsive.includes("xs")) {
+      // 在小螢幕上，只顯示標記為 "xs" 的列或沒有 responsive 配置的列
+      return !column.responsive || column.responsive.includes("xs");
+    }
+
+    // 在中等螢幕上，只顯示標記為 "sm" 或 "md" 的列
+    if (isMediumScreen.value && !column.responsive.includes("md")) {
+      return (
+        !column.responsive ||
+        column.responsive.includes("md") ||
+        column.responsive.includes("sm")
+      );
+    }
+
+    // 大螢幕顯示所有列
+    return true;
+  });
+});
 
 // 分頁配置
 const pagination = reactive({
@@ -555,5 +598,40 @@ const handleAgentChange = (value) => {
   padding: 16px;
   background: var(--custom-bg-secondary);
   border-radius: var(--border-radius-base);
+}
+
+/* 響應式表格樣式 */
+:deep(.ant-table-small) {
+  font-size: 12px;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  padding: 8px 12px;
+}
+
+/* 小螢幕下操作按鈕樣式 */
+@media (max-width: 768px) {
+  :deep(.ant-table-tbody > tr > td.ant-table-cell-fix-right) {
+    padding: 4px;
+  }
+
+  :deep(.ant-btn-text) {
+    padding: 2px 4px;
+    height: 28px;
+    margin: 2px 0;
+  }
+
+  :deep(.ant-space-vertical) {
+    gap: 4px !important;
+  }
+}
+
+/* 暗色模式兼容 */
+:deep(.ant-table-thead > tr > th) {
+  background-color: var(--custom-bg-secondary);
+}
+
+:deep(.ant-table-tbody > tr:hover > td) {
+  background-color: var(--custom-bg-hover);
 }
 </style>

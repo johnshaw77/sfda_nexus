@@ -213,13 +213,34 @@
           :pagination="false"
           :row-selection="rowSelection"
           :row-key="viewMode === 'discover' ? 'moduleKey' : 'id'"
+          :row-class-name="() => 'service-row'"
+          :scroll="{ x: isSmallScreen ? 800 : isMediumScreen ? 1000 : true }"
           @change="handleTableChange">
           <!-- 服務名稱列 -->
           <template #name="{ record }">
             <div>
               <strong>{{ record.name }}</strong>
-
               <div class="service-description">{{ record.description }}</div>
+
+              <!-- 小螢幕模式：顯示額外資訊 -->
+              <div
+                v-if="isSmallScreen"
+                class="mobile-extra-info">
+                <!-- 狀態標籤 -->
+                <a-tag
+                  :color="record.enabled ? 'green' : 'default'"
+                  size="small"
+                  style="margin-top: 4px; margin-right: 8px">
+                  {{ record.enabled ? "已啟用" : "未啟用" }}
+                </a-tag>
+
+                <!-- 工具數量 -->
+                <span
+                  v-if="record.tools && record.tools.length > 0"
+                  class="mobile-tools-count">
+                  {{ record.tools.length }} 個工具
+                </span>
+              </div>
             </div>
           </template>
 
@@ -244,7 +265,10 @@
                 class="tools-tags"
                 v-if="record.tools && record.tools.length > 0">
                 <a-tooltip
-                  v-for="(tool, index) in record.tools.slice(0, 5)"
+                  v-for="(tool, index) in record.tools.slice(
+                    0,
+                    isSmallScreen ? 2 : 5
+                  )"
                   :key="tool.name || tool"
                   :title="
                     typeof tool === 'string'
@@ -256,19 +280,19 @@
                     style="font-size: 12px; cursor: help"
                     @click="handleQuickToolToggle(record, tool)">
                     <ToolOutlined class="tool-icon" />
-                    {{ tool.name }}
+                    <span v-if="!isSmallScreen">{{ tool.name }}</span>
                   </a-tag>
                 </a-tooltip>
 
                 <!-- 更多工具指示器 -->
                 <a-tag
-                  v-if="record.tools.length > 3"
+                  v-if="record.tools.length > (isSmallScreen ? 2 : 5)"
                   color="blue"
                   size="small"
                   class="more-tools-tag"
                   @click="handleViewTools(record)"
-                  :title="`還有 ${record.tools.length - 3} 個工具，點擊查看全部`">
-                  +{{ record.tools.length - 3 }}
+                  :title="`還有 ${record.tools.length - (isSmallScreen ? 2 : 5)} 個工具，點擊查看全部`">
+                  +{{ record.tools.length - (isSmallScreen ? 2 : 5) }}
                 </a-tag>
               </div>
 
@@ -280,14 +304,16 @@
                   color="default"
                   size="small">
                   <ToolOutlined />
-                  無工具
+                  <span v-if="!isSmallScreen">無工具</span>
                 </a-tag>
               </div>
 
               <!-- 工具數量統計 -->
               <div
                 class="tools-count"
-                v-if="record.tools && record.tools.length > 0">
+                v-if="
+                  record.tools && record.tools.length > 0 && !isSmallScreen
+                ">
                 <a-tooltip
                   title="點擊查看工具列表"
                   :arrow="false">
@@ -318,12 +344,71 @@
 
           <!-- 操作列 -->
           <template #action="{ record }">
-            <a-space>
+            <!-- 小螢幕：使用下拉選單 -->
+            <a-dropdown
+              v-if="isSmallScreen"
+              placement="bottomRight">
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item
+                    v-if="!record.enabled"
+                    @click="handleEnableSingle(record)">
+                    <PlayCircleOutlined />
+                    啟用
+                  </a-menu-item>
+                  <a-menu-item
+                    v-else
+                    @click="handleDisableSingle(record)"
+                    danger>
+                    <StopOutlined />
+                    停用
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item @click="handleViewTools(record)">
+                    <EyeOutlined />
+                    工具詳情
+                  </a-menu-item>
+                  <template v-if="viewMode === 'manage'">
+                    <a-menu-divider />
+                    <a-menu-item
+                      @click="handleDeleteService(record, false)"
+                      danger>
+                      <DeleteOutlined />
+                      軟刪除
+                    </a-menu-item>
+                    <a-menu-item
+                      @click="handleDeleteService(record, true)"
+                      danger>
+                      <DeleteOutlined />
+                      永久刪除
+                    </a-menu-item>
+                  </template>
+                </a-menu>
+              </template>
+              <a-button
+                type="text"
+                size="small">
+                <MoreOutlined />
+              </a-button>
+            </a-dropdown>
+
+            <!-- 大螢幕：顯示完整按鈕 (垂直排列) -->
+            <a-space
+              v-else
+              direction="vertical"
+              size="small"
+              style="
+                min-width: 80px;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+              ">
               <a-button
                 v-if="!record.enabled"
                 type="text"
                 size="small"
-                @click="handleEnableSingle(record)">
+                @click="handleEnableSingle(record)"
+                style="padding: 2px 4px; height: 24px; margin-bottom: 4px">
                 <PlayCircleOutlined />
                 啟用
               </a-button>
@@ -332,18 +417,22 @@
                 type="text"
                 size="small"
                 danger
-                @click="handleDisableSingle(record)">
+                @click="handleDisableSingle(record)"
+                style="padding: 2px 4px; height: 24px; margin-bottom: 4px">
                 <StopOutlined />
                 停用
               </a-button>
               <a-button
                 type="text"
                 size="small"
-                @click="handleViewTools(record)">
+                @click="handleViewTools(record)"
+                style="padding: 2px 4px; height: 24px; margin-bottom: 4px">
                 <EyeOutlined />
                 工具詳情
               </a-button>
-              <a-dropdown v-if="viewMode === 'manage'">
+              <a-dropdown
+                v-if="viewMode === 'manage'"
+                style="margin-bottom: 4px">
                 <template #overlay>
                   <a-menu>
                     <a-menu-item @click="handleDeleteService(record, false)">
@@ -361,7 +450,8 @@
                 <a-button
                   type="text"
                   size="small"
-                  danger>
+                  danger
+                  style="padding: 2px 4px; height: 24px">
                   <DeleteOutlined />
                   刪除
                   <DownOutlined />
@@ -552,10 +642,33 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { message, Modal } from "ant-design-vue";
+import { message, Modal, Grid } from "ant-design-vue";
+import {
+  SyncOutlined,
+  SearchOutlined,
+  CloudServerOutlined,
+  CheckCircleOutlined,
+  ToolOutlined,
+  ClockCircleOutlined,
+  PlayCircleOutlined,
+  StopOutlined,
+  DeleteOutlined,
+  DownOutlined,
+  LinkOutlined,
+  EyeOutlined,
+  CodeOutlined,
+  MoreOutlined,
+} from "@ant-design/icons-vue";
 import JsonViewer from "@/components/common/JsonViewer.vue";
 
 import mcpApi from "@/api/mcp.js";
+
+// 螢幕尺寸響應式監控
+const { useBreakpoint } = Grid;
+const screens = useBreakpoint();
+
+const isSmallScreen = computed(() => !screens.value.md);
+const isMediumScreen = computed(() => screens.value.md && !screens.value.lg);
 
 // 響應式數據
 const viewMode = ref("manage"); // 'manage' | 'discover'
@@ -627,45 +740,56 @@ const toolsWithSchemaCount = computed(() => {
   return selectedService.value.tools.filter((tool) => hasSchema(tool)).length;
 });
 
-// 表格配置
-const serviceColumns = [
-  {
-    title: "服務名稱",
-    dataIndex: "name",
-    key: "name",
-    slots: { customRender: "name" },
-    width: "20%",
-  },
-  {
-    title: "端點",
-    dataIndex: "endpoint",
-    key: "endpoint",
-    slots: { customRender: "endpoint" },
-    width: "15%",
-  },
-  {
-    title: "工具",
-    dataIndex: "tools",
-    key: "tools",
-    slots: { customRender: "tools" },
-    width: "35%",
-  },
-  {
-    title: "狀態",
-    dataIndex: "enabled",
-    key: "status",
-    slots: { customRender: "status" },
-    width: "5%",
-    align: "center",
-  },
-  {
-    title: "操作",
-    key: "action",
-    slots: { customRender: "action" },
-    width: "20%",
-    align: "center",
-  },
-];
+// 表格配置 - 響應式欄位設定
+const serviceColumns = computed(() => {
+  const baseColumns = [
+    {
+      title: "服務名稱",
+      dataIndex: "name",
+      key: "name",
+      slots: { customRender: "name" },
+      width: isSmallScreen.value ? 200 : 250,
+      fixed: "left",
+      responsive: ["xs", "sm", "md", "lg", "xl"],
+    },
+    {
+      title: "端點",
+      dataIndex: "endpoint",
+      key: "endpoint",
+      slots: { customRender: "endpoint" },
+      width: 200,
+      responsive: ["lg", "xl"],
+    },
+    {
+      title: "工具",
+      dataIndex: "tools",
+      key: "tools",
+      slots: { customRender: "tools" },
+      width: isSmallScreen.value ? 180 : 350,
+      responsive: ["md", "lg", "xl"],
+    },
+    {
+      title: "狀態",
+      dataIndex: "enabled",
+      key: "status",
+      slots: { customRender: "status" },
+      width: 80,
+      align: "center",
+      responsive: ["sm", "md", "lg", "xl"],
+    },
+    {
+      title: "操作",
+      key: "action",
+      slots: { customRender: "action" },
+      width: isSmallScreen.value ? 48 : isMediumScreen.value ? 80 : 100,
+      align: "center",
+      fixed: "right",
+      responsive: ["xs", "sm", "md", "lg", "xl"],
+    },
+  ];
+
+  return baseColumns;
+});
 
 const toolColumns = [
   {
@@ -1176,6 +1300,23 @@ onMounted(() => {
   margin-top: 4px;
 }
 
+.mobile-extra-info {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mobile-tools-count {
+  font-size: 11px;
+  color: var(--custom-text-secondary);
+  background: var(--custom-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--custom-border-secondary);
+}
+
 /* 工具標籤樣式 */
 .tools-tags-container {
   max-height: 400px;
@@ -1248,5 +1389,18 @@ onMounted(() => {
 
 .tools-count .ant-btn-link {
   text-decoration: none;
+}
+
+/* 大螢幕下的服務行樣式，以容納垂直按鈕 */
+.service-row:not(.ant-table-row-level-0) {
+  height: auto !important;
+}
+
+/* 服務表格行在垂直排列按鈕模式下的樣式 */
+@media (min-width: 768px) {
+  .service-row {
+    height: auto !important;
+    min-height: 140px !important;
+  }
 }
 </style>
