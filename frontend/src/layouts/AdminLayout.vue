@@ -285,7 +285,7 @@
               <a-button
                 type="text"
                 @click="handleRefresh">
-                <ReloadOutlined />
+                <RefreshCw :size="16" />
               </a-button>
             </a-tooltip>
 
@@ -469,7 +469,7 @@ import {
   Lightbulb,
   Users,
   Bell,
-  LogOut,
+  RefreshCw,
   User,
   Settings,
 } from "lucide-vue-next";
@@ -907,7 +907,11 @@ const loadSystemStats = () => {
 
 .page-actions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+}
+
+.page-actions .ant-btn {
+  padding: 6px 15px !important;
 }
 
 .content-wrapper {

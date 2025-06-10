@@ -227,6 +227,7 @@ export const createModel = async (modelData) => {
  */
 export const updateModel = async (modelId, updateData) => {
   const allowedFields = [
+    "model_id",
     "display_name",
     "description",
     "max_tokens",

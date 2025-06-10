@@ -634,7 +634,9 @@
       width="600px"
       :footer="null">
       <div v-if="selectedTool">
-        <JsonViewer :data="selectedTool.schema" />
+        <JsonViewer
+          :data="selectedTool.schema"
+          :expandDepth="5" />
       </div>
     </a-modal>
   </div>
@@ -643,22 +645,22 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { message, Modal, Grid } from "ant-design-vue";
-import {
-  SyncOutlined,
-  SearchOutlined,
-  CloudServerOutlined,
-  CheckCircleOutlined,
-  ToolOutlined,
-  ClockCircleOutlined,
-  PlayCircleOutlined,
-  StopOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  LinkOutlined,
-  EyeOutlined,
-  CodeOutlined,
-  MoreOutlined,
-} from "@ant-design/icons-vue";
+// import {
+//   SyncOutlined,
+//   SearchOutlined,
+//   CloudServerOutlined,
+//   CheckCircleOutlined,
+//   ToolOutlined,
+//   ClockCircleOutlined,
+//   PlayCircleOutlined,
+//   StopOutlined,
+//   DeleteOutlined,
+//   DownOutlined,
+//   LinkOutlined,
+//   EyeOutlined,
+//   CodeOutlined,
+//   MoreOutlined,
+// } from "@ant-design/icons-vue";
 import JsonViewer from "@/components/common/JsonViewer.vue";
 
 import mcpApi from "@/api/mcp.js";
