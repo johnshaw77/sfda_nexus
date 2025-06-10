@@ -41,6 +41,7 @@ const schemas = {
     temperature: Joi.number().min(0).max(2).default(0.7),
     max_tokens: Joi.number().integer().min(1).max(32768).default(4096),
     model_id: Joi.number().integer().optional(), // 允許指定不同的模型
+    endpoint_url: Joi.string().uri().optional(), // 允許前端傳遞端點URL
     system_prompt: Joi.string().optional(), // 允許自定義系統提示詞
   }),
 
@@ -126,6 +127,7 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     temperature,
     max_tokens,
     model_id,
+    endpoint_url, // 前端傳遞的端點URL
     system_prompt,
   } = value;
   const { user } = req;
@@ -391,6 +393,11 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       max_tokens: max_tokens,
     };
 
+    // 優先使用前端傳遞的 endpoint URL
+    if (endpoint_url) {
+      aiOptions.endpoint_url = endpoint_url;
+    }
+
     // 添加系統提示詞（整合 MCP 工具資訊）
     let baseSystemPrompt = system_prompt;
 
@@ -559,6 +566,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     attachments,
     metadata,
     model_id,
+    endpoint_url, // 前端傳遞的端點URL
     temperature = 0.7,
     max_tokens = 8192,
     system_prompt,
@@ -838,6 +846,11 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
       max_tokens: max_tokens,
       stream: true, // 啟用串流模式
     };
+
+    // 優先使用前端傳遞的 endpoint URL
+    if (endpoint_url) {
+      aiOptions.endpoint_url = endpoint_url;
+    }
 
     // 添加系統提示詞（整合 MCP 工具資訊）
     let baseSystemPrompt = system_prompt;
@@ -1270,6 +1283,7 @@ export const handleGetAvailableModels = catchAsync(async (req, res) => {
         model_id: m.model_id,
         provider: m.model_type,
         description: m.description,
+        endpoint_url: m.endpoint_url,
         max_tokens: m.max_tokens,
         temperature: m.temperature,
         pricing:

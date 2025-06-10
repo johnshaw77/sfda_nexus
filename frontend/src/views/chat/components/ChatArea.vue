@@ -83,6 +83,19 @@
             class="stream-toggle" />
         </a-tooltip>
 
+        <!-- 調試面板切換 -->
+        <a-tooltip
+          title="開發調試面板"
+          :arrow="false"
+          placement="bottom">
+          <a-button
+            type="text"
+            @click="showDebugPanel = !showDebugPanel"
+            :class="{ 'debug-active': showDebugPanel }">
+            <BugOutlined />
+          </a-button>
+        </a-tooltip>
+
         <a-dropdown
           :trigger="['click']"
           placement="bottomRight">
@@ -262,6 +275,107 @@
       :class="{ 'is-resizing': isResizing }">
       <div class="resize-indicator">
         <div class="resize-dots"></div>
+      </div>
+    </div>
+
+    <!-- 調試面板 -->
+    <div
+      v-if="showDebugPanel"
+      class="debug-panel">
+      <div class="debug-header">
+        <h4>🐛 開發調試面板</h4>
+        <a-button
+          type="text"
+          size="small"
+          @click="showDebugPanel = false">
+          <CloseOutlined />
+        </a-button>
+      </div>
+      <div class="debug-content">
+        <a-row :gutter="[16, 8]">
+          <a-col :span="12">
+            <div class="debug-item">
+              <label>當前模型:</label>
+              <span class="debug-value">{{ getSelectedModelInfo() }}</span>
+            </div>
+          </a-col>
+          <a-col :span="24">
+            <div class="debug-item">
+              <label>模型端點:</label>
+              <span class="debug-value mono">{{ getModelEndpoint() }}</span>
+            </div>
+          </a-col>
+          <a-col :span="24">
+            <div class="debug-item">
+              <label>後端 API:</label>
+              <span class="debug-value mono">{{ configStore.apiBaseUrl }}</span>
+            </div>
+          </a-col>
+          <a-col :span="12">
+            <div class="debug-item">
+              <label>對話模式:</label>
+              <span class="debug-value">{{
+                useStreamMode ? "串流模式" : "普通模式"
+              }}</span>
+            </div>
+          </a-col>
+          <a-col :span="12">
+            <div class="debug-item">
+              <label>當前智能體:</label>
+              <span class="debug-value">{{ agent?.display_name || "無" }}</span>
+            </div>
+          </a-col>
+          <a-col :span="12">
+            <div class="debug-item">
+              <label>對話 ID:</label>
+              <span class="debug-value mono">{{
+                chatStore.currentConversation?.id || "無"
+              }}</span>
+            </div>
+          </a-col>
+          <a-col :span="12">
+            <div class="debug-item">
+              <label>消息數量:</label>
+              <span class="debug-value">{{ chatStore.messages.length }}</span>
+            </div>
+          </a-col>
+          <a-col :span="12">
+            <div class="debug-item">
+              <label>Temperature:</label>
+              <span class="debug-value">{{ chatSettings.temperature }}</span>
+            </div>
+          </a-col>
+          <a-col :span="12">
+            <div class="debug-item">
+              <label>Max Tokens:</label>
+              <span class="debug-value">{{ chatSettings.maxTokens }}</span>
+            </div>
+          </a-col>
+          <a-col :span="24">
+            <div class="debug-item">
+              <label>系統提示詞:</label>
+              <div class="debug-value system-prompt">
+                {{ chatSettings.systemPrompt || "無自定義系統提示詞" }}
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="24">
+            <div class="debug-item">
+              <label>最後發送狀態:</label>
+              <div class="debug-status">
+                <a-tag :color="sending ? 'processing' : 'default'">
+                  {{ sending ? "發送中" : "待命" }}
+                </a-tag>
+                <a-tag :color="isStreaming ? 'processing' : 'default'">
+                  {{ isStreaming ? "串流中" : "非串流" }}
+                </a-tag>
+                <a-tag :color="chatStore.aiTyping ? 'processing' : 'default'">
+                  {{ chatStore.aiTyping ? "AI 回應中" : "AI 待命" }}
+                </a-tag>
+              </div>
+            </div>
+          </a-col>
+        </a-row>
       </div>
     </div>
 
@@ -749,6 +863,7 @@ const configStore = useConfigStore();
 const loading = ref(false);
 const sending = ref(false);
 const messageText = ref("");
+const showDebugPanel = ref(false);
 const quotedMessage = ref(null);
 const lastSentMessageId = ref(null);
 const messagesContainer = ref(null);
@@ -940,7 +1055,7 @@ const handleModelChange = (model) => {
   // 新的 ModelSelector 組件傳遞完整的模型對象
   if (model && typeof model === "object") {
     selectedModel.value = model;
-    console.log("模型已切換:", model.display_name, "ID:", model.id);
+    console.log("模型已切換:", model.display_name, "ID:", model.id, model);
   } else {
     // 向後兼容：如果傳遞的是 ID，需要找到完整的模型對象
     const fullModel = findModelById(model);
@@ -1027,6 +1142,7 @@ const handleSendMessage = async () => {
 
         await chatStore.sendMessageStream(conversationId, content, {
           model_id: selectedModelId.value,
+          endpoint_url: selectedModel.value?.endpoint_url,
           temperature: chatSettings.value.temperature,
           max_tokens: chatSettings.value.maxTokens,
           system_prompt: chatSettings.value.systemPrompt,
@@ -1044,6 +1160,7 @@ const handleSendMessage = async () => {
             temperature: chatSettings.value.temperature,
             maxTokens: chatSettings.value.maxTokens,
             model_id: selectedModelId.value,
+            endpoint_url: selectedModel.value?.endpoint_url,
             systemPrompt: chatSettings.value.systemPrompt,
             attachments: attachments,
           }
@@ -1915,6 +2032,63 @@ const handleCreateNewConversation = async () => {
     creatingNewConversation.value = false;
   }
 };
+
+// 獲取所有模型的扁平列表（與 ModelSelector 相同的邏輯）
+const getAllModels = () => {
+  const models = [];
+  if (
+    chatStore.availableModels &&
+    typeof chatStore.availableModels === "object"
+  ) {
+    // 動態遍歷所有提供商
+    Object.keys(chatStore.availableModels).forEach((provider) => {
+      if (chatStore.availableModels[provider]) {
+        models.push(...chatStore.availableModels[provider]);
+      }
+    });
+  }
+  return models;
+};
+
+// 獲取當前選中模型的詳細信息
+const getSelectedModelInfo = () => {
+  if (!selectedModelId.value) {
+    return "未選擇模型";
+  }
+
+  const allModels = getAllModels();
+  if (allModels.length === 0) {
+    return `模型 ID: ${selectedModelId.value} (模型列表載入中...)`;
+  }
+
+  const model = allModels.find((m) => m.id === selectedModelId.value);
+  if (!model) {
+    return `模型 ID: ${selectedModelId.value} (詳情未知)`;
+  }
+
+  console.log("model====>", model);
+
+  return `${model.display_name || model.name} (${model.provider})`;
+};
+
+// 獲取當前模型的端點信息
+const getModelEndpoint = () => {
+  if (!selectedModelId.value) {
+    return "未選擇模型";
+  }
+
+  const allModels = getAllModels();
+  if (allModels.length === 0) {
+    return "模型列表載入中...";
+  }
+
+  const model = allModels.find((m) => m.id === selectedModelId.value);
+  if (!model) {
+    return "端點信息未知";
+  }
+
+  return model.endpoint_url || "未配置端點";
+};
 </script>
 
 <style scoped>
@@ -1964,6 +2138,11 @@ const handleCreateNewConversation = async () => {
 
 .stream-toggle {
   margin-left: 8px;
+}
+
+.debug-active {
+  background: var(--primary-color) !important;
+  color: white !important;
 }
 
 .model-option {
@@ -2870,5 +3049,109 @@ const handleCreateNewConversation = async () => {
 .drag-subtext {
   font-size: 14px;
   opacity: 0.8;
+}
+
+/* 調試面板樣式 */
+.debug-panel {
+  background: var(--custom-bg-secondary);
+  border-top: 1px solid var(--custom-border-primary);
+  border-bottom: 1px solid var(--custom-border-primary);
+  padding: 0;
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
+    monospace;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 300px;
+  }
+}
+
+.debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--custom-bg-tertiary);
+  border-bottom: 1px solid var(--custom-border-primary);
+}
+
+.debug-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--custom-text-primary);
+}
+
+.debug-content {
+  padding: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.debug-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.debug-item label {
+  font-weight: 600;
+  color: var(--custom-text-secondary);
+  min-width: 80px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.debug-value {
+  color: var(--custom-text-primary);
+  word-break: break-all;
+  flex: 1;
+}
+
+.debug-value.mono {
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
+    monospace;
+  background: var(--custom-bg-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--custom-border-primary);
+}
+
+.debug-value.system-prompt {
+  background: var(--custom-bg-primary);
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--custom-border-primary);
+  max-height: 60px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.debug-status {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.debug-status .ant-tag {
+  margin: 0;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 12px;
 }
 </style>

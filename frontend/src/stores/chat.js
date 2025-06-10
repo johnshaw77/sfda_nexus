@@ -222,6 +222,7 @@ export const useChatStore = defineStore("chat", () => {
         temperature: options.temperature || 0.7,
         max_tokens: options.maxTokens || 8192,
         model_id: options.model_id, // 傳遞模型 ID
+        endpoint_url: options.endpoint_url, // 直接傳遞端點 URL
         system_prompt: options.systemPrompt, // 傳遞系統提示詞
       };
 
@@ -514,6 +515,7 @@ export const useChatStore = defineStore("chat", () => {
         attachments,
         metadata,
         model_id,
+        endpoint_url: options.endpoint_url, // 直接傳遞端點 URL
         temperature,
         max_tokens,
         system_prompt,
