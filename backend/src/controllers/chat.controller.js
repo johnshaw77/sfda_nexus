@@ -94,7 +94,7 @@ export const handleCreateConversation = catchAsync(async (req, res) => {
     user_id: user.id,
     agent_id: agent_id || null,
     model_id: model_id,
-    title: title || "新對話",
+    title: title || null, // 不設置默認標題，等第一條消息後自動生成
     context: context || null,
   });
 
@@ -487,11 +487,30 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       processingTime: aiResponse.processing_time,
     });
 
+    // 如果對話沒有標題，根據第一條用戶消息自動生成標題
+    let updatedConversation = await ConversationModel.findById(conversationId);
+    if (!updatedConversation.title) {
+      // 生成標題：取用戶消息的前30個字符，去除換行符
+      const autoTitle = content.replace(/\n/g, " ").trim().substring(0, 30);
+      if (autoTitle) {
+        await query(
+          "UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ?",
+          [autoTitle, conversationId]
+        );
+        // 重新獲取更新後的對話
+        updatedConversation = await ConversationModel.findById(conversationId);
+        logger.info("自動生成對話標題", {
+          conversationId: conversationId,
+          title: autoTitle,
+        });
+      }
+    }
+
     // 調試：打印最終回應數據
     const responseData = {
       user_message: userMessage,
       assistant_message: assistantMessage,
-      conversation: await ConversationModel.findById(conversationId),
+      conversation: updatedConversation,
     };
 
     console.log("=== 最終回應數據調試 ===");
@@ -957,9 +976,24 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
       }
     }
 
-    // 獲取更新後的對話信息
-    const updatedConversation =
-      await ConversationModel.findById(conversationId);
+    // 如果對話沒有標題，根據第一條用戶消息自動生成標題
+    let updatedConversation = await ConversationModel.findById(conversationId);
+    if (!updatedConversation.title) {
+      // 生成標題：取用戶消息的前30個字符，去除換行符
+      const autoTitle = content.replace(/\n/g, " ").trim().substring(0, 30);
+      if (autoTitle) {
+        await query(
+          "UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ?",
+          [autoTitle, conversationId]
+        );
+        // 重新獲取更新後的對話
+        updatedConversation = await ConversationModel.findById(conversationId);
+        logger.info("自動生成對話標題（串流模式）", {
+          conversationId: conversationId,
+          title: autoTitle,
+        });
+      }
+    }
 
     // 發送最終對話狀態（只有在客戶端仍連接時）
     if (isClientConnected) {

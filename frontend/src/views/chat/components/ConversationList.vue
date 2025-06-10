@@ -58,76 +58,94 @@
             :image="Empty.PRESENTED_IMAGE_SIMPLE" />
         </div>
 
-        <div
-          v-for="conversation in filteredConversations"
-          :key="conversation.id"
-          class="conversation-item"
-          :class="{
-            active: chatStore.currentConversation?.id === conversation.id,
-            pinned: conversation.is_pinned,
-          }"
-          @click="handleSelectConversation(conversation)">
-          <!-- 對話信息 -->
-          <div class="conversation-info">
-            <div class="conversation-title">
-              <PushpinOutlined
-                v-if="conversation.is_pinned"
-                class="pin-icon" />
-              <MessageCircleMore :size="16" />
-              {{ conversation.title || "新對話" }}
+        <transition-group
+          name="conversation-list"
+          tag="div">
+          <div
+            v-for="conversation in filteredConversations"
+            :key="conversation.id"
+            class="conversation-item"
+            :class="{
+              active: chatStore.currentConversation?.id === conversation.id,
+              pinned: conversation.is_pinned,
+            }"
+            @click="handleSelectConversation(conversation)">
+            <!-- 對話信息 -->
+            <div class="conversation-info">
+              <div class="conversation-title">
+                <PushpinOutlined
+                  v-if="conversation.is_pinned"
+                  class="pin-icon" />
+                <MessageCircleMore :size="16" />
+                {{ conversation.title || "新對話" }}
+              </div>
+              <!-- <div class="conversation-preview">
+                {{ getLastMessagePreview(conversation) }} whatthis
+              </div> -->
+              <div class="conversation-meta">
+                <!-- 智能體信息 -->
+                <div
+                  class="agent-info"
+                  v-if="getAgentInfo(conversation)">
+                  <Bot :size="12" />
+                  <span class="agent-name">
+                    {{
+                      getAgentInfo(conversation).display_name ||
+                      getAgentInfo(conversation).name
+                    }}
+                  </span>
+                </div>
+                <span class="conversation-time">
+                  {{ formatChatTime(conversation.updated_at) }}
+                </span>
+                <span
+                  v-if="conversation.unread_count > 0"
+                  class="unread-count">
+                  {{ conversation.unread_count }}
+                </span>
+              </div>
             </div>
-            <!-- <div class="conversation-preview">
-              {{ getLastMessagePreview(conversation) }} whatthis
-            </div> -->
-            <div class="conversation-meta">
-              <span class="conversation-time">
-                {{ formatChatTime(conversation.updated_at) }}
-              </span>
-              <span
-                v-if="conversation.unread_count > 0"
-                class="unread-count">
-                {{ conversation.unread_count }}
-              </span>
-            </div>
-          </div>
 
-          <!-- 操作按鈕 -->
-          <div class="conversation-actions">
-            <a-dropdown
-              :trigger="['click']"
-              placement="bottomRight">
-              <a-button
-                type="text"
-                size="small"
-                @click.stop>
-                <MoreOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="handlePinConversation(conversation)">
-                    <PushpinOutlined />
-                    {{ conversation.is_pinned ? "取消置頂" : "置頂對話" }}
-                  </a-menu-item>
-                  <a-menu-item @click="handleRenameConversation(conversation)">
-                    <EditOutlined />
-                    重命名
-                  </a-menu-item>
-                  <a-menu-item @click="handleArchiveConversation(conversation)">
-                    <InboxOutlined />
-                    歸檔對話
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item
-                    @click="handleDeleteConversation(conversation)"
-                    class="danger-item">
-                    <DeleteOutlined />
-                    刪除對話
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
+            <!-- 操作按鈕 -->
+            <div class="conversation-actions">
+              <a-dropdown
+                :trigger="['click']"
+                placement="bottomRight">
+                <a-button
+                  type="text"
+                  size="small"
+                  @click.stop>
+                  <MoreOutlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item @click="handlePinConversation(conversation)">
+                      <PushpinOutlined />
+                      {{ conversation.is_pinned ? "取消置頂" : "置頂對話" }}
+                    </a-menu-item>
+                    <a-menu-item
+                      @click="handleRenameConversation(conversation)">
+                      <EditOutlined />
+                      重命名
+                    </a-menu-item>
+                    <a-menu-item
+                      @click="handleArchiveConversation(conversation)">
+                      <InboxOutlined />
+                      歸檔對話
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      @click="handleDeleteConversation(conversation)"
+                      class="danger-item">
+                      <DeleteOutlined />
+                      刪除對話
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </div>
           </div>
-        </div>
+        </transition-group>
       </a-spin>
     </div>
 
@@ -147,14 +165,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { message, Empty } from "ant-design-vue";
 // Icons are globally registered in main.js
 import { useChatStore } from "@/stores/chat";
+import { useAgentsStore } from "@/stores/agents";
 import { useWebSocketStore } from "@/stores/websocket";
 import { formatChatTime } from "@/utils/datetimeFormat";
-import { PanelLeftClose, MessageCircleMore } from "lucide-vue-next";
+import { PanelLeftClose, MessageCircleMore, Bot } from "lucide-vue-next";
+
 // Define emits
-const emit = defineEmits(["toggle-collapse"]);
+const emit = defineEmits(["toggle-collapse", "conversation-selected"]);
 
 // Define props
 const props = defineProps({
@@ -174,7 +195,9 @@ const props = defineProps({
 
 // Store
 const chatStore = useChatStore();
+const agentsStore = useAgentsStore();
 const wsStore = useWebSocketStore();
+const router = useRouter();
 
 // 響應式狀態
 const loading = ref(false);
@@ -187,11 +210,19 @@ const isFadingOut = ref(false);
 
 // 計算屬性
 const filteredConversations = computed(() => {
+  // 只顯示有標題且標題不為空的對話（已經有實際消息的對話）
+  const conversationsWithTitle = chatStore.conversations.filter(
+    (conversation) =>
+      conversation.title &&
+      conversation.title.trim() !== "" &&
+      conversation.title !== "新對話"
+  );
+
   if (!searchKeyword.value) {
-    return chatStore.conversations;
+    return conversationsWithTitle;
   }
 
-  return chatStore.conversations.filter(
+  return conversationsWithTitle.filter(
     (conversation) =>
       conversation.title
         ?.toLowerCase()
@@ -201,6 +232,12 @@ const filteredConversations = computed(() => {
         .includes(searchKeyword.value.toLowerCase())
   );
 });
+
+// 獲取對話對應的智能體信息
+const getAgentInfo = (conversation) => {
+  if (!conversation.agent_id) return null;
+  return agentsStore.getAgentById(conversation.agent_id);
+};
 
 // 方法
 const handleToggleCollapse = () => {
@@ -231,10 +268,24 @@ const handleCreateConversation = async () => {
 
 const handleSelectConversation = async (conversation) => {
   try {
-    await chatStore.handleSelectConversation(conversation.id);
+    // 選擇對話
+    await chatStore.handleSelectConversation(conversation);
+
+    // 通知父組件
+    emit("conversation-selected", conversation);
+
+    // 導航到聊天詳細頁
+    const agentInfo = getAgentInfo(conversation);
+    if (agentInfo) {
+      // 如果有智能體信息，導航到對應的智能體聊天頁
+      await router.push(`/chat/${agentInfo.id}`);
+    } else {
+      // 沒有智能體信息，導航到基礎聊天頁
+      await router.push("/chat");
+    }
   } catch (error) {
-    message.error("切換對話失敗");
-    console.error("切換對話失敗:", error);
+    message.error("載入對話失敗");
+    console.error("載入對話失敗:", error);
   }
 };
 
@@ -474,12 +525,25 @@ onMounted(async () => {
 }
 
 .conversation-item.active {
-  background: #e6f7ff;
-  border-right: 3px solid #1890ff;
+  background: var(--custom-bg-tertiary);
+  border-right: 3px solid var(--primary-color);
+  position: relative;
 }
+/* 
+.conversation-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary-color);
+  border-radius: 0 2px 2px 0;
+} */
 
 .conversation-item.pinned {
-  background: #fffbe6;
+  background: var(--custom-bg-secondary);
+  border-left: 2px solid #faad14;
 }
 
 .conversation-info {
@@ -516,13 +580,35 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 12px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.agent-name {
+  font-weight: 500;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversation-time {
   color: #999;
   font-size: 11px;
   padding-top: 6px;
-  padding-left: 20px;
+  flex-shrink: 0;
 }
 
 .unread-count {
@@ -546,5 +632,51 @@ onMounted(async () => {
 
 .danger-item {
   color: #ff4d4f !important;
+}
+
+/* 對話列表動畫效果 */
+.conversation-list-enter-active {
+  transition: all 0.5s ease-out;
+}
+
+.conversation-list-leave-active {
+  transition: all 0.3s ease-in;
+}
+
+.conversation-list-enter-from {
+  opacity: 0;
+  transform: translateX(-30px) scale(0.95);
+}
+
+.conversation-list-leave-to {
+  opacity: 0;
+  transform: translateX(30px) scale(0.95);
+}
+
+.conversation-list-move {
+  transition: transform 0.3s ease;
+}
+
+/* 新增對話項目的脈動效果 */
+.conversation-item.conversation-list-enter-active {
+  animation: pulse-glow 0.8s ease-out;
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: translateX(-30px) scale(0.95);
+    opacity: 0;
+    box-shadow: 0 0 0 0 var(--primary-color);
+  }
+  50% {
+    transform: translateX(-10px) scale(1.02);
+    opacity: 0.8;
+    box-shadow: 0 0 20px 0 rgba(24, 144, 255, 0.3);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 </style>

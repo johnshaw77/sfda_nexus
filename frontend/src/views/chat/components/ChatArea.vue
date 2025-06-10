@@ -967,7 +967,7 @@ const handleSendMessage = async () => {
     let conversationId = chatStore.currentConversation?.id;
     if (!conversationId) {
       const newConversation = await chatStore.handleCreateConversation({
-        title: messageText.value.trim().substring(0, 50) || "檔案分析",
+        // 不設置標題，等第一條消息後自動生成
         agent_id: props.agent?.id,
         model_id: selectedModelId.value,
       });
@@ -1895,21 +1895,18 @@ const handleCreateNewConversation = async () => {
       return;
     }
 
-    // 創建新對話
+    // 先清空當前對話狀態
+    chatStore.handleClearCurrentConversation();
+
+    // 創建新對話（不設置標題，等第一條消息後自動生成）
     const newConversation = await chatStore.handleCreateConversation({
-      title: "新對話",
       agent_id: props.agent?.id,
       model_id: selectedModelId.value,
     });
 
     if (newConversation) {
-      // 重新載入對話列表以更新sidebar
-      await chatStore.handleGetConversations();
-
-      message.success("新對話創建成功");
-
-      // 如果需要跳轉到新對話，可以使用路由
-      // $router.push(`/chat/${newConversation.id}`);
+      message.success("準備新對話");
+      // 注意：新對話不會立即顯示在歷史列表中，直到發送第一條消息
     }
   } catch (error) {
     message.error("創建新對話失敗");

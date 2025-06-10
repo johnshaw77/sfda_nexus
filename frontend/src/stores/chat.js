@@ -88,8 +88,8 @@ export const useChatStore = defineStore("chat", () => {
       );
       const newConversation = response.data.data;
 
-      // 添加到對話列表頂部
-      conversations.value.unshift(newConversation);
+      // 不立即添加到對話列表，等第一條消息發送後再添加
+      // conversations.value.unshift(newConversation);
 
       // 設置為當前對話
       currentConversation.value = newConversation;
@@ -104,8 +104,8 @@ export const useChatStore = defineStore("chat", () => {
       const wsStore = useWebSocketStore();
       wsStore.handleJoinRoom(`conversation_${newConversation.id}`);
 
-      // 更新對話列表分頁信息
-      conversationPagination.value.total += 1;
+      // 暫時不更新分頁信息，等第一條消息後再更新
+      // conversationPagination.value.total += 1;
 
       // message.success("對話創建成功");
       return newConversation;
@@ -115,6 +115,21 @@ export const useChatStore = defineStore("chat", () => {
       return null;
     } finally {
       isLoading.value = false;
+    }
+  };
+
+  // 將對話添加到歷史列表（第一條消息發送後調用）
+  const handleAddConversationToHistory = (conversation) => {
+    // 檢查是否已經在列表中
+    const existingIndex = conversations.value.findIndex(
+      (c) => c.id === conversation.id
+    );
+
+    if (existingIndex === -1) {
+      // 添加到對話列表頂部
+      conversations.value.unshift(conversation);
+      // 更新分頁信息
+      conversationPagination.value.total += 1;
     }
   };
 
@@ -254,9 +269,18 @@ export const useChatStore = defineStore("chat", () => {
           (c) => c.id === conversation.id
         );
         if (index !== -1) {
+          // 對話已存在，更新並移動到頂部
           conversations.value[index] = conversation;
-          // 移動到頂部
           conversations.value.unshift(conversations.value.splice(index, 1)[0]);
+        } else {
+          // 對話不存在，且有標題時才添加到歷史列表
+          if (
+            conversation.title &&
+            conversation.title.trim() !== "" &&
+            conversation.title !== "新對話"
+          ) {
+            handleAddConversationToHistory(conversation);
+          }
         }
       }
 
@@ -806,7 +830,20 @@ export const useChatStore = defineStore("chat", () => {
           (conv) => conv.id === conversationId
         );
         if (convIndex !== -1) {
+          // 對話已存在，更新並移動到頂部
           conversations.value[convIndex] = data.conversation;
+          conversations.value.unshift(
+            conversations.value.splice(convIndex, 1)[0]
+          );
+        } else {
+          // 對話不存在，且有標題時才添加到歷史列表
+          if (
+            data.conversation.title &&
+            data.conversation.title.trim() !== "" &&
+            data.conversation.title !== "新對話"
+          ) {
+            handleAddConversationToHistory(data.conversation);
+          }
         }
 
         // 如果是當前對話，也更新當前對話數據
@@ -917,5 +954,6 @@ export const useChatStore = defineStore("chat", () => {
     sendMessageStream,
     stopCurrentStream,
     handleSSEEvent,
+    handleAddConversationToHistory,
   };
 });

@@ -17,7 +17,7 @@ export class ConversationModel {
       user_id,
       agent_id,
       model_id,
-      title = "新對話",
+      title = null, // 不設置默認標題，等第一條消息後自動生成
       context = null,
     } = conversationData;
 
