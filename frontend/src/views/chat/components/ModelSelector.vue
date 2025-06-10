@@ -34,7 +34,14 @@
               <div class="model-content">
                 <div class="model-main">
                   <div class="model-name-row">
+                    <img
+                      v-if="model.icon"
+                      :src="getModelIconUrl(model.icon)"
+                      :alt="model.display_name"
+                      class="model-icon"
+                      @error="handleIconError" />
                     <component
+                      v-else
                       :is="getProviderIcon(model.provider)"
                       class="provider-icon" />
                     <span class="model-name">{{
@@ -107,7 +114,14 @@
         <div
           class="selected-model"
           v-if="selectedModel">
+          <img
+            v-if="selectedModel.icon"
+            :src="getModelIconUrl(selectedModel.icon)"
+            :alt="selectedModel.display_name"
+            class="selected-icon model-icon"
+            @error="handleIconError" />
           <component
+            v-else
             :is="getProviderIcon(selectedModel.provider)"
             class="selected-icon" />
           <span class="selected-name">{{ selectedModel.display_name }}</span>
@@ -236,6 +250,20 @@ const formatPricing = (pricing) => {
   return `$${pricing.input}/1K tokens`;
 };
 
+// 獲取模型圖標 URL
+const getModelIconUrl = (iconName) => {
+  if (!iconName) return "";
+  // 使用 public 目錄的圖標，Vite 會自動處理
+  return `/icons/${iconName}`;
+};
+
+// 處理圖標載入錯誤
+const handleIconError = (event) => {
+  // 當圖標載入失敗時，隱藏圖片元素
+  event.target.style.display = "none";
+  console.warn("模型圖標載入失敗:", event.target.src);
+};
+
 onMounted(async () => {
   loading.value = true;
   try {
@@ -281,6 +309,13 @@ onMounted(async () => {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+}
+
+.model-icon {
+  width: 16px !important;
+  height: 16px !important;
+  object-fit: contain;
+  border-radius: 2px;
 }
 
 .selected-name {

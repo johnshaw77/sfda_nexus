@@ -83,6 +83,20 @@
         :scroll="{ x: isSmallScreen ? 600 : 'max-content' }"
         row-key="id"
         @change="handleTableChange">
+        <!-- 圖標列 -->
+        <template #icon="{ record }">
+          <img
+            v-if="record.icon"
+            :src="getModelIconUrl(record.icon)"
+            :alt="record.model_name"
+            class="model-icon-admin"
+            @error="handleIconError" />
+          <component
+            v-else
+            :is="getProviderIcon(record.provider)"
+            class="provider-icon-admin" />
+        </template>
+
         <!-- 提供商列 -->
         <template #provider="{ record }">
           <a-tag :color="getProviderColor(record.provider)">
@@ -257,6 +271,40 @@
               <a-input
                 v-model:value="formData.model_id"
                 placeholder="輸入模型ID" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 圖標配置行 -->
+        <a-row :gutter="16">
+          <a-col :span="24">
+            <a-form-item
+              label="模型圖標"
+              name="icon">
+              <a-input
+                v-model:value="formData.icon"
+                placeholder="輸入圖標文件名（如: openai.svg）或留空使用默認圖標"
+                addonBefore="public/icons/">
+                <template #suffix>
+                  <a-tooltip
+                    title="可用圖標：openai.svg, claude.svg, gemini.svg, ollama.svg, anthropic.svg 等">
+                    <InfoCircleOutlined style="color: rgba(0, 0, 0, 0.45)" />
+                  </a-tooltip>
+                </template>
+              </a-input>
+              <div style="margin-top: 8px">
+                <span style="color: #666; font-size: 12px"> 預覽： </span>
+                <img
+                  v-if="formData.icon && iconPreviewUrl"
+                  :src="iconPreviewUrl"
+                  :alt="formData.icon"
+                  class="icon-preview"
+                  @error="handlePreviewError" />
+                <component
+                  v-else
+                  :is="getProviderIcon(formData.provider)"
+                  class="icon-preview-fallback" />
+              </div>
             </a-form-item>
           </a-col>
         </a-row>
@@ -506,6 +554,14 @@ const columns = computed(() => {
   // 基本列配置
   const baseColumns = [
     {
+      title: "圖標",
+      dataIndex: "icon",
+      key: "icon",
+      slots: { customRender: "icon" },
+      width: 60,
+      align: "center",
+    },
+    {
       title: "模型名稱",
       dataIndex: "model_name",
       key: "model_name",
@@ -615,6 +671,7 @@ const formData = reactive({
   model_name: "",
   provider: "",
   model_id: "",
+  icon: "",
   endpoint_url: "",
   api_key_encrypted: "",
   description: "",
@@ -636,6 +693,13 @@ const formRules = {
 
 // 計算屬性
 const modalTitle = computed(() => (formData.id ? "編輯模型" : "添加模型"));
+
+// 圖標預覽 URL
+const iconPreviewUrl = computed(() => {
+  if (!formData.icon) return "";
+  // 使用 public 目錄的圖標，Vite 會自動處理
+  return `/icons/${formData.icon}`;
+});
 
 const filteredModels = computed(() => {
   let result = models.value;
@@ -722,6 +786,36 @@ const getProviderName = (provider) => {
 const formatNumber = (num) => {
   if (num == null || num === "") return "-";
   return Number(num).toLocaleString();
+};
+
+// 獲取模型圖標 URL
+const getModelIconUrl = (iconName) => {
+  if (!iconName) return "";
+  // 使用 public 目錄的圖標，Vite 會自動處理
+  return `/icons/${iconName}`;
+};
+
+// 獲取提供商默認圖標
+const getProviderIcon = (provider) => {
+  const iconMap = {
+    openai: "CloudOutlined",
+    claude: "RobotOutlined",
+    gemini: "ThunderboltOutlined",
+    ollama: "ApiOutlined",
+  };
+  return iconMap[provider] || "ApiOutlined";
+};
+
+// 處理圖標載入錯誤
+const handleIconError = (event) => {
+  event.target.style.display = "none";
+  console.warn("模型圖標載入失敗:", event.target.src);
+};
+
+// 處理預覽圖標錯誤
+const handlePreviewError = (event) => {
+  event.target.style.display = "none";
+  console.warn("預覽圖標載入失敗:", event.target.src);
 };
 
 const handleSearch = () => {
@@ -955,6 +1049,7 @@ const resetForm = () => {
     model_name: "",
     provider: "",
     model_id: "",
+    icon: "",
     endpoint_url: "",
     api_key_encrypted: "",
     description: "",
@@ -974,4 +1069,36 @@ const resetForm = () => {
 
 <style scoped>
 /* 使用全局 admin 樣式，無需重複定義 */
+
+/* 模型圖標樣式 */
+.model-icon-admin {
+  width: 20px !important;
+  height: 20px !important;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+.provider-icon-admin {
+  width: 20px;
+  height: 20px;
+  color: var(--custom-text-secondary);
+}
+
+/* 圖標預覽樣式 */
+.icon-preview {
+  width: 24px !important;
+  height: 24px !important;
+  object-fit: contain;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.icon-preview-fallback {
+  width: 24px;
+  height: 24px;
+  color: var(--custom-text-secondary);
+  margin-left: 8px;
+  vertical-align: middle;
+}
 </style>

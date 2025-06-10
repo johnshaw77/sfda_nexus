@@ -85,6 +85,10 @@ export const handleGetModelById = catchAsync(async (req, res) => {
 export const handleCreateModel = catchAsync(async (req, res) => {
   const modelData = req.body;
 
+  // 調試：打印接收到的數據
+  console.log("📥 接收到的模型數據:", JSON.stringify(modelData, null, 2));
+  console.log("🔍 icon 欄位值:", modelData.icon);
+
   // 檢查模型是否已存在
   const existingModel = await ModelModel.checkModelExists(
     modelData.model_name,
@@ -115,6 +119,10 @@ export const handleCreateModel = catchAsync(async (req, res) => {
 export const handleUpdateModel = catchAsync(async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
+
+  // 調試：打印接收到的數據
+  console.log("📝 更新模型數據:", JSON.stringify(updateData, null, 2));
+  console.log("🔍 icon 欄位值:", updateData.icon);
 
   // 檢查模型是否存在
   const existingModel = await ModelModel.getModelById(parseInt(id));

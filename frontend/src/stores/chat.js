@@ -175,6 +175,14 @@ export const useChatStore = defineStore("chat", () => {
 
       const { data: messageData, pagination } = response.data.data;
 
+      console.log(`📋 載入對話 ${conversationId} 的消息:`, {
+        page: pagination.page,
+        limit: pagination.limit,
+        total: pagination.total,
+        loadedCount: messageData.length,
+        isFirstPage: messagePagination.value.current === 1,
+      });
+
       // 如果是第一頁，替換消息；否則追加到前面（歷史消息）
       if (messagePagination.value.current === 1) {
         messages.value = messageData;
@@ -270,9 +278,15 @@ export const useChatStore = defineStore("chat", () => {
           (c) => c.id === conversation.id
         );
         if (index !== -1) {
-          // 對話已存在，更新並移動到頂部
+          // 對話已存在，更新對話信息
           conversations.value[index] = conversation;
-          conversations.value.unshift(conversations.value.splice(index, 1)[0]);
+
+          // 重新排序整個對話列表（考慮置頂狀態）
+          conversations.value.sort((a, b) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            return new Date(b.last_message_at) - new Date(a.last_message_at);
+          });
         } else {
           // 對話不存在，且有標題時才添加到歷史列表
           if (
@@ -453,8 +467,38 @@ export const useChatStore = defineStore("chat", () => {
   const handleLoadMoreMessages = async () => {
     if (!currentConversation.value || isLoadingMessages.value) return;
 
-    messagePagination.value.current++;
-    await handleGetMessages(currentConversation.value.id);
+    // 檢查是否還有更多消息可載入
+    if (messages.value.length >= messagePagination.value.total) {
+      console.log("📄 已載入所有歷史消息");
+      return;
+    }
+
+    try {
+      console.log("🔄 載入更多歷史消息...", {
+        currentPage: messagePagination.value.current,
+        currentMessages: messages.value.length,
+        total: messagePagination.value.total,
+      });
+
+      messagePagination.value.current++;
+      const messageData = await handleGetMessages(currentConversation.value.id);
+
+      console.log("✅ 載入完成", {
+        newPage: messagePagination.value.current,
+        newMessages: messageData.length,
+        totalMessages: messages.value.length,
+      });
+
+      return messageData;
+    } catch (error) {
+      console.error("載入更多消息失敗:", error);
+      // 回滾頁數
+      messagePagination.value.current = Math.max(
+        1,
+        messagePagination.value.current - 1
+      );
+      throw error;
+    }
   };
 
   // 搜索對話
@@ -832,11 +876,15 @@ export const useChatStore = defineStore("chat", () => {
           (conv) => conv.id === conversationId
         );
         if (convIndex !== -1) {
-          // 對話已存在，更新並移動到頂部
+          // 對話已存在，更新對話信息
           conversations.value[convIndex] = data.conversation;
-          conversations.value.unshift(
-            conversations.value.splice(convIndex, 1)[0]
-          );
+
+          // 重新排序整個對話列表（考慮置頂狀態）
+          conversations.value.sort((a, b) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            return new Date(b.last_message_at) - new Date(a.last_message_at);
+          });
         } else {
           // 對話不存在，且有標題時才添加到歷史列表
           if (

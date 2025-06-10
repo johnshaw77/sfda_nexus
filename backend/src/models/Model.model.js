@@ -23,6 +23,7 @@ export const getAllModels = async (options = {}) => {
       model_type as provider,
       model_id,
       description,
+      icon,
       max_tokens,
       temperature,
       top_p,
@@ -93,6 +94,7 @@ export const getModelById = async (modelId) => {
       model_type as provider,
       model_id,
       description,
+      icon,
       max_tokens,
       temperature,
       top_p,
@@ -130,6 +132,7 @@ export const getModelByNameAndProvider = async (modelName, provider) => {
       model_type as provider,
       model_id,
       description,
+      icon,
       max_tokens,
       temperature,
       top_p,
@@ -164,6 +167,7 @@ export const createModel = async (modelData) => {
     provider,
     model_id,
     description,
+    icon,
     max_tokens = 4096,
     temperature = 0.7,
     top_p = 0.9,
@@ -177,10 +181,10 @@ export const createModel = async (modelData) => {
 
   const sql = `
     INSERT INTO ai_models (
-      name, display_name, model_type, model_id, description,
+      name, display_name, model_type, model_id, description, icon,
       max_tokens, temperature, top_p, pricing, capabilities,
       is_default, is_multimodal, endpoint_url, api_key_encrypted
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const result = await query(sql, [
@@ -189,6 +193,7 @@ export const createModel = async (modelData) => {
     provider,
     model_id,
     description,
+    icon,
     max_tokens,
     temperature,
     top_p,
@@ -207,6 +212,7 @@ export const createModel = async (modelData) => {
     provider,
     model_id,
     description,
+    icon,
     max_tokens,
     temperature,
     top_p,
@@ -227,9 +233,11 @@ export const createModel = async (modelData) => {
  */
 export const updateModel = async (modelId, updateData) => {
   const allowedFields = [
+    "name", // 對應前端的 model_name
     "model_id",
     "display_name",
     "description",
+    "icon",
     "max_tokens",
     "temperature",
     "top_p",
@@ -265,9 +273,17 @@ export const updateModel = async (modelId, updateData) => {
   const updates = [];
   const params = [];
 
+  // 欄位映射：前端欄位名 -> 資料庫欄位名
+  const fieldMapping = {
+    model_name: "name",
+  };
+
   Object.keys(updateData).forEach((key) => {
-    if (allowedFields.includes(key) && updateData[key] !== undefined) {
-      updates.push(`${key} = ?`);
+    // 使用映射後的欄位名或原欄位名
+    const dbField = fieldMapping[key] || key;
+
+    if (allowedFields.includes(dbField) && updateData[key] !== undefined) {
+      updates.push(`${dbField} = ?`);
       // 如果是 JSON 欄位，需要 JSON 序列化
       if (
         (key === "pricing" || key === "capabilities") &&

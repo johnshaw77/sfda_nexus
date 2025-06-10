@@ -659,7 +659,7 @@ onMounted(async () => {
 
 /* 新增對話項目的脈動效果 */
 .conversation-item.conversation-list-enter-active {
-  animation: pulse-glow 0.8s ease-out;
+  animation: pulse-glow 0.9s ease-out;
 }
 
 @keyframes pulse-glow {

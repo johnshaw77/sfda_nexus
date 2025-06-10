@@ -70,7 +70,7 @@
           class="plain-text error-text">
           {{ message.content }}
         </div>
-        <!-- AI 消息 - 正常訊息使用 CodeHighlight 組件 -->
+        <!-- AI 消息 - 使用 CodeHighlight 組件 -->
         <CodeHighlight
           v-else-if="message.role === 'assistant'"
           :content="message.content"

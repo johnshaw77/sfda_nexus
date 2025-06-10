@@ -86,46 +86,44 @@ const detectTheme = () => {
 // 響應式主題狀態
 const currentTheme = ref(detectTheme());
 
-// MarkdownIt 實例
-let md = null;
+// MarkdownIt 實例 - 立即初始化並設置自定義規則
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+});
+
+// 立即設置自定義程式碼塊渲染規則
+md.renderer.rules.fence = (tokens, idx, options, env, slf) => {
+  const token = tokens[idx];
+  const code = token.content.trim();
+  const lang = token.info.trim() || "text";
+
+  if (props.debug) {
+    console.log("=== Fence 渲染 ===");
+    console.log("Language:", lang);
+    console.log("Code:", JSON.stringify(code));
+  }
+
+  // 為程式碼塊添加包裝器
+  return `<div class="code-block-wrapper" data-lang="${lang}">
+    <div class="code-header">
+      <span class="language-label">${lang}</span>
+      <button class="copy-btn" onclick="copyCodeToClipboard(this)" title="複製程式碼">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        </svg>
+        複製
+      </button>
+    </div>
+    <div class="shiki-container" data-code="${encodeURIComponent(code)}" data-lang="${lang}"></div>
+  </div>`;
+};
 
 // 初始化 Markdown 渲染器
 onMounted(async () => {
-  md = new MarkdownIt({
-    html: true,
-    linkify: true,
-    typographer: true,
-    breaks: true,
-  });
-
-  // 自定義程式碼塊渲染規則
-  md.renderer.rules.fence = (tokens, idx, options, env, slf) => {
-    const token = tokens[idx];
-    const code = token.content.trim();
-    const lang = token.info.trim() || "text";
-
-    if (props.debug) {
-      console.log("=== Fence 渲染 ===");
-      console.log("Language:", lang);
-      console.log("Code:", JSON.stringify(code));
-    }
-
-    // 為程式碼塊添加包裝器
-    return `<div class="code-block-wrapper" data-lang="${lang}">
-      <div class="code-header">
-        <span class="language-label">${lang}</span>
-        <button class="copy-btn" onclick="copyCodeToClipboard(this)" title="複製程式碼">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          複製
-        </button>
-      </div>
-      <div class="shiki-container" data-code="${encodeURIComponent(code)}" data-lang="${lang}"></div>
-    </div>`;
-  };
-
   // 監聽 DOM 主題變化
   setupThemeObserver();
 });
@@ -203,7 +201,7 @@ const escapeHtml = (text) => {
 
 // 渲染 Markdown 內容
 const renderContent = async (content) => {
-  if (!content || !md) return "";
+  if (!content) return "";
 
   try {
     if (props.debug) {

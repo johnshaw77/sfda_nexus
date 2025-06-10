@@ -1283,6 +1283,7 @@ export const handleGetAvailableModels = catchAsync(async (req, res) => {
         model_id: m.model_id,
         provider: m.model_type,
         description: m.description,
+        icon: m.icon,
         endpoint_url: m.endpoint_url,
         max_tokens: m.max_tokens,
         temperature: m.temperature,

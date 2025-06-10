@@ -131,10 +131,35 @@
     <div
       class="messages-container"
       ref="messagesContainer"
-      :style="{ height: `calc(100% - ${inputAreaHeight}px)` }">
+      :style="{ height: `calc(100% - ${inputAreaHeight}px)` }"
+      @scroll="handleScrollToLoadMore">
       <a-spin
         :spinning="loading"
         tip="載入消息中...">
+        <!-- 載入更多指示器（在頂部） -->
+        <div
+          v-if="hasMoreMessages && isLoadingMoreMessages"
+          class="load-more-indicator">
+          <a-spin size="small" />
+          <span>載入更多歷史消息...</span>
+        </div>
+
+        <!-- 手動載入更多按鈕（可選） -->
+        <div
+          v-if="hasMoreMessages && !isLoadingMoreMessages"
+          class="load-more-button">
+          <a-button
+            type="dashed"
+            size="small"
+            @click="handleLoadMoreMessages"
+            :loading="isLoadingMoreMessages">
+            載入更多歷史消息 ({{
+              chatStore.messagePagination.total - chatStore.messages.length
+            }}
+            條)
+          </a-button>
+        </div>
+
         <!-- 空狀態 -->
         <div
           v-if="chatStore.messages.length === 0"
@@ -278,12 +303,12 @@
       </div>
     </div>
 
-    <!-- 調試面板 -->
+    <!-- 調試面板 - 右側固定 -->
     <div
       v-if="showDebugPanel"
-      class="debug-panel">
+      class="debug-panel-sidebar">
       <div class="debug-header">
-        <h4>🐛 開發調試面板</h4>
+        <h4>🐛 調試</h4>
         <a-button
           type="text"
           size="small"
@@ -293,7 +318,7 @@
       </div>
       <div class="debug-content">
         <a-row :gutter="[16, 8]">
-          <a-col :span="12">
+          <a-col :span="24">
             <div class="debug-item">
               <label>當前模型:</label>
               <span class="debug-value">{{ getSelectedModelInfo() }}</span>
@@ -311,7 +336,7 @@
               <span class="debug-value mono">{{ configStore.apiBaseUrl }}</span>
             </div>
           </a-col>
-          <a-col :span="12">
+          <a-col :span="16">
             <div class="debug-item">
               <label>對話模式:</label>
               <span class="debug-value">{{
@@ -319,20 +344,14 @@
               }}</span>
             </div>
           </a-col>
+
           <a-col :span="12">
             <div class="debug-item">
               <label>當前智能體:</label>
               <span class="debug-value">{{ agent?.display_name || "無" }}</span>
             </div>
           </a-col>
-          <a-col :span="12">
-            <div class="debug-item">
-              <label>對話 ID:</label>
-              <span class="debug-value mono">{{
-                chatStore.currentConversation?.id || "無"
-              }}</span>
-            </div>
-          </a-col>
+
           <a-col :span="12">
             <div class="debug-item">
               <label>消息數量:</label>
@@ -853,6 +872,7 @@ import {
   getAgentQuickCommands,
   incrementCommandUsage,
 } from "@/api/quickCommands";
+import { useInfiniteScroll } from "@vueuse/core";
 
 // Store
 const chatStore = useChatStore();
@@ -891,6 +911,85 @@ const maxPreviewFiles = 5;
 const imagePreviewVisible = ref(false);
 const currentPreviewImage = ref(null);
 const isDragOver = ref(false);
+
+// 無限滾動狀態
+const isLoadingMoreMessages = ref(false);
+const hasMoreMessages = computed(() => {
+  if (!chatStore.messagePagination.total) return false;
+  const loaded = chatStore.messages.length;
+  return loaded < chatStore.messagePagination.total;
+});
+
+// 方案1: 使用 VueUse 的無限滾動 (需要先安裝 @vueuse/core)
+const {
+  canLoadMore,
+  isLoading: infiniteLoading,
+  load,
+} = useInfiniteScroll(
+  messagesContainer,
+  async () => {
+    if (hasMoreMessages.value && !isLoadingMoreMessages.value) {
+      await handleLoadMoreMessages();
+    }
+  },
+  {
+    direction: "top", // 向上滾動載入歷史消息
+    distance: 100, // 距離頂部100px時觸發
+  }
+);
+
+// 方案2: 手動實現滾動檢測
+const handleScrollToLoadMore = () => {
+  if (
+    !messagesContainer.value ||
+    isLoadingMoreMessages.value ||
+    !hasMoreMessages.value
+  ) {
+    return;
+  }
+
+  const { scrollTop } = messagesContainer.value;
+
+  // 當滾動到頂部50px範圍內時載入更多
+  if (scrollTop <= 50) {
+    handleLoadMoreMessages();
+  }
+};
+
+// 載入更多歷史消息
+const handleLoadMoreMessages = async () => {
+  if (
+    !chatStore.currentConversation ||
+    isLoadingMoreMessages.value ||
+    !hasMoreMessages.value
+  ) {
+    return;
+  }
+
+  try {
+    isLoadingMoreMessages.value = true;
+    console.log("🔄 載入更多歷史消息...");
+
+    // 記錄當前滾動位置
+    const currentScrollHeight = messagesContainer.value?.scrollHeight || 0;
+
+    // 載入下一頁
+    await chatStore.handleLoadMoreMessages();
+
+    // 恢復滾動位置，避免跳躍
+    await nextTick();
+    if (messagesContainer.value) {
+      const newScrollHeight = messagesContainer.value.scrollHeight;
+      const scrollDiff = newScrollHeight - currentScrollHeight;
+      messagesContainer.value.scrollTop = scrollDiff;
+    }
+  } catch (error) {
+    console.error("載入更多消息失敗:", error);
+    message.error("載入更多消息失敗");
+  } finally {
+    isLoadingMoreMessages.value = false;
+  }
+};
 
 // 計算 textarea 的高度
 const textareaHeight = computed(() => {
@@ -1045,9 +1144,26 @@ const findModelById = (modelId) => {
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+      messagesContainer.value.scrollTo({
+        top: messagesContainer.value.scrollHeight,
+        behavior: "smooth",
+      });
     }
   });
+};
+
+// 滾動到底部的增強版本，確保在消息完全渲染後執行
+const scrollToBottomWithDelay = async (delay = 100) => {
+  await nextTick();
+  // 等待一個短暫延遲確保消息完全渲染
+  setTimeout(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTo({
+        top: messagesContainer.value.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, delay);
 };
 
 // 事件處理
@@ -1786,7 +1902,14 @@ watch(
   (newMessages, oldMessages) => {
     // 自動滾動到底部
     if (newMessages?.length > (oldMessages?.length || 0)) {
-      scrollToBottom();
+      // 如果是載入歷史對話（從 0 到多條消息），使用延遲滾動確保渲染完成
+      if ((oldMessages?.length || 0) === 0 && newMessages?.length > 0) {
+        console.log("載入歷史對話，平滑滾動到底部");
+        scrollToBottomWithDelay(150);
+      } else {
+        // 新增消息時立即滾動
+        scrollToBottom();
+      }
     }
 
     // 檢查是否有串流中的訊息內容發生變化
@@ -1812,6 +1935,19 @@ watch(
   (isTyping) => {
     if (isTyping) {
       scrollToBottom();
+    }
+  }
+);
+
+// 監聽當前對話變化，載入歷史對話後滾動到底部
+watch(
+  () => chatStore.currentConversation?.id,
+  async (newConversationId, oldConversationId) => {
+    if (newConversationId && newConversationId !== oldConversationId) {
+      // 等待消息載入完成後滾動到底部
+      await nextTick();
+      // 使用較長的延遲確保歷史消息完全渲染
+      scrollToBottomWithDelay(200);
     }
   }
 );
@@ -1872,7 +2008,12 @@ onMounted(async () => {
       }
     }
 
-    scrollToBottom();
+    // 如果有當前對話和消息，滾動到底部
+    if (chatStore.currentConversation && chatStore.messages.length > 0) {
+      scrollToBottomWithDelay(200);
+    } else {
+      scrollToBottom();
+    }
   } catch (error) {
     message.error("載入聊天數據失敗");
     console.error("載入聊天數據失敗:", error);
@@ -3051,29 +3192,35 @@ const getModelEndpoint = () => {
   opacity: 0.8;
 }
 
-/* 調試面板樣式 */
-.debug-panel {
+/* 調試面板樣式 - 右側固定 */
+.debug-panel-sidebar {
+  position: fixed;
+  top: 180px;
+  right: 0;
+  width: 300px;
+  max-width: 300px;
+  height: 450px;
   background: var(--custom-bg-secondary);
-  border-top: 1px solid var(--custom-border-primary);
-  border-bottom: 1px solid var(--custom-border-primary);
+  border-left: 1px solid var(--custom-border-primary);
   padding: 0;
   font-family:
     "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
     monospace;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-  animation: slideDown 0.3s ease-out;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.3s ease-out;
 }
 
-@keyframes slideDown {
+@keyframes slideInRight {
   0% {
     opacity: 0;
-    transform: translateY(-10px);
-    max-height: 0;
+    transform: translateX(300px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
-    max-height: 300px;
+    transform: translateX(0);
   }
 }
 
@@ -3084,6 +3231,7 @@ const getModelEndpoint = () => {
   padding: 12px 16px;
   background: var(--custom-bg-tertiary);
   border-bottom: 1px solid var(--custom-border-primary);
+  flex-shrink: 0;
 }
 
 .debug-header h4 {
@@ -3095,7 +3243,7 @@ const getModelEndpoint = () => {
 
 .debug-content {
   padding: 16px;
-  max-height: 200px;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -3135,7 +3283,7 @@ const getModelEndpoint = () => {
   padding: 8px;
   border-radius: 4px;
   border: 1px solid var(--custom-border-primary);
-  max-height: 60px;
+  max-height: 100px;
   overflow-y: auto;
   white-space: pre-wrap;
   font-size: 11px;
@@ -3153,5 +3301,33 @@ const getModelEndpoint = () => {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 12px;
+}
+
+/* 載入更多指示器樣式 */
+.load-more-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--custom-bg-secondary);
+  border-bottom: 1px solid var(--custom-border-primary);
+  color: var(--custom-text-secondary);
+  font-size: 14px;
+}
+
+/* 手動載入更多按鈕樣式 */
+.load-more-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: var(--custom-bg-secondary);
+  border-bottom: 1px solid var(--custom-border-primary);
+}
+
+.load-more-button .ant-button {
+  border-radius: 6px;
+  font-size: 12px;
 }
 </style>
