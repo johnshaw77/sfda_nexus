@@ -69,8 +69,10 @@
   --z-index-tooltip: 1060;
 
   /* 佈局相關變量 */
-  --sidebar-width: 200px;
-  --sidebar-collapsed-width: 80px;
+  --sidebar-width: 180px; /* 調整桌面端寬度 */
+  --sidebar-collapsed-width: 60px;
+  --sidebar-mobile-width: 280px; /* 手機端專用寬度 */
+  --sidebar-tablet-width: 200px; /* 平板端專用寬度 */
   --agents-sidebar-width: 320px;
   --header-height: 60px;
 
@@ -91,7 +93,7 @@
   --shadow-floating: 0 6px 16px rgba(0, 0, 0, 0.12);
 
   /* 自定義間距 */
-  --spacing-sidebar: 20px;
+  --spacing-sidebar: 16px;
   --spacing-card: 16px;
   --spacing-small: 8px;
 

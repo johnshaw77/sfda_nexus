@@ -41,7 +41,6 @@ import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import ProfileForm from "./components/ProfileForm.vue";
-import { debugAuthStore, debugUserData } from "@/utils/debugAuth";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -55,7 +54,6 @@ const handleUpdateSuccess = (updatedUser) => {
 const handleRetry = async () => {
   try {
     await authStore.handleGetProfile();
-    debugAuthStore(authStore);
   } catch (error) {
     console.error("重新載入個人資料失敗:", error);
   }
@@ -70,15 +68,11 @@ onMounted(async () => {
     await authStore.handleInitialize();
   }
 
-  // 調試當前狀態
-  debugAuthStore(authStore);
-
   // 如果沒有用戶數據，嘗試重新獲取
   if (!authStore.user && authStore.token) {
     try {
       //console.log("🔄 重新獲取用戶資料...");
       await authStore.handleGetProfile();
-      debugAuthStore(authStore);
     } catch (error) {
       console.error("載入個人資料失敗:", error);
     }
@@ -91,6 +85,16 @@ onMounted(async () => {
 <style scoped>
 .profile-page {
   padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: calc(100vh - 48px);
+}
+
+.profile-page .ant-card {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .loading-container {

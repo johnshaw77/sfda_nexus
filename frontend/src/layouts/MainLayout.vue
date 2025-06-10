@@ -11,20 +11,20 @@
       :style="{
         width: isMobile
           ? mobileSidebarVisible
-            ? `${sidebarWidth}px`
+            ? sidebarWidth
             : '0'
           : sidebarCollapsed
-            ? '60px'
-            : `${sidebarWidth}px`,
+            ? 'var(--sidebar-collapsed-width)'
+            : sidebarWidth,
         position: isMobile ? 'fixed' : 'relative',
         zIndex: isMobile ? 60 : 60,
         minWidth: isMobile
           ? mobileSidebarVisible
-            ? `${sidebarWidth}px`
+            ? sidebarWidth
             : '0'
           : sidebarCollapsed
-            ? '100px'
-            : `${sidebarWidth}px`,
+            ? 'var(--sidebar-collapsed-width)'
+            : sidebarWidth,
       }">
       <!-- 頂部 Logo -->
       <div class="sidebar-header">
@@ -107,45 +107,77 @@
         <div
           class="user-section"
           :class="{ collapsed: sidebarCollapsed }">
-          <a-avatar
-            :size="40"
-            :src="authStore.user?.avatar"
-            class="user-avatar">
-            {{ authStore.user?.display_name?.charAt(0)?.toUpperCase() }}
-          </a-avatar>
+          <!-- 展開狀態的用戶區域 -->
+          <template v-if="!sidebarCollapsed">
+            <a-avatar
+              :size="40"
+              :src="authStore.user?.avatar"
+              class="user-avatar">
+              {{ authStore.user?.display_name?.charAt(0)?.toUpperCase() }}
+            </a-avatar>
 
-          <div
-            v-if="!sidebarCollapsed"
-            class="user-info">
-            <span class="user-name">{{ authStore.user?.display_name }}</span>
-            <span class="user-role">{{ authStore.user?.role || "User" }}</span>
-          </div>
+            <div class="user-info">
+              <span class="user-name">{{ authStore.user?.display_name }}</span>
+              <span class="user-role">{{
+                authStore.user?.role || "User"
+              }}</span>
+            </div>
 
-          <a-dropdown
-            v-if="!sidebarCollapsed"
-            placement="topRight">
-            <button class="user-menu-btn">
-              <MoreVertical :size="16" />
-            </button>
+            <a-dropdown placement="topRight">
+              <button class="user-menu-btn">
+                <MoreVertical :size="16" />
+              </button>
 
-            <template #overlay>
-              <a-menu>
-                <a-menu-item @click="handleProfile">
-                  <User :size="16" />
-                  個人資料
-                </a-menu-item>
-                <a-menu-item @click="handleSettings">
-                  <Settings :size="16" />
-                  設置
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item @click="handleLogout">
-                  <LogOut :size="16" />
-                  登出
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handleProfile">
+                    <User :size="16" />
+                    個人資料
+                  </a-menu-item>
+                  <a-menu-item @click="handleSettings">
+                    <Settings :size="16" />
+                    設置
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item @click="handleLogout">
+                    <LogOut :size="16" />
+                    登出
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </template>
+
+          <!-- 折疊狀態的用戶區域 - 點擊頭像顯示菜單 -->
+          <template v-else>
+            <a-dropdown placement="topRight">
+              <a-avatar
+                :size="40"
+                :src="authStore.user?.avatar"
+                class="user-avatar collapsed-avatar"
+                :title="authStore.user?.display_name">
+                {{ authStore.user?.display_name?.charAt(0)?.toUpperCase() }}
+              </a-avatar>
+
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handleProfile">
+                    <User :size="16" />
+                    個人資料
+                  </a-menu-item>
+                  <a-menu-item @click="handleSettings">
+                    <Settings :size="16" />
+                    設置
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item @click="handleLogout">
+                    <LogOut :size="16" />
+                    登出
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </template>
         </div>
       </div>
     </div>
@@ -160,7 +192,11 @@
       }"
       :style="{
         width: agentsSidebarWidth,
-        left: isMobile ? '0' : sidebarCollapsed ? '100px' : `${sidebarWidth}px`,
+        left: isMobile
+          ? '0'
+          : sidebarCollapsed
+            ? 'var(--sidebar-collapsed-width)'
+            : sidebarWidth,
         zIndex: isMobile ? 80 : 50,
       }">
       <!-- 智能體側邊欄頭部 -->
@@ -394,6 +430,19 @@
             </a-button>
           </a-tooltip>
 
+          <!-- 語言切換按鈕 -->
+          <a-tooltip
+            title="語言切換"
+            placement="bottom"
+            :arrow="false">
+            <a-button
+              type="text"
+              class="icon-btn"
+              @click="handleLanguageSwitch">
+              <Languages :size="16" />
+            </a-button>
+          </a-tooltip>
+
           <a-tooltip
             v-if="authStore.isAdmin"
             title="管理員"
@@ -497,7 +546,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useFullscreen } from "@vueuse/core";
+import { useFullscreen, useLocalStorage } from "@vueuse/core";
 import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import {
@@ -523,6 +572,7 @@ import {
   AlertTriangle,
   XCircle,
   MonitorCog,
+  Languages,
 } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
@@ -540,8 +590,8 @@ const configStore = useConfigStore();
 const router = useRouter();
 const route = useRoute();
 
-// 響應式狀態
-const sidebarCollapsed = ref(false);
+// 響應式狀態 - 使用 localStorage 記住折疊狀態
+const sidebarCollapsed = useLocalStorage("main-sidebar-collapsed", false);
 const agentsSidebarVisible = ref(false); // 確保初始狀態為隱藏
 
 // 全屏功能 - 使用 VueUse
@@ -561,17 +611,17 @@ const isTablet = computed(
 );
 const isDesktop = computed(() => screenWidth.value >= 992);
 
-// 動態尺寸配置
+// 動態尺寸配置 - 使用 CSS 變量
 const sidebarWidth = computed(() => {
-  if (isMobile.value) return 280;
-  if (isTablet.value) return 200;
-  return 200;
+  if (isMobile.value) return "var(--sidebar-mobile-width)";
+  if (isTablet.value) return "var(--sidebar-tablet-width)";
+  return "var(--sidebar-width)";
 });
 
 const agentsSidebarWidth = computed(() => {
   if (isMobile.value) return "100vw";
   if (isTablet.value) return "300px";
-  return "320px";
+  return "var(--agents-sidebar-width)";
 });
 
 // 手機端側邊欄顯示狀態
@@ -766,6 +816,11 @@ const handleToAdminPage = () => {
   router.push({ name: "AdminDashboard" });
 };
 
+// 語言切換
+const handleLanguageSwitch = () => {
+  message.info("本功能還在趕工中");
+};
+
 // 登出
 const handleLogout = async () => {
   try {
@@ -815,25 +870,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* CSS 變數定義 */
-:root {
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 60px;
-  --agents-sidebar-width: 320px;
-  --header-height: 64px;
-  --spacing-sidebar: 16px;
-  --spacing-card: 16px;
-  --spacing-small: 8px;
-  --radius-button: 8px;
-  --radius-card: 12px;
-  --radius-input: 6px;
-  --transition-all: all 0.3s ease;
-  --transition-sidebar: width 0.3s ease;
-  --transition-transform: transform 0.3s ease;
-  --z-sidebar: 101;
-  --z-agents-sidebar: 102;
-  --z-overlay: 109;
-}
+/* CSS 變數已統一在 variables.css 中定義 */
 
 .main-layout {
   display: flex;
@@ -862,7 +899,19 @@ onUnmounted(() => {
 }
 
 .collapsed .sidebar-header {
-  padding: 5px 10px 0px 30px;
+  /* padding: 16px 0; */
+  justify-content: center;
+}
+
+.collapsed .logo-section {
+  justify-content: center;
+}
+
+.collapsed .collapse-btn {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%) rotate(180deg);
 }
 
 /* 側邊欄頭部 */
@@ -915,6 +964,7 @@ onUnmounted(() => {
   border: none;
   position: absolute;
   right: -10px;
+  top: 50%;
   background: var(--custom-bg-tertiary);
   border-radius: 50%;
   display: flex;
@@ -935,6 +985,11 @@ onUnmounted(() => {
   flex: 1;
   padding: var(--spacing-sidebar) 0;
   overflow-y: auto;
+}
+
+/* 折疊狀態下的主選單 */
+.collapsed .main-menu {
+  padding: var(--spacing-sidebar) 0;
 }
 
 .menu-item {
@@ -964,12 +1019,16 @@ onUnmounted(() => {
 .menu-item.collapsed-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 4px 12px 24px;
+  justify-content: center;
+  gap: 0;
+  padding: 12px 0;
+  margin: 0 8px 4px;
   border-radius: var(--radius-button);
   cursor: pointer;
   transition: var(--transition-all);
-  color: var(--custom-text-secondary);
+  /*TODO: 亮色模式，如果紫色底又用黑色，太難看*/
+  /* color: var(--custom-text-secondary); */
+
   position: relative;
 }
 
@@ -1244,6 +1303,7 @@ onUnmounted(() => {
 
 .user-section.collapsed {
   justify-content: center;
+  /* padding: 16px 0; */
 }
 
 .user-avatar {
@@ -1255,6 +1315,17 @@ onUnmounted(() => {
 .user-avatar:hover {
   border-color: var(--primary-color);
   transform: scale(1.05);
+}
+
+.collapsed-avatar {
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.collapsed-avatar:hover {
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .user-info {

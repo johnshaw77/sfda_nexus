@@ -4,7 +4,7 @@
     <a-layout class="chat-layout">
       <!-- 左側對話列表側邊欄 -->
       <a-layout-sider
-        v-model:collapsed="sidebarCollapsed"
+        :collapsed="sidebarCollapsed"
         :collapsed-width="60"
         :width="300"
         :trigger="null"
@@ -99,6 +99,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useLocalStorage } from "@vueuse/core";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useChatStore } from "@/stores/chat";
 import { useAuthStore } from "@/stores/auth";
@@ -121,8 +122,8 @@ const props = defineProps({
 const { useBreakpoint } = Grid;
 const screens = useBreakpoint();
 
-// 響應式狀態
-const sidebarCollapsed = ref(false);
+// 響應式狀態 - 使用 localStorage 記住折疊狀態，預設為折疊
+const sidebarCollapsed = useLocalStorage("chat-sidebar-collapsed", true);
 const sidebarVisible = ref(false);
 const breakpoint = ref("lg");
 const isExpanding = ref(false);
@@ -153,6 +154,7 @@ const currentConversationTitle = computed(() => {
 
 // 響應式控制方法
 const toggleSidebar = () => {
+  console.log("toggleSidebar triggered");
   if (isMobile.value) {
     sidebarVisible.value = !sidebarVisible.value;
   } else {
@@ -166,13 +168,18 @@ const closeSidebar = () => {
 
 const handleBreakpointChange = (broken) => {
   if (broken) {
-    sidebarCollapsed.value = true;
+    // 斷點變化時只重置手機端側邊欄狀態，不改變桌面端的折疊狀態
     sidebarVisible.value = false;
+    // 不再強制設定 sidebarCollapsed，讓它保持 localStorage 的值
   }
 };
 
 const handleSidebarCollapse = (collapsed) => {
-  sidebarCollapsed.value = collapsed;
+  console.log("handleSidebarCollapse called with:", collapsed);
+  // 只在非手機端處理 Ant Design Layout Sider 的 collapse 事件
+  if (!isMobile.value) {
+    sidebarCollapsed.value = collapsed;
+  }
 };
 
 // 對話相關方法
@@ -209,12 +216,12 @@ watch(
   (newValue) => {
     if (newValue) {
       // 切換到手機端時重置狀態
-      sidebarCollapsed.value = false;
       sidebarVisible.value = false;
+      // 手機端不改變 sidebarCollapsed 狀態，保持用戶設置
     } else {
-      // 切換到桌面端時顯示側邊欄
+      // 切換到桌面端時隱藏手機端側邊欄
       sidebarVisible.value = false;
-      sidebarCollapsed.value = false;
+      // 桌面端保持用戶設置的折疊狀態
     }
   },
   { immediate: true }
@@ -235,8 +242,26 @@ watch(
   }
 );
 
+// 監聽 sidebarCollapsed 狀態變化（用於調試）
+watch(
+  sidebarCollapsed,
+  (newValue, oldValue) => {
+    console.log("📊 sidebarCollapsed 狀態變化:", oldValue, "->", newValue);
+    console.log(
+      "📊 localStorage 被更新為:",
+      localStorage.getItem("chat-sidebar-collapsed")
+    );
+  },
+  { immediate: true }
+);
+
 onMounted(async () => {
   console.log("🚀 Chat 頁面載入開始");
+  console.log("📊 初始 sidebarCollapsed 狀態:", sidebarCollapsed.value);
+  console.log(
+    "📊 localStorage 中的值:",
+    localStorage.getItem("chat-sidebar-collapsed")
+  );
 
   // 確保認證狀態已初始化
   if (!authStore.isInitialized) {

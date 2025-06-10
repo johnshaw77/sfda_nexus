@@ -9,3 +9,5 @@ alwaysApply: false
 頁面排版優先使用 ant design vue 的排版系統，並要考慮響應式設計
 
 在新增一些功能時，如果 vueuse 已有現成的就用 vueuse, 否則才自行設計
+
+- **圖示庫** 使用 Ant Design Vue 的內建圖示，以及 lucide-icons-vue 作為輔助

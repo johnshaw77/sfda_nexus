@@ -10,21 +10,22 @@
     :rules="formRules"
     :label-col="{
       xs: { span: 24 },
-      sm: { span: 24 },
-      md: { span: 8 },
+      sm: { span: 6 },
+      md: { span: 6 },
       lg: { span: 6 },
       xl: { span: 6 },
     }"
     :wrapper-col="{
       xs: { span: 24 },
-      sm: { span: 24 },
-      md: { span: 16 },
+      sm: { span: 18 },
+      md: { span: 18 },
       lg: { span: 18 },
       xl: { span: 18 },
     }"
+    class="profile-form"
     @finish="handleSubmit">
     <!-- 頭像上傳 -->
-    <a-form-item label="頭像">
+    <a-form-item label=" ">
       <div class="avatar-upload-container">
         <div
           class="avatar-wrapper"
@@ -148,11 +149,12 @@
     <a-form-item
       :wrapper-col="{
         xs: { span: 24, offset: 0 },
-        sm: { span: 24, offset: 0 },
-        md: { span: 16, offset: 8 },
+        sm: { span: 18, offset: 6 },
+        md: { span: 18, offset: 6 },
         lg: { span: 18, offset: 6 },
         xl: { span: 18, offset: 6 },
-      }">
+      }"
+      style="text-align: center">
       <a-space>
         <a-button
           type="primary"
@@ -424,10 +426,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.profile-form {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
 .avatar-upload-container {
   display: flex;
   flex-direction: column;
   align-items: center;
+
   gap: 16px;
 }
 
