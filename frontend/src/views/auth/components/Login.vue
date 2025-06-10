@@ -256,7 +256,7 @@ import {
 } from "@ant-design/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 import { useConfigStore } from "@/stores/config";
-import { debugAuthStore, debugUserData } from "@/utils/debugAuth";
+
 import { gsap } from "gsap";
 import { TextPlugin } from "gsap/TextPlugin";
 
@@ -309,8 +309,6 @@ const handleSubmit = async (values) => {
 
     if (result.success) {
       console.log("✅ 登入成功");
-      debugAuthStore(authStore);
-      debugUserData(result.user, "登入返回的用戶數據");
 
       // 登入成功，跳轉到主頁面
       const redirectPath = router.currentRoute.value.query.redirect || "/";

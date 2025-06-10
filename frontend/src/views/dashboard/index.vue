@@ -169,7 +169,14 @@
                 class="conversation-item"
                 @click="handleOpenConversation(conversation)">
                 <div class="conversation-avatar">
-                  <a-avatar :size="40">
+                  <a-avatar
+                    :size="40"
+                    :src="conversation.agent_avatar_url"
+                    :style="{
+                      backgroundColor: conversation.agent_avatar_url
+                        ? 'transparent'
+                        : 'var(--primary-color)',
+                    }">
                     <template #icon>
                       <RobotOutlined v-if="conversation.agent_id" />
                       <MessageOutlined v-else />
@@ -184,6 +191,12 @@
                     {{ conversation.last_message_preview || "暫無消息" }}
                   </div>
                   <div class="conversation-meta">
+                    <a-tag
+                      v-if="conversation.agent_display_name"
+                      size="small"
+                      color="blue">
+                      {{ conversation.agent_display_name }}
+                    </a-tag>
                     <span class="conversation-time">
                       {{
                         formatTime(
@@ -192,12 +205,6 @@
                         )
                       }}
                     </span>
-                    <a-tag
-                      v-if="conversation.agent_name"
-                      size="small"
-                      color="blue">
-                      {{ conversation.agent_name }}
-                    </a-tag>
                   </div>
                 </div>
                 <div class="conversation-actions">
@@ -442,10 +449,12 @@ const handleLoadRecentConversations = async () => {
   isLoadingConversations.value = true;
   try {
     const conversations = await chatStore.handleGetConversations({
+      preservePagination: true,
       limit: 5,
       sortBy: "last_message_at",
       sortOrder: "DESC",
     });
+    console.log("🔍 最近對話:", conversations);
     recentConversations.value = conversations.slice(0, 5);
   } catch (error) {
     console.error("載入最近對話失敗:", error);
@@ -460,7 +469,21 @@ const handleStartNewChat = () => {
 };
 
 const handleOpenConversation = (conversation) => {
-  router.push(`/chat?id=${conversation.id}`);
+  // 使用 query 參數傳遞對話 ID，如果有智能體也一起傳遞
+  const query = { id: conversation.id };
+
+  // 如果對話關聯了智能體，也傳遞智能體 ID
+  if (conversation.agent_id) {
+    router.push({
+      path: `/chat/${conversation.agent_id}`,
+      query,
+    });
+  } else {
+    router.push({
+      path: "/chat",
+      query,
+    });
+  }
 };
 
 const handleViewAllConversations = () => {

@@ -369,15 +369,8 @@ const getLastMessagePreview = (conversation) => {
 
 // 生命週期
 onMounted(async () => {
-  try {
-    loading.value = true;
-    await chatStore.handleGetConversations();
-  } catch (error) {
-    message.error("載入對話列表失敗");
-    console.error("載入對話列表失敗:", error);
-  } finally {
-    loading.value = false;
-  }
+  // 移除重複的 API 調用，因為主組件已經在 handleInitializeChat 中處理了
+  console.log("📋 ConversationList 組件已載入，對話數據由主組件初始化");
 });
 </script>
 

@@ -23,7 +23,7 @@
             :xl="8">
             <a-input-search
               v-model:value="searchText"
-              placeholder="搜索模型名稱或提供商"
+              placeholder="搜索模型名稱、顯示名稱或提供商"
               @search="handleSearch"
               allow-clear />
           </a-col>
@@ -214,6 +214,7 @@
     <a-modal
       :open="modalVisible"
       :title="modalTitle"
+      style="top: 10px"
       :width="900"
       @ok="handleModalOk"
       @cancel="handleModalCancel">
@@ -226,24 +227,10 @@
         <a-row :gutter="[16, 16]">
           <a-col
             :xs="24"
-            :sm="24"
-            :md="8"
-            :lg="8"
-            :xl="8">
-            <a-form-item
-              label="模型名稱"
-              name="model_name">
-              <a-input
-                v-model:value="formData.model_name"
-                placeholder="輸入模型名稱" />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
             :sm="12"
-            :md="8"
-            :lg="8"
-            :xl="8">
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="提供商"
               name="provider">
@@ -262,9 +249,9 @@
           <a-col
             :xs="24"
             :sm="12"
-            :md="8"
-            :lg="8"
-            :xl="8">
+            :md="12"
+            :lg="12"
+            :xl="12">
             <a-form-item
               label="模型ID"
               name="model_id">
@@ -275,35 +262,70 @@
           </a-col>
         </a-row>
 
+        <!-- 第二行：續基本信息 -->
+        <a-row :gutter="[16, 16]">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
+            <a-form-item
+              label="模型名稱"
+              name="model_name">
+              <a-input
+                v-model:value="formData.model_name"
+                placeholder="輸入模型名稱" />
+            </a-form-item>
+          </a-col>
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
+            <a-form-item
+              label="顯示名稱"
+              name="display_name">
+              <a-input
+                v-model:value="formData.display_name"
+                placeholder="輸入顯示名稱（可選）" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
         <!-- 圖標配置行 -->
         <a-row :gutter="16">
           <a-col :span="24">
             <a-form-item
               label="模型圖標"
               name="icon">
-              <a-input
-                v-model:value="formData.icon"
-                placeholder="輸入圖標文件名（如: openai.svg）或留空使用默認圖標"
-                addonBefore="public/icons/">
-                <template #suffix>
-                  <a-tooltip
-                    title="可用圖標：openai.svg, claude.svg, gemini.svg, ollama.svg, anthropic.svg 等">
-                    <InfoCircleOutlined style="color: rgba(0, 0, 0, 0.45)" />
-                  </a-tooltip>
-                </template>
-              </a-input>
-              <div style="margin-top: 8px">
-                <span style="color: #666; font-size: 12px"> 預覽： </span>
+              <div style="display: flex; align-items: center">
+                <div style="color: #666; font-size: 12px; width: 40px">
+                  預覽：
+                </div>
                 <img
                   v-if="formData.icon && iconPreviewUrl"
                   :src="iconPreviewUrl"
                   :alt="formData.icon"
                   class="icon-preview"
+                  style="margin-right: 12px; color: background-color:white;"
                   @error="handlePreviewError" />
                 <component
                   v-else
                   :is="getProviderIcon(formData.provider)"
                   class="icon-preview-fallback" />
+                <a-input
+                  v-model:value="formData.icon"
+                  placeholder="輸入圖標文件名（如: openai.svg）或留空使用默認圖標"
+                  addonBefore="public/icons/">
+                  <template #suffix>
+                    <a-tooltip
+                      title="可用圖標：openai.svg, claude.svg, gemini.svg, ollama.svg, anthropic.svg 等">
+                      <InfoCircleOutlined style="color: rgba(0, 0, 0, 0.45)" />
+                    </a-tooltip>
+                  </template>
+                </a-input>
               </div>
             </a-form-item>
           </a-col>
@@ -341,6 +363,86 @@
           </a-col>
         </a-row>
 
+        <!-- 第四行：開關配置 -->
+        <a-row :gutter="16">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
+            <a-form-item
+              label="預設模型"
+              name="is_default">
+              <a-switch v-model:checked="formData.is_default" />
+              <span style="margin-left: 8px; color: #666; font-size: 13px">
+                設為預設模型
+              </span>
+            </a-form-item>
+          </a-col>
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
+            <a-form-item
+              label="多模態支援"
+              name="is_multimodal">
+              <a-switch v-model:checked="formData.is_multimodal" />
+              <span style="margin-left: 8px; color: #666; font-size: 13px">
+                支援圖像、音頻等多模態輸入
+              </span>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <!-- 第五行：描述 -->
+        <a-row>
+          <a-col :span="24">
+            <a-form-item
+              label="描述"
+              name="description">
+              <a-textarea
+                v-model:value="formData.description"
+                placeholder="輸入模型描述"
+                :rows="2" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 第六行：JSON 配置 -->
+        <a-row :gutter="16">
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
+            <a-form-item
+              label="配置參數"
+              name="config">
+              <a-textarea
+                v-model:value="formData.config"
+                placeholder="輸入JSON格式的配置參數"
+                :rows="3" />
+            </a-form-item>
+          </a-col>
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="12"
+            :lg="12"
+            :xl="12">
+            <a-form-item
+              label="能力配置"
+              name="capabilities">
+              <a-textarea
+                v-model:value="formData.capabilities"
+                placeholder='例如：{"streaming": true, "multimodal": true}'
+                :rows="3" />
+            </a-form-item>
+          </a-col>
+        </a-row>
         <!-- 第三行：參數配置 -->
         <a-row :gutter="16">
           <a-col
@@ -402,88 +504,6 @@
               <div style="margin-top: 4px; color: #666; font-size: 11px">
                 控制詞彙範圍
               </div>
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 第四行：開關配置 -->
-        <a-row :gutter="16">
-          <a-col
-            :xs="24"
-            :sm="24"
-            :md="12"
-            :lg="12"
-            :xl="12">
-            <a-form-item
-              label="預設模型"
-              name="is_default">
-              <a-switch v-model:checked="formData.is_default" />
-              <span style="margin-left: 8px; color: #666; font-size: 13px">
-                設為預設模型
-              </span>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="24"
-            :md="12"
-            :lg="12"
-            :xl="12">
-            <a-form-item
-              label="多模態支援"
-              name="is_multimodal">
-              <a-switch v-model:checked="formData.is_multimodal" />
-              <span style="margin-left: 8px; color: #666; font-size: 13px">
-                支援圖像、音頻等多模態輸入
-              </span>
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 第五行：描述 -->
-        <a-row>
-          <a-col :span="24">
-            <a-form-item
-              label="描述"
-              name="description">
-              <a-textarea
-                v-model:value="formData.description"
-                placeholder="輸入模型描述"
-                :rows="2" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 第六行：JSON 配置 -->
-        <a-row :gutter="16">
-          <a-col
-            :xs="24"
-            :sm="24"
-            :md="12"
-            :lg="12"
-            :xl="12">
-            <a-form-item
-              label="配置參數"
-              name="config">
-              <a-textarea
-                v-model:value="formData.config"
-                placeholder="輸入JSON格式的配置參數"
-                :rows="3" />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="24"
-            :md="12"
-            :lg="12"
-            :xl="12">
-            <a-form-item
-              label="能力配置"
-              name="capabilities">
-              <a-textarea
-                v-model:value="formData.capabilities"
-                placeholder='例如：{"streaming": true, "multimodal": true}'
-                :rows="3" />
             </a-form-item>
           </a-col>
         </a-row>
@@ -566,8 +586,18 @@ const columns = computed(() => {
       dataIndex: "model_name",
       key: "model_name",
       sorter: true,
-      width: 150,
+      width: 130,
       fixed: isSmallScreen.value ? "left" : undefined,
+    },
+    {
+      title: "顯示名稱",
+      dataIndex: "display_name",
+      key: "display_name",
+      width: 120,
+      responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
+      customRender: ({ record }) => {
+        return record.display_name || "-";
+      },
     },
     {
       title: "提供商",
@@ -669,6 +699,7 @@ const models = ref([]);
 const formData = reactive({
   id: null,
   model_name: "",
+  display_name: "",
   provider: "",
   model_id: "",
   icon: "",
@@ -708,6 +739,9 @@ const filteredModels = computed(() => {
     result = result.filter(
       (model) =>
         model.model_name
+          .toLowerCase()
+          .includes(searchText.value.toLowerCase()) ||
+        (model.display_name || "")
           .toLowerCase()
           .includes(searchText.value.toLowerCase()) ||
         model.provider.toLowerCase().includes(searchText.value.toLowerCase())
@@ -1047,6 +1081,7 @@ const resetForm = () => {
   Object.assign(formData, {
     id: null,
     model_name: "",
+    display_name: "",
     provider: "",
     model_id: "",
     icon: "",
@@ -1088,6 +1123,7 @@ const resetForm = () => {
 .icon-preview {
   width: 24px !important;
   height: 24px !important;
+  color: var(--custom-text-secondary);
   object-fit: contain;
   border-radius: 4px;
   margin-left: 8px;

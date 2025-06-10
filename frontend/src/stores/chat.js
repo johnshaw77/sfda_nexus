@@ -52,15 +52,26 @@ export const useChatStore = defineStore("chat", () => {
   const handleGetConversations = async (params = {}) => {
     isLoading.value = true;
     try {
+      const { preservePagination = false, ...requestParams } = params;
+
       const response = await api.get("/api/chat/conversations", {
         params: {
-          page: conversationPagination.value.current,
-          limit: conversationPagination.value.pageSize,
-          ...params,
+          page: preservePagination ? 1 : conversationPagination.value.current,
+          limit: preservePagination
+            ? requestParams.limit || 20
+            : conversationPagination.value.pageSize,
+          ...requestParams,
         },
       });
 
       const { data: conversationData, pagination } = response.data.data;
+
+      // 如果 preservePagination 為 true，不更新全局狀態，只返回數據
+      if (preservePagination) {
+        return conversationData;
+      }
+
+      // 否則正常更新全局狀態
       conversations.value = conversationData;
       conversationPagination.value = {
         current: pagination.page,

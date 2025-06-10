@@ -109,12 +109,18 @@ import ChatArea from "./components/ChatArea.vue";
 import WelcomeScreen from "./components/WelcomeScreen.vue";
 import ConversationList from "./components/ConversationList.vue";
 import { PanelLeftOpen, MessageCircleMore } from "lucide-vue-next";
+import { useRouter, useRoute } from "vue-router";
+import api from "@/api/index.js";
 
 // Props
 const props = defineProps({
   agentId: {
     type: String,
-    default: null,
+    required: false,
+  },
+  conversationId: {
+    type: String,
+    required: false,
   },
 });
 
@@ -137,6 +143,10 @@ const wsStore = useWebSocketStore();
 const chatStore = useChatStore();
 const authStore = useAuthStore();
 const agentsStore = useAgentsStore();
+
+// Router
+const router = useRouter();
+const route = useRoute();
 
 // 計算當前選中的智能體
 const selectedAgent = computed(() => {
@@ -285,6 +295,49 @@ onMounted(async () => {
     // 初始化聊天數據
     await chatStore.handleInitializeChat();
     console.log("✅ 聊天數據初始化完成");
+
+    // 檢查路由參數或 query 參數中是否有對話 ID
+    const conversationId =
+      props.conversationId || route.params.conversationId || route.query.id;
+    if (conversationId) {
+      console.log("🔗 檢測到路由中的對話 ID:", conversationId);
+
+      try {
+        // 先查找對話是否在已載入的列表中
+        let conversation = chatStore.conversations.find(
+          (c) => c.id === parseInt(conversationId)
+        );
+
+        if (!conversation) {
+          // 如果對話不在列表中，嘗試從 API 載入
+          console.log("📡 從 API 載入對話詳情...");
+          const response = await api.get(
+            `/api/chat/conversations/${conversationId}`
+          );
+          conversation = response.data.data;
+          console.log("✅ 對話詳情載入成功");
+        }
+
+        if (conversation) {
+          // 選擇並載入該對話
+          await chatStore.handleSelectConversation(conversation);
+          console.log("✅ 對話載入完成:", conversation.title);
+
+          // 清除 URL 中的 query 參數，避免重複處理
+          const currentPath = props.agentId
+            ? `/chat/${props.agentId}`
+            : "/chat";
+          router.replace({ path: currentPath });
+        } else {
+          console.log("❌ 無法找到對話 ID:", conversationId);
+        }
+      } catch (error) {
+        console.error("❌ 載入指定對話失敗:", error);
+        // 如果載入失敗，跳轉到基礎聊天頁面
+        const currentPath = props.agentId ? `/chat/${props.agentId}` : "/chat";
+        router.replace({ path: currentPath });
+      }
+    }
   } catch (error) {
     console.error("❌ 聊天數據初始化失敗:", error);
   }
