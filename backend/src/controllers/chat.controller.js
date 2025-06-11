@@ -456,6 +456,10 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     console.log("=== CHAT CONTROLLER 回應摘要結束 ===\n");
 
     // 處理 AI 回應，包含 MCP 工具調用檢測和執行
+    console.log("=== 開始處理 AI 回應 ===");
+    console.log("AI 回應內容:", aiResponse.content);
+    console.log("AI 回應長度:", aiResponse.content.length);
+
     const chatResult = await chatService.processChatMessage(
       aiResponse.content,
       {
@@ -465,10 +469,36 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       }
     );
 
+    console.log("=== processChatMessage 結果 ===");
+    console.log("has_tool_calls:", chatResult.has_tool_calls);
+    console.log("tool_calls 數量:", chatResult.tool_calls?.length || 0);
+    console.log("tool_results 數量:", chatResult.tool_results?.length || 0);
+    if (chatResult.tool_calls && chatResult.tool_calls.length > 0) {
+      console.log(
+        "工具調用詳情:",
+        JSON.stringify(chatResult.tool_calls, null, 2)
+      );
+    }
+    if (chatResult.tool_results && chatResult.tool_results.length > 0) {
+      console.log(
+        "工具結果詳情:",
+        JSON.stringify(chatResult.tool_results, null, 2)
+      );
+    }
+    console.log("=== processChatMessage 結果結束 ===");
+
     // 使用處理後的回應內容
     const finalContent = chatResult.final_response || aiResponse.content;
 
     // 創建AI回應訊息（包含工具調用資訊）
+    console.log("=== 創建 AI 訊息 ===");
+    console.log("最終內容長度:", finalContent.length);
+    console.log("即將存儲的 metadata:", {
+      has_tool_calls: chatResult.has_tool_calls,
+      tool_calls_count: chatResult.tool_calls?.length || 0,
+      tool_results_count: chatResult.tool_results?.length || 0,
+    });
+
     const assistantMessage = await MessageModel.create({
       conversation_id: conversationId,
       role: "assistant",
@@ -485,6 +515,13 @@ export const handleSendMessage = catchAsync(async (req, res) => {
         original_response: chatResult.original_response,
       },
     });
+
+    console.log("=== AI 訊息創建完成 ===");
+    console.log("訊息 ID:", assistantMessage.id);
+    console.log(
+      "訊息 metadata:",
+      JSON.stringify(assistantMessage.metadata, null, 2)
+    );
 
     logger.info("AI回應生成成功", {
       conversationId: conversationId,
@@ -532,6 +569,16 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     console.log("=== 最終回應數據調試結束 ===\n");
 
     // 返回用戶訊息和AI回應
+    console.log("=== 準備發送響應給前端 ===");
+    console.log("responseData.assistant_message.metadata:", {
+      has_tool_calls: responseData.assistant_message.metadata?.has_tool_calls,
+      tool_calls_count:
+        responseData.assistant_message.metadata?.tool_calls?.length || 0,
+      tool_results_count:
+        responseData.assistant_message.metadata?.tool_results?.length || 0,
+    });
+    console.log("=== 響應發送完成 ===");
+
     res.json(createSuccessResponse(responseData, "訊息發送成功"));
   } catch (aiError) {
     logger.error("AI模型調用失敗", {

@@ -269,9 +269,18 @@ class ChatService {
    * @returns {Promise<Object>} 處理結果
    */
   async processChatMessage(aiResponse, context = {}) {
+    console.log("=== CHAT SERVICE: 開始處理聊天消息 ===");
+    console.log("AI 回應長度:", aiResponse.length);
+    console.log("AI 回應內容:", aiResponse);
+
     try {
       // 檢查是否包含工具調用
-      if (!mcpToolParser.hasToolCalls(aiResponse)) {
+      console.log("=== 檢查工具調用 ===");
+      const hasTools = mcpToolParser.hasToolCalls(aiResponse);
+      console.log("包含工具調用:", hasTools);
+
+      if (!hasTools) {
+        console.log("=== 無工具調用，直接返回 ===");
         return {
           original_response: aiResponse,
           has_tool_calls: false,
@@ -286,9 +295,16 @@ class ChatService {
       });
 
       // 解析工具調用
+      console.log("=== 開始解析工具調用 ===");
       const toolCalls = await mcpToolParser.parseToolCalls(aiResponse, context);
+      console.log("解析到工具調用數量:", toolCalls.length);
+
+      if (toolCalls.length > 0) {
+        console.log("工具調用詳情:", JSON.stringify(toolCalls, null, 2));
+      }
 
       if (toolCalls.length === 0) {
+        console.log("=== 工具調用解析失敗，返回原始回應 ===");
         return {
           original_response: aiResponse,
           has_tool_calls: false,
@@ -298,10 +314,16 @@ class ChatService {
       }
 
       // 執行工具調用
+      console.log("=== 開始執行工具調用 ===");
       const toolResults = await mcpToolParser.executeToolCalls(
         toolCalls,
         context
       );
+      console.log("工具執行結果數量:", toolResults.length);
+
+      if (toolResults.length > 0) {
+        console.log("工具執行結果:", JSON.stringify(toolResults, null, 2));
+      }
 
       // 格式化工具結果
       const formattedResults = mcpToolParser.formatToolResults(toolResults);
@@ -313,7 +335,8 @@ class ChatService {
         toolResults
       );
 
-      return {
+      console.log("=== CHAT SERVICE: 處理完成 ===");
+      const result = {
         original_response: aiResponse,
         has_tool_calls: true,
         tool_calls: toolCalls,
@@ -321,6 +344,14 @@ class ChatService {
         formatted_results: formattedResults,
         final_response: finalResponse,
       };
+      console.log("最終結果:", {
+        has_tool_calls: result.has_tool_calls,
+        tool_calls_count: result.tool_calls?.length || 0,
+        tool_results_count: result.tool_results?.length || 0,
+        final_response_length: result.final_response?.length || 0,
+      });
+
+      return result;
     } catch (error) {
       logger.error("處理聊天消息失敗", {
         error: error.message,

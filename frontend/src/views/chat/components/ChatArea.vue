@@ -873,6 +873,7 @@ import {
   incrementCommandUsage,
 } from "@/api/quickCommands";
 import { useInfiniteScroll } from "@vueuse/core";
+import { chatWithQwenAgent } from "@/api/qwenAgent";
 
 // Store
 const chatStore = useChatStore();
@@ -1126,6 +1127,18 @@ const getQuotePreview = (content) => {
   return content.length > 100 ? content.substring(0, 100) + "..." : content;
 };
 
+// 檢測是否是 Qwen Agent
+const isQwenAgent = (agent) => {
+  if (!agent) return false;
+  // 檢查 agent 名稱或工具配置來判斷是否是 Qwen Agent
+  return (
+    agent.name === "qwen-enterprise-agent" ||
+    (agent.tools &&
+      agent.tools.mcp_tools &&
+      Array.isArray(agent.tools.mcp_tools))
+  );
+};
+
 const findModelById = (modelId) => {
   // 動態地在所有提供商中搜尋指定ID的模型
   if (
@@ -1251,7 +1264,41 @@ const handleSendMessage = async () => {
       pendingAttachments.value = [];
       previewFiles.value = []; // 清空預覽檔案
 
-      if (useStreamMode.value) {
+      // 檢查是否是 Qwen Agent
+      if (isQwenAgent(props.agent)) {
+        console.log("=== 檢測到 Qwen Agent，使用 Qwen-Agent API ===");
+        console.log("Agent:", props.agent.name);
+        console.log("Message:", content);
+
+        try {
+          // 使用 Qwen-Agent API
+          const response = await chatWithQwenAgent({
+            message: content,
+            agentId: props.agent.id,
+            conversationId: conversationId,
+            context: {
+              temperature: chatSettings.value.temperature,
+              max_tokens: chatSettings.value.maxTokens,
+              system_prompt: chatSettings.value.systemPrompt,
+              attachments: attachments,
+            },
+          });
+
+          console.log("=== Qwen-Agent 回應 ===");
+          console.log("Response:", response);
+
+          if (response.success) {
+            // 重新載入對話消息以顯示新的消息
+            await chatStore.handleGetMessages(conversationId);
+            message.success("Qwen Agent 回應成功");
+          } else {
+            throw new Error(response.error || "Qwen Agent 回應失敗");
+          }
+        } catch (error) {
+          console.error("Qwen Agent 調用失敗:", error);
+          message.error(`Qwen Agent 調用失敗: ${error.message}`);
+        }
+      } else if (useStreamMode.value) {
         // 使用串流模式
         console.log("=== 使用串流模式發送消息 ===");
         isStreaming.value = true;

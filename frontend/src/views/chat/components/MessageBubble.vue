@@ -185,6 +185,22 @@
         </div>
       </div>
 
+      <!-- 工具調用結果顯示 -->
+      <div
+        v-if="message.role === 'assistant' && effectiveToolCalls.length > 0"
+        class="tool-calls-section">
+        <div class="tool-calls-header">
+          <ToolOutlined />
+          <span>工具調用 ({{ effectiveToolCalls.length }})</span>
+        </div>
+        <div class="tool-calls-list">
+          <ToolCallDisplay
+            v-for="(toolCall, index) in effectiveToolCalls"
+            :key="index"
+            :tool-call="toolCall" />
+        </div>
+      </div>
+
       <!-- AI 模型信息 -->
       <div
         v-if="message.role === 'assistant' && message.model_info"
@@ -303,6 +319,7 @@ import { useConfigStore } from "@/stores/config";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 import { getFilePreviewUrl, getImageBlobUrl } from "@/api/files";
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
+import ToolCallDisplay from "@/components/common/ToolCallDisplay.vue";
 
 // Props
 const props = defineProps({
@@ -353,6 +370,21 @@ const nonImageAttachments = computed(() => {
       attachment.file_type !== "image" &&
       !attachment.mime_type?.startsWith("image/")
   );
+});
+
+// 計算屬性：獲取有效的工具調用列表
+const effectiveToolCalls = computed(() => {
+  // 優先使用 metadata.tool_calls（後端存儲位置）
+  if (props.message.metadata?.tool_calls?.length > 0) {
+    return props.message.metadata.tool_calls;
+  }
+
+  // 如果 metadata 中沒有，檢查直接的 tool_calls 屬性
+  if (props.message.tool_calls?.length > 0) {
+    return props.message.tool_calls;
+  }
+
+  return [];
 });
 
 // 獲取圖片 URL
@@ -973,6 +1005,34 @@ const handleImageError = (event) => {
   color: white;
   font-size: 12px;
   backdrop-filter: blur(4px);
+}
+
+/* 工具調用樣式 */
+.tool-calls-section {
+  margin-top: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fafafa;
+  overflow: hidden;
+}
+
+.tool-calls-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f0f0f0;
+  border-bottom: 1px solid #e8e8e8;
+  font-size: 13px;
+  font-weight: 500;
+  color: #595959;
+}
+
+.tool-calls-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .model-info {

@@ -70,15 +70,26 @@ const populateAgentMcpServices = async (agents) => {
         // 處理GROUP_CONCAT的結果
         const toolsStr = service.tools.replace(/^\[|\]$/g, ""); // 移除首尾的[]
         if (toolsStr) {
-          tools = toolsStr.split("},{").map((toolStr, index, arr) => {
-            // 重新添加大括號
-            if (index === 0 && arr.length > 1) toolStr += "}";
-            else if (index === arr.length - 1 && arr.length > 1)
-              toolStr = "{" + toolStr;
-            else if (arr.length > 1) toolStr = "{" + toolStr + "}";
+          tools = toolsStr
+            .split("},{")
+            .map((toolStr, index, arr) => {
+              try {
+                // 重新添加大括號
+                if (index === 0 && arr.length > 1) toolStr += "}";
+                else if (index === arr.length - 1 && arr.length > 1)
+                  toolStr = "{" + toolStr;
+                else if (arr.length > 1) toolStr = "{" + toolStr + "}";
 
-            return JSON.parse(toolStr);
-          });
+                return JSON.parse(toolStr);
+              } catch (parseError) {
+                logger.warn(`解析工具字符串失敗 (Agent ${service.agent_id}):`, {
+                  toolStr: toolStr.substring(0, 100) + "...",
+                  error: parseError.message,
+                });
+                return null;
+              }
+            })
+            .filter((tool) => tool !== null); // 過濾掉解析失敗的工具
         }
       } catch (error) {
         logger.warn(`解析智能體 ${service.agent_id} 的工具信息失敗:`, error);
@@ -255,6 +266,19 @@ const schemas = {
     tags: Joi.array().items(Joi.string()).optional(),
     capabilities: Joi.object().optional(),
     tools: Joi.object().optional(),
+    agent_type: Joi.string()
+      .valid("custom", "qwen")
+      .default("custom")
+      .messages({
+        "any.only": "Agent 類型必須是 custom 或 qwen",
+      }),
+    qwen_config: Joi.object().optional().allow(null),
+    tool_selection_mode: Joi.string()
+      .valid("manual", "auto")
+      .default("manual")
+      .messages({
+        "any.only": "工具選擇模式必須是 manual 或 auto",
+      }),
     is_active: Joi.any()
       .custom((value, helpers) => {
         if (value === true || value === false || value === 1 || value === 0) {
@@ -294,6 +318,16 @@ const schemas = {
     tags: Joi.array().items(Joi.string()).optional(),
     capabilities: Joi.object().optional(),
     tools: Joi.object().optional(),
+    agent_type: Joi.string().valid("custom", "qwen").optional().messages({
+      "any.only": "Agent 類型必須是 custom 或 qwen",
+    }),
+    qwen_config: Joi.object().optional().allow(null),
+    tool_selection_mode: Joi.string()
+      .valid("manual", "auto")
+      .optional()
+      .messages({
+        "any.only": "工具選擇模式必須是 manual 或 auto",
+      }),
     is_active: Joi.any()
       .custom((value, helpers) => {
         if (value === true || value === false || value === 1 || value === 0) {
@@ -396,8 +430,9 @@ export const handleGetAgents = catchAsync(async (req, res) => {
   const agentsQuery = `
     SELECT 
       a.id, a.name, a.display_name, a.description, a.avatar,
-      a.system_prompt, a.model_id, a.category, a.tags, 
-      a.capabilities, a.tools, a.is_active, a.is_public,
+      a.system_prompt, a.model_id, a.category, a.agent_type,
+      a.tags, a.capabilities, a.tools, a.qwen_config, 
+      a.tool_selection_mode, a.is_active, a.is_public,
       a.usage_count, a.rating, a.rating_count, 
       a.created_at, a.updated_at, a.created_by,
       m.name as model_name, m.display_name as model_display_name,
@@ -424,6 +459,7 @@ export const handleGetAgents = catchAsync(async (req, res) => {
     tags: agent.tags ? agent.tags : [],
     capabilities: agent.capabilities ? agent.capabilities : {},
     tools: agent.tools ? agent.tools : {},
+    qwen_config: agent.qwen_config ? agent.qwen_config : null,
     is_active: Boolean(agent.is_active),
     is_public: Boolean(agent.is_public),
   }));
@@ -464,9 +500,12 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
     system_prompt,
     model_id,
     category,
+    agent_type,
     tags,
     capabilities,
     tools,
+    qwen_config,
+    tool_selection_mode,
     is_active,
     is_public,
   } = value;
@@ -497,9 +536,9 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
     const insertQuery = `
       INSERT INTO agents (
         name, display_name, description, avatar, system_prompt, 
-        model_id, category, tags, capabilities, tools, 
-        is_active, is_public, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        model_id, category, agent_type, tags, capabilities, tools, 
+        qwen_config, tool_selection_mode, is_active, is_public, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const agentData = [
@@ -510,9 +549,12 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
       system_prompt,
       model_id,
       category,
+      agent_type || "custom",
       tags ? JSON.stringify(tags) : null,
       capabilities ? JSON.stringify(capabilities) : null,
       cleanedTools ? JSON.stringify(cleanedTools) : null,
+      qwen_config ? JSON.stringify(qwen_config) : null,
+      tool_selection_mode || "manual",
       is_active ? 1 : 0,
       is_public ? 1 : 0,
       req.user.id,
@@ -548,6 +590,9 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
         ? JSON.parse(newAgent.capabilities)
         : {},
       tools: newAgent.tools ? JSON.parse(newAgent.tools) : {},
+      qwen_config: newAgent.qwen_config
+        ? JSON.parse(newAgent.qwen_config)
+        : null,
       is_active: Boolean(newAgent.is_active),
       is_public: Boolean(newAgent.is_public),
     };
@@ -586,6 +631,7 @@ export const handleCreateAgent = catchAsync(async (req, res) => {
       tags: safeJsonParse(newAgent.tags, []),
       capabilities: safeJsonParse(newAgent.capabilities, {}),
       tools: safeJsonParse(newAgent.tools, {}),
+      qwen_config: safeJsonParse(newAgent.qwen_config, null),
       is_active: Boolean(newAgent.is_active),
       is_public: Boolean(newAgent.is_public),
     };
@@ -659,7 +705,7 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
     Object.entries(value).forEach(([key, val]) => {
       if (val !== undefined) {
         updateFields.push(`${key} = ?`);
-        if (key === "tags" || key === "capabilities") {
+        if (key === "tags" || key === "capabilities" || key === "qwen_config") {
           updateValues.push(val ? JSON.stringify(val) : null);
         } else if (key === "tools") {
           // 清理tools字段，移除MCP服務信息
@@ -734,6 +780,7 @@ export const handleUpdateAgent = catchAsync(async (req, res) => {
       tags: safeJsonParse(updatedAgent.tags, []),
       capabilities: safeJsonParse(updatedAgent.capabilities, {}),
       tools: safeJsonParse(updatedAgent.tools, {}),
+      qwen_config: safeJsonParse(updatedAgent.qwen_config, null),
       is_active: Boolean(updatedAgent.is_active),
       is_public: Boolean(updatedAgent.is_public),
     };
@@ -858,9 +905,9 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
     const insertQuery = `
       INSERT INTO agents (
         name, display_name, description, avatar, system_prompt, 
-        model_id, category, tags, capabilities, tools, 
-        is_active, is_public, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        model_id, category, agent_type, tags, capabilities, tools, 
+        qwen_config, tool_selection_mode, is_active, is_public, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const agentData = [
@@ -871,9 +918,12 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
       originalAgent.system_prompt,
       originalAgent.model_id,
       originalAgent.category,
+      originalAgent.agent_type || "custom",
       originalAgent.tags,
       originalAgent.capabilities,
       originalAgent.tools,
+      originalAgent.qwen_config,
+      originalAgent.tool_selection_mode || "manual",
       1, // 默認啟用
       originalAgent.is_public,
       req.user.id,
@@ -930,6 +980,7 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
       tags: safeJsonParse(newAgent.tags, []),
       capabilities: safeJsonParse(newAgent.capabilities, {}),
       tools: safeJsonParse(newAgent.tools, {}),
+      qwen_config: safeJsonParse(newAgent.qwen_config, null),
       is_active: Boolean(newAgent.is_active),
       is_public: Boolean(newAgent.is_public),
     };

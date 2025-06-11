@@ -53,9 +53,9 @@ class McpClient {
       });
 
       // 測試連接
-      const isConnected = await this.testConnection(service.endpoint_url);
+      const connectionResult = await this.testConnection(service.endpoint_url);
 
-      if (isConnected) {
+      if (connectionResult.success) {
         this.clients.set(service.id, {
           client,
           service,
@@ -190,6 +190,25 @@ class McpClient {
   }
 
   /**
+   * 獲取服務模組名稱
+   * @param {string} serviceName - 服務名稱
+   * @returns {string} 模組名稱
+   */
+  getModuleName(serviceName) {
+    const moduleMap = {
+      "Hr 服務": "hr",
+      "Finance 服務": "finance",
+      "Tasks 服務": "tasks",
+      // 支援多種命名格式
+      hr: "hr",
+      finance: "finance",
+      tasks: "tasks",
+    };
+
+    return moduleMap[serviceName] || serviceName.toLowerCase();
+  }
+
+  /**
    * 調用 MCP 工具
    * @param {number} toolId - 工具 ID
    * @param {Object} parameters - 工具參數
@@ -197,9 +216,15 @@ class McpClient {
    * @returns {Promise<Object>} 工具執行結果
    */
   async invokeTool(toolId, parameters = {}, context = {}) {
+    logger.info("🔧 ===== MCP 工具調用開始 =====");
+    logger.info("🔧 工具 ID:", toolId);
+    logger.info("🔧 參數:", parameters);
+    logger.info("🔧 上下文:", context);
+
     try {
       // 獲取工具信息
       const tool = await McpToolModel.getMcpToolById(toolId);
+      logger.info("🔧 工具資訊:", tool);
 
       if (!tool) {
         throw new Error(`工具 ${toolId} 不存在`);
@@ -211,42 +236,51 @@ class McpClient {
 
       // 獲取對應的服務客戶端
       const clientInfo = this.clients.get(tool.mcp_service_id);
+      logger.info("🔧 客戶端資訊存在:", !!clientInfo);
 
       if (!clientInfo) {
         throw new Error(`MCP 服務 ${tool.mcp_service_id} 未連接`);
       }
 
-      // 準備調用參數
-      const payload = {
-        tool: tool.name,
-        parameters,
-        context: {
-          user_id: context.user_id,
-          session_id: context.session_id,
-          timestamp: new Date().toISOString(),
-          ...context,
-        },
-      };
+      // 獲取模組名稱
+      const moduleName = this.getModuleName(tool.service_name);
+      logger.info("🔧 服務名稱:", tool.service_name);
+      logger.info("🔧 模組名稱:", moduleName);
+
+      // 構建正確的端點 URL：/api/{module}/{toolName}
+      const endpoint = `/api/${moduleName}/${tool.name}`;
+      logger.info("🔧 最終端點:", endpoint);
 
       logger.info("調用 MCP 工具", {
         tool_id: toolId,
         tool_name: tool.name,
         service_id: tool.mcp_service_id,
+        service_name: tool.service_name,
+        module_name: moduleName,
+        endpoint: endpoint,
         parameters,
         user_id: context.user_id,
       });
 
-      // 發送工具調用請求
-      const response = await clientInfo.client.post("/tools/invoke", payload);
+      logger.info(
+        "🔧 準備發送請求到:",
+        clientInfo.service.endpoint_url + endpoint
+      );
+
+      // 發送工具調用請求 - 使用模組特定的端點
+      const response = await clientInfo.client.post(endpoint, parameters);
+      logger.info("🔧 工具調用成功！回應狀態:", response.status);
+      logger.info("🔧 回應資料:", response.data);
 
       // 更新工具使用次數
-      await McpToolModel.incrementUsageCount(toolId);
+      await McpToolModel.incrementToolUsage(toolId);
 
       // 記錄調用成功日誌
       logger.info("MCP 工具調用成功", {
         tool_id: toolId,
         tool_name: tool.name,
         service_id: tool.mcp_service_id,
+        endpoint: endpoint,
         user_id: context.user_id,
         response_status: response.status,
       });
@@ -261,13 +295,17 @@ class McpClient {
     } catch (error) {
       logger.error("MCP 工具調用失敗", {
         tool_id: toolId,
+        tool_name: tool?.name || "unknown",
         parameters,
         error: error.message,
+        stack: error.stack,
         user_id: context.user_id,
       });
 
       return {
         success: false,
+        tool_name: tool?.name || "unknown",
+        service_name: tool?.service_name || "unknown",
         error: error.message,
         timestamp: new Date().toISOString(),
       };

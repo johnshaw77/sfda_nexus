@@ -145,9 +145,20 @@
               <!-- 卡片內容 -->
               <a-card-meta :title="agent.display_name || agent.name">
                 <template #avatar>
-                  <a-tag :color="getCategoryColor(agent.category)">
-                    {{ getCategoryName(agent.category) }}
-                  </a-tag>
+                  <a-space
+                    direction="vertical"
+                    size="small">
+                    <a-tag :color="getCategoryColor(agent.category)">
+                      {{ getCategoryName(agent.category) }}
+                    </a-tag>
+                    <a-tag
+                      :color="agent.agent_type === 'qwen' ? 'orange' : 'blue'"
+                      size="small">
+                      {{
+                        agent.agent_type === "qwen" ? "Qwen-Agent" : "自定義"
+                      }}
+                    </a-tag>
+                  </a-space>
                 </template>
                 <template #description>
                   <a-tooltip
@@ -251,9 +262,17 @@
                 :sm="12"
                 :md="12"
                 :lg="12">
-                <a-form-item
-                  label="智能體名稱"
-                  name="name">
+                <a-form-item name="name">
+                  <template #label>
+                    <a-space>
+                      <span>智能體名稱</span>
+                      <a-tooltip
+                        title="智能體的唯一標識名稱，用於系統內部識別，建議使用英文或數字，不可重複">
+                        <QuestionCircleOutlined
+                          style="color: #999; cursor: help" />
+                      </a-tooltip>
+                    </a-space>
+                  </template>
                   <a-input
                     v-model:value="formData.name"
                     placeholder="輸入智能體名稱" />
@@ -264,9 +283,17 @@
                 :sm="12"
                 :md="12"
                 :lg="12">
-                <a-form-item
-                  label="顯示名稱"
-                  name="display_name">
+                <a-form-item name="display_name">
+                  <template #label>
+                    <a-space>
+                      <span>顯示名稱</span>
+                      <a-tooltip
+                        title="在用戶界面中顯示的友好名稱，支援中文，用戶看到的名稱">
+                        <QuestionCircleOutlined
+                          style="color: #999; cursor: help" />
+                      </a-tooltip>
+                    </a-space>
+                  </template>
                   <a-input
                     v-model:value="formData.display_name"
                     placeholder="輸入顯示名稱" />
@@ -278,11 +305,19 @@
               <a-col
                 :xs="24"
                 :sm="12"
-                :md="12"
-                :lg="12">
-                <a-form-item
-                  label="分類"
-                  name="category">
+                :md="8"
+                :lg="8">
+                <a-form-item name="category">
+                  <template #label>
+                    <a-space>
+                      <span>分類</span>
+                      <a-tooltip
+                        title="智能體的功能分類，用於組織和篩選不同類型的助手">
+                        <QuestionCircleOutlined
+                          style="color: #999; cursor: help" />
+                      </a-tooltip>
+                    </a-space>
+                  </template>
                   <a-select
                     v-model:value="formData.category"
                     placeholder="選擇分類">
@@ -302,11 +337,62 @@
               <a-col
                 :xs="24"
                 :sm="12"
-                :md="12"
-                :lg="12">
-                <a-form-item
-                  label="關聯模型"
-                  name="model_id">
+                :md="8"
+                :lg="8">
+                <a-form-item name="agent_type">
+                  <template #label>
+                    <a-space>
+                      <span>Agent 類型</span>
+                      <a-tooltip
+                        title="選擇 Agent 的運作模式：自定義 Agent 需要手動配置工具，Qwen-Agent 支援智能工具選擇">
+                        <QuestionCircleOutlined
+                          style="color: #999; cursor: help" />
+                      </a-tooltip>
+                    </a-space>
+                  </template>
+                  <a-select
+                    v-model:value="formData.agent_type"
+                    placeholder="選擇 Agent 類型"
+                    @change="handleAgentTypeChange">
+                    <a-select-option value="custom">
+                      <a-space>
+                        <span>自定義 Agent</span>
+                        <a-tag
+                          color="blue"
+                          size="small"
+                          >標準</a-tag
+                        >
+                      </a-space>
+                    </a-select-option>
+                    <a-select-option value="qwen">
+                      <a-space>
+                        <span>Qwen-Agent</span>
+                        <a-tag
+                          color="orange"
+                          size="small"
+                          >智能</a-tag
+                        >
+                      </a-space>
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col
+                :xs="24"
+                :sm="12"
+                :md="8"
+                :lg="8">
+                <a-form-item name="model_id">
+                  <template #label>
+                    <a-space>
+                      <span>關聯模型</span>
+                      <a-tooltip
+                        title="選擇此 Agent 使用的 AI 模型，不同模型有不同的能力和特性">
+                        <QuestionCircleOutlined
+                          style="color: #999; cursor: help" />
+                      </a-tooltip>
+                    </a-space>
+                  </template>
                   <a-select
                     v-model:value="formData.model_id"
                     placeholder="選擇AI模型"
@@ -331,9 +417,16 @@
         </a-row>
 
         <!-- 描述 -->
-        <a-form-item
-          label="描述"
-          name="description">
+        <a-form-item name="description">
+          <template #label>
+            <a-space>
+              <span>描述</span>
+              <a-tooltip
+                title="詳細描述此 Agent 的功能、用途和特色，幫助用戶了解如何使用">
+                <QuestionCircleOutlined style="color: #999; cursor: help" />
+              </a-tooltip>
+            </a-space>
+          </template>
           <a-textarea
             v-model:value="formData.description"
             placeholder="輸入智能體描述"
@@ -409,9 +502,16 @@
         </a-modal>
 
         <!-- 系統提示詞 -->
-        <a-form-item
-          label="系統提示詞"
-          name="system_prompt">
+        <a-form-item name="system_prompt">
+          <template #label>
+            <a-space>
+              <span>系統提示詞</span>
+              <a-tooltip
+                title="定義 Agent 的角色、行為模式和回應風格的核心指令，這是 Agent 個性的基礎">
+                <QuestionCircleOutlined style="color: #999; cursor: help" />
+              </a-tooltip>
+            </a-space>
+          </template>
           <a-textarea
             v-model:value="formData.system_prompt"
             placeholder="輸入系統提示詞，定義智能體的行為和角色"
@@ -425,9 +525,16 @@
             :sm="24"
             :md="8"
             :lg="8">
-            <a-form-item
-              label="標籤"
-              name="tags">
+            <a-form-item name="tags">
+              <template #label>
+                <a-space>
+                  <span>標籤</span>
+                  <a-tooltip
+                    title="為 Agent 添加關鍵字標籤，方便搜索和分類管理">
+                    <QuestionCircleOutlined style="color: #999; cursor: help" />
+                  </a-tooltip>
+                </a-space>
+              </template>
               <a-select
                 v-model:value="formData.tags"
                 mode="tags"
@@ -441,7 +548,16 @@
             :sm="12"
             :md="8"
             :lg="8">
-            <a-form-item label="狀態設置">
+            <a-form-item>
+              <template #label>
+                <a-space>
+                  <span>狀態設置</span>
+                  <a-tooltip
+                    title="啟用：Agent 是否可以使用；公開：是否對所有用戶可見">
+                    <QuestionCircleOutlined style="color: #999; cursor: help" />
+                  </a-tooltip>
+                </a-space>
+              </template>
               <a-space
                 direction="vertical"
                 style="width: 100%">
@@ -475,9 +591,16 @@
             :sm="12"
             :md="8"
             :lg="8">
-            <a-form-item
-              label="能力配置"
-              name="capabilities">
+            <a-form-item name="capabilities">
+              <template #label>
+                <a-space>
+                  <span>能力配置</span>
+                  <a-tooltip
+                    title="JSON 格式的能力配置，定義 Agent 的特殊能力和限制">
+                    <QuestionCircleOutlined style="color: #999; cursor: help" />
+                  </a-tooltip>
+                </a-space>
+              </template>
               <a-textarea
                 v-model:value="formData.capabilities"
                 placeholder="JSON格式"
@@ -486,10 +609,207 @@
           </a-col>
         </a-row>
 
+        <!-- Qwen-Agent 專用配置 -->
+        <div
+          v-if="formData.agent_type === 'qwen'"
+          class="qwen-config-section">
+          <a-divider orientation="left">
+            <a-space>
+              <span>Qwen-Agent 配置</span>
+              <a-tag
+                color="orange"
+                size="small"
+                >智能模式</a-tag
+              >
+            </a-space>
+          </a-divider>
+
+          <a-row :gutter="16">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="8"
+              :lg="8">
+              <a-form-item name="tool_selection_mode">
+                <template #label>
+                  <a-space>
+                    <span>工具選擇模式</span>
+                    <a-tooltip
+                      title="手動選擇：需要明確指定使用的工具；自動選擇：AI 根據對話內容智能選擇合適的工具">
+                      <QuestionCircleOutlined
+                        style="color: #999; cursor: help" />
+                    </a-tooltip>
+                  </a-space>
+                </template>
+                <a-select
+                  v-model:value="formData.tool_selection_mode"
+                  placeholder="選擇工具選擇模式">
+                  <a-select-option value="manual">
+                    <a-space>
+                      <span>手動選擇</span>
+                      <a-tag
+                        color="blue"
+                        size="small"
+                        >精確</a-tag
+                      >
+                    </a-space>
+                  </a-select-option>
+                  <a-select-option value="auto">
+                    <a-space>
+                      <span>自動選擇</span>
+                      <a-tag
+                        color="green"
+                        size="small"
+                        >智能</a-tag
+                      >
+                    </a-space>
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="8"
+              :lg="8">
+              <a-form-item>
+                <template #label>
+                  <a-space>
+                    <span>MCP 服務</span>
+                    <a-tooltip
+                      title="Model Context Protocol 服務，提供外部工具和數據源的連接能力">
+                      <QuestionCircleOutlined
+                        style="color: #999; cursor: help" />
+                    </a-tooltip>
+                  </a-space>
+                </template>
+                <a-switch
+                  v-model:checked="formData.qwen_config.mcp_enabled"
+                  checked-children="啟用"
+                  un-checked-children="停用" />
+              </a-form-item>
+            </a-col>
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="8"
+              :lg="8">
+              <a-form-item>
+                <template #label>
+                  <a-space>
+                    <span>自動工具選擇</span>
+                    <a-tooltip
+                      title="開啟後，AI 會根據對話內容自動判斷並調用最合適的工具，無需手動指定">
+                      <QuestionCircleOutlined
+                        style="color: #999; cursor: help" />
+                    </a-tooltip>
+                  </a-space>
+                </template>
+                <a-switch
+                  v-model:checked="formData.qwen_config.auto_tool_selection"
+                  checked-children="開啟"
+                  un-checked-children="關閉" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <a-row :gutter="16">
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="12"
+              :lg="12">
+              <a-form-item name="supported_languages">
+                <template #label>
+                  <a-space>
+                    <span>支援語言</span>
+                    <a-tooltip
+                      title="選擇此 Agent 能夠理解和回應的語言，影響 AI 的語言處理能力">
+                      <QuestionCircleOutlined
+                        style="color: #999; cursor: help" />
+                    </a-tooltip>
+                  </a-space>
+                </template>
+                <a-select
+                  v-model:value="formData.qwen_config.supported_languages"
+                  mode="multiple"
+                  placeholder="選擇支援的語言"
+                  :options="[
+                    { label: '繁體中文', value: 'zh-TW' },
+                    { label: '簡體中文', value: 'zh-CN' },
+                    { label: 'English', value: 'en' },
+                    { label: '日本語', value: 'ja' },
+                    { label: '한국어', value: 'ko' },
+                  ]" />
+              </a-form-item>
+            </a-col>
+            <a-col
+              :xs="24"
+              :sm="12"
+              :md="12"
+              :lg="12">
+              <a-form-item name="specialties">
+                <template #label>
+                  <a-space>
+                    <span>專業領域</span>
+                    <a-tooltip
+                      title="選擇此 Agent 擅長的專業領域，會影響工具選擇和回應的專業性">
+                      <QuestionCircleOutlined
+                        style="color: #999; cursor: help" />
+                    </a-tooltip>
+                  </a-space>
+                </template>
+                <a-select
+                  v-model:value="formData.qwen_config.specialties"
+                  mode="multiple"
+                  placeholder="選擇專業領域"
+                  :options="[
+                    { label: '人力資源 (HR)', value: 'HR' },
+                    { label: '財務管理 (Finance)', value: 'Finance' },
+                    {
+                      label: '任務管理 (TaskManagement)',
+                      value: 'TaskManagement',
+                    },
+                    { label: '工作流程 (Workflow)', value: 'Workflow' },
+                    {
+                      label: '客戶服務 (CustomerService)',
+                      value: 'CustomerService',
+                    },
+                    { label: '數據分析 (DataAnalysis)', value: 'DataAnalysis' },
+                  ]" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <a-form-item name="model_config">
+            <template #label>
+              <a-space>
+                <span>模型配置</span>
+                <a-tooltip
+                  title="JSON 格式的模型參數配置，包括模型名稱、溫度值、最大 token 數等">
+                  <QuestionCircleOutlined style="color: #999; cursor: help" />
+                </a-tooltip>
+              </a-space>
+            </template>
+            <a-textarea
+              v-model:value="formData.qwen_config.model_config_json"
+              placeholder='{"model": "qwen3:32b", "temperature": 0.7, "max_tokens": 4096}'
+              :rows="3"
+              @blur="handleModelConfigChange" />
+          </a-form-item>
+        </div>
+
         <!-- MCP 服務配置 -->
-        <a-form-item
-          label="工具配置"
-          name="mcpServices">
+        <a-form-item name="mcpServices">
+          <template #label>
+            <a-space>
+              <span>工具配置</span>
+              <a-tooltip
+                title="選擇此 Agent 可以使用的 MCP 服務和工具，這些工具將擴展 Agent 的能力">
+                <QuestionCircleOutlined style="color: #999; cursor: help" />
+              </a-tooltip>
+            </a-space>
+          </template>
           <div class="mcp-services-selector">
             <!-- 服務統計概覽 -->
             <div class="services-overview">
@@ -611,6 +931,12 @@ import { Grid } from "ant-design-vue";
 import AvatarUpload from "@/components/common/AvatarUpload.vue";
 import mcpApi from "@/api/mcp.js";
 import { getModels } from "@/api/models.js";
+import {
+  QuestionCircleOutlined,
+  RobotOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons-vue";
 
 // 響應式斷點
 const { useBreakpoint } = Grid;
@@ -662,12 +988,27 @@ const formData = reactive({
   display_name: "",
   description: "",
   category: "",
+  agent_type: "custom",
   system_prompt: "",
   model_id: "",
   avatar: "",
   tags: [],
   capabilities: {},
   tools: {},
+  qwen_config: {
+    mcp_enabled: true,
+    auto_tool_selection: true,
+    supported_languages: ["zh-TW", "zh-CN", "en"],
+    specialties: ["HR", "Finance", "TaskManagement"],
+    model_config: {
+      model: "qwen3:32b",
+      temperature: 0.7,
+      max_tokens: 4096,
+    },
+    model_config_json:
+      '{"model": "qwen3:32b", "temperature": 0.7, "max_tokens": 4096}',
+  },
+  tool_selection_mode: "manual",
   is_active: true,
   is_public: true,
 });
@@ -826,6 +1167,31 @@ const handleEdit = (record) => {
     tags: record.tags || [],
     // 處理 model_id
     model_id: record.model_id || null,
+    // 處理 Qwen-Agent 相關欄位
+    agent_type: record.agent_type || "custom",
+    tool_selection_mode: record.tool_selection_mode || "manual",
+    qwen_config: {
+      mcp_enabled: record.qwen_config?.mcp_enabled ?? true,
+      auto_tool_selection: record.qwen_config?.auto_tool_selection ?? true,
+      supported_languages: record.qwen_config?.supported_languages || [
+        "zh-TW",
+        "zh-CN",
+        "en",
+      ],
+      specialties: record.qwen_config?.specialties || [
+        "HR",
+        "Finance",
+        "TaskManagement",
+      ],
+      model_config: record.qwen_config?.model_config || {
+        model: "qwen3:32b",
+        temperature: 0.7,
+        max_tokens: 4096,
+      },
+      model_config_json: record.qwen_config?.model_config
+        ? JSON.stringify(record.qwen_config.model_config, null, 2)
+        : '{"model": "qwen3:32b", "temperature": 0.7, "max_tokens": 4096}',
+    },
   });
 
   // 設置已選中的 MCP 服務
@@ -1052,6 +1418,26 @@ const handleModalOk = async () => {
       }
     }
 
+    // 處理 Qwen-Agent 配置
+    if (submitData.agent_type === "qwen") {
+      // 確保模型配置是正確的 JSON 格式
+      try {
+        if (submitData.qwen_config.model_config_json) {
+          submitData.qwen_config.model_config = JSON.parse(
+            submitData.qwen_config.model_config_json
+          );
+        }
+        // 移除臨時的 JSON 字符串字段
+        delete submitData.qwen_config.model_config_json;
+      } catch (error) {
+        message.error("Qwen 模型配置 JSON 格式錯誤");
+        return;
+      }
+    } else {
+      // 如果不是 Qwen-Agent，清空 qwen_config
+      submitData.qwen_config = null;
+    }
+
     // 將選中的 MCP 服務添加到 tools 字段（後端會自動處理關聯表）
     if (selectedServices.value.length > 0) {
       const selectedMcpServices = mcpServices.value.filter((service) =>
@@ -1132,12 +1518,27 @@ const resetForm = () => {
     display_name: "",
     description: "",
     category: "",
+    agent_type: "custom",
     system_prompt: "",
     model_id: null,
     avatar: "",
     tags: [],
     capabilities: {},
     tools: {},
+    qwen_config: {
+      mcp_enabled: true,
+      auto_tool_selection: true,
+      supported_languages: ["zh-TW", "zh-CN", "en"],
+      specialties: ["HR", "Finance", "TaskManagement"],
+      model_config: {
+        model: "qwen3:32b",
+        temperature: 0.7,
+        max_tokens: 4096,
+      },
+      model_config_json:
+        '{"model": "qwen3:32b", "temperature": 0.7, "max_tokens": 4096}',
+    },
+    tool_selection_mode: "manual",
     is_active: true,
     is_public: true,
   });
@@ -1147,6 +1548,30 @@ const resetForm = () => {
 // 處理頭像變更
 const handleAvatarChange = (avatarUrl) => {
   formData.avatar = avatarUrl;
+};
+
+// Qwen-Agent 相關處理函數
+const handleAgentTypeChange = (value) => {
+  if (value === "qwen") {
+    // 切換到 Qwen-Agent 時，設置默認配置
+    formData.tool_selection_mode = "auto";
+    if (!formData.qwen_config.model_config_json) {
+      formData.qwen_config.model_config_json =
+        '{"model": "qwen3:32b", "temperature": 0.7, "max_tokens": 4096}';
+    }
+  } else {
+    // 切換到自定義 Agent 時，設置為手動模式
+    formData.tool_selection_mode = "manual";
+  }
+};
+
+const handleModelConfigChange = () => {
+  try {
+    const config = JSON.parse(formData.qwen_config.model_config_json);
+    formData.qwen_config.model_config = config;
+  } catch (error) {
+    console.warn("模型配置 JSON 格式錯誤:", error);
+  }
 };
 
 // MCP 服務相關方法
@@ -1718,6 +2143,25 @@ onMounted(async () => {
   .avatar-upload-section {
     margin-bottom: 16px;
   }
+}
+
+/* Qwen-Agent 配置區域樣式 */
+.qwen-config-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid #e8e8e8;
+}
+
+.qwen-config-section .ant-divider {
+  margin: 0 0 16px 0;
+}
+
+/* 暗黑模式下的 Qwen 配置區域 */
+:root[data-theme="dark"] .qwen-config-section {
+  background: #1a1a1a;
+  border-color: #434343;
 }
 
 /* 暗黑模式適配 */

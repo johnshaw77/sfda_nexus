@@ -19,6 +19,8 @@ class McpToolParser {
       /<tool_call\s+name="([^"]+)"\s*(?:params="([^"]*)")?\s*\/?>/gi,
       // XML 格式: <tool_call><name>tool_name</name><parameters>...</parameters></tool_call>
       /<tool_call>\s*<name>([^<]+)<\/name>\s*<parameters>([\s\S]*?)<\/parameters>\s*<\/tool_call>/gi,
+      // 簡單格式: <tool_call>tool_name\nparameters_json</tool_call>
+      /<tool_call>([\s\S]*?)<\/tool_call>/gi,
     ];
   }
 
@@ -39,6 +41,9 @@ class McpToolParser {
     try {
       // 使用各種模式解析工具調用
       for (const pattern of this.toolCallPatterns) {
+        // 重置正規表達式的 lastIndex
+        pattern.lastIndex = 0;
+
         let match;
         const patternMatches = [];
 
@@ -110,7 +115,10 @@ class McpToolParser {
       }
 
       // 標籤格式
-      if (pattern.source.includes("tool_call")) {
+      if (
+        pattern.source.includes("tool_call") &&
+        pattern.source.includes("name=")
+      ) {
         const toolName = match[1];
         const paramsStr = match[2] || "{}";
 
@@ -125,6 +133,41 @@ class McpToolParser {
           name: toolName,
           parameters,
           format: "tag",
+        };
+      }
+
+      // 簡單格式: <tool_call>tool_name\nparameters_json</tool_call>
+      if (
+        pattern.source.includes("tool_call") &&
+        pattern.source.includes("[\\s\\S]")
+      ) {
+        const content = match[1]?.trim();
+
+        if (!content) return null;
+
+        // 按行分割內容
+        const lines = content
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line);
+
+        if (lines.length === 0) return null;
+
+        const toolName = lines[0];
+        const paramsStr = lines.length > 1 ? lines[1] : "{}";
+
+        let parameters = {};
+        try {
+          parameters = JSON.parse(paramsStr);
+        } catch {
+          // 如果參數不是 JSON，嘗試解析為鍵值對
+          parameters = this.parseParameters(paramsStr);
+        }
+
+        return {
+          name: toolName,
+          parameters,
+          format: "simple",
         };
       }
 
@@ -290,9 +333,22 @@ class McpToolParser {
           is_enabled: true,
         });
 
+        // 處理模組前綴：如果工具名稱包含點號，提取實際工具名稱
+        let actualToolName = toolCall.name;
+        if (actualToolName.includes(".")) {
+          actualToolName = actualToolName.split(".").pop(); // 取最後一部分
+        }
+
         const tool = tools.find(
-          (t) => t.name.toLowerCase() === toolCall.name.toLowerCase()
+          (t) => t.name.toLowerCase() === actualToolName.toLowerCase()
         );
+
+        logger.info("🔧 工具查找", {
+          originalName: toolCall.name,
+          actualToolName: actualToolName,
+          found: !!tool,
+          toolId: tool?.id,
+        });
 
         if (!tool) {
           const error = `工具 "${toolCall.name}" 不存在或已被停用`;

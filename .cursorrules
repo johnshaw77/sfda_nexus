@@ -9,6 +9,17 @@
 - 執行 SQL 腳本：`docker exec -i mysql-server mysql -u root -pMyPwd@1234 sfda_nexus < script.sql`
 - 如果需要停止本機 MySQL：`brew services stop mysql`
 
+### MySQL 中文亂碼解決方案
+- **常見問題**：插入中文數據後出現亂碼，通常是字符集配置問題
+- **標準解決方案**：
+  1. 執行字符集修復腳本：`docker exec -i mysql-server mysql -u root -pMyPwd@1234 --default-character-set=utf8mb4 < backend/database/scripts/fix_mysql_charset.sql`
+  2. 腳本會自動設置：
+     - `SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci`
+     - `ALTER DATABASE sfda_nexus CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+     - `ALTER TABLE 表名 CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  3. 驗證字符集：檢查 `@@character_set_client`, `@@character_set_connection`, `@@character_set_results` 都應該是 `utf8mb4`
+- **預防措施**：執行任何包含中文的 SQL 腳本時，都應該使用 `--default-character-set=utf8mb4` 參數
+
 ### 資料庫腳本管理
 - 所有資料庫相關腳本統一放在 `backend/database/scripts/` 目錄
 - 腳本命名規範：
@@ -16,6 +27,7 @@
   - 種子腳本：`seed_數據類型.js`
   - 維護腳本：`功能描述.js`
   - SQL 腳本：`add_表名.sql` 或 `update_功能.sql`
+  - 修復腳本：`fix_問題描述.sql`
 
 ## 開發環境配置
 

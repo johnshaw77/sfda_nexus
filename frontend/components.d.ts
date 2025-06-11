@@ -77,5 +77,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StatusTag: typeof import('./src/components/common/StatusTag.vue')['default']
+    StructuredDataDisplay: typeof import('./src/components/common/StructuredDataDisplay.vue')['default']
+    ToolCallDisplay: typeof import('./src/components/common/ToolCallDisplay.vue')['default']
   }
 }
