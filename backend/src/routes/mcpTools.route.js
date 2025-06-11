@@ -635,4 +635,157 @@ router.post(
   McpToolsController.handleSyncToolsForService
 );
 
+/**
+ * @swagger
+ * /api/mcp/tools/call:
+ *   post:
+ *     summary: 調用 MCP 工具
+ *     tags: [MCP Tools]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - serviceId
+ *               - toolId
+ *               - toolName
+ *             properties:
+ *               serviceId:
+ *                 type: integer
+ *                 description: 服務 ID
+ *               toolId:
+ *                 type: integer
+ *                 description: 工具 ID
+ *               toolName:
+ *                 type: string
+ *                 description: 工具名稱
+ *               parameters:
+ *                 type: object
+ *                 description: 工具調用參數
+ *     responses:
+ *       200:
+ *         description: 工具調用成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   description: 工具調用結果
+ *       400:
+ *         description: 調用參數錯誤
+ *       404:
+ *         description: 工具或服務不存在
+ *       500:
+ *         description: 工具調用失敗
+ */
+router.post("/call", authenticateToken, McpToolsController.handleCallTool);
+
+/**
+ * @swagger
+ * /api/mcp/tools/call/history:
+ *   get:
+ *     summary: 獲取工具調用歷史
+ *     tags: [MCP Tools]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: toolId
+ *         schema:
+ *           type: integer
+ *         description: 工具 ID（可選）
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: 返回條數限制
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 頁碼
+ *     responses:
+ *       200:
+ *         description: 獲取調用歷史成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     history:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ */
+router.get(
+  "/call/history",
+  authenticateToken,
+  McpToolsController.handleGetCallHistory
+);
+
+/**
+ * @swagger
+ * /api/mcp/tools/call/stats:
+ *   get:
+ *     summary: 獲取工具調用統計
+ *     tags: [MCP Tools]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 獲取調用統計成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total_calls:
+ *                       type: integer
+ *                     successful_calls:
+ *                       type: integer
+ *                     failed_calls:
+ *                       type: integer
+ *                     most_used_tools:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ */
+router.get(
+  "/call/stats",
+  authenticateToken,
+  McpToolsController.handleGetCallStats
+);
+
 export default router;

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>工具結果顯示測試</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .test-message {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 16px 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .metadata-display {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+      }
+      .json-display {
+        background: #263238;
+        color: #eeffff;
+        padding: 12px;
+        border-radius: 6px;
+        font-family: "Monaco", "Menlo", monospace;
+        font-size: 14px;
+        overflow-x: auto;
+      }
+      .success {
+        color: #52c41a;
+      }
+      .error {
+        color: #ff4d4f;
+      }
+      .tool-section {
+        border-left: 4px solid #1890ff;
+        padding-left: 12px;
+        margin: 16px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🛠️ MCP 工具結果顯示測試</h1>
+
+    <div class="test-message">
+      <h2>測試場景：員工資料查詢成功</h2>
+      <p><strong>原始後端數據結構：</strong></p>
+      <div class="metadata-display">
+        <h3>metadata.tool_calls:</h3>
+        <div
+          class="json-display"
+          id="tool-calls-display"></div>
+
+        <h3>metadata.tool_results:</h3>
+        <div
+          class="json-display"
+          id="tool-results-display"></div>
+      </div>
+
+      <div class="tool-section">
+        <h3>前端轉換後的數據結構：</h3>
+        <div
+          class="json-display"
+          id="effective-tool-calls-display"></div>
+      </div>
+    </div>
+
+    <script>
+      // 模擬後端返回的數據
+      const mockMessage = {
+        id: 1008,
+        role: "assistant",
+        content: "好的，我會使用 `get_employee_info` 工具查詢員工 A123456...",
+        metadata: {
+          tool_calls: [
+            {
+              name: "get_employee_info",
+              format: "function",
+              parameters: {
+                employeeId: "A123456",
+              },
+            },
+          ],
+          tool_results: [
+            {
+              data: {
+                data: {
+                  basic: {
+                    name: "張小明",
+                    gender: "男",
+                    hireDate: "2020-03-01",
+                    birthDate: "1990-05-15",
+                    employeeId: "A123456",
+                    nationalId: "A123456789",
+                    englishName: "Ming Zhang",
+                  },
+                  contact: {
+                    email: "ming.zhang@company.com",
+                    phone: "0912-345-678",
+                    address: "台北市信義區忠孝東路五段123號",
+                    emergencyContact: {
+                      name: "張媽媽",
+                      phone: "0987-654-321",
+                      relationship: "母親",
+                    },
+                  },
+                  position: {
+                    jobLevel: "P5",
+                    jobTitle: "資深軟體工程師",
+                    jobFamily: "技術類",
+                    reportingManager: "王工程師",
+                    reportingManagerId: "A123010",
+                  },
+                  department: {
+                    manager: "李大華",
+                    location: "台北總部 8F",
+                    managerId: "A123001",
+                    departmentId: "IT001",
+                    departmentCode: "IT",
+                    departmentName: "資訊技術部",
+                  },
+                },
+                fields: ["basic", "contact", "department", "position"],
+                timestamp: "2025-06-11T13:48:57.259Z",
+                employeeId: "A123456",
+              },
+              module: "hr",
+              success: true,
+              tool_id: 127,
+              version: "1.0.0",
+              timestamp: "2025-06-11T13:48:57.270Z",
+              tool_name: "get_employee_info",
+              from_cache: false,
+              execution_id: "get_employee_info-1749649737112-wc91ay76o",
+              service_name: "Hr 服務",
+              execution_time: 149,
+            },
+          ],
+          has_tool_calls: true,
+        },
+      };
+
+      // 模擬前端的 effectiveToolCalls 計算邏輯
+      function computeEffectiveToolCalls(message) {
+        const toolCalls =
+          message.metadata?.tool_calls || message.tool_calls || [];
+        const toolResults = message.metadata?.tool_results || [];
+
+        if (toolCalls.length === 0) {
+          return [];
+        }
+
+        return toolCalls.map((toolCall, index) => {
+          const result = toolResults[index];
+
+          return {
+            // 工具調用基本信息
+            toolName: toolCall.name || result?.tool_name || "unknown",
+            name: toolCall.name || result?.tool_name,
+            format: toolCall.format || "function",
+            arguments: toolCall.parameters || {},
+
+            // 執行結果
+            success: result?.success || false,
+            result: result?.data || {},
+            error: result?.error || null,
+            executionTime: result?.execution_time || 0,
+
+            // 元數據
+            metadata: {
+              timestamp: result?.timestamp,
+              version: result?.version,
+              executionId: result?.execution_id,
+              serviceName: result?.service_name,
+              module: result?.module,
+            },
+
+            // 調試信息
+            details: result,
+          };
+        });
+      }
+
+      // 顯示數據
+      document.getElementById("tool-calls-display").textContent =
+        JSON.stringify(mockMessage.metadata.tool_calls, null, 2);
+
+      document.getElementById("tool-results-display").textContent =
+        JSON.stringify(mockMessage.metadata.tool_results, null, 2);
+
+      const effectiveToolCalls = computeEffectiveToolCalls(mockMessage);
+      document.getElementById("effective-tool-calls-display").textContent =
+        JSON.stringify(effectiveToolCalls, null, 2);
+
+      console.log("✅ 測試數據結構:", {
+        original: mockMessage.metadata,
+        transformed: effectiveToolCalls,
+      });
+    </script>
+  </body>
+</html>

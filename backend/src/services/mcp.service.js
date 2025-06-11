@@ -93,8 +93,8 @@ class McpClient {
     try {
       const startTime = Date.now();
 
-      // 嘗試連接健康檢查端點
-      const response = await axios.get(`${endpointUrl}/health`, {
+      // 嘗試連接工具列表端點（實際存在的端點）
+      const response = await axios.get(`${endpointUrl}/tools`, {
         timeout: this.connectionTimeout,
       });
 
@@ -221,9 +221,11 @@ class McpClient {
     logger.info("🔧 參數:", parameters);
     logger.info("🔧 上下文:", context);
 
+    let tool = null; // 初始化 tool 變數
+
     try {
       // 獲取工具信息
-      const tool = await McpToolModel.getMcpToolById(toolId);
+      tool = await McpToolModel.getMcpToolById(toolId);
       logger.info("🔧 工具資訊:", tool);
 
       if (!tool) {
@@ -247,8 +249,8 @@ class McpClient {
       logger.info("🔧 服務名稱:", tool.service_name);
       logger.info("🔧 模組名稱:", moduleName);
 
-      // 構建正確的端點 URL：/api/{module}/{toolName}
-      const endpoint = `/api/${moduleName}/${tool.name}`;
+      // 構建正確的端點 URL：/{toolName}（因為 baseURL 已經包含 /api/{module}）
+      const endpoint = `/${tool.name}`;
       logger.info("🔧 最終端點:", endpoint);
 
       logger.info("調用 MCP 工具", {
@@ -285,11 +287,21 @@ class McpClient {
         response_status: response.status,
       });
 
+      // 提取 MCP 回應中的實際業務數據，同時保留元數據
+      const mcpResult = response.data;
+      const toolExecution = mcpResult?.result || {};
+      const businessData = toolExecution?.result || {};
+
       return {
         success: true,
         tool_name: tool.name,
         service_name: tool.service_name,
-        result: response.data,
+        module: mcpResult.module,
+        execution_time: toolExecution.executionTime,
+        from_cache: toolExecution.fromCache,
+        execution_id: toolExecution.executionId,
+        version: toolExecution.version,
+        data: businessData, // 實際的業務數據
         timestamp: new Date().toISOString(),
       };
     } catch (error) {

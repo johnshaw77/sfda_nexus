@@ -5,6 +5,7 @@
 
 import McpToolModel from "../models/McpTool.model.js";
 import McpServiceModel from "../models/McpService.model.js";
+import mcpClient from "../services/mcp.service.js";
 import {
   catchAsync,
   createSuccessResponse,
@@ -382,6 +383,151 @@ export const handleGetTopUsedTools = catchAsync(async (req, res) => {
   res.json(createSuccessResponse(topTools, "獲取最常用工具成功"));
 });
 
+/**
+ * 調用 MCP 工具
+ * @route POST /api/mcp/tools/call
+ * @access Private
+ */
+export const handleCallTool = catchAsync(async (req, res) => {
+  const { serviceId, toolId, toolName, parameters = {} } = req.body;
+
+  // 驗證必需參數
+  if (!toolId) {
+    throw new ValidationError("工具 ID 為必填欄位");
+  }
+
+  // 檢查工具是否存在
+  const tool = await McpToolModel.getMcpToolById(parseInt(toolId));
+  if (!tool) {
+    throw new NotFoundError("指定的工具不存在");
+  }
+
+  // 檢查工具是否啟用
+  if (!tool.is_enabled) {
+    throw new BusinessError(`工具 "${tool.name}" 已被停用`);
+  }
+
+  // 檢查服務是否存在並啟用
+  const service = await McpServiceModel.getMcpServiceById(tool.mcp_service_id);
+  if (!service) {
+    throw new NotFoundError("工具所屬的服務不存在");
+  }
+
+  if (!service.is_active) {
+    throw new BusinessError(`服務 "${service.name}" 已被停用`);
+  }
+
+  logger.info("開始調用 MCP 工具", {
+    user_id: req.user.id,
+    tool_id: toolId,
+    tool_name: tool.name,
+    service_id: service.id,
+    service_name: service.name,
+    parameters,
+  });
+
+  try {
+    // 調用工具
+    const result = await mcpClient.invokeTool(parseInt(toolId), parameters, {
+      user_id: req.user.id,
+      user_name: req.user.username,
+      timestamp: new Date().toISOString(),
+    });
+
+    // 記錄調用日誌
+    logger.audit(req.user.id, "MCP_TOOL_CALLED", {
+      tool_id: toolId,
+      tool_name: tool.name,
+      service_id: service.id,
+      service_name: service.name,
+      success: result.success,
+      parameters,
+      result_preview: result.success ? "調用成功" : result.error,
+    });
+
+    if (result.success) {
+      // 返回完整的結果對象，包含業務數據和元數據
+      res.json(createSuccessResponse(result, "工具調用成功"));
+    } else {
+      throw new BusinessError(`工具調用失敗：${result.error}`);
+    }
+  } catch (error) {
+    logger.error("MCP 工具調用失敗", {
+      user_id: req.user.id,
+      tool_id: toolId,
+      tool_name: tool.name,
+      service_name: service.name,
+      error: error.message,
+      parameters,
+    });
+
+    // 記錄調用失敗日誌
+    logger.audit(req.user.id, "MCP_TOOL_CALL_FAILED", {
+      tool_id: toolId,
+      tool_name: tool.name,
+      service_id: service.id,
+      service_name: service.name,
+      error: error.message,
+      parameters,
+    });
+
+    throw error;
+  }
+});
+
+/**
+ * 獲取工具調用歷史
+ * @route GET /api/mcp/tools/call/history
+ * @access Private
+ */
+export const handleGetCallHistory = catchAsync(async (req, res) => {
+  const { toolId, limit = 50, page = 1 } = req.query;
+
+  // 這裡可以實作調用歷史記錄功能
+  // 目前返回模擬數據，實際應該從調用日誌或專門的歷史表中獲取
+  logger.info("獲取工具調用歷史", {
+    user_id: req.user.id,
+    tool_id: toolId,
+    limit: parseInt(limit),
+    page: parseInt(page),
+  });
+
+  // 模擬數據，實際應該從資料庫獲取
+  const mockHistory = {
+    history: [],
+    total: 0,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    message: "工具調用歷史功能正在開發中",
+  };
+
+  res.json(createSuccessResponse(mockHistory, "獲取調用歷史成功"));
+});
+
+/**
+ * 獲取工具調用統計
+ * @route GET /api/mcp/tools/call/stats
+ * @access Private
+ */
+export const handleGetCallStats = catchAsync(async (req, res) => {
+  // 這裡可以實作調用統計功能
+  // 目前返回模擬數據，實際應該從調用日誌中計算統計數據
+  logger.info("獲取工具調用統計", {
+    user_id: req.user.id,
+  });
+
+  // 模擬數據，實際應該從資料庫計算
+  const mockStats = {
+    total_calls: 0,
+    successful_calls: 0,
+    failed_calls: 0,
+    most_used_tools: [],
+    message: "工具調用統計功能正在開發中",
+  };
+
+  res.json(createSuccessResponse(mockStats, "獲取調用統計成功"));
+});
+
 // 導出所有控制器方法
 export default {
   handleGetAllMcpTools,
@@ -396,4 +542,7 @@ export default {
   handleBatchUpdateToolStatus,
   handleGetToolCategoryStats,
   handleGetTopUsedTools,
+  handleCallTool,
+  handleGetCallHistory,
+  handleGetCallStats,
 };

@@ -6,6 +6,7 @@
 import McpToolModel from "../models/McpTool.model.js";
 import mcpToolParser from "./mcpToolParser.service.js";
 import logger from "../utils/logger.util.js";
+import globalPromptService from "./globalPrompt.service.js";
 
 class ChatService {
   constructor() {
@@ -15,29 +16,33 @@ class ChatService {
   }
 
   /**
-   * 生成動態 System Prompt，包含 MCP 工具資訊
+   * 生成動態 System Prompt，包含全域規則和 MCP 工具資訊
    * @param {string} basePrompt - 基礎系統提示詞
    * @param {Object} options - 選項
    * @returns {Promise<string>} 完整的系統提示詞
    */
   async generateSystemPrompt(basePrompt = "", options = {}) {
     try {
-      // 檢查快取
+      // 🔒 第一步：整合全域行為規則
+      const baseWithGlobalRules =
+        await globalPromptService.integrateGlobalRules(basePrompt);
+
+      // 檢查工具快取
       if (
         this.systemPromptCache &&
         this.cacheExpiry &&
         Date.now() < this.cacheExpiry
       ) {
         logger.debug("使用快取的系統提示詞");
-        return this.combinePrompts(basePrompt, this.systemPromptCache);
+        return this.combinePrompts(baseWithGlobalRules, this.systemPromptCache);
       }
 
       // 獲取已啟用的 MCP 工具
       const enabledTools = await McpToolModel.getEnabledMcpTools();
 
       if (enabledTools.length === 0) {
-        logger.debug("未發現啟用的 MCP 工具，使用基礎系統提示詞");
-        return basePrompt;
+        logger.debug("未發現啟用的 MCP 工具，使用基礎系統提示詞（含全域規則）");
+        return baseWithGlobalRules;
       }
 
       // 按服務分組工具
@@ -54,14 +59,21 @@ class ChatService {
         toolCount: enabledTools.length,
         serviceCount: Object.keys(toolsByService).length,
         promptLength: toolPrompt.length,
+        hasGlobalRules: true,
       });
 
-      return this.combinePrompts(basePrompt, toolPrompt);
+      return this.combinePrompts(baseWithGlobalRules, toolPrompt);
     } catch (error) {
       logger.error("生成系統提示詞失敗", {
         error: error.message,
       });
-      return basePrompt; // 降級到基礎提示詞
+      // 降級處理：至少確保全域規則被應用
+      try {
+        return await globalPromptService.integrateGlobalRules(basePrompt);
+      } catch (fallbackError) {
+        logger.error("全域規則整合也失敗", { error: fallbackError.message });
+        return basePrompt; // 最後降級到基礎提示詞
+      }
     }
   }
 
@@ -171,8 +183,22 @@ class ChatService {
     sections.push("```");
     sections.push("");
 
+    sections.push("**HR 工具調用範例**：");
+    sections.push("```json");
+    sections.push(`{`);
+    sections.push(`  "tool": "get_employee_info",`);
+    sections.push(`  "parameters": {`);
+    sections.push(`    "employeeId": "A123456"`);
+    sections.push(`  }`);
+    sections.push(`}`);
+    sections.push("```");
+    sections.push("");
+
     sections.push("### 2. 函數調用格式");
     sections.push('工具名稱(參數1="值1", 參數2="值2")');
+    sections.push("");
+    sections.push("**HR 工具調用範例**：");
+    sections.push('get_employee_info(employeeId="A123456")');
     sections.push("");
 
     sections.push("### 3. XML 格式");
@@ -188,12 +214,24 @@ class ChatService {
     sections.push("## ⚠️ 重要提醒");
     sections.push("");
     sections.push("1. **工具調用時機**: 只在用戶明確需要特定功能時才調用工具");
-    sections.push("2. **參數驗證**: 確保提供的參數符合工具要求的格式");
+    sections.push("2. **參數名稱**: 務必使用精確的參數名稱，嚴格按照工具定義");
+    sections.push("   - 員工查詢: 使用 `employeeId` (不是 employee_id)");
     sections.push(
-      "3. **錯誤處理**: 如果工具調用失敗，請向用戶解釋並提供替代方案"
+      "   - 時間參數: 使用 `startDate`、`endDate` (不是 start_date、end_date)"
     );
-    sections.push("4. **結果說明**: 工具執行後，請向用戶清楚說明結果");
-    sections.push("5. **隱私保護**: 不要在工具調用中包含敏感或個人資訊");
+    sections.push(
+      "   - 範圍參數: 使用 `sortBy`、`sortOrder` (不是 sort_by、sort_order)"
+    );
+    sections.push("3. **參數格式**: 務必嚴格遵守參數格式要求");
+    sections.push("   - 員工編號: 必須是 A123456 格式（1個大寫字母+6位數字）");
+    sections.push("   - 日期格式: 必須是 YYYY-MM-DD 格式，如 2024-12-31");
+    sections.push("   - 部門代碼: 必須是 HR001 格式（2-3個大寫字母+3位數字）");
+    sections.push("4. **參數驗證**: 確保提供的參數符合工具要求的格式");
+    sections.push(
+      "5. **錯誤處理**: 如果工具調用失敗，請向用戶解釋並提供替代方案"
+    );
+    sections.push("6. **結果說明**: 工具執行後，請向用戶清楚說明結果");
+    sections.push("7. **隱私保護**: 不要在工具調用中包含敏感或個人資訊");
     sections.push("");
 
     return sections.join("\n");
@@ -214,30 +252,57 @@ class ChatService {
     // 處理 JSON Schema 格式
     if (schema.properties) {
       for (const [name, prop] of Object.entries(schema.properties)) {
-        let paramDesc = name;
-
-        if (prop.type) {
-          paramDesc += ` (${prop.type})`;
-        }
+        let paramDesc = `${name} (${prop.type || "unknown"})`;
 
         if (prop.description) {
           paramDesc += ` - ${prop.description}`;
         }
 
+        // 🔧 改進：處理格式約束 (pattern)
+        if (prop.pattern) {
+          // 為常見格式提供友好的說明
+          const formatExamples = {
+            "^[A-Z]\\\\d{6}$": "A123456",
+            "^[A-Z]\\\\\\\\d{6}$": "A123456", // 處理雙重轉義
+            "^\\\\d{4}-\\\\d{2}-\\\\d{2}$": "2024-12-31",
+            "^\\\\d{4}-\\\\d{2}$": "2024-12",
+            "^[A-Z]{2,3}\\\\d{3}$": "HR001",
+          };
+
+          const example = formatExamples[prop.pattern];
+          if (example) {
+            paramDesc += ` **格式要求**: ${prop.pattern} (例如: ${example})`;
+          } else {
+            paramDesc += ` **格式要求**: ${prop.pattern}`;
+          }
+        }
+
+        // 🔧 新增：處理枚舉值
+        if (prop.enum) {
+          paramDesc += ` **可選值**: ${prop.enum.join(", ")}`;
+        }
+
+        // 🔧 新增：處理預設值
+        if (prop.default !== undefined) {
+          paramDesc += ` **預設**: ${prop.default}`;
+        }
+
+        // 🔧 新增：處理數值範圍
+        if (prop.minimum !== undefined || prop.maximum !== undefined) {
+          const ranges = [];
+          if (prop.minimum !== undefined) ranges.push(`最小: ${prop.minimum}`);
+          if (prop.maximum !== undefined) ranges.push(`最大: ${prop.maximum}`);
+          if (ranges.length > 0) {
+            paramDesc += ` **範圍**: ${ranges.join(", ")}`;
+          }
+        }
+
+        // 🔧 新增：標記必填欄位
         if (schema.required && schema.required.includes(name)) {
-          paramDesc += " *必填*";
+          paramDesc += " **必填**";
         }
 
         params.push(paramDesc);
-      }
-    } else {
-      // 簡單的對象格式
-      for (const [name, value] of Object.entries(schema)) {
-        if (typeof value === "string") {
-          params.push(`${name} - ${value}`);
-        } else {
-          params.push(name);
-        }
       }
     }
 
@@ -418,7 +483,9 @@ class ChatService {
   clearCache() {
     this.systemPromptCache = null;
     this.cacheExpiry = null;
-    logger.debug("系統提示詞快取已清除");
+    // 同時清除全域提示詞快取
+    globalPromptService.clearCache();
+    logger.debug("系統提示詞快取已清除（包含全域規則）");
   }
 
   /**
@@ -453,11 +520,47 @@ class ChatService {
         enabled_tools: enabledTools.length,
         total_usage: totalUsage,
         category_stats: categoryStats,
+        cache_info: {
+          is_system_prompt_cached: !!this.systemPromptCache,
+          cache_expiry: this.cacheExpiry,
+          global_rules_stats: globalPromptService.getRulesStats(),
+        },
         last_updated: new Date().toISOString(),
       };
     } catch (error) {
       logger.error("獲取工具統計失敗", { error: error.message });
       return null;
+    }
+  }
+
+  /**
+   * 獲取全域提示詞規則預覽
+   * @returns {Promise<string>} 全域規則內容
+   */
+  async getGlobalRulesPreview() {
+    try {
+      return await globalPromptService.getGlobalPromptRules();
+    } catch (error) {
+      logger.error("獲取全域規則預覽失敗", {
+        error: error.message,
+      });
+      return "";
+    }
+  }
+
+  /**
+   * 生成包含全域規則的完整系統提示詞預覽
+   * @param {string} basePrompt - 智能體的基礎提示詞
+   * @returns {Promise<string>} 完整系統提示詞
+   */
+  async getFullSystemPromptPreview(basePrompt = "") {
+    try {
+      return await this.generateSystemPrompt(basePrompt);
+    } catch (error) {
+      logger.error("生成完整系統提示詞預覽失敗", {
+        error: error.message,
+      });
+      return basePrompt;
     }
   }
 }

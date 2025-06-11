@@ -127,6 +127,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import StructuredDataDisplay from "./StructuredDataDisplay.vue";
+import ToolDisplayConfigManager from "@/utils/toolDisplayConfig.js";
 
 const props = defineProps({
   toolCall: {
@@ -141,48 +142,35 @@ const toggleDetails = () => {
   showDetails.value = !showDetails.value;
 };
 
-// 工具圖標映射
+// 使用智能配置系統獲取工具配置
+const toolConfig = computed(() => {
+  return ToolDisplayConfigManager.getToolConfig(
+    props.toolCall.toolName || props.toolCall.name
+  );
+});
+
+// 工具圖標（使用智能配置）
 const getToolIcon = (toolName) => {
-  const iconMap = {
-    "hr.get_employee_info": "UserOutlined",
-    "hr.get_department_list": "TeamOutlined",
-    "hr.get_attendance_records": "ClockCircleOutlined",
-    "hr.get_salary_info": "DollarOutlined",
-    "tasks.create_task": "PlusOutlined",
-    "tasks.get_task_list": "UnorderedListOutlined",
-    "finance.get_budget_info": "PieChartOutlined",
-  };
-  return iconMap[toolName] || "ToolOutlined";
+  const config = ToolDisplayConfigManager.getToolConfig(toolName);
+  return config.icon;
 };
 
-// 工具顯示名稱
+// 工具顯示名稱（使用智能配置）
 const getToolDisplayName = (toolName) => {
-  const nameMap = {
-    "hr.get_employee_info": "員工資料查詢",
-    "hr.get_department_list": "部門列表查詢",
-    "hr.get_attendance_records": "出勤記錄查詢",
-    "hr.get_salary_info": "薪資資料查詢",
-    "tasks.create_task": "創建任務",
-    "tasks.get_task_list": "任務列表查詢",
-    "finance.get_budget_info": "預算資料查詢",
-  };
-  return nameMap[toolName] || toolName;
+  const config = ToolDisplayConfigManager.getToolConfig(toolName);
+  return config.displayName;
 };
 
-// 工具類別
+// 工具類別（使用智能配置）
 const getToolCategory = (toolName) => {
-  if (toolName.startsWith("hr.")) return "HR";
-  if (toolName.startsWith("tasks.")) return "任務";
-  if (toolName.startsWith("finance.")) return "財務";
-  return "工具";
+  const config = ToolDisplayConfigManager.getToolConfig(toolName);
+  return config.category;
 };
 
-// 工具顏色
+// 工具顏色（使用智能配置）
 const getToolColor = (toolName) => {
-  if (toolName.startsWith("hr.")) return "blue";
-  if (toolName.startsWith("tasks.")) return "green";
-  if (toolName.startsWith("finance.")) return "orange";
-  return "default";
+  const config = ToolDisplayConfigManager.getToolConfig(toolName);
+  return config.color;
 };
 
 // 檢查是否為結構化數據

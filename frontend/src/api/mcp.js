@@ -33,6 +33,14 @@ export default {
   },
 
   /**
+   * 啟用選中的服務（新版本）
+   * @param {Array} services - 選中的服務列表
+   */
+  enableSelectedServices(services) {
+    return request.post("/api/mcp/services/enable-selected", { services });
+  },
+
+  /**
    * 停用服務
    * @param {Array} serviceIds - 服務 ID 列表
    * @param {Array} toolIds - 工具 ID 列表（可選）
@@ -134,9 +142,13 @@ export default {
   /**
    * 刪除 MCP 服務（軟刪除）
    * @param {number} serviceId - 服務 ID
+   * @param {boolean} permanent - 是否永久刪除
    */
-  deleteService(serviceId) {
-    return request.delete(`/api/mcp/services/${serviceId}`);
+  deleteService(serviceId, permanent = false) {
+    const endpoint = permanent
+      ? `/api/mcp/services/${serviceId}/permanent`
+      : `/api/mcp/services/${serviceId}`;
+    return request.delete(endpoint);
   },
 
   /**
@@ -148,11 +160,15 @@ export default {
   },
 
   /**
-   * 批量刪除 MCP 服務（軟刪除）
+   * 批量刪除 MCP 服務
    * @param {Array} serviceIds - 服務 ID 列表
+   * @param {boolean} permanent - 是否永久刪除
    */
-  batchDeleteServices(serviceIds) {
-    return request.delete("/api/mcp/services/batch", { data: { serviceIds } });
+  batchDeleteServices(serviceIds, permanent = false) {
+    const endpoint = permanent
+      ? "/api/mcp/services/batch/permanent"
+      : "/api/mcp/services/batch";
+    return request.delete(endpoint, { data: { serviceIds } });
   },
 
   /**
@@ -186,5 +202,40 @@ export default {
       tool_ids: toolIds,
       is_enabled: enabled,
     });
+  },
+
+  /**
+   * 調用 MCP 工具
+   * @param {Object} params - 調用參數
+   * @param {number} params.serviceId - 服務 ID
+   * @param {number} params.toolId - 工具 ID
+   * @param {string} params.toolName - 工具名稱
+   * @param {Object} params.parameters - 工具參數
+   */
+  callTool({ serviceId, toolId, toolName, parameters }) {
+    return request.post("/api/mcp/tools/call", {
+      serviceId,
+      toolId,
+      toolName,
+      parameters,
+    });
+  },
+
+  /**
+   * 獲取工具調用歷史
+   * @param {number} toolId - 工具 ID（可選）
+   * @param {number} limit - 限制條數（可選）
+   */
+  getToolCallHistory(toolId = null, limit = 50) {
+    const params = { limit };
+    if (toolId) params.toolId = toolId;
+    return request.get("/api/mcp/tools/call/history", { params });
+  },
+
+  /**
+   * 獲取工具調用統計
+   */
+  getToolCallStats() {
+    return request.get("/api/mcp/tools/call/stats");
   },
 };

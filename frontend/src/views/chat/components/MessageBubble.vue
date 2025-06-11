@@ -374,17 +374,45 @@ const nonImageAttachments = computed(() => {
 
 // 計算屬性：獲取有效的工具調用列表
 const effectiveToolCalls = computed(() => {
-  // 優先使用 metadata.tool_calls（後端存儲位置）
-  if (props.message.metadata?.tool_calls?.length > 0) {
-    return props.message.metadata.tool_calls;
+  const toolCalls =
+    props.message.metadata?.tool_calls || props.message.tool_calls || [];
+  const toolResults = props.message.metadata?.tool_results || [];
+
+  // 如果沒有工具調用，返回空陣列
+  if (toolCalls.length === 0) {
+    return [];
   }
 
-  // 如果 metadata 中沒有，檢查直接的 tool_calls 屬性
-  if (props.message.tool_calls?.length > 0) {
-    return props.message.tool_calls;
-  }
+  // 將工具調用和結果合併
+  return toolCalls.map((toolCall, index) => {
+    const result = toolResults[index];
 
-  return [];
+    return {
+      // 工具調用基本信息
+      toolName: toolCall.name || result?.tool_name || "unknown",
+      name: toolCall.name || result?.tool_name,
+      format: toolCall.format || "function",
+      arguments: toolCall.parameters || {},
+
+      // 執行結果
+      success: result?.success || false,
+      result: result?.data || {},
+      error: result?.error || null,
+      executionTime: result?.execution_time || 0,
+
+      // 元數據
+      metadata: {
+        timestamp: result?.timestamp,
+        version: result?.version,
+        executionId: result?.execution_id,
+        serviceName: result?.service_name,
+        module: result?.module,
+      },
+
+      // 調試信息
+      details: result,
+    };
+  });
 });
 
 // 獲取圖片 URL

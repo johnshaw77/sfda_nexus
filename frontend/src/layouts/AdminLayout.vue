@@ -189,6 +189,11 @@
             <span>MCP 服務管理</span>
           </a-menu-item>
 
+          <a-menu-item key="mcp-tools-tester">
+            <ExperimentOutlined />
+            <span>MCP 工具測試器</span>
+          </a-menu-item>
+
           <a-menu-item key="system">
             <SettingOutlined />
             <span>系統設置</span>
@@ -547,6 +552,7 @@ const handleMenuClick = ({ key }) => {
     models: "/admin/models",
     "quick-commands": "/admin/quick-commands",
     "mcp-services": "/admin/mcp-services",
+    "mcp-tools-tester": "/admin/mcp-tools-tester",
     system: "/admin/system",
     logs: "/admin/logs",
     database: "/admin/database",
@@ -628,6 +634,8 @@ watch(
       "/admin/agents": "agents",
       "/admin/models": "models",
       "/admin/quick-commands": "quick-commands",
+      "/admin/mcp-services": "mcp-services",
+      "/admin/mcp-tools-tester": "mcp-tools-tester",
       "/admin/system": "system",
       "/admin/logs": "logs",
       "/admin/database": "database",

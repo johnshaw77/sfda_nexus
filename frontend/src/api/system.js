@@ -45,3 +45,27 @@ export const getModelUsageStats = async (params = {}) => {
   const response = await api.get("/api/admin/stats/models", { params });
   return response.data;
 };
+
+// ===== 全域提示詞管理 =====
+export const getGlobalPromptStats = async () => {
+  const response = await api.get("/api/admin/global-prompt/stats");
+  return response.data;
+};
+
+export const getGlobalPromptPreview = async () => {
+  const response = await api.get("/api/admin/global-prompt/preview");
+  return response.data;
+};
+
+export const getSystemPromptPreview = async (data) => {
+  const response = await api.post(
+    "/api/admin/global-prompt/system-prompt-preview",
+    data
+  );
+  return response.data;
+};
+
+export const clearGlobalPromptCache = async () => {
+  const response = await api.post("/api/admin/global-prompt/cache/clear");
+  return response.data;
+};

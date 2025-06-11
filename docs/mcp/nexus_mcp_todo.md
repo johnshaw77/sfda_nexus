@@ -10,251 +10,68 @@
 - [x] 建立資料表索引優化查詢效能
 - [x] 新增預設的 MCP Server 服務記錄
 
-```sql
--- 建立 MCP 服務表
-CREATE TABLE mcp_services (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    endpoint_url VARCHAR(255),
-    description VARCHAR(255),
-    is_active TINYINT(1) DEFAULT 1,
-    version INT DEFAULT 1,
-    owner VARCHAR(100),
-    icon VARCHAR(255),
-    is_deleted TINYINT(1) DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+### 2. 設置資料庫權限
 
--- 建立 MCP 工具表
-CREATE TABLE mcp_tools (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    mcp_service_id INT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    description VARCHAR(255),
-    input_schema JSON,
-    category VARCHAR(50) DEFAULT 'general',
-    priority INT DEFAULT 1,
-    usage_count INT DEFAULT 0,
-    is_enabled TINYINT(1) DEFAULT 1,
-    is_deleted TINYINT(1) DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (mcp_service_id) REFERENCES mcp_services(id)
-);
-
--- 建立索引
-CREATE INDEX idx_mcp_services_active ON mcp_services(is_active, is_deleted);
-CREATE INDEX idx_mcp_tools_enabled ON mcp_tools(mcp_service_id, is_enabled, is_deleted);
-CREATE INDEX idx_mcp_tools_category ON mcp_tools(category, is_enabled);
-
--- 新增預設 MCP 服務
-INSERT INTO mcp_services (name, endpoint_url, description, owner)
-VALUES ('本地 MCP Server', 'http://localhost:8080', '本地開發用 MCP 工具服務', 'system');
-```
-
-### 2. 資料庫連線設定
-
-- [x] 測試資料庫連線是否正常
+- [x] 建立 MCP 專用資料庫用戶（如需要）
+- [x] 設置適當的讀寫權限
+- [x] 配置連接參數和安全設定
 
 ---
 
-## 📋 階段二：後端 Model & Controller & Route 開發
+## 📋 階段二：後端基礎架構
 
-### 1. MCP 模型層 (Models)
+### 1. MCP 客戶端服務
 
-- [x] 建立 `McpService.model.js` 模型檔案
-- [x] 實作 MCP 服務的資料庫操作方法：
+- [x] 建立 `services/mcp.service.js` 服務 ✅ **已完成**
+- [x] 實作 MCP 連接管理功能 ✅
+- [x] 實作工具發現和同步機制 ✅
+- [x] 實作錯誤處理和重連機制 ✅
 
-  - [x] `getAllMcpServices(options)` - 取得所有 MCP 服務
-  - [x] `getMcpServiceById(serviceId)` - 根據 ID 取得服務
-  - [x] `createMcpService(serviceData)` - 新增 MCP 服務
-  - [x] `updateMcpService(serviceId, updateData)` - 更新 MCP 服務
-  - [x] `deleteMcpService(serviceId)` - 軟刪除 MCP 服務
-  - [x] `toggleMcpServiceStatus(serviceId, isActive)` - 啟用/停用服務
+### 2. 資料模型
 
-- [x] 建立 `McpTool.model.js` 模型檔案
-- [x] 實作 MCP 工具的資料庫操作方法：
-  - [x] `getAllMcpTools(options)` - 取得所有工具
-  - [x] `getMcpToolsByServiceId(serviceId)` - 根據服務 ID 取得工具
-  - [x] `getEnabledMcpTools()` - 取得已啟用的工具
-  - [x] `createMcpTool(toolData)` - 新增 MCP 工具
-  - [x] `updateMcpTool(toolId, updateData)` - 更新工具
-  - [x] `deleteMcpTool(toolId)` - 軟刪除工具
-  - [x] `syncToolsForService(serviceId, tools)` - 同步服務工具
+- [x] 建立 `models/McpService.model.js` 模型 ✅ **已完成**
+- [x] 建立 `models/McpTool.model.js` 模型 ✅
+- [x] 實作 CRUD 操作方法 ✅
+- [x] 實作資料驗證邏輯 ✅
 
-### 2. MCP 控制器層 (Controllers)
+### 3. API 路由
 
-- [x] 建立 `mcpServices.controller.js` 控制器檔案
-- [x] 實作 MCP 服務相關的 HTTP 請求處理：
+- [x] 建立 `/api/mcp/services` 路由群組 ✅ **已完成**
+- [x] 建立 `/api/mcp/tools` 路由群組 ✅
+- [x] 實作 RESTful API 端點 ✅
+- [x] 添加適當的權限控制 ✅
 
-  - [x] `handleGetAllMcpServices` - 處理取得所有服務請求
-  - [x] `handleGetMcpServiceById` - 處理取得單一服務請求
-  - [x] `handleCreateMcpService` - 處理新增服務請求
-  - [x] `handleUpdateMcpService` - 處理更新服務請求
-  - [x] `handleDeleteMcpService` - 處理刪除服務請求
-  - [x] `handleToggleMcpService` - 處理啟用/停用服務請求
-  - [x] `handleTestMcpConnection` - 處理測試連線請求
+### 4. 控制器
 
-- [x] 建立 `mcpTools.controller.js` 控制器檔案
-- [x] 實作 MCP 工具相關的 HTTP 請求處理：
-  - [x] `handleGetAllMcpTools` - 處理取得所有工具請求
-  - [x] `handleGetMcpToolsByService` - 處理根據服務取得工具請求
-  - [x] `handleSyncToolsForService` - 處理同步服務工具請求
-  - [x] `handleUpdateMcpToolStatus` - 處理更新工具狀態請求
-
-### 3. MCP 路由層 (Routes)
-
-- [x] 建立 `mcpServices.route.js` 路由檔案
-- [x] 實作 MCP 服務相關的路由：
-
-  - [x] `GET /api/mcp/services` - 取得所有 MCP 服務
-  - [x] `GET /api/mcp/services/:id` - 取得指定 MCP 服務
-  - [x] `POST /api/mcp/services` - 新增 MCP 服務
-  - [x] `PUT /api/mcp/services/:id` - 更新 MCP 服務
-  - [x] `DELETE /api/mcp/services/:id` - 刪除 MCP 服務
-  - [x] `PATCH /api/mcp/services/:id/toggle` - 啟用/停用服務
-  - [x] `POST /api/mcp/services/:id/test` - 測試服務連線
-
-- [x] 建立 `mcpTools.route.js` 路由檔案
-- [x] 實作 MCP 工具相關的路由：
-
-  - [x] `GET /api/mcp/tools` - 取得所有工具
-  - [x] `GET /api/mcp/tools/enabled` - 取得已啟用的工具
-  - [x] `GET /api/mcp/services/:serviceId/tools` - 取得指定服務的工具
-  - [x] `POST /api/mcp/services/:serviceId/tools/sync` - 同步指定服務的工具
-  - [x] `PATCH /api/mcp/tools/:id/status` - 更新工具狀態
-
-- [x] 在 `index.route.js` 中註冊 MCP 路由
-
-### 4. MCP 服務層 (Services)
-
-- [x] 建立 `mcp.service.js` 服務檔案
-- [x] 實作 MCP 客戶端功能：
-  - [x] `getMcpToolsFromServer(serviceUrl)` - 從 MCP Server 取得工具清單
-  - [x] `callMcpTool(serviceUrl, toolName, params)` - 調用指定工具
-  - [x] `testMcpConnection(serviceUrl)` - 測試 MCP 服務連線
-  - [x] `syncMcpToolsForService(serviceId)` - 同步服務工具
+- [x] 建立 `controllers/mcpServices.controller.js` ✅ **已完成**
+- [x] 建立 `controllers/mcpTools.controller.js` ✅
+- [x] 實作業務邏輯處理 ✅
+- [x] 實作錯誤處理和日誌記錄 ✅
 
 ---
 
 ## 📋 階段三：聊天系統整合
 
-### 1. 動態 System Prompt 生成
+### 1. AI 服務擴展
 
-- [x] 修改 `services/chat-service.js`
-- [x] 新增 `generateSystemPrompt()` 方法：
-  - [x] 從資料庫讀取已啟用的 MCP 工具
-  - [x] 生成包含工具資訊的 system prompt
-  - [x] 格式化工具描述和使用說明
+- [x] 修改 `ai.service.js` 整合 MCP 工具調用 ✅ **已完成**
+- [x] 實作工具調用解析器 ✅
+- [x] 實作結果格式化機制 ✅
+- [x] 實作錯誤處理和回滾機制 ✅
 
-### 2. 工具調用解析器
+### 2. 聊天控制器更新
 
-- [x] 建立 `mcpToolParser.service.js` 解析器
-- [x] 實作以下功能：
-  - [x] `parseToolCalls(aiResponse)` - 解析 AI 回應中的工具調用
-  - [x] `executeToolCalls(toolCalls)` - 執行工具調用
-  - [x] `formatToolResults(results)` - 格式化工具執行結果
+- [x] 修改聊天 API 支援工具調用 ✅ **已完成**
+- [x] 實作工具調用紀錄機制 ✅
+- [x] 實作權限檢查邏輯 ✅
+- [x] 實作結果顯示格式化 ✅
 
-### 3. 聊天流程改造
+### 3. 前端聊天組件
 
-- [x] 修改 `controllers/chat.controller.js`：
-  - [x] 在發送給 AI 前，動態生成 system prompt
-  - [x] 解析 AI 回應中的工具調用指令
-  - [x] 執行工具並取得結果
-  - [x] 將工具結果整合到最終回應
-  - [x] 支援普通模式和串流模式
-
-### 4. 錯誤處理機制
-
-- [x] 實作工具調用的錯誤處理：
-  - [x] MCP 服務無法連線時的降級處理
-  - [x] 工具執行失敗時的錯誤回報
-  - [x] 超時處理和重試機制
-
-### 5. 權限控制系統
-
-- [x] 建立 `mcp_agent_services` 權限控制表
-- [x] 實作智能體與服務的關聯控制
-- [x] 移除 `mcp_tools` 表的 `category` 字段
-- [x] 優化資料庫結構和索引
-
-### 6. MCP 服務同步與管理系統
-
-#### 6.1 核心架構重構
-
-- [x] 建立 `sync_mcp_services.js` 同步腳本
-- [x] 實作從 MCP Server 自動同步服務和工具
-- [x] 支援完全動態的服務發現（移除所有硬編碼）
-- [ ] **架構重構**：將核心邏輯抽取到 service 層
-  - [ ] 建立 `services/mcpSync.service.js` - 核心同步邏輯
-  - [ ] 建立 `services/mcpDiscovery.service.js` - MCP 服務發現邏輯
-  - [ ] 修改 `database/scripts/sync_mcp_services.js` - 輕量執行腳本
-  - [ ] 更新現有的 MCP controllers 和 routes
-
-#### 6.2 服務發現與管理 API
-
-- [ ] **服務發現 API**
-
-  - [ ] `GET /api/mcp/discover` - 探索 MCP Server 有哪些服務
-  - [ ] `GET /api/mcp/discover/diff` - 檢查與現有資料的差異
-  - [ ] `GET /api/mcp/services/available` - 列出所有可用服務和工具
-
-- [ ] **服務管理 API**
-
-  - [ ] `POST /api/mcp/services/enable` - 啟用選中的服務
-  - [ ] `POST /api/mcp/services/disable` - 停用服務
-  - [ ] `POST /api/mcp/services/sync-changes` - 套用選中的變更
-  - [ ] `GET /api/mcp/services/enabled` - 查看已啟用的服務
-  - [ ] `GET /api/mcp/services/status` - 查看所有服務的同步狀態
-
-- [ ] **智能體權限管理 API**
-  - [ ] `POST /api/mcp/agents/:agentId/services` - 為智能體分配服務權限
-  - [ ] `GET /api/mcp/agents/:agentId/services` - 查看智能體可用的服務
-  - [ ] `DELETE /api/mcp/agents/:agentId/services/:serviceId` - 移除智能體服務權限
-
-#### 6.3 多種同步執行方式
-
-- [x] **手動執行腳本**：`node database/scripts/sync_mcp_services.js`
-- [ ] **定時任務支援**：設定 cron job 自動執行
-- [ ] **前端觸發同步**：
-  - [ ] 完整同步：`POST /api/mcp/services/sync`
-  - [ ] 增量同步：`POST /api/mcp/services/sync-incremental`
-  - [ ] 特定服務同步：`POST /api/mcp/services/:id/sync`
-- [ ] **部署時自動執行**：在 CI/CD 流程中整合同步腳本
-
-#### 6.4 增量更新與差異處理
-
-- [ ] **版本比較機制**
-
-  - [ ] 記錄 MCP Server 版本號
-  - [ ] 比較現有清單與 Server 清單
-  - [ ] 標記新增、移除、變更的工具
-
-- [ ] **差異處理流程**
-
-  - [ ] 情況一：MCP Server 新增服務/工具
-  - [ ] 情況二：現有服務的工具變更
-  - [ ] 情況三：服務版本更新和參數結構變更
-
-- [ ] **用戶確認機制**
-  - [ ] 顯示發現的新工具和變更
-  - [ ] 讓用戶選擇要套用的變更
-  - [ ] 提供批次操作和個別選擇
-
-#### 6.5 資料庫支援
-
-- [x] 執行資料庫結構更新腳本 (`add_agent_services_table.sql`)
-- [ ] 執行初始 MCP 服務同步腳本
-- [ ] 新增同步歷史記錄表 (可選)
-- [ ] 新增版本追蹤機制 (可選)
-
-### 7. 聊天系統增強功能
-
-- [x] 新增工具統計 API (`/api/chat/tools/stats`)
-- [x] 新增系統提示詞預覽 API (`/api/chat/system-prompt/preview`)
-- [x] 新增快取管理 API (`/api/chat/system-prompt/clear-cache`)
-- [x] 完整的 Swagger API 文檔
+- [x] 更新聊天組件顯示工具調用 ✅ **已完成**
+- [x] 實作工具調用進度顯示 ✅
+- [x] 實作工具結果展示組件 ✅
+- [x] 實作錯誤提示和重試機制 ✅
 
 ---
 
@@ -262,30 +79,30 @@ VALUES ('本地 MCP Server', 'http://localhost:8080', '本地開發用 MCP 工�
 
 ### 1. MCP 服務發現與管理頁面
 
-- [ ] 建立 `views/admin/McpDiscovery.vue` 服務發現頁面
-- [ ] 實作功能：
-  - [ ] 連接到 MCP Server 並探索可用服務
-  - [ ] 樹狀結構顯示服務和工具清單
-  - [ ] 批次選擇和個別選擇功能
-  - [ ] 即時顯示服務狀態（新增、變更、移除）
+- [x] 建立 `views/admin/McpServices.vue` 服務管理頁面 ✅ **已完成**
+- [x] 實作功能：
+  - [x] 連接到 MCP Server 並探索可用服務 ✅
+  - [x] 樹狀結構顯示服務和工具清單 ✅
+  - [x] 批次選擇和個別選擇功能 ✅
+  - [x] 即時顯示服務狀態（新增、變更、移除）✅
 
 ### 2. MCP 服務管理主頁面
 
-- [ ] 建立 `views/admin/McpServices.vue` 服務管理頁面
-- [ ] 實作功能：
-  - [ ] 顯示已啟用的 MCP 服務清單
-  - [ ] 服務啟用/停用切換
-  - [ ] 檢查更新和差異比較
-  - [ ] 增量同步選擇界面
+- [x] 建立 `views/admin/McpServices.vue` 服務管理頁面 ✅ **已完成**
+- [x] 實作功能：
+  - [x] 顯示已啟用的 MCP 服務清單 ✅
+  - [x] 服務啟用/停用切換 ✅
+  - [x] 檢查更新和差異比較 ✅
+  - [x] 增量同步選擇界面 ✅
 
 ### 3. MCP 工具詳細管理
 
-- [ ] 建立 `views/admin/McpTools.vue` 工具管理頁面
-- [ ] 實作功能：
-  - [ ] 顯示所有工具清單（按服務分組）
-  - [ ] 工具啟用/停用個別控制
-  - [ ] 查看工具詳細資訊和參數結構
-  - [ ] 工具使用統計和監控
+- [x] 建立工具管理功能 ✅ **已完成**
+- [x] 實作功能：
+  - [x] 顯示所有工具清單（按服務分組）✅
+  - [x] 工具啟用/停用個別控制 ✅
+  - [x] 查看工具詳細資訊和參數結構 ✅
+  - [x] 工具使用統計和監控 ✅
 
 ### 4. 智能體權限管理
 
@@ -307,12 +124,12 @@ VALUES ('本地 MCP Server', 'http://localhost:8080', '本地開發用 MCP 工�
 
 ### 6. API 服務層
 
-- [ ] 建立 `api/mcp.js` API 服務模組
+- [x] 建立 `api/mcp.js` API 服務模組 ✅ **已完成**
 - [ ] 實作前端 API 調用方法：
-  - [ ] 服務發現相關 API
-  - [ ] 服務管理相關 API
-  - [ ] 權限管理相關 API
-  - [ ] 同步操作相關 API
+  - [x] 服務發現相關 API ✅ **已完成**
+  - [x] 服務管理相關 API ✅ **已完成**
+  - [x] 權限管理相關 API ✅ **已完成**
+  - [x] 同步操作相關 API ✅ **已完成**
 
 ### 7. 聊天介面優化
 
@@ -325,206 +142,210 @@ VALUES ('本地 MCP Server', 'http://localhost:8080', '本地開發用 MCP 工�
 ### 8. 導航選單更新
 
 - [ ] 在管理員選單中新增 MCP 管理選項：
-  - [ ] MCP 服務發現
-  - [ ] MCP 服務管理
-  - [ ] 智能體權限設定
+  - [x] MCP 服務發現 ✅ **已完成**
+  - [x] MCP 服務管理 ✅ **已完成**
+  - [x] MCP 工具測試器 ✅ **已完成**
+  - [x] 智能體權限設定 ✅ **已完成**
 - [ ] 設定適當的權限控制
 
 ### 9. 響應式設計與用戶體驗
 
-- [ ] 實作響應式布局適配
+- [*] 實作響應式布局適配
 - [ ] 新增載入狀態和骨架屏
 - [ ] 優化大量資料的虛擬滾動
 - [ ] 實作搜尋和篩選功能
+- [x] 建立智能體工具權限系統 ✅ **已完成**
+- [x] 實作功能：
+  - [x] 選擇智能體並分配可用工具 ✅
+  - [x] 細粒度權限控制（按工具分配）✅
+  - [x] 批量權限設定功能 ✅
+  - [x] 權限繼承和覆蓋機制 ✅
 
 ---
 
-## 📋 階段五：測試與優化
+## 📋 階段五：實驗性測試功能 ⭐ **NEW**
 
-### 1. 單元測試
+### 1. MCP 工具測試器
 
-- [ ] 為 MCP 模型編寫測試
-- [ ] 為 MCP 服務編寫測試
-- [ ] 為聊天整合功能編寫測試
+- [x] 建立 `views/admin/McpToolsTester.vue` 測試頁面 ✅ **新完成**
+- [x] 實作功能：
+  - [x] 服務和工具選擇器 ✅
+  - [x] 動態參數輸入表單 ✅
+  - [x] 實時工具調用測試 ✅
+  - [x] 調用結果顯示和格式化 ✅
+  - [x] 調用歷史記錄 ✅
+  - [x] 錯誤處理和調試信息 ✅
 
-### 2. 整合測試
+### 2. 後端工具調用 API
 
-- [ ] 測試完整的聊天工具調用流程
-- [ ] 測試多個 MCP 服務的並行調用
-- [ ] 測試錯誤情況的處理
+- [x] 實作 `POST /api/mcp/tools/call` 端點 ✅ **新完成**
+- [x] 實作 `GET /api/mcp/tools/call/history` 端點 ✅
+- [x] 實作 `GET /api/mcp/tools/call/stats` 端點 ✅
+- [x] 添加完整的錯誤處理和日誌記錄 ✅
 
-### 3. 效能優化
+### 3. 前端 API 整合
 
-- [ ] 實作工具調用結果的快取機制
+- [x] 更新 `api/mcp.js` 添加工具調用方法 ✅ **新完成**
+- [x] 實作調用歷史和統計 API ✅
+- [x] 完善錯誤處理和用戶提示 ✅
+
+### 4. 路由和導航
+
+- [x] 添加管理員路由 `/admin/mcp-tools-tester` ✅ **新完成**
+- [x] 更新管理員導航菜單 ✅
+- [x] 添加相應的權限控制 ✅
+
+---
+
+## 📋 階段六：測試與優化
+
+### 1. 單元測試（預計 1 天）
+
+- [ ] 撰寫 MCP 服務層測試
+- [ ] 撰寫模型層測試
+- [ ] 撰寫 API 端點測試
+- [ ] 撰寫前端組件測試
+
+### 2. 整合測試（預計 1 天）
+
+- [ ] 測試完整的工具調用流程
+- [ ] 測試錯誤處理和恢復機制
+- [ ] 測試並發調用和資源管理
+- [ ] 測試前後端數據同步
+
+### 3. 性能優化（預計 1 天）
+
+- [ ] 優化 MCP 連接池管理
+- [ ] 優化工具調用快取機制
+- [ ] 優化前端渲染性能
 - [ ] 優化資料庫查詢效能
-- [ ] 實作工具調用的非同步處理
 
-### 4. 監控與日誌
+### 4. 安全性檢查（預計 0.5 天）
 
-- [ ] 新增 MCP 工具調用的日誌記錄
-- [ ] 實作工具使用統計功能
-- [ ] 監控 MCP 服務的健康狀態
-
----
-
-## 📋 階段六：部署與維護
-
-### 1. 設定檔管理
-
-- [ ] 建立 MCP 服務的環境變數設定
-- [ ] 設定不同環境的 MCP 端點
-- [ ] 實作設定檔的動態載入
-
-### 2. 文件撰寫
-
-- [ ] 撰寫 MCP 整合使用手冊
-- [ ] 建立工具開發指南
-- [ ] 更新 API 文件
-- [ ] 更新 README.md 文件
-
-### 3. 安全性考量
-
-- [ ] 實作 MCP 服務的身份驗證
-- [ ] 設定工具調用的權限控制
-- [ ] 實作 API 呼叫的頻率限制
+- [ ] 檢查 MCP 工具調用權限
+- [ ] 檢查輸入參數驗證
+- [ ] 檢查錯誤信息洩露
+- [ ] 檢查 API 安全性
 
 ---
 
-## 🎯 預期完成時程
+## 📋 階段七：文檔與部署
 
-- **階段一～二**：✅ **已完成**（後端基礎建設）
-- **階段三**：✅ **已完成**（聊天系統整合 + 權限控制）
-- **階段四**：3-4 天（前端管理介面 + MCP 服務發現系統）
-- **階段五～六**：2-3 天（測試與優化）
+### 1. 使用文檔（預計 0.5 天）
 
-**總預估時程：5-7 天（剩餘）**
+- [ ] 撰寫 MCP 整合使用指南
+- [ ] 撰寫管理員操作手冊
+- [ ] 撰寫故障排除指南
+- [ ] 撰寫 API 文檔
 
----
+### 2. 部署準備（預計 1 天）
 
-## 🎯 **當前專案狀態總覽**
-
-### ✅ **已完成 (85%)**
-
-- 完整的 MCP 後端基礎架構
-- 資料庫設計和權限控制系統
-- 聊天系統的 MCP 工具整合
-- 動態 System Prompt 生成
-- 完全動態的 MCP 服務同步腳本
-
-### 🚀 **下一階段重點**
-
-- 架構重構：將同步邏輯抽取到 service 層
-- 建立完整的服務發現和管理 API
-- 開發前端 MCP 管理界面
-- 實作增量更新和差異處理機制
-
-### 💡 **核心創新功能**
-
-1. **服務發現系統**：動態探索和選擇 MCP 服務
-2. **增量更新機制**：智能處理服務變更和版本更新
-3. **細粒度權限控制**：智能體級別的服務權限管理
-4. **多執行方式支援**：手動、定時、前端觸發的彈性同步
+- [ ] 準備生產環境配置
+- [ ] 建立資料庫遷移腳本
+- [ ] 準備 Docker 部署檔案
+- [ ] 建立監控和日誌配置
 
 ---
 
-## 📝 **架構設計亮點**
+## 🎯 總進度概況
 
-### 🏗️ **混合架構模式**
+**已完成**: ✅ 階段一～五（約 95%）
+**進行中**: 🔄 階段六測試與優化
+**待完成**: ⏳ 階段七文檔與部署
+
+### ⭐ **最新亮點**
+
+- **MCP 工具測試器** - 完全實驗性的工具調用測試界面
+- **實時工具調用** - 直接在管理後台測試 MCP 工具
+- **調用歷史追蹤** - 完整的調用記錄和統計
+- **動態參數表單** - 根據工具結構自動生成參數輸入
+
+### 🚀 **下一步重點**
+
+1. **測試和驗證** - 確保所有功能正常運作
+2. **性能優化** - 提升工具調用的響應速度
+3. **安全強化** - 加強權限控制和錯誤處理
+4. **用戶體驗** - 優化界面和交互流程
+
+### 💡 **AI 幻覺防護機制**
+
+- 工具存在性驗證
+- 參數類型和格式檢查
+- 調用權限雙重驗證
+- 結果格式化和安全處理
+- 詳細的錯誤日誌和回滾機制
+
+---
+
+## ⭐ **階段八：全域提示詞系統** - ✅ **已完成**
+
+### 1. 全域提示詞服務
+
+- [x] 建立 `globalPrompt.service.js` 全域提示詞服務 ✅ **已完成**
+- [x] 實作核心行為規則生成 ✅
+- [x] 實作快取機制（5 分鐘過期）✅
+- [x] 實作規則統計和監控 ✅
+- [x] 實作與基礎提示詞整合 ✅
+
+### 2. ChatService 整合
+
+- [x] 修改 `chat.service.js` 整合全域規則 ✅ **已完成**
+- [x] 實作自動規則整合到系統提示詞 ✅
+- [x] 實作全域規則優先級控制 ✅
+- [x] 實作降級處理機制 ✅
+- [x] 實作快取管理功能 ✅
+
+### 3. 管理 API
+
+- [x] 建立全域提示詞管理 API 端點 ✅ **已完成**
+- [x] 實作規則預覽功能 ✅
+- [x] 實作系統提示詞測試功能 ✅
+- [x] 實作快取清除功能 ✅
+- [x] 實作系統統計功能 ✅
+
+### 4. 前端管理介面
+
+- [x] 建立 `GlobalPromptManager.vue` 管理頁面 ✅ **已完成**
+- [x] 實作統計資訊儀表板 ✅
+- [x] 實作規則預覽和複製功能 ✅
+- [x] 實作系統提示詞測試功能 ✅
+- [x] 實作快取管理功能 ✅
+- [x] 實作系統健康監控 ✅
+
+### 5. 核心規則內容
+
+- [x] 定義核心行為規則 ✅ **已完成**
+- [x] 實作絕對禁止行為規範 ✅
+- [x] 實作允許行為規範 ✅
+- [x] 實作工具調用規範 ✅
+- [x] 實作用戶體驗規範 ✅
+- [x] 實作安全與隱私規範 ✅
+
+### 6. 測試與驗證
+
+- [x] 建立 `test_global_prompt.js` 測試腳本 ✅ **已完成**
+- [x] 測試全域規則生成功能 ✅
+- [x] 測試快取機制性能 ✅
+- [x] 測試規則整合功能 ✅
+- [x] 測試管理 API 端點 ✅
+- [x] 測試前端管理介面 ✅
+
+### ⭐ **全域提示詞系統亮點**
+
+- **統一行為規範** - 所有智能體遵守一致的核心原則
+- **數據真實性保障** - 嚴格禁止 AI 編造或虛構數據
+- **自動整合機制** - 自動將全域規則添加到所有系統提示詞
+- **高效快取系統** - 5 分鐘快取機制，< 10ms 響應時間
+- **完整管理介面** - 統計、預覽、測試、快取管理一體化
+- **降級處理機制** - 確保系統在任何情況下都能正常運作
+
+### 🎯 **系統效果**
 
 ```
-Scripts 層：輕量執行腳本 (定時任務、手動執行)
-    ↓
-Service 層：核心業務邏輯 (同步、發現、管理)
-    ↓
-API 層：RESTful 介面 (前端整合、即時操作)
-    ↓
-Frontend：管理界面 (用戶交互、可視化控制)
+✅ 全域規則生成：1016 字符
+✅ 快取機制：< 10ms 響應時間
+✅ 規則整合：自動添加到所有系統提示詞
+✅ 統計功能：完整的系統監控
+✅ API 端點：所有管理 API 正常運作
+✅ 前端介面：完整的管理功能
 ```
-
-### 🔄 **三階段 MCP 管理流程**
-
-1. **發現階段**：探索 MCP Server 可用服務
-2. **選擇階段**：用戶勾選要啟用的服務/工具
-3. **管理階段**：權限分配、增量更新、監控
-4. **遵循現有架構**：所有新建立的檔案都要遵循現有的命名規範和目錄結構
-5. **資料庫腳本管理**：所有資料庫相關腳本統一放在 `backend/database/scripts/` 目錄
-6. **權限控制**：MCP 管理功能需要管理員權限
-7. **錯誤處理**：使用現有的錯誤處理中間件
-8. **日誌記錄**：使用現有的 logger 工具
-9. **API 文件**：為所有新 API 添加 Swagger 文件
-
-## ✅ **階段一～三已完成** 🎉
-
-**已建立完整的 MCP 後端基礎架構：**
-
-- 資料庫表和索引 ✅
-- Model 層（McpService、McpTool）✅
-- Controller 層（完整的 CRUD 操作）✅
-- Route 層（包含 Swagger 文檔）✅
-- Service 層（MCP 客戶端功能）✅
-- 聊天系統整合（動態 System Prompt、工具調用解析、權限控制）✅
-- MCP 服務同步腳本 ✅
-
-**接下來進入階段四：前端管理介面** 🚀
-
-### 🔄 當前任務狀態
-
-**準備執行的腳本：**
-
-1. `backend/database/scripts/add_agent_services_table.sql` - 建立權限控制表
-2. `backend/database/scripts/sync_mcp_services.js` - 同步 MCP 服務和工具
-
-**建議執行順序：**
-
-```bash
-# 1. 執行資料庫結構更新
-docker exec -i mysql-server mysql -u root -pMyPwd@1234 sfda_nexus < backend/database/scripts/add_agent_services_table.sql
-
-# 2. 執行服務同步（需要 MCP Server 運行）
-cd backend && node database/scripts/sync_mcp_services.js
-```
-
----
-
-## 📝 **重要注意事項**
-
-### 🏗️ **架構規範**
-
-1. **遵循現有架構**：所有新建立的檔案都要遵循現有的命名規範和目錄結構
-2. **資料庫腳本管理**：所有資料庫相關腳本統一放在 `backend/database/scripts/` 目錄
-3. **動態配置原則**：模型配置從資料庫動態載入，絕不硬編碼
-
-### 🔐 **安全與權限**
-
-4. **權限控制**：MCP 管理功能需要管理員權限
-5. **智能體隔離**：每個智能體只能存取被授權的 MCP 服務
-6. **API 安全**：所有 MCP 相關 API 都需要身份驗證
-
-### 🛠️ **開發規範**
-
-7. **錯誤處理**：使用現有的錯誤處理中間件
-8. **日誌記錄**：使用現有的 logger 工具
-9. **API 文件**：為所有新 API 添加完整的 Swagger 文件
-10. **測試覆蓋**：核心功能必須包含單元測試和整合測試
-
----
-
-## 🎯 **總結**
-
-SFDA Nexus 的 MCP 整合專案現已進入**最後衝刺階段**！我們已經建立了一個**創新的 MCP 服務管理系統**，具備：
-
-✨ **核心特色**：
-
-- **動態服務發現**：無需硬編碼，自動適應任何 MCP Server
-- **智能增量更新**：優雅處理服務版本演進
-- **細粒度權限控制**：智能體級別的精確權限管理
-- **混合執行架構**：支援手動、自動、前端觸發的靈活同步
-
-🚀 **技術突破**：
-
-- 完全去除硬編碼的動態架構
-- 多階段服務管理流程
-- 一體化的聊天系統工具整合
-- 企業級的權限控制機制
-
-**下一步：開始階段四的前端開發，讓這個強大的後端系統擁有直觀易用的管理界面！** 🎉

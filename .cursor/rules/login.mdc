@@ -1,0 +1,8 @@
+---
+description: 當要做登入的動作時
+globs: 
+alwaysApply: false
+---
+登錄時，使用的帳號欄位名是 identifier，不是 username 
+
+密碼欄位名 password_hash

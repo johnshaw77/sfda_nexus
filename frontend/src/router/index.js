@@ -126,7 +126,7 @@ const routes = [
       {
         path: "agents",
         name: "AgentManagement",
-        component: () => import("@/views/admin/agents.vue"),
+        component: () => import("@/views/admin/agent-management.vue"),
         meta: {
           title: "智能體管理",
           icon: "RobotOutlined",
@@ -157,6 +157,24 @@ const routes = [
         meta: {
           title: "MCP 服務管理",
           icon: "CloudServerOutlined",
+        },
+      },
+      {
+        path: "mcp-tools-tester",
+        name: "McpToolsTester",
+        component: () => import("@/views/admin/McpToolsTester.vue"),
+        meta: {
+          title: "MCP 工具測試器",
+          icon: "ExperimentOutlined",
+        },
+      },
+      {
+        path: "global-prompt",
+        name: "GlobalPromptManager",
+        component: () => import("@/views/admin/GlobalPromptManager.vue"),
+        meta: {
+          title: "全域提示詞管理",
+          icon: "GlobalOutlined",
         },
       },
     ],

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>MCP 工具顯示位置演示</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+
+      .demo-container {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .chat-interface {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        height: 600px;
+        overflow-y: auto;
+        padding: 16px;
+        background: #f8f9fa;
+      }
+
+      .message {
+        margin-bottom: 16px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .message.user {
+        flex-direction: row-reverse;
+      }
+
+      .message.assistant {
+        flex-direction: row;
+      }
+
+      .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: white;
+        flex-shrink: 0;
+      }
+
+      .user .avatar {
+        background: #1890ff;
+      }
+
+      .assistant .avatar {
+        background: #52c41a;
+      }
+
+      .message-content {
+        max-width: 70%;
+        background: white;
+        padding: 12px 16px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .user .message-content {
+        background: #1890ff;
+        color: white;
+      }
+
+      .tool-call-section {
+        margin-top: 16px;
+        padding: 16px;
+        background: #f0f9ff;
+        border: 1px solid #bae7ff;
+        border-radius: 8px;
+      }
+
+      .tool-call-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-weight: 500;
+      }
+
+      .tool-call-card {
+        background: white;
+        border: 1px solid #d9d9d9;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+
+      .tool-header {
+        background: #f5f5f5;
+        padding: 12px 16px;
+        border-bottom: 1px solid #d9d9d9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .tool-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .tool-icon {
+        width: 16px;
+        height: 16px;
+        color: #1890ff;
+      }
+
+      .tool-tag {
+        background: #1890ff;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      .tool-status {
+        color: #52c41a;
+        font-size: 12px;
+      }
+
+      .tool-content {
+        padding: 16px;
+      }
+
+      .section-title {
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #595959;
+      }
+
+      .json-block {
+        background: #f6f6f6;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        padding: 8px;
+        font-family: "Monaco", monospace;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+
+      .result-item {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: #f9f9f9;
+        border-radius: 4px;
+      }
+
+      .result-label {
+        font-weight: 500;
+        color: #262626;
+      }
+
+      .highlight-box {
+        position: absolute;
+        border: 3px solid #ff4d4f;
+        border-radius: 8px;
+        background: rgba(255, 77, 79, 0.1);
+        pointer-events: none;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      .instruction {
+        background: #fff7e6;
+        border: 1px solid #ffd591;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+      }
+
+      .step-indicator {
+        position: absolute;
+        right: -40px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #ff4d4f;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-container">
+      <div class="header">
+        <h1>🖥️ MCP 工具結果顯示位置演示</h1>
+        <p>這裡展示工具調用結果在聊天界面中的確切顯示位置</p>
+      </div>
+
+      <div class="instruction">
+        <h3>📍 重要說明：工具結果顯示在聊天對話流中</h3>
+        <p>
+          當您在聊天界面輸入需要工具協助的訊息時，AI 會調用相應的 MCP
+          工具，並將結果以卡片形式顯示在對話流中，就像下面演示的這樣：
+        </p>
+      </div>
+
+      <div
+        class="chat-interface"
+        style="position: relative">
+        <!-- 用戶消息 -->
+        <div class="message user">
+          <div class="avatar">👤</div>
+          <div class="message-content">請查詢員工 A123456 的基本資訊</div>
+        </div>
+
+        <!-- AI 回應 + 工具調用 -->
+        <div
+          class="message assistant"
+          style="position: relative">
+          <div class="step-indicator">👀</div>
+          <div class="avatar">🤖</div>
+          <div
+            class="message-content"
+            style="max-width: 85%">
+            好的，我會使用 get_employee_info 工具查詢員工 A123456 的資訊。
+
+            <!-- 工具調用部分 - 這就是您要找的顯示位置！ -->
+            <div class="tool-call-section">
+              <div class="tool-call-header">🛠️ <span>工具調用 (1)</span></div>
+
+              <div class="tool-call-card">
+                <div class="tool-header">
+                  <div class="tool-info">
+                    <svg
+                      class="tool-icon"
+                      viewBox="0 0 24 24"
+                      fill="currentColor">
+                      <path
+                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
+                    <span>員工資料查詢</span>
+                    <span class="tool-tag">HR</span>
+                  </div>
+                  <div class="tool-status">✅ 成功 149ms</div>
+                </div>
+
+                <div class="tool-content">
+                  <div class="section-title">📋 調用參數</div>
+                  <div class="json-block">{ "employeeId": "A123456" }</div>
+
+                  <div class="section-title">📊 執行結果</div>
+                  <div class="result-item">
+                    <div class="result-label">👤 基本資料</div>
+                    <div>• 姓名: 張小明 (Ming Zhang)</div>
+                    <div>• 職位: 資深軟體工程師 (P5)</div>
+                    <div>• 部門: 資訊技術部 (IT001)</div>
+                  </div>
+
+                  <div class="result-item">
+                    <div class="result-label">📞 聯絡資訊</div>
+                    <div>• 電話: 0912-345-678</div>
+                    <div>• 郵件: ming.zhang@company.com</div>
+                    <div>• 地址: 台北市信義區忠孝東路五段123號</div>
+                  </div>
+
+                  <div class="result-item">
+                    <div class="result-label">🔧 執行資訊</div>
+                    <div>• 時間: 2025-06-11 21:48:57</div>
+                    <div>• 版本: 1.0.0</div>
+                    <div>• 服務: Hr 服務</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            根據查詢結果，張小明是資訊技術部的資深軟體工程師，職級為
+            P5。如果您需要更多詳細資訊或其他員工的資料，請告訴我！
+          </div>
+        </div>
+
+        <!-- 後續對話 -->
+        <div class="message user">
+          <div class="avatar">👤</div>
+          <div class="message-content">謝謝！請再查詢他的出勤記錄</div>
+        </div>
+
+        <div class="message assistant">
+          <div class="avatar">🤖</div>
+          <div
+            class="message-content"
+            style="max-width: 85%">
+            好的，我會為您查詢張小明的出勤記錄。
+
+            <div class="tool-call-section">
+              <div class="tool-call-header">🛠️ <span>工具調用 (1)</span></div>
+
+              <div class="tool-call-card">
+                <div class="tool-header">
+                  <div class="tool-info">
+                    <svg
+                      class="tool-icon"
+                      viewBox="0 0 24 24"
+                      fill="currentColor">
+                      <path
+                        d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" />
+                    </svg>
+                    <span>出勤記錄查詢</span>
+                    <span class="tool-tag">HR</span>
+                  </div>
+                  <div class="tool-status">✅ 成功 98ms</div>
+                </div>
+
+                <div class="tool-content">
+                  <div class="section-title">📋 調用參數</div>
+                  <div class="json-block">
+                    { "employeeId": "A123456", "startDate": "2025-06-01",
+                    "endDate": "2025-06-11" }
+                  </div>
+
+                  <div class="section-title">📊 執行結果</div>
+                  <div class="result-item">
+                    <div class="result-label">📅 本月出勤</div>
+                    <div>• 出勤天數: 8 天</div>
+                    <div>• 遲到次數: 0 次</div>
+                    <div>• 早退次數: 0 次</div>
+                    <div>• 加班時數: 12.5 小時</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            張小明本月的出勤記錄良好，沒有遲到早退記錄，還有 12.5
+            小時的加班時數。
+          </div>
+        </div>
+      </div>
+
+      <div
+        style="
+          margin-top: 24px;
+          padding: 16px;
+          background: #f0f9ff;
+          border-radius: 8px;
+        ">
+        <h3>🎯 關鍵重點</h3>
+        <ul>
+          <li><strong>顯示位置</strong>：聊天對話流中，AI 回應訊息的一部分</li>
+          <li>
+            <strong>顯示形式</strong>：工具調用卡片，包含參數、結果、元數據
+          </li>
+          <li>
+            <strong>訪問方式</strong>：http://localhost:5173/chat，正常聊天對話
+          </li>
+          <li><strong>觸發方式</strong>：發送需要工具協助的訊息</li>
+          <li><strong>歷史保存</strong>：工具調用結果會與對話歷史一起保存</li>
+        </ul>
+      </div>
+
+      <div
+        style="
+          margin-top: 16px;
+          padding: 16px;
+          background: #fff7e6;
+          border-radius: 8px;
+        ">
+        <h3>🚀 立即測試</h3>
+        <p>現在您可以立即在聊天界面測試：</p>
+        <ol>
+          <li>打開 <code>http://localhost:5173/chat</code></li>
+          <li>發送訊息：<code>"請查詢員工 A123456 的資訊"</code></li>
+          <li>觀察 AI 回應下方的工具調用卡片</li>
+          <li>檢查員工資料是否正確顯示</li>
+        </ol>
+      </div>
+    </div>
+  </body>
+</html>
