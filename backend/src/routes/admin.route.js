@@ -4,20 +4,15 @@
  */
 
 import express from "express";
-import usersRoutes from "./admin/users.route.js";
-import systemRoutes from "./admin/system.route.js";
-import agentsRoutes from "./admin/agents.route.js";
 import chatService from "../services/chat.service.js";
 import globalPromptService from "../services/globalPrompt.service.js";
-import { authenticate, authorize } from "../middleware/auth.middleware.js";
+import {
+  authenticateToken,
+  requireRole,
+} from "../middleware/auth.middleware.js";
 import logger from "../utils/logger.util.js";
 
 const router = express.Router();
-
-// 分發到各個子模塊
-router.use("/users", usersRoutes);
-router.use("/system", systemRoutes);
-router.use("/agents", agentsRoutes);
 
 /**
  * @swagger
@@ -57,8 +52,8 @@ router.use("/agents", agentsRoutes);
  */
 router.get(
   "/global-prompt/preview",
-  authenticate,
-  authorize(["admin"]),
+  authenticateToken,
+  requireRole(["admin", "super_admin"]),
   async (req, res) => {
     try {
       logger.info("管理員請求全域提示詞預覽", {
@@ -125,8 +120,8 @@ router.get(
  */
 router.put(
   "/global-prompt/update",
-  authenticate,
-  authorize(["admin"]),
+  authenticateToken,
+  requireRole(["admin", "super_admin"]),
   async (req, res) => {
     try {
       const { rules } = req.body;
@@ -216,8 +211,8 @@ router.put(
  */
 router.post(
   "/global-prompt/system-prompt-preview",
-  authenticate,
-  authorize(["admin"]),
+  authenticateToken,
+  requireRole(["admin", "super_admin"]),
   async (req, res) => {
     try {
       const { basePrompt = "" } = req.body;
@@ -284,8 +279,8 @@ router.post(
  */
 router.post(
   "/global-prompt/cache/clear",
-  authenticate,
-  authorize(["admin"]),
+  authenticateToken,
+  requireRole(["admin", "super_admin"]),
   async (req, res) => {
     try {
       logger.info("管理員請求清除全域提示詞快取", {
@@ -346,8 +341,8 @@ router.post(
  */
 router.get(
   "/global-prompt/stats",
-  authenticate,
-  authorize(["admin"]),
+  authenticateToken,
+  requireRole(["admin", "super_admin"]),
   async (req, res) => {
     try {
       logger.info("管理員請求全域提示詞系統統計", {

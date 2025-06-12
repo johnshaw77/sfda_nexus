@@ -147,8 +147,7 @@
           label="命令文字"
           name="text">
           <a-input
-            :value="formData.text"
-            @input="handleTextChange"
+            v-model:value="formData.text"
             placeholder="輸入快速命令文字" />
         </a-form-item>
 
@@ -156,8 +155,7 @@
           label="描述"
           name="description">
           <a-textarea
-            :value="formData.description"
-            @input="handleDescriptionChange"
+            v-model:value="formData.description"
             placeholder="輸入命令描述"
             :rows="3" />
         </a-form-item>
@@ -166,8 +164,7 @@
           label="圖標"
           name="icon">
           <a-input
-            :value="formData.icon"
-            @input="handleIconChange"
+            v-model:value="formData.icon"
             placeholder="輸入圖標名稱（可選）" />
         </a-form-item>
 
@@ -175,8 +172,7 @@
           label="智能體關聯"
           name="agent_id">
           <a-select
-            :value="formData.agent_id"
-            @change="handleAgentChange"
+            v-model:value="formData.agent_id"
             placeholder="選擇關聯的智能體（可選）"
             allow-clear>
             <a-select-option
@@ -532,11 +528,19 @@ const handleModalOk = async () => {
   try {
     await formRef.value.validate();
 
+    // 轉換前端字段名到後端期望的字段名
+    const requestData = {
+      command_text: formData.text,
+      description: formData.description,
+      icon: formData.icon,
+      agent_id: formData.agent_id,
+    };
+
     let response;
     if (formData.id) {
-      response = await updateQuickCommand(formData.id, formData);
+      response = await updateQuickCommand(formData.id, requestData);
     } else {
-      response = await createQuickCommand(formData);
+      response = await createQuickCommand(requestData);
     }
 
     if (response.success) {
@@ -574,22 +578,7 @@ const resetForm = () => {
   }
 };
 
-// 表單輸入處理
-const handleTextChange = (e) => {
-  formData.text = e.target.value;
-};
-
-const handleDescriptionChange = (e) => {
-  formData.description = e.target.value;
-};
-
-const handleIconChange = (e) => {
-  formData.icon = e.target.value;
-};
-
-const handleAgentChange = (value) => {
-  formData.agent_id = value;
-};
+// 表單輸入處理函數已移除，改用 v-model 雙向綁定
 </script>
 
 <style scoped>

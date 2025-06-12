@@ -11,6 +11,7 @@ import chatRoutes from "./chat.route.js";
 import usersRoutes from "./users.route.js";
 import systemRoutes from "./system.route.js";
 import agentsRoutes from "./agents.route.js";
+import adminRoutes from "./admin.route.js";
 import quickCommandsRoutes from "./quickCommands.route.js";
 import modelsRoutes from "./models.route.js";
 import filesRoutes from "./files.route.js";
@@ -67,6 +68,7 @@ router.use("/chat", chatRoutes); // 聊天功能路由
 router.use("/users", usersRoutes); // 用戶管理路由
 router.use("/system", systemRoutes); // 系統管理路由
 router.use("/agents", agentsRoutes); // 智能體管理路由
+router.use("/admin", adminRoutes); // 管理員功能路由
 router.use("/quick-commands", quickCommandsRoutes); // 快速命令詞路由
 router.use("/models", modelsRoutes); // AI模型管理路由
 router.use("/files", filesRoutes); // 檔案管理路由

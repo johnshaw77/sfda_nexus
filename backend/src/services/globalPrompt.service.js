@@ -1,5 +1,5 @@
 import logger from "../utils/logger.util.js";
-import db from "../config/database.config.js";
+import { query as dbQuery } from "../config/database.config.js";
 
 /**
  * 全域提示詞服務
@@ -56,15 +56,14 @@ class GlobalPromptService {
    */
   async loadGlobalRulesFromDatabase() {
     try {
-      const query = `
+      const sql = `
         SELECT config_value 
         FROM system_configs 
-        WHERE config_key = 'global_prompt_rules' 
-        AND is_active = 1
+        WHERE config_key = 'global_prompt_rules'
         LIMIT 1
       `;
 
-      const [rows] = await db.execute(query);
+      const { rows } = await dbQuery(sql);
 
       if (rows && rows.length > 0) {
         logger.debug("從資料庫成功載入全域提示詞規則");
@@ -211,13 +210,13 @@ class GlobalPromptService {
    */
   async updateGlobalRules(newRules) {
     try {
-      const query = `
+      const sql = `
         UPDATE system_configs 
         SET config_value = ?, updated_at = NOW()
         WHERE config_key = 'global_prompt_rules'
       `;
 
-      const [result] = await db.execute(query, [newRules]);
+      const { rows: result } = await dbQuery(sql, [newRules]);
 
       if (result.affectedRows > 0) {
         logger.info("全域規則更新成功", {

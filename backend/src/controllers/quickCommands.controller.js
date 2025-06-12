@@ -102,7 +102,7 @@ export const incrementCommandUsage = catchAsync(async (req, res) => {
  * POST /api/quick-commands
  */
 export const createQuickCommand = catchAsync(async (req, res) => {
-  const { command_text, description, icon } = req.body;
+  const { command_text, description, icon, agent_id } = req.body;
   const userId = req.user?.id;
 
   if (!command_text?.trim()) {
@@ -121,6 +121,14 @@ export const createQuickCommand = catchAsync(async (req, res) => {
     icon,
     created_by: userId,
   });
+
+  // 如果指定了智能體，創建關聯
+  if (agent_id) {
+    await QuickCommandModel.createAgentQuickCommandAssociation(
+      agent_id,
+      newCommand.id
+    );
+  }
 
   res.status(201).json(createSuccessResponse(newCommand, "快速命令詞創建成功"));
 });

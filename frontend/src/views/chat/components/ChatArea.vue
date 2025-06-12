@@ -131,7 +131,9 @@
     <div
       class="messages-container"
       ref="messagesContainer"
-      :style="{ height: `calc(100% - ${inputAreaHeight}px)` }"
+      :style="{
+        height: `calc(100% - ${inputCollapsed ? 60 : inputAreaHeight}px)`,
+      }"
       @scroll="handleScrollToLoadMore">
       <a-spin
         :spinning="loading"
@@ -372,9 +374,40 @@
           </a-col>
           <a-col :span="24">
             <div class="debug-item">
-              <label>系統提示詞:</label>
+              <label>用戶系統提示詞:</label>
               <div class="debug-value system-prompt">
                 {{ chatSettings.systemPrompt || "無自定義系統提示詞" }}
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="24">
+            <div class="debug-item">
+              <label>完整系統提示詞:</label>
+              <div class="debug-actions">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handlePreviewFullSystemPrompt"
+                  :loading="loadingFullPrompt">
+                  {{ fullSystemPrompt ? "重新載入" : "載入預覽" }}
+                </a-button>
+                <a-button
+                  v-if="fullSystemPrompt"
+                  type="link"
+                  size="small"
+                  @click="showFullPromptModal = true">
+                  查看詳情
+                </a-button>
+              </div>
+              <div
+                class="debug-value system-prompt"
+                v-if="fullSystemPrompt">
+                {{ getFullPromptPreview() }}
+              </div>
+              <div
+                class="debug-value"
+                v-else>
+                點擊「載入預覽」查看包含全域規則的完整系統提示詞
               </div>
             </div>
           </a-col>
@@ -401,7 +434,8 @@
     <!-- 消息輸入區域 -->
     <div
       class="message-input-area"
-      :style="{ height: `${inputAreaHeight}px` }">
+      :class="{ 'input-collapsed': inputCollapsed }"
+      :style="{ height: inputCollapsed ? '60px' : `${inputAreaHeight}px` }">
       <!-- 引用消息顯示 -->
       <div
         v-if="quotedMessage"
@@ -430,15 +464,19 @@
       </div>
 
       <!-- 輸入框 -->
-      <div class="input-container">
+      <div
+        class="input-container"
+        :class="{ collapsed: inputCollapsed }">
         <div
           class="input-wrapper"
-          :class="{ 'drag-over': isDragOver }"
+          :class="{ 'drag-over': isDragOver, collapsed: inputCollapsed }"
           @dragover="handleDragOver"
           @dragleave="handleDragLeave"
           @drop="handleDrop">
           <!-- 調整大小按鈕 -->
-          <div class="resize-buttons">
+          <div
+            class="resize-buttons"
+            v-show="!inputCollapsed">
             <a-tooltip
               title="放大輸入區域"
               placement="topLeft"
@@ -483,14 +521,14 @@
 
           <!-- 檔案分析卡片 -->
           <FileAnalysisCard
-            v-if="showFileAnalysisCard && currentFileInfo"
+            v-if="showFileAnalysisCard && currentFileInfo && !inputCollapsed"
             :file-info="currentFileInfo"
             @close="showFileAnalysisCard = false"
             class="inline-file-analysis" />
 
           <!-- 預覽檔案縮圖 -->
           <div
-            v-if="previewFiles.length > 0"
+            v-if="previewFiles.length > 0 && !inputCollapsed"
             class="preview-files-container">
             <div class="preview-files-list">
               <div
@@ -574,6 +612,7 @@
           </div>
 
           <a-textarea
+            v-show="!inputCollapsed"
             ref="messageInput"
             :value="messageText"
             @input="
@@ -590,6 +629,14 @@
             :style="{ height: `${textareaHeight}px` }"
             class="message-input" />
 
+          <!-- 折疊狀態的簡化提示 -->
+          <div
+            v-if="inputCollapsed"
+            class="collapsed-input-hint"
+            @click="handleToggleInputCollapse">
+            <span class="hint-text">點擊這裡或展開按鈕開始對話...</span>
+          </div>
+
           <!-- 輸入工具欄 -->
           <div class="input-toolbar">
             <div class="toolbar-left">
@@ -605,7 +652,7 @@
                 @click="handleCreateNewConversation"
                 :loading="creatingNewConversation">
                 <PlusOutlined />
-                新對話
+                <span v-show="!inputCollapsed">新對話</span>
               </a-button>
 
               <!-- 即時渲染切換 -->
@@ -635,9 +682,9 @@
                       v-else
                       d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z M12 15.4l-3.76 2-0.7-4.2-3-2.9 4.2-0.6L12 6.1l1.9 3.8 4.2 0.6-3 2.9-0.7 4.2L12 15.4z" />
                   </svg>
-                  {{
+                  <span v-show="!inputCollapsed">{{
                     configStore.chatSettings.useRealtimeRender ? "即時" : "等待"
-                  }}
+                  }}</span>
                 </a-button>
               </a-tooltip>
 
@@ -668,7 +715,9 @@
                       v-else
                       d="M8 12.5c0 .41.34.75.75.75h2.5v2.5c0 .41.34.75.75.75s.75-.34.75-.75v-2.5h2.5c.41 0 .75-.34.75-.75s-.34-.75-.75-.75h-2.5v-2.5c0-.41-.34-.75-.75-.75s-.75.34-.75.75v2.5h-2.5c-.41 0-.75.34-.75.75zm-6 0c0 5.52 4.48 10 10 10s10-4.48 10-10S17.52 2.5 12 2.5 2 6.98 2 12.5z" />
                   </svg>
-                  {{ thinkingMode ? "思考" : "直出" }}
+                  <span v-show="!inputCollapsed">{{
+                    thinkingMode ? "思考" : "直出"
+                  }}</span>
                 </a-button>
               </a-tooltip>
 
@@ -701,6 +750,30 @@
             <div class="toolbar-right">
               <!-- 字數統計 -->
               <!-- <span class="char-count">{{ messageText.length }}</span> -->
+
+              <!-- 折疊按鈕 -->
+              <a-tooltip
+                :title="inputCollapsed ? '展開輸入框' : '折疊輸入框'"
+                placement="top">
+                <a-button
+                  type="text"
+                  size="small"
+                  @click="handleToggleInputCollapse"
+                  class="collapse-btn">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="currentColor">
+                    <path
+                      v-if="inputCollapsed"
+                      d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    <path
+                      v-else
+                      d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z" />
+                  </svg>
+                </a-button>
+              </a-tooltip>
 
               <!-- 發送按鈕 -->
               <a-button
@@ -854,6 +927,46 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 完整系統提示詞預覽模態框 -->
+    <a-modal
+      v-model:open="showFullPromptModal"
+      title="完整系統提示詞預覽"
+      width="80%"
+      :footer="null">
+      <div class="full-prompt-preview">
+        <div class="prompt-info">
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-statistic
+                title="總長度"
+                :value="fullSystemPrompt?.length || 0"
+                suffix="字符" />
+            </a-col>
+            <a-col :span="8">
+              <a-statistic
+                title="包含全域規則"
+                :value="
+                  fullSystemPrompt?.includes('🔒 核心行為規則') ? '是' : '否'
+                " />
+            </a-col>
+            <a-col :span="8">
+              <a-statistic
+                title="生成時間"
+                :value="fullPromptGeneratedAt || '未知'" />
+            </a-col>
+          </a-row>
+        </div>
+        <a-divider />
+        <div class="prompt-content">
+          <a-typography-paragraph
+            :copyable="{ text: fullSystemPrompt }"
+            class="prompt-text">
+            <pre>{{ fullSystemPrompt }}</pre>
+          </a-typography-paragraph>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -872,8 +985,9 @@ import {
   getAgentQuickCommands,
   incrementCommandUsage,
 } from "@/api/quickCommands";
-import { useInfiniteScroll } from "@vueuse/core";
+import { useInfiniteScroll, useLocalStorage } from "@vueuse/core";
 import { chatWithQwenAgent } from "@/api/qwenAgent";
+import api from "@/api";
 
 // Store
 const chatStore = useChatStore();
@@ -894,6 +1008,10 @@ const settingsModalVisible = ref(false);
 const showFileAnalysisCard = ref(false);
 const currentFileInfo = ref(null);
 const showAgentMenu = ref(false);
+const showFullPromptModal = ref(false);
+const fullSystemPrompt = ref("");
+const fullPromptGeneratedAt = ref("");
+const loadingFullPrompt = ref(false);
 const agentMenuPosition = ref({ top: 0, left: 0 });
 const inputAreaHeight = ref(320); // 增加默認高度以適應新的最小高度
 const isResizing = ref(false);
@@ -912,6 +1030,9 @@ const maxPreviewFiles = 5;
 const imagePreviewVisible = ref(false);
 const currentPreviewImage = ref(null);
 const isDragOver = ref(false);
+
+// 輸入框折疊狀態
+const inputCollapsed = useLocalStorage("chat-input-collapsed", false);
 
 // 無限滾動狀態
 const isLoadingMoreMessages = ref(false);
@@ -1916,6 +2037,51 @@ const handleToggleRealtimeRender = () => {
   );
 };
 
+// 預覽完整系統提示詞
+const handlePreviewFullSystemPrompt = async () => {
+  if (loadingFullPrompt.value) return;
+
+  loadingFullPrompt.value = true;
+  try {
+    const response = await api.post("/api/chat/system-prompt/preview", {
+      base_prompt:
+        chatSettings.value.systemPrompt || props.agent?.system_prompt || "",
+      model_type: getSelectedModelProvider(),
+    });
+
+    if (response.data.success) {
+      fullSystemPrompt.value = response.data.data.full_system_prompt;
+      fullPromptGeneratedAt.value = new Date(
+        response.data.data.generated_at
+      ).toLocaleString();
+      message.success("完整系統提示詞載入成功");
+    } else {
+      throw new Error(response.data.message || "載入失敗");
+    }
+  } catch (error) {
+    console.error("載入完整系統提示詞失敗:", error);
+    message.error(`載入失敗: ${error.message}`);
+  } finally {
+    loadingFullPrompt.value = false;
+  }
+};
+
+// 獲取完整提示詞預覽（截斷顯示）
+const getFullPromptPreview = () => {
+  if (!fullSystemPrompt.value) return "";
+  const preview = fullSystemPrompt.value.substring(0, 200);
+  return preview + (fullSystemPrompt.value.length > 200 ? "..." : "");
+};
+
+// 獲取選中模型的提供者
+const getSelectedModelProvider = () => {
+  if (!selectedModelId.value) return "ollama";
+
+  const allModels = getAllModels();
+  const model = allModels.find((m) => m.id === selectedModelId.value);
+  return model?.provider || "ollama";
+};
+
 // 切換思考模式
 const handleToggleThinkingMode = () => {
   thinkingMode.value = !thinkingMode.value;
@@ -2136,6 +2302,11 @@ const handleShrinkInput = () => {
   //const newHeight = Math.max(minInputHeight, inputAreaHeight.value - 100);
   inputAreaHeight.value = minInputHeight;
   localStorage.setItem("chatInputAreaHeight", inputAreaHeight.value.toString());
+};
+
+// 切換輸入框折疊狀態
+const handleToggleInputCollapse = () => {
+  inputCollapsed.value = !inputCollapsed.value;
 };
 
 // 監聽串流模式變化，保存用戶偏好
@@ -2490,6 +2661,11 @@ const getModelEndpoint = () => {
 .message-input-area {
   border-top: 1px solid var(--custom-border-primary);
   background: var(--custom-bg-primary);
+  transition: height 0.3s ease;
+}
+
+.message-input-area.input-collapsed {
+  overflow: hidden;
 }
 
 .quoted-message-display {
@@ -2531,6 +2707,11 @@ const getModelEndpoint = () => {
   flex-direction: column;
 }
 
+.input-container.collapsed {
+  padding: 8px 16px;
+  height: 100%;
+}
+
 .input-wrapper {
   border: 1px solid var(--custom-border-primary);
   border-radius: 12px;
@@ -2542,6 +2723,11 @@ const getModelEndpoint = () => {
   flex-direction: column;
   flex: 1;
   position: relative;
+}
+
+.input-wrapper.collapsed {
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .input-wrapper:focus-within {
@@ -2577,6 +2763,11 @@ const getModelEndpoint = () => {
   flex-shrink: 0;
   min-height: 60px; /* 確保工具欄有最小高度 */
   gap: 8px; /* 添加元素間距 */
+}
+
+.input-wrapper.collapsed .input-toolbar {
+  padding: 8px 16px;
+  min-height: 44px;
 }
 
 .toolbar-left,
@@ -2615,6 +2806,49 @@ const getModelEndpoint = () => {
 
 .toolbar-left .ant-btn svg {
   flex-shrink: 0;
+}
+
+/* 折疊按鈕樣式 */
+.collapse-btn {
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* 折疊狀態提示樣式 */
+.collapsed-input-hint {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  background: var(--custom-bg-primary);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-radius: 8px;
+  margin: 4px;
+}
+
+.collapsed-input-hint:hover {
+  background: var(--custom-bg-tertiary);
+}
+
+.hint-text {
+  color: var(--custom-text-tertiary);
+  font-size: 14px;
+  font-style: italic;
+  transition: color 0.2s ease;
+}
+
+.collapsed-input-hint:hover .hint-text {
+  color: var(--custom-text-secondary);
 }
 
 /* 響應式設計 */
@@ -3348,6 +3582,51 @@ const getModelEndpoint = () => {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 12px;
+}
+
+.debug-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.debug-actions .ant-btn {
+  padding: 0 8px;
+  height: 24px;
+  font-size: 11px;
+}
+
+/* 完整系統提示詞預覽模態框樣式 */
+.full-prompt-preview {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.prompt-info {
+  background: var(--custom-bg-tertiary);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.prompt-content {
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.prompt-text pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
+    monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--custom-text-primary);
+  background: transparent;
 }
 
 /* 載入更多指示器樣式 */

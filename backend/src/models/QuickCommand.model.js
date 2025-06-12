@@ -240,6 +240,30 @@ export const deleteQuickCommand = async (commandId) => {
   await query(sql, [commandId]);
 };
 
+/**
+ * 創建智能體快速命令關聯
+ * @param {number} agentId - 智能體 ID
+ * @param {number} quickCommandId - 快速命令 ID
+ * @param {number} displayOrder - 顯示順序
+ * @returns {Promise<void>}
+ */
+export const createAgentQuickCommandAssociation = async (
+  agentId,
+  quickCommandId,
+  displayOrder = 0
+) => {
+  const sql = `
+    INSERT INTO agent_quick_commands (agent_id, quick_command_id, display_order)
+    VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE 
+      display_order = VALUES(display_order),
+      is_enabled = TRUE,
+      updated_at = CURRENT_TIMESTAMP
+  `;
+
+  await query(sql, [agentId, quickCommandId, displayOrder]);
+};
+
 export default {
   getAgentQuickCommands,
   getAllQuickCommands,
@@ -250,4 +274,5 @@ export default {
   getQuickCommandById,
   updateQuickCommand,
   deleteQuickCommand,
+  createAgentQuickCommandAssociation,
 };

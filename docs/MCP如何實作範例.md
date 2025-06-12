@@ -1,3 +1,6 @@
+> <strong>研究用，非實際的運作代碼</strong><br />
+> 2025-06-02
+
 MCP (Model Context Protocol) 是讓 AI 能夠調用外部工具和服務的關鍵技術。
 
 如何實現自定義的 MCP 工具：
