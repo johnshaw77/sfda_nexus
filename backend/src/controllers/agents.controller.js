@@ -344,6 +344,7 @@ const schemas = {
         return helpers.error("any.invalid");
       })
       .optional(),
+    sort_order: Joi.any().strip(), // 移除 sort_order 欄位，避免驗證錯誤
     usage_count: Joi.any().strip(),
     rating: Joi.any().strip(),
     rating_count: Joi.any().strip(),
@@ -394,14 +395,18 @@ export const handleGetAgents = catchAsync(async (req, res) => {
   let whereConditions = [];
   let queryParams = [];
 
-  if (category) {
-    whereConditions.push("a.category = ?");
-    queryParams.push(category);
-  }
-
+  // 默認過濾掉已刪除的智能體（除非明確指定要查看已停用的）
   if (is_active !== undefined) {
     whereConditions.push("a.is_active = ?");
     queryParams.push(is_active === "true" ? 1 : 0);
+  } else {
+    // 如果沒有指定 is_active 參數，默認只顯示啟用的智能體
+    whereConditions.push("a.is_active = 1");
+  }
+
+  if (category) {
+    whereConditions.push("a.category = ?");
+    queryParams.push(category);
   }
 
   if (search) {
@@ -433,7 +438,7 @@ export const handleGetAgents = catchAsync(async (req, res) => {
       a.system_prompt, a.model_id, a.category, a.agent_type,
       a.tags, a.capabilities, a.tools, a.qwen_config, 
       a.tool_selection_mode, a.is_active, a.is_public,
-      a.usage_count, a.rating, a.rating_count, 
+      a.usage_count, a.rating, a.rating_count, a.sort_order,
       a.created_at, a.updated_at, a.created_by,
       m.name as model_name, m.display_name as model_display_name,
       u.username as created_by_username
@@ -992,10 +997,92 @@ export const handleDuplicateAgent = catchAsync(async (req, res) => {
   }
 });
 
+/**
+ * 更新智能體排序
+ * @route PUT /api/agents/:id/sort-order
+ * @access Admin
+ */
+export const handleUpdateAgentSortOrder = catchAsync(async (req, res) => {
+  checkAdminPermission(req.user, "admin");
+
+  const { id } = req.params;
+  const { sort_order } = req.body;
+
+  // 驗證排序值
+  if (typeof sort_order !== "number" || sort_order < 0) {
+    throw new ValidationError("排序值必須是非負整數");
+  }
+
+  // 檢查智能體是否存在
+  const checkQuery = "SELECT id FROM agents WHERE id = ?";
+  const checkResult = await query(checkQuery, [id]);
+
+  if (!checkResult.rows || checkResult.rows.length === 0) {
+    throw new BusinessError("智能體不存在", 404);
+  }
+
+  // 更新排序
+  const updateQuery = `
+    UPDATE agents 
+    SET sort_order = ?, updated_at = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `;
+
+  await query(updateQuery, [sort_order, id]);
+
+  res.json(createSuccessResponse({ id, sort_order }, "更新排序成功"));
+});
+
+/**
+ * 批量更新智能體排序
+ * @route PUT /api/agents/batch-sort
+ * @access Admin
+ */
+export const handleBatchUpdateAgentSortOrder = catchAsync(async (req, res) => {
+  checkAdminPermission(req.user, "admin");
+
+  const { updates } = req.body;
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    throw new ValidationError("更新數據格式錯誤");
+  }
+
+  // 驗證每個更新項目
+  for (const update of updates) {
+    if (
+      !update.id ||
+      typeof update.sort_order !== "number" ||
+      update.sort_order < 0
+    ) {
+      throw new ValidationError(
+        "更新數據格式錯誤：每個項目需要包含有效的 id 和 sort_order"
+      );
+    }
+  }
+
+  // 批量更新
+  const updatePromises = updates.map(({ id, sort_order }) => {
+    const updateQuery = `
+      UPDATE agents 
+      SET sort_order = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `;
+    return query(updateQuery, [sort_order, id]);
+  });
+
+  await Promise.all(updatePromises);
+
+  res.json(
+    createSuccessResponse({ updated_count: updates.length }, "批量更新排序成功")
+  );
+});
+
 export default {
   handleGetAgents,
   handleCreateAgent,
   handleUpdateAgent,
   handleDeleteAgent,
   handleDuplicateAgent,
+  handleUpdateAgentSortOrder,
+  handleBatchUpdateAgentSortOrder,
 };

@@ -520,6 +520,57 @@ router.post(
 
 /**
  * @swagger
+ * /api/models/{id}/copy:
+ *   post:
+ *     summary: 複製模型
+ *     tags: [Models]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 要複製的模型ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               new_name_suffix:
+ *                 type: string
+ *                 description: 新模型名稱後綴（可選，默認為 "_副本"）
+ *               new_display_name:
+ *                 type: string
+ *                 description: 新顯示名稱（可選）
+ *     responses:
+ *       200:
+ *         description: 模型複製成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/AIModel'
+ *       404:
+ *         description: 原模型不存在
+ */
+router.post(
+  "/:id/copy",
+  authenticateToken,
+  requireRole(["super_admin", "admin"]),
+  ModelsController.handleCopyModel
+);
+
+/**
+ * @swagger
  * /api/models/sync:
  *   post:
  *     summary: 同步模型可用性

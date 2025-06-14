@@ -8,16 +8,10 @@
             v-model:value="globalRules"
             placeholder="輸入全域提示詞內容..."
             :rows="15"
-            :loading="loading"
-            style="
-              font-family:
-                &quot;Monaco&quot;, &quot;Menlo&quot;, &quot;Ubuntu Mono&quot;,
-                monospace;
-              font-size: 13px;
-            " />
+            :loading="loading" />
         </a-form-item>
 
-        <a-form-item>
+        <a-form-item style="text-align: center">
           <a-space>
             <a-button
               type="primary"
@@ -71,7 +65,7 @@
         :copyable="{ text: currentRules }"
         style="
           white-space: pre-wrap;
-          font-size: 12px;
+          font-size: 13px;
           display: block;
           max-height: 400px;
           overflow-y: auto;
@@ -215,6 +209,7 @@ onMounted(() => {
 .ant-textarea {
   resize: vertical;
   min-height: 300px;
+  font-size: 13px;
 }
 
 :root[data-theme="dark"] .ant-textarea {

@@ -32,6 +32,7 @@ export const getAllModels = async (options = {}) => {
       is_active,
       is_default,
       is_multimodal,
+      can_call_tools,
       endpoint_url,
       api_key_encrypted,
       usage_count,
@@ -103,6 +104,7 @@ export const getModelById = async (modelId) => {
       is_active,
       is_default,
       is_multimodal,
+      can_call_tools,
       endpoint_url,
       api_key_encrypted,
       usage_count,
@@ -141,6 +143,7 @@ export const getModelByNameAndProvider = async (modelName, provider) => {
       is_active,
       is_default,
       is_multimodal,
+      can_call_tools,
       endpoint_url,
       api_key_encrypted,
       usage_count,
@@ -175,6 +178,7 @@ export const createModel = async (modelData) => {
     capabilities,
     is_default = false,
     is_multimodal = false,
+    can_call_tools = false,
     endpoint_url,
     api_key_encrypted,
   } = modelData;
@@ -183,8 +187,8 @@ export const createModel = async (modelData) => {
     INSERT INTO ai_models (
       name, display_name, model_type, model_id, description, icon,
       max_tokens, temperature, top_p, pricing, capabilities,
-      is_default, is_multimodal, endpoint_url, api_key_encrypted
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      is_default, is_multimodal, can_call_tools, endpoint_url, api_key_encrypted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const result = await query(sql, [
@@ -201,6 +205,7 @@ export const createModel = async (modelData) => {
     capabilities ? JSON.stringify(capabilities) : null,
     is_default,
     is_multimodal,
+    can_call_tools,
     endpoint_url,
     api_key_encrypted,
   ]);
@@ -220,6 +225,7 @@ export const createModel = async (modelData) => {
     capabilities,
     is_default,
     is_multimodal,
+    can_call_tools,
     endpoint_url,
     api_key_encrypted,
   };
@@ -246,100 +252,78 @@ export const updateModel = async (modelId, updateData) => {
     "is_default",
     "is_active",
     "is_multimodal",
+    "can_call_tools",
     "endpoint_url",
     "api_key_encrypted",
   ];
 
-  // 檢查是否要設置為預設模型
-  const isSettingDefault =
-    updateData.is_default === true || updateData.is_default === 1;
-
-  // 如果要設置為預設模型，使用專門的 setDefaultModel 函數
-  if (isSettingDefault) {
-    // 獲取模型信息以確定提供商
-    const model = await getModelById(modelId);
-    if (!model) {
-      throw new Error("模型不存在");
-    }
-
-    // 使用 setDefaultModel 處理預設邏輯
-    await setDefaultModel(modelId, model.provider);
-
-    // 從 updateData 中移除 is_default，因為已經處理過了
-    const { is_default, ...remainingData } = updateData;
-    updateData = remainingData;
-  }
-
-  const updates = [];
-  const params = [];
-
-  // 欄位映射：前端欄位名 -> 資料庫欄位名
-  const fieldMapping = {
-    model_name: "name",
-  };
-
+  // 過濾出允許更新的欄位
+  const updateFields = {};
   Object.keys(updateData).forEach((key) => {
-    // 使用映射後的欄位名或原欄位名
-    const dbField = fieldMapping[key] || key;
-
-    if (allowedFields.includes(dbField) && updateData[key] !== undefined) {
-      updates.push(`${dbField} = ?`);
-      // 如果是 JSON 欄位，需要 JSON 序列化
-      if (
-        (key === "pricing" || key === "capabilities") &&
-        updateData[key] !== null
-      ) {
-        params.push(JSON.stringify(updateData[key]));
-      } else {
-        params.push(updateData[key]);
-      }
+    if (allowedFields.includes(key)) {
+      updateFields[key] = updateData[key];
     }
   });
 
-  // 如果還有其他欄位需要更新
-  if (updates.length > 0) {
-    params.push(modelId);
-    const sql = `UPDATE ai_models SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-    console.log(sql, params);
-    await query(sql, params);
+  if (Object.keys(updateFields).length === 0) {
+    throw new Error("沒有有效的更新欄位");
   }
+
+  // 將 JSON 字段序列化
+  if (updateFields.pricing) {
+    updateFields.pricing = JSON.stringify(updateFields.pricing);
+  }
+  if (updateFields.capabilities) {
+    updateFields.capabilities = JSON.stringify(updateFields.capabilities);
+  }
+
+  // 構建 SQL 更新語句
+  const setClause = Object.keys(updateFields)
+    .map((field) => `${field} = ?`)
+    .join(", ");
+  const values = Object.values(updateFields);
+
+  const sql = `UPDATE ai_models SET ${setClause} WHERE id = ?`;
+  values.push(modelId);
+
+  await query(sql, values);
 };
 
 /**
- * 軟刪除模型
+ * 軟刪除模型（將 is_active 設為 false）
  * @param {number} modelId - 模型 ID
  * @returns {Promise<void>}
  */
 export const deleteModel = async (modelId) => {
-  const sql =
-    "UPDATE ai_models SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+  const sql = "UPDATE ai_models SET is_active = false WHERE id = ?";
   await query(sql, [modelId]);
 };
 
 /**
  * 設置默認模型
  * @param {number} modelId - 模型 ID
- * @param {string} provider - 提供商（可選，如果提供則只在該提供商內設置默認）
+ * @param {string} provider - 提供商類型（可選，如果提供則只在該提供商內設置默認）
  * @returns {Promise<void>}
  */
 export const setDefaultModel = async (modelId, provider = null) => {
-  return await transaction(async (connection) => {
-    // 清除其他默認模型
-    let clearSql =
-      "UPDATE ai_models SET is_default = FALSE WHERE is_default = TRUE";
-    // const clearParams = [];
-
-    // if (provider) {
-    //   clearSql += " AND model_type = ?";
-    //   clearParams.push(provider);
-    // }
-
-    await connection.execute(clearSql);
+  await transaction(async (connection) => {
+    if (provider) {
+      // 清除指定提供商的其他默認模型
+      await query(
+        "UPDATE ai_models SET is_default = false WHERE model_type = ?",
+        [provider],
+        connection
+      );
+    } else {
+      // 清除所有默認模型
+      await query("UPDATE ai_models SET is_default = false", [], connection);
+    }
 
     // 設置新的默認模型
-    await connection.execute(
-      "UPDATE ai_models SET is_default = TRUE WHERE id = ?",
-      [modelId]
+    await query(
+      "UPDATE ai_models SET is_default = true WHERE id = ?",
+      [modelId],
+      connection
     );
   });
 };
@@ -351,9 +335,8 @@ export const setDefaultModel = async (modelId, provider = null) => {
  * @returns {Promise<boolean>} 是否存在
  */
 export const checkModelExists = async (modelName, provider) => {
-  const sql = "SELECT id FROM ai_models WHERE name = ? AND model_type = ?";
-  const result = await query(sql, [modelName, provider]);
-  return result.rows.length > 0;
+  const model = await getModelByNameAndProvider(modelName, provider);
+  return !!model;
 };
 
 /**
@@ -364,12 +347,14 @@ export const getModelStats = async () => {
   const sql = `
     SELECT 
       model_type as provider,
-      COUNT(*) as total_models,
-      SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END) as available_models,
-      SUM(CASE WHEN is_default = TRUE THEN 1 ELSE 0 END) as default_models,
-      SUM(CASE WHEN is_active = FALSE THEN 1 ELSE 0 END) as inactive_models
+      COUNT(*) as total_count,
+      SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_count,
+      SUM(CASE WHEN is_default = 1 THEN 1 ELSE 0 END) as default_count,
+      SUM(usage_count) as total_usage,
+      SUM(total_tokens_used) as total_tokens
     FROM ai_models
     GROUP BY model_type
+    ORDER BY provider
   `;
 
   const result = await query(sql);
@@ -377,35 +362,24 @@ export const getModelStats = async () => {
 };
 
 /**
- * 同步模型可用性狀態
- * @param {Array} modelUpdates - 模型更新數據 [{model_name, provider, is_active}, ...]
- * @returns {Promise<number>} 更新的模型數量
+ * 同步模型可用性（批量更新）
+ * @param {Array} modelUpdates - 模型更新數據數組
+ * @returns {Promise<void>}
  */
 export const syncModelAvailability = async (modelUpdates) => {
-  if (!modelUpdates || modelUpdates.length === 0) {
-    return 0;
-  }
-
-  let updatedCount = 0;
-
-  for (const update of modelUpdates) {
-    const { model_name, provider, is_active } = update;
-
-    const sql = `
-      UPDATE ai_models 
-      SET is_active = ?, updated_at = CURRENT_TIMESTAMP 
-      WHERE name = ? AND model_type = ?
-    `;
-
-    const result = await query(sql, [is_active, model_name, provider]);
-    if (result.rows.affectedRows > 0) {
-      updatedCount++;
+  await transaction(async (connection) => {
+    for (const update of modelUpdates) {
+      const { model_name, provider, is_active } = update;
+      await query(
+        "UPDATE ai_models SET is_active = ? WHERE name = ? AND model_type = ?",
+        [is_active, model_name, provider],
+        connection
+      );
     }
-  }
-
-  return updatedCount;
+  });
 };
 
+// 導出所有方法作為默認對象
 export default {
   getAllModels,
   getModelsByProvider,

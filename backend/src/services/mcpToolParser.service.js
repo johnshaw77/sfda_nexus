@@ -13,6 +13,8 @@ class McpToolParser {
     this.toolCallPatterns = [
       // JSON 格式: {"tool": "tool_name", "parameters": {...}}
       /```json\s*(\{[\s\S]*?\})\s*```/gi,
+      // 直接 JSON 格式（沒有 ```json 包裝）
+      /\{(?:[^{}]|{[^{}]*})*"tool"(?:[^{}]|{[^{}]*})*\}/g,
       // 函數調用格式: tool_name(param1="value1", param2="value2")
       /(\w+)\s*\(\s*([^)]*)\s*\)/gi,
       // 標籤格式: <tool_call name="tool_name" params="...">
@@ -87,9 +89,21 @@ class McpToolParser {
    */
   async parseIndividualCall(match, pattern) {
     try {
-      // JSON 格式
-      if (pattern.source.includes("json")) {
-        const jsonStr = match[1];
+      // JSON 格式（包括 ```json 包裝和直接 JSON）
+      if (
+        pattern.source.includes("json") ||
+        pattern.source.includes('"tool"')
+      ) {
+        let jsonStr;
+
+        if (pattern.source.includes("json")) {
+          // ```json 包裝格式
+          jsonStr = match[1];
+        } else {
+          // 直接 JSON 格式
+          jsonStr = match[0];
+        }
+
         const parsed = JSON.parse(jsonStr);
 
         if (parsed.tool && typeof parsed.tool === "string") {
@@ -426,10 +440,52 @@ class McpToolParser {
 
     for (const result of results) {
       if (result.success) {
+        // 格式化員工資訊等結構化數據
+        let formattedData = "";
+        if (result.data && typeof result.data === "object") {
+          if (result.data.basic) {
+            formattedData += `**基本資訊：**\n`;
+            formattedData += `- 姓名：${result.data.basic.name || "未知"}\n`;
+            formattedData += `- 英文名：${result.data.basic.englishName || "未知"}\n`;
+            formattedData += `- 性別：${result.data.basic.gender || "未知"}\n`;
+            formattedData += `- 生日：${result.data.basic.birthDate || "未知"}\n`;
+            formattedData += `- 員工編號：${result.data.basic.employeeId || "未知"}\n`;
+            formattedData += `- 入職日期：${result.data.basic.hireDate || "未知"}\n\n`;
+          }
+
+          if (result.data.contact) {
+            formattedData += `**聯絡資訊：**\n`;
+            formattedData += `- 郵箱：${result.data.contact.email || "未知"}\n`;
+            formattedData += `- 電話：${result.data.contact.phone || "未知"}\n`;
+            formattedData += `- 地址：${result.data.contact.address || "未知"}\n\n`;
+          }
+
+          if (result.data.department) {
+            formattedData += `**部門資訊：**\n`;
+            formattedData += `- 部門：${result.data.department.departmentName || "未知"}\n`;
+            formattedData += `- 部門代碼：${result.data.department.departmentCode || "未知"}\n`;
+            formattedData += `- 主管：${result.data.department.manager || "未知"}\n`;
+            formattedData += `- 辦公地點：${result.data.department.location || "未知"}\n\n`;
+          }
+
+          if (result.data.position) {
+            formattedData += `**職位資訊：**\n`;
+            formattedData += `- 職位：${result.data.position.jobTitle || "未知"}\n`;
+            formattedData += `- 職級：${result.data.position.jobLevel || "未知"}\n`;
+            formattedData += `- 職系：${result.data.position.jobFamily || "未知"}\n`;
+            formattedData += `- 直屬主管：${result.data.position.reportingManager || "未知"}\n`;
+          }
+        }
+
+        if (!formattedData) {
+          formattedData = JSON.stringify(result.data, null, 2);
+        }
+
         sections.push(
           `✅ **${result.tool_name}** 執行成功\n` +
             `📋 **服務**: ${result.service_name}\n` +
-            `📊 **結果**: ${JSON.stringify(result.result, null, 2)}\n`
+            `⏱️ **執行時間**: ${result.execution_time}ms\n\n` +
+            formattedData
         );
       } else {
         sections.push(

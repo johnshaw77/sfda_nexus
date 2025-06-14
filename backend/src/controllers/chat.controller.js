@@ -16,6 +16,7 @@ import {
 } from "../middleware/errorHandler.middleware.js";
 import logger from "../utils/logger.util.js";
 import Joi from "joi";
+import { sendToUser } from "../websocket/index.js";
 
 // 輸入驗證模式
 const schemas = {
@@ -127,11 +128,49 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     temperature,
     max_tokens,
     model_id,
-    endpoint_url, // 前端傳遞的端點URL
+    endpoint_url,
     system_prompt,
   } = value;
   const { user } = req;
   const { conversationId } = req.params;
+
+  // 發送調試信息：開始處理
+  const debugSession = {
+    sessionId: `debug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    conversationId,
+    userId: user.id,
+    startTime: Date.now(),
+    stages: [],
+  };
+
+  const sendDebugInfo = (stage, data) => {
+    debugSession.stages.push({
+      stage,
+      timestamp: Date.now(),
+      data,
+    });
+
+    sendToUser(user.id, {
+      type: "debug_info",
+      data: {
+        sessionId: debugSession.sessionId,
+        conversationId,
+        stage,
+        timestamp: Date.now(),
+        ...data,
+      },
+    });
+  };
+
+  sendDebugInfo("start", {
+    message: "開始處理聊天請求",
+    userContent: content,
+    parameters: {
+      temperature,
+      max_tokens,
+      model_id: model_id || "使用對話默認模型",
+    },
+  });
 
   // 獲取對話信息
   logger.debug("查詢對話信息", {
@@ -165,7 +204,7 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     throw new BusinessError("無權訪問此對話");
   }
 
-  // 確定要使用的模型ID（優先使用請求中的model_id，否則使用對話默認模型）
+  // 確定要使用的模型ID
   const targetModelId = model_id || conversation.model_id;
 
   // 獲取模型信息
@@ -182,19 +221,15 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
   const model = modelRows[0];
 
-  // 如果使用了不同的模型，更新對話的默認模型
-  if (model_id && model_id !== conversation.model_id) {
-    await query(
-      "UPDATE conversations SET model_id = ?, updated_at = NOW() WHERE id = ?",
-      [model_id, conversationId]
-    );
-
-    logger.info("對話模型已更新", {
-      conversationId: conversationId,
-      oldModelId: conversation.model_id,
-      newModelId: model_id,
-    });
-  }
+  sendDebugInfo("model_selected", {
+    message: "已選擇 AI 模型",
+    model: {
+      id: model.id,
+      name: model.model_id,
+      display_name: model.display_name,
+      provider: model.model_type,
+    },
+  });
 
   // 創建用戶訊息
   logger.debug("創建用戶消息", {
@@ -225,29 +260,83 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
   try {
     // 獲取對話上下文
-    logger.debug("獲取對話上下文", {
-      conversationId,
-      maxMessages: 20,
-      maxTokensForContext: Math.floor(max_tokens * 0.7),
+    sendDebugInfo("context_loading", {
+      message: "正在獲取對話上下文",
     });
 
     const contextMessages = await MessageModel.getContextMessages(
       conversationId,
-      20, // 最多20條訊息
-      max_tokens * 0.7 // 保留30%給回應
+      20,
+      max_tokens * 0.7
     );
 
-    logger.debug("對話上下文獲取成功", {
-      messageCount: contextMessages?.length,
-      conversationId,
+    sendDebugInfo("context_loaded", {
+      message: "對話上下文已載入",
+      messageCount: contextMessages.length,
+      contextPreview: contextMessages.slice(-3).map((msg) => ({
+        role: msg.role,
+        contentPreview:
+          msg.content.substring(0, 100) +
+          (msg.content.length > 100 ? "..." : ""),
+      })),
+    });
+
+    // 添加系統提示詞
+    let baseSystemPrompt = system_prompt;
+
+    if (!baseSystemPrompt && conversation.agent_id) {
+      const { rows: agentRows } = await query(
+        "SELECT system_prompt FROM agents WHERE id = ?",
+        [conversation.agent_id]
+      );
+
+      if (agentRows.length > 0) {
+        baseSystemPrompt = agentRows[0].system_prompt;
+      }
+    }
+
+    sendDebugInfo("system_prompt_generating", {
+      message: "正在生成系統提示詞",
+      hasAgent: !!conversation.agent_id,
+      agentId: conversation.agent_id,
+      hasBasePrompt: !!baseSystemPrompt,
+    });
+
+    // 生成包含 MCP 工具資訊的動態系統提示詞
+    const systemPromptContent = await chatService.generateSystemPrompt(
+      baseSystemPrompt || "",
+      {
+        user_id: user.id,
+        conversation_id: conversationId,
+        model_type: model.model_type,
+      }
+    );
+
+    // 如果有系統提示詞，添加到消息開頭
+    if (systemPromptContent) {
+      aiOptions.messages.unshift({
+        role: "system",
+        content: systemPromptContent,
+      });
+    }
+
+    sendDebugInfo("system_prompt_generated", {
+      message: "系統提示詞已生成",
+      promptLength: systemPromptContent?.length || 0,
+      hasToolInfo: systemPromptContent?.includes("可用工具系統") || false,
+      hasEmployeeTools:
+        systemPromptContent?.includes("get_employee_info") || false,
+      promptPreview:
+        systemPromptContent?.substring(0, 500) +
+          (systemPromptContent?.length > 500 ? "..." : "") || "",
     });
 
     // 準備AI調用參數
     const aiOptions = {
       provider: model.model_type,
       model: model.model_id,
-      endpoint_url: model.endpoint_url, // 使用資料庫中的 endpoint URL
-      api_key: model.api_key_encrypted, // 使用資料庫中的 API key
+      endpoint_url: model.endpoint_url,
+      api_key: model.api_key_encrypted,
       messages: await Promise.all(
         contextMessages.map(async (msg) => {
           const formattedMessage = {
@@ -389,76 +478,37 @@ export const handleSendMessage = catchAsync(async (req, res) => {
           return formattedMessage;
         })
       ),
-      temperature: temperature,
-      max_tokens: max_tokens,
+      temperature: temperature || 0.7,
+      max_tokens: max_tokens || 4096,
     };
 
-    // 優先使用前端傳遞的 endpoint URL
-    if (endpoint_url) {
-      aiOptions.endpoint_url = endpoint_url;
-    }
-
-    // 添加系統提示詞（整合 MCP 工具資訊）
-    let baseSystemPrompt = system_prompt;
-
-    // 如果沒有自定義系統提示詞且有智能體，使用智能體的系統提示詞
-    if (!baseSystemPrompt && conversation.agent_id) {
-      const { rows: agentRows } = await query(
-        "SELECT system_prompt FROM agents WHERE id = ?",
-        [conversation.agent_id]
-      );
-
-      if (agentRows.length > 0) {
-        baseSystemPrompt = agentRows[0].system_prompt;
-      }
-    }
-
-    // 生成包含 MCP 工具資訊的動態系統提示詞
-    const systemPromptContent = await chatService.generateSystemPrompt(
-      baseSystemPrompt || "",
-      {
-        user_id: user.id,
-        conversation_id: conversationId,
-        model_type: model.model_type,
-      }
-    );
-
-    // 如果有系統提示詞，添加到消息開頭
-    if (systemPromptContent) {
-      aiOptions.messages.unshift({
-        role: "system",
-        content: systemPromptContent,
-      });
-    }
-
-    logger.debug("調用AI模型", {
-      provider: model.model_type,
-      model: model.model_id,
-      messageCount: aiOptions.messages.length,
-      conversationId: conversationId,
+    sendDebugInfo("ai_calling", {
+      message: "正在調用 AI 模型",
+      finalMessagesCount: aiOptions.messages.length,
+      systemPromptIncluded: aiOptions.messages[0]?.role === "system",
+      lastUserMessage:
+        content.substring(0, 200) + (content.length > 200 ? "..." : ""),
     });
 
     // 調用AI模型
     const aiResponse = await AIService.callModel(aiOptions);
 
-    // 調試：打印 AI 回應摘要
-    console.log("=== CHAT CONTROLLER AI 回應摘要 ===");
-    console.log("回應提供者:", aiResponse.provider);
-    console.log("回應模型:", aiResponse.model);
-    console.log(
-      "回應內容預覽:",
-      aiResponse.content.substring(0, 200) +
-        (aiResponse.content.length > 200 ? "..." : "")
-    );
-    console.log("回應完整長度:", aiResponse.content.length);
-    console.log("使用 tokens:", aiResponse.tokens_used);
-    console.log("處理時間:", aiResponse.processing_time, "ms");
-    console.log("=== CHAT CONTROLLER 回應摘要結束 ===\n");
+    sendDebugInfo("ai_response_received", {
+      message: "AI 模型回應已接收",
+      provider: aiResponse.provider,
+      model: aiResponse.model,
+      responseLength: aiResponse.content.length,
+      tokensUsed: aiResponse.tokens_used,
+      processingTime: aiResponse.processing_time,
+      responsePreview:
+        aiResponse.content.substring(0, 300) +
+        (aiResponse.content.length > 300 ? "..." : ""),
+    });
 
     // 處理 AI 回應，包含 MCP 工具調用檢測和執行
-    console.log("=== 開始處理 AI 回應 ===");
-    console.log("AI 回應內容:", aiResponse.content);
-    console.log("AI 回應長度:", aiResponse.content.length);
+    sendDebugInfo("tool_processing_start", {
+      message: "開始處理工具調用檢測",
+    });
 
     const chatResult = await chatService.processChatMessage(
       aiResponse.content,
@@ -469,26 +519,41 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       }
     );
 
-    console.log("=== processChatMessage 結果 ===");
-    console.log("has_tool_calls:", chatResult.has_tool_calls);
-    console.log("tool_calls 數量:", chatResult.tool_calls?.length || 0);
-    console.log("tool_results 數量:", chatResult.tool_results?.length || 0);
-    if (chatResult.tool_calls && chatResult.tool_calls.length > 0) {
-      console.log(
-        "工具調用詳情:",
-        JSON.stringify(chatResult.tool_calls, null, 2)
-      );
-    }
-    if (chatResult.tool_results && chatResult.tool_results.length > 0) {
-      console.log(
-        "工具結果詳情:",
-        JSON.stringify(chatResult.tool_results, null, 2)
-      );
-    }
-    console.log("=== processChatMessage 結果結束 ===");
+    sendDebugInfo("tool_processing_complete", {
+      message: "工具調用處理完成",
+      hasToolCalls: chatResult.has_tool_calls,
+      toolCallsCount: chatResult.tool_calls?.length || 0,
+      toolResultsCount: chatResult.tool_results?.length || 0,
+      usedSecondaryAI: chatResult.used_secondary_ai || false,
+      toolCalls:
+        chatResult.tool_calls?.map((call) => ({
+          name: call.name,
+          format: call.format,
+          parameters: call.parameters,
+        })) || [],
+      toolResults:
+        chatResult.tool_results?.map((result) => ({
+          tool_name: result.tool_name,
+          success: result.success,
+          execution_time: result.execution_time,
+          dataPreview:
+            typeof result.data === "object"
+              ? JSON.stringify(result.data).substring(0, 200) + "..."
+              : String(result.data).substring(0, 200),
+        })) || [],
+    });
 
     // 使用處理後的回應內容
     const finalContent = chatResult.final_response || aiResponse.content;
+
+    sendDebugInfo("final_response", {
+      message: "最終回應已生成",
+      finalLength: finalContent.length,
+      isModified: finalContent !== aiResponse.content,
+      finalPreview:
+        finalContent.substring(0, 300) +
+        (finalContent.length > 300 ? "..." : ""),
+    });
 
     // 創建AI回應訊息（包含工具調用資訊）
     console.log("=== 創建 AI 訊息 ===");
@@ -579,8 +644,21 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     });
     console.log("=== 響應發送完成 ===");
 
+    sendDebugInfo("complete", {
+      message: "聊天請求處理完成",
+      totalTime: Date.now() - debugSession.startTime,
+      messageId: assistantMessage.id,
+      success: true,
+    });
+
     res.json(createSuccessResponse(responseData, "訊息發送成功"));
   } catch (aiError) {
+    sendDebugInfo("error", {
+      message: "AI 模型調用失敗",
+      error: aiError.message,
+      totalTime: Date.now() - debugSession.startTime,
+    });
+
     logger.error("AI模型調用失敗", {
       conversationId: conversationId,
       error: aiError.message,
@@ -1384,7 +1462,7 @@ export const handleGetAgents = catchAsync(async (req, res) => {
     params.push(searchPattern, searchPattern, searchPattern);
   }
 
-  query_sql += " ORDER BY a.usage_count DESC, a.rating DESC";
+  query_sql += " ORDER BY a.sort_order ASC, a.usage_count DESC, a.rating DESC";
 
   const { rows } = await query(query_sql, params);
 

@@ -305,131 +305,23 @@
       </div>
     </div>
 
-    <!-- 調試面板 - 右側固定 -->
-    <div
-      v-if="showDebugPanel"
-      class="debug-panel-sidebar">
-      <div class="debug-header">
-        <h4>🐛 調試</h4>
-        <a-button
-          type="text"
-          size="small"
-          @click="showDebugPanel = false">
-          <CloseOutlined />
-        </a-button>
-      </div>
-      <div class="debug-content">
-        <a-row :gutter="[16, 8]">
-          <a-col :span="24">
-            <div class="debug-item">
-              <label>當前模型:</label>
-              <span class="debug-value">{{ getSelectedModelInfo() }}</span>
-            </div>
-          </a-col>
-          <a-col :span="24">
-            <div class="debug-item">
-              <label>模型端點:</label>
-              <span class="debug-value mono">{{ getModelEndpoint() }}</span>
-            </div>
-          </a-col>
-          <a-col :span="24">
-            <div class="debug-item">
-              <label>後端 API:</label>
-              <span class="debug-value mono">{{ configStore.apiBaseUrl }}</span>
-            </div>
-          </a-col>
-          <a-col :span="16">
-            <div class="debug-item">
-              <label>對話模式:</label>
-              <span class="debug-value">{{
-                useStreamMode ? "串流模式" : "普通模式"
-              }}</span>
-            </div>
-          </a-col>
-
-          <a-col :span="12">
-            <div class="debug-item">
-              <label>當前智能體:</label>
-              <span class="debug-value">{{ agent?.display_name || "無" }}</span>
-            </div>
-          </a-col>
-
-          <a-col :span="12">
-            <div class="debug-item">
-              <label>消息數量:</label>
-              <span class="debug-value">{{ chatStore.messages.length }}</span>
-            </div>
-          </a-col>
-          <a-col :span="12">
-            <div class="debug-item">
-              <label>Temperature:</label>
-              <span class="debug-value">{{ chatSettings.temperature }}</span>
-            </div>
-          </a-col>
-          <a-col :span="12">
-            <div class="debug-item">
-              <label>Max Tokens:</label>
-              <span class="debug-value">{{ chatSettings.maxTokens }}</span>
-            </div>
-          </a-col>
-          <a-col :span="24">
-            <div class="debug-item">
-              <label>用戶系統提示詞:</label>
-              <div class="debug-value system-prompt">
-                {{ chatSettings.systemPrompt || "無自定義系統提示詞" }}
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="24">
-            <div class="debug-item">
-              <label>完整系統提示詞:</label>
-              <div class="debug-actions">
-                <a-button
-                  type="link"
-                  size="small"
-                  @click="handlePreviewFullSystemPrompt"
-                  :loading="loadingFullPrompt">
-                  {{ fullSystemPrompt ? "重新載入" : "載入預覽" }}
-                </a-button>
-                <a-button
-                  v-if="fullSystemPrompt"
-                  type="link"
-                  size="small"
-                  @click="showFullPromptModal = true">
-                  查看詳情
-                </a-button>
-              </div>
-              <div
-                class="debug-value system-prompt"
-                v-if="fullSystemPrompt">
-                {{ getFullPromptPreview() }}
-              </div>
-              <div
-                class="debug-value"
-                v-else>
-                點擊「載入預覽」查看包含全域規則的完整系統提示詞
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="24">
-            <div class="debug-item">
-              <label>最後發送狀態:</label>
-              <div class="debug-status">
-                <a-tag :color="sending ? 'processing' : 'default'">
-                  {{ sending ? "發送中" : "待命" }}
-                </a-tag>
-                <a-tag :color="isStreaming ? 'processing' : 'default'">
-                  {{ isStreaming ? "串流中" : "非串流" }}
-                </a-tag>
-                <a-tag :color="chatStore.aiTyping ? 'processing' : 'default'">
-                  {{ chatStore.aiTyping ? "AI 回應中" : "AI 待命" }}
-                </a-tag>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
-    </div>
+    <!-- 聊天狀態調試面板組件 -->
+    <ChatDebugPanel
+      :visible="showDebugPanel"
+      :selected-model-info="getSelectedModelInfo()"
+      :model-endpoint="getModelEndpoint()"
+      :api-base-url="configStore.apiBaseUrl"
+      :stream-mode="useStreamMode"
+      :agent-name="agent?.display_name"
+      :message-count="chatStore.messages.length"
+      :temperature="chatSettings.temperature"
+      :max-tokens="chatSettings.maxTokens"
+      :system-prompt="chatSettings.systemPrompt"
+      :sending="sending"
+      :is-streaming="isStreaming"
+      :ai-typing="chatStore.aiTyping"
+      :selected-model-provider="getSelectedModelProvider()"
+      @close="showDebugPanel = false" />
 
     <!-- 消息輸入區域 -->
     <div
@@ -477,6 +369,18 @@
           <div
             class="resize-buttons"
             v-show="!inputCollapsed">
+            <!-- 折疊按鈕 -->
+            <a-tooltip
+              :title="inputCollapsed ? '展開輸入框' : '折疊輸入框'"
+              placement="top">
+              <a-button
+                type="text"
+                size="small"
+                @click="handleToggleInputCollapse"
+                class="resize-btn">
+                <ArrowDownToLine :size="12" />
+              </a-button>
+            </a-tooltip>
             <a-tooltip
               title="放大輸入區域"
               placement="topLeft"
@@ -487,14 +391,7 @@
                 @click="handleExpandInput"
                 :disabled="inputAreaHeight >= maxInputHeight"
                 class="resize-btn">
-                <svg
-                  viewBox="0 0 24 24"
-                  width="14"
-                  height="14">
-                  <path
-                    fill="currentColor"
-                    d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                </svg>
+                <Maximize :size="12" />
               </a-button>
             </a-tooltip>
             <a-tooltip
@@ -507,14 +404,7 @@
                 @click="handleShrinkInput"
                 :disabled="inputAreaHeight <= minInputHeight"
                 class="resize-btn">
-                <svg
-                  viewBox="0 0 24 24"
-                  width="14"
-                  height="14">
-                  <path
-                    fill="currentColor"
-                    d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
-                </svg>
+                <Minimize :size="12" />
               </a-button>
             </a-tooltip>
           </div>
@@ -570,15 +460,7 @@
                     <div
                       v-if="file.preview && file.mimeType.startsWith('image/')"
                       class="zoom-icon">
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="12"
-                        height="12"
-                        fill="white">
-                        <path
-                          d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                        <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" />
-                      </svg>
+                      <ZoomIn :size="8" />
                     </div>
                   </div>
                 </div>
@@ -751,30 +633,6 @@
               <!-- 字數統計 -->
               <!-- <span class="char-count">{{ messageText.length }}</span> -->
 
-              <!-- 折疊按鈕 -->
-              <a-tooltip
-                :title="inputCollapsed ? '展開輸入框' : '折疊輸入框'"
-                placement="top">
-                <a-button
-                  type="text"
-                  size="small"
-                  @click="handleToggleInputCollapse"
-                  class="collapse-btn">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    fill="currentColor">
-                    <path
-                      v-if="inputCollapsed"
-                      d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                    <path
-                      v-else
-                      d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z" />
-                  </svg>
-                </a-button>
-              </a-tooltip>
-
               <!-- 發送按鈕 -->
               <a-button
                 type="primary"
@@ -927,46 +785,6 @@
         </a-form-item>
       </a-form>
     </a-modal>
-
-    <!-- 完整系統提示詞預覽模態框 -->
-    <a-modal
-      v-model:open="showFullPromptModal"
-      title="完整系統提示詞預覽"
-      width="80%"
-      :footer="null">
-      <div class="full-prompt-preview">
-        <div class="prompt-info">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-statistic
-                title="總長度"
-                :value="fullSystemPrompt?.length || 0"
-                suffix="字符" />
-            </a-col>
-            <a-col :span="8">
-              <a-statistic
-                title="包含全域規則"
-                :value="
-                  fullSystemPrompt?.includes('🔒 核心行為規則') ? '是' : '否'
-                " />
-            </a-col>
-            <a-col :span="8">
-              <a-statistic
-                title="生成時間"
-                :value="fullPromptGeneratedAt || '未知'" />
-            </a-col>
-          </a-row>
-        </div>
-        <a-divider />
-        <div class="prompt-content">
-          <a-typography-paragraph
-            :copyable="{ text: fullSystemPrompt }"
-            class="prompt-text">
-            <pre>{{ fullSystemPrompt }}</pre>
-          </a-typography-paragraph>
-        </div>
-      </div>
-    </a-modal>
   </div>
 </template>
 
@@ -980,11 +798,13 @@ import { useConfigStore } from "@/stores/config";
 import MessageBubble from "./MessageBubble.vue";
 import ModelSelector from "./ModelSelector.vue";
 import FileAnalysisCard from "@/components/common/FileAnalysisCard.vue";
+import ChatDebugPanel from "./ChatDebugPanel.vue";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 import {
   getAgentQuickCommands,
   incrementCommandUsage,
 } from "@/api/quickCommands";
+import { ArrowDownToLine, Maximize, Minimize, ZoomIn } from "lucide-vue-next";
 import { useInfiniteScroll, useLocalStorage } from "@vueuse/core";
 import { chatWithQwenAgent } from "@/api/qwenAgent";
 import api from "@/api";
@@ -1008,10 +828,7 @@ const settingsModalVisible = ref(false);
 const showFileAnalysisCard = ref(false);
 const currentFileInfo = ref(null);
 const showAgentMenu = ref(false);
-const showFullPromptModal = ref(false);
-const fullSystemPrompt = ref("");
-const fullPromptGeneratedAt = ref("");
-const loadingFullPrompt = ref(false);
+
 const agentMenuPosition = ref({ top: 0, left: 0 });
 const inputAreaHeight = ref(320); // 增加默認高度以適應新的最小高度
 const isResizing = ref(false);
@@ -2037,42 +1854,6 @@ const handleToggleRealtimeRender = () => {
   );
 };
 
-// 預覽完整系統提示詞
-const handlePreviewFullSystemPrompt = async () => {
-  if (loadingFullPrompt.value) return;
-
-  loadingFullPrompt.value = true;
-  try {
-    const response = await api.post("/api/chat/system-prompt/preview", {
-      base_prompt:
-        chatSettings.value.systemPrompt || props.agent?.system_prompt || "",
-      model_type: getSelectedModelProvider(),
-    });
-
-    if (response.data.success) {
-      fullSystemPrompt.value = response.data.data.full_system_prompt;
-      fullPromptGeneratedAt.value = new Date(
-        response.data.data.generated_at
-      ).toLocaleString();
-      message.success("完整系統提示詞載入成功");
-    } else {
-      throw new Error(response.data.message || "載入失敗");
-    }
-  } catch (error) {
-    console.error("載入完整系統提示詞失敗:", error);
-    message.error(`載入失敗: ${error.message}`);
-  } finally {
-    loadingFullPrompt.value = false;
-  }
-};
-
-// 獲取完整提示詞預覽（截斷顯示）
-const getFullPromptPreview = () => {
-  if (!fullSystemPrompt.value) return "";
-  const preview = fullSystemPrompt.value.substring(0, 200);
-  return preview + (fullSystemPrompt.value.length > 200 ? "..." : "");
-};
-
 // 獲取選中模型的提供者
 const getSelectedModelProvider = () => {
   if (!selectedModelId.value) return "ollama";
@@ -2808,20 +2589,6 @@ const getModelEndpoint = () => {
   flex-shrink: 0;
 }
 
-/* 折疊按鈕樣式 */
-.collapse-btn {
-  transition: all 0.2s ease;
-  border-radius: 6px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.collapse-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
 /* 折疊狀態提示樣式 */
 .collapsed-input-hint {
   padding: 16px 20px;
@@ -3337,10 +3104,11 @@ const getModelEndpoint = () => {
 .zoom-icon {
   position: absolute;
   bottom: -2px;
-  right: -2px;
+  right: 1px;
   width: 16px;
   height: 16px;
   background: rgba(0, 0, 0, 0.6);
+  color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -3471,162 +3239,6 @@ const getModelEndpoint = () => {
 .drag-subtext {
   font-size: 14px;
   opacity: 0.8;
-}
-
-/* 調試面板樣式 - 右側固定 */
-.debug-panel-sidebar {
-  position: fixed;
-  top: 180px;
-  right: 0;
-  width: 300px;
-  max-width: 300px;
-  height: 450px;
-  background: var(--custom-bg-secondary);
-  border-left: 1px solid var(--custom-border-primary);
-  padding: 0;
-  font-family:
-    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
-    monospace;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  animation: slideInRight 0.3s ease-out;
-}
-
-@keyframes slideInRight {
-  0% {
-    opacity: 0;
-    transform: translateX(300px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.debug-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--custom-bg-tertiary);
-  border-bottom: 1px solid var(--custom-border-primary);
-  flex-shrink: 0;
-}
-
-.debug-header h4 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--custom-text-primary);
-}
-
-.debug-content {
-  padding: 16px;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.debug-item {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 8px;
-  font-size: 12px;
-}
-
-.debug-item label {
-  font-weight: 600;
-  color: var(--custom-text-secondary);
-  min-width: 80px;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
-.debug-value {
-  color: var(--custom-text-primary);
-  word-break: break-all;
-  flex: 1;
-}
-
-.debug-value.mono {
-  font-family:
-    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
-    monospace;
-  background: var(--custom-bg-primary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--custom-border-primary);
-}
-
-.debug-value.system-prompt {
-  background: var(--custom-bg-primary);
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid var(--custom-border-primary);
-  max-height: 100px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.debug-status {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.debug-status .ant-tag {
-  margin: 0;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 12px;
-}
-
-.debug-actions {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.debug-actions .ant-btn {
-  padding: 0 8px;
-  height: 24px;
-  font-size: 11px;
-}
-
-/* 完整系統提示詞預覽模態框樣式 */
-.full-prompt-preview {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.prompt-info {
-  background: var(--custom-bg-tertiary);
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-
-.prompt-content {
-  background: var(--custom-bg-primary);
-  border: 1px solid var(--custom-border-primary);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.prompt-text pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family:
-    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
-    monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--custom-text-primary);
-  background: transparent;
 }
 
 /* 載入更多指示器樣式 */

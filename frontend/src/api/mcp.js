@@ -37,7 +37,7 @@ export default {
    * @param {Array} services - 選中的服務列表
    */
   enableSelectedServices(services) {
-    return request.post("/api/mcp/services/enable-selected", { services });
+    return request.post("/api/mcp/services/enable", { services });
   },
 
   /**

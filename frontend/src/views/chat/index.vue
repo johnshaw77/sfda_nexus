@@ -94,6 +94,11 @@
       v-if="isMobile && sidebarVisible"
       class="sidebar-overlay"
       @click="closeSidebar" />
+
+    <!-- 後端實時輸出調試面板 -->
+    <DebugPanel
+      :conversation-id="props.conversationId"
+      v-if="isDev" />
   </div>
 </template>
 
@@ -108,6 +113,7 @@ import { Grid } from "ant-design-vue";
 import ChatArea from "./components/ChatArea.vue";
 import WelcomeScreen from "./components/WelcomeScreen.vue";
 import ConversationList from "./components/ConversationList.vue";
+import DebugPanel from "@/components/chat/DebugPanel.vue";
 import { PanelLeftOpen, MessageCircleMore } from "lucide-vue-next";
 import { useRouter, useRoute } from "vue-router";
 import api from "@/api/index.js";
@@ -133,6 +139,9 @@ const sidebarCollapsed = useLocalStorage("chat-sidebar-collapsed", true);
 const sidebarVisible = ref(false);
 const breakpoint = ref("lg");
 const isExpanding = ref(false);
+
+// 開發環境檢測
+const isDev = ref(import.meta.env.DEV);
 
 // 計算屬性
 const isMobile = computed(() => !screens.value.md);

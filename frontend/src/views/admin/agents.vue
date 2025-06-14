@@ -9,6 +9,13 @@
             <SettingOutlined />
             全域提示詞
           </a-button>
+          <a-button
+            @click="toggleSortMode"
+            :type="sortModeEnabled ? 'primary' : 'default'"
+            :class="{ 'sort-mode-active': sortModeEnabled }">
+            <MenuOutlined />
+            {{ sortModeEnabled ? "完成排序" : "調整排序" }}
+          </a-button>
           <a-button @click="handleImport">
             <UploadOutlined />
             導入智能體
@@ -96,8 +103,20 @@
             :lg="6">
             <a-card
               hoverable
-              class="agent-card"
-              :class="{ disabled: !agent.is_active }">
+              class="agent-card clickable-card"
+              :class="{
+                disabled: !agent.is_active,
+                'sort-mode': sortModeEnabled,
+                'drag-over': dropTarget === agent.id,
+              }"
+              :draggable="sortModeEnabled"
+              @click="handleEdit(agent)"
+              @dragstart="handleDragStart(agent, $event)"
+              @dragover="handleDragOver(agent, $event)"
+              @dragenter="handleDragEnter(agent, $event)"
+              @dragleave="handleDragLeave(agent, $event)"
+              @drop="handleDrop(agent, $event)"
+              @dragend="handleDragEnd($event)">
               <!-- 卡片頭部 -->
               <template #cover>
                 <div class="agent-avatar">
@@ -129,24 +148,30 @@
               <!-- 卡片操作 -->
               <template #actions>
                 <a-tooltip title="編輯">
-                  <EditOutlined @click="handleEdit(agent)" />
+                  <EditOutlined @click.stop="handleEdit(agent)" />
                 </a-tooltip>
                 <a-tooltip title="複製">
-                  <CopyOutlined @click="handleClone(agent)" />
+                  <CopyOutlined @click.stop="handleClone(agent)" />
                 </a-tooltip>
                 <a-tooltip title="測試">
-                  <PlayCircleOutlined @click="handleTest(agent)" />
+                  <PlayCircleOutlined @click.stop="handleTest(agent)" />
                 </a-tooltip>
                 <a-popconfirm
                   title="確定要刪除這個智能體嗎？"
                   @confirm="handleDelete(agent)">
                   <a-tooltip title="刪除">
-                    <DeleteOutlined />
+                    <DeleteOutlined @click.stop />
                   </a-tooltip>
                 </a-popconfirm>
               </template>
 
               <!-- 卡片內容 -->
+              <div
+                v-if="sortModeEnabled"
+                class="sort-indicator">
+                <MenuOutlined class="drag-handle" />
+                <span class="sort-order">{{ agent.sort_order || 0 }}</span>
+              </div>
               <a-card-meta :title="agent.display_name || agent.name">
                 <template #avatar>
                   <a-space
@@ -186,7 +211,7 @@
                   <a-tooltip title="點擊編輯智能體和模型配置">
                     <span
                       class="stat-value model-name clickable"
-                      @click="handleEdit(agent)">
+                      @click.stop="handleEdit(agent)">
                       {{
                         agent.model_display_name || agent.model_name || "未設定"
                       }}
@@ -198,7 +223,7 @@
                   <a-tooltip title="點擊編輯智能體和MCP服務配置">
                     <span
                       class="stat-value mcp-service"
-                      @click="handleViewMcpServices(agent)">
+                      @click.stop="handleViewMcpServices(agent)">
                       {{ getAgentMcpServiceText(agent.id) }}
                     </span>
                   </a-tooltip>
@@ -808,6 +833,7 @@
     <a-modal
       v-model:open="globalPromptModalVisible"
       title="全域提示詞管理"
+      style="top: 40px"
       :width="1000"
       :footer="null"
       :bodyStyle="{ padding: 0 }">
@@ -827,11 +853,16 @@ import GlobalPromptManager from "@/components/admin/GlobalPromptManager.vue";
 import mcpApi from "@/api/mcp.js";
 import { getModels } from "@/api/models.js";
 import {
+  updateAgentSortOrder,
+  batchUpdateAgentSortOrder,
+} from "@/api/agents.js";
+import {
   QuestionCircleOutlined,
   RobotOutlined,
   EyeOutlined,
   ReloadOutlined,
   SettingOutlined,
+  MenuOutlined,
 } from "@ant-design/icons-vue";
 
 // 響應式斷點
@@ -856,6 +887,11 @@ const filterCategory = ref();
 const filterStatus = ref();
 const modalVisible = ref(false);
 const formRef = ref();
+
+// 排序模式相關
+const sortModeEnabled = ref(false);
+const draggedAgent = ref(null);
+const dropTarget = ref(null);
 
 // 全域提示詞 Modal
 const globalPromptModalVisible = ref(false);
@@ -961,6 +997,15 @@ const filteredAgents = computed(() => {
   if (filterStatus.value) {
     const isActive = filterStatus.value === "active";
     result = result.filter((agent) => agent.is_active === isActive);
+  }
+
+  // 在排序模式下，確保按 sort_order 排序
+  if (sortModeEnabled.value) {
+    result.sort((a, b) => {
+      const sortA = a.sort_order || 0;
+      const sortB = b.sort_order || 0;
+      return sortA - sortB;
+    });
   }
 
   return result;
@@ -1573,6 +1618,105 @@ const saveAgentMcpServices = async (agentId) => {
   }
 };
 
+// 排序相關方法
+const toggleSortMode = () => {
+  sortModeEnabled.value = !sortModeEnabled.value;
+  if (sortModeEnabled.value) {
+    message.info("排序模式已啟用，您可以拖拽智能體卡片來調整順序");
+  } else {
+    message.success("排序模式已關閉");
+  }
+};
+
+const handleDragStart = (agent, event) => {
+  draggedAgent.value = agent;
+  event.dataTransfer.setData("text/plain", agent.id.toString());
+  event.currentTarget.style.opacity = "0.5";
+};
+
+const handleDragOver = (agent, event) => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+};
+
+const handleDragEnter = (agent, event) => {
+  event.preventDefault();
+  if (draggedAgent.value && draggedAgent.value.id !== agent.id) {
+    dropTarget.value = agent.id;
+  }
+};
+
+const handleDragLeave = (agent, event) => {
+  // 檢查是否真的離開了卡片區域
+  const rect = event.currentTarget.getBoundingClientRect();
+  const x = event.clientX;
+  const y = event.clientY;
+
+  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+    if (dropTarget.value === agent.id) {
+      dropTarget.value = null;
+    }
+  }
+};
+
+const handleDrop = async (targetAgent, event) => {
+  event.preventDefault();
+  dropTarget.value = null;
+
+  if (!draggedAgent.value || draggedAgent.value.id === targetAgent.id) {
+    return;
+  }
+
+  try {
+    // 計算新的排序值
+    const sourceAgent = draggedAgent.value;
+    const targetSortOrder = targetAgent.sort_order || 0;
+    const sourceSortOrder = sourceAgent.sort_order || 0;
+
+    // 簡單的排序邏輯：將拖拽的智能體排序設為目標位置
+    let newSortOrder = targetSortOrder;
+
+    // 如果是向前移動，需要調整排序值
+    if (sourceSortOrder > targetSortOrder) {
+      newSortOrder = targetSortOrder - 1;
+    } else {
+      newSortOrder = targetSortOrder + 1;
+    }
+
+    // 確保排序值不為負數
+    if (newSortOrder < 0) {
+      newSortOrder = 0;
+    }
+
+    await updateAgentSortOrder(sourceAgent.id, newSortOrder);
+
+    // 更新本地數據
+    sourceAgent.sort_order = newSortOrder;
+
+    // 重新載入數據以獲取正確的排序
+    await agentsStore.fetchAgentsForAdmin({
+      page: pagination.value.page,
+      limit: pagination.value.limit,
+      category: filterCategory.value,
+      is_active: filterStatus.value,
+      search: searchText.value,
+    });
+
+    message.success(`已調整 "${sourceAgent.display_name}" 的排序位置`);
+  } catch (error) {
+    console.error("排序更新失敗:", error);
+    message.error(
+      "排序更新失敗: " + (error.response?.data?.message || error.message)
+    );
+  }
+};
+
+const handleDragEnd = (event) => {
+  event.currentTarget.style.opacity = "1";
+  draggedAgent.value = null;
+  dropTarget.value = null;
+};
+
 // 載入 AI 模型
 const loadModels = async () => {
   loadingModels.value = true;
@@ -2166,6 +2310,125 @@ onMounted(async () => {
   background: linear-gradient(135deg, #2a2a2a 0%, #3c3c3c 100%);
 }
 
+/* 排序模式相關樣式 */
+.agent-card.sort-mode {
+  cursor: move;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.agent-card.sort-mode:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.agent-card.drag-over {
+  border: 2px dashed #1890ff;
+  background-color: rgba(24, 144, 255, 0.05);
+}
+
+.sort-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(24, 144, 255, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+}
+
+.drag-handle {
+  font-size: 10px;
+}
+
+.sort-order {
+  min-width: 16px;
+  text-align: center;
+}
+
+/* 拖拽時的視覺效果 */
+.agent-card[draggable="true"] {
+  position: relative;
+}
+
+.agent-card[draggable="true"]:active {
+  transform: scale(0.95);
+}
+
+/* 暗黑模式下的排序樣式 */
+:root[data-theme="dark"] .agent-card.drag-over {
+  border-color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+:root[data-theme="dark"] .sort-indicator {
+  background: rgba(24, 144, 255, 0.8);
+}
+
+/* 排序按鈕樣式 - 使用更強的選擇器 */
+.ant-btn.sort-mode-active,
+.ant-btn.sort-mode-active.ant-btn-default {
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%) !important;
+  border-color: #1890ff !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3) !important;
+  transform: translateY(-1px);
+  transition: all 0.3s ease;
+}
+
+.ant-btn.sort-mode-active:hover,
+.ant-btn.sort-mode-active.ant-btn-default:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #9254de 100%) !important;
+  border-color: #40a9ff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4) !important;
+  color: white !important;
+}
+
+/* 暗黑模式下的排序按鈕 */
+:root[data-theme="dark"] .ant-btn.sort-mode-active,
+:root[data-theme="dark"] .ant-btn.sort-mode-active.ant-btn-default {
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%) !important;
+  border-color: #1890ff !important;
+  color: white !important;
+}
+
+:root[data-theme="dark"] .ant-btn.sort-mode-active:hover,
+:root[data-theme="dark"] .ant-btn.sort-mode-active.ant-btn-default:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #9254de 100%) !important;
+  border-color: #40a9ff !important;
+  color: white !important;
+}
+
+/* 響應式排序樣式 */
+@media (max-width: 768px) {
+  .sort-indicator {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+
+  .drag-handle {
+    font-size: 9px;
+  }
+
+  .ant-btn.sort-mode-active,
+  .ant-btn.sort-mode-active.ant-btn-default {
+    transform: none;
+  }
+
+  .ant-btn.sort-mode-active:hover,
+  .ant-btn.sort-mode-active.ant-btn-default:hover {
+    transform: none;
+  }
+}
+
 :root[data-theme="dark"] .agent-stats {
   border-top-color: #434343;
 }
@@ -2177,6 +2440,31 @@ onMounted(async () => {
 :root[data-theme="dark"] .status-indicator {
   background: rgba(0, 0, 0, 0.7);
   border-color: #434343;
+}
+
+/* 卡片點擊效果 */
+.clickable-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.clickable-card.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.clickable-card.disabled:hover {
+  transform: none;
+}
+
+/* 暗黑模式下的卡片點擊效果 */
+:root[data-theme="dark"] .clickable-card:hover {
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.08);
 }
 
 /* 響應式優化 */
@@ -2199,6 +2487,11 @@ onMounted(async () => {
 
   .status-label {
     font-size: 12px;
+  }
+
+  /* 移動端減少卡片動畫效果 */
+  .clickable-card:hover {
+    transform: translateY(-1px);
   }
 }
 </style>

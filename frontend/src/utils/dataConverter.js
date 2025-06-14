@@ -62,7 +62,12 @@ export const convertDbBoolArrayFields = (array, boolFields = []) => {
 /**
  * 模型相關的常用布林欄位
  */
-export const MODEL_BOOL_FIELDS = ["is_active", "is_default", "is_multimodal"];
+export const MODEL_BOOL_FIELDS = [
+  "is_active",
+  "is_default",
+  "is_multimodal",
+  "can_call_tools",
+];
 
 /**
  * 用戶相關的常用布林欄位

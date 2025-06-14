@@ -423,4 +423,106 @@ router.post(
   agentsController.handleDuplicateAgent
 );
 
+/**
+ * @swagger
+ * /api/agents/{id}/sort-order:
+ *   put:
+ *     summary: 更新智能體排序
+ *     tags: [智能體管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 智能體ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sort_order:
+ *                 type: integer
+ *                 minimum: 0
+ *                 description: 排序值（數字越小越靠前）
+ *             required:
+ *               - sort_order
+ *     responses:
+ *       200:
+ *         description: 更新排序成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: 請求參數錯誤
+ *       401:
+ *         description: 未認證
+ *       403:
+ *         description: 權限不足
+ *       404:
+ *         description: 智能體不存在
+ */
+router.put(
+  "/:id/sort-order",
+  authenticateToken,
+  agentsController.handleUpdateAgentSortOrder
+);
+
+/**
+ * @swagger
+ * /api/agents/batch-sort:
+ *   put:
+ *     summary: 批量更新智能體排序
+ *     tags: [智能體管理]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               updates:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       description: 智能體ID
+ *                     sort_order:
+ *                       type: integer
+ *                       minimum: 0
+ *                       description: 排序值
+ *                   required:
+ *                     - id
+ *                     - sort_order
+ *             required:
+ *               - updates
+ *     responses:
+ *       200:
+ *         description: 批量更新排序成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: 請求參數錯誤
+ *       401:
+ *         description: 未認證
+ *       403:
+ *         description: 權限不足
+ */
+router.put(
+  "/batch-sort",
+  authenticateToken,
+  agentsController.handleBatchUpdateAgentSortOrder
+);
+
 export default router;

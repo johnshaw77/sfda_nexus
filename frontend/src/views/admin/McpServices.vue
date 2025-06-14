@@ -932,8 +932,11 @@ const handleEnableSingle = async (service) => {
   try {
     const response = await mcpApi.enableSelectedServices([service]);
     if (response.data.success) {
+      const toolsCount = Array.isArray(response.data.data?.tools)
+        ? response.data.data.tools.length
+        : 0;
       message.success(
-        `成功啟用服務 ${service.name}，包含 ${response.data.data.tools.length} 個工具`
+        `成功啟用服務 ${service.name}，包含 ${toolsCount} 個工具`
       );
 
       // 啟用後重新獲取同步的服務數據

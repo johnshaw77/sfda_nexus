@@ -44,9 +44,13 @@ class McpDiscoveryService {
           ""
         );
 
+        // 修正：確保 tools 一定是陣列
+        const toolNames = Array.isArray(moduleInfo.tools)
+          ? moduleInfo.tools
+          : [];
         // 獲取工具詳細資訊
         const tools = [];
-        for (const toolName of moduleInfo.tools) {
+        for (const toolName of toolNames) {
           const toolInfo = await this.getToolDetails(
             moduleKey,
             toolName,

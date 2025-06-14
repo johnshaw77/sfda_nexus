@@ -290,7 +290,8 @@ class McpClient {
       // 提取 MCP 回應中的實際業務數據，同時保留元數據
       const mcpResult = response.data;
       const toolExecution = mcpResult?.result || {};
-      const businessData = toolExecution?.result || {};
+      const businessData =
+        toolExecution?.result?.data || toolExecution?.result || {};
 
       return {
         success: true,

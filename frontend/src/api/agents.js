@@ -29,3 +29,16 @@ export const duplicateAgent = async (agentId, data = {}) => {
   const response = await api.post(`/api/agents/${agentId}/duplicate`, data);
   return response.data;
 };
+
+// ===== 智能體排序 =====
+export const updateAgentSortOrder = async (agentId, sortOrder) => {
+  const response = await api.put(`/api/agents/${agentId}/sort-order`, {
+    sort_order: sortOrder,
+  });
+  return response.data;
+};
+
+export const batchUpdateAgentSortOrder = async (updates) => {
+  const response = await api.put("/api/agents/batch-sort", { updates });
+  return response.data;
+};

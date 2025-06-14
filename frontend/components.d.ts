@@ -70,6 +70,7 @@ declare module 'vue' {
     CodeHighlight: typeof import('./src/components/common/CodeHighlight.vue')['default']
     CodeHighlightCopy: typeof import('./src/components/common/CodeHighlight-copy.vue')['default']
     CodeHighlightTest: typeof import('./src/components/common/CodeHighlight-test.vue')['default']
+    DebugPanel: typeof import('./src/components/chat/DebugPanel.vue')['default']
     FileAnalysisCard: typeof import('./src/components/common/FileAnalysisCard.vue')['default']
     FilePreview: typeof import('./src/components/common/FilePreview.vue')['default']
     GlobalPromptManager: typeof import('./src/components/admin/GlobalPromptManager.vue')['default']

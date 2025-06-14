@@ -23,7 +23,12 @@ export const handleGetAllModels = catchAsync(async (req, res) => {
 
   const options = {};
   if (provider) options.provider = provider;
-  if (is_active !== undefined) options.is_active = is_active === "true";
+  // 默認只顯示啟用的模型，除非明確指定要顯示停用的
+  if (is_active !== undefined) {
+    options.is_active = is_active === "true";
+  } else {
+    options.is_active = true; // 默認只顯示啟用的模型
+  }
 
   let models;
   if (group_by_provider === "true") {
@@ -134,7 +139,12 @@ export const handleUpdateModel = catchAsync(async (req, res) => {
   const processedUpdateData = { ...updateData };
 
   // 將 JavaScript 布林值轉換為 MySQL 相容的數字 //NOTE: 這個前端也能做
-  const booleanFields = ["is_active", "is_default", "is_multimodal"];
+  const booleanFields = [
+    "is_active",
+    "is_default",
+    "is_multimodal",
+    "can_call_tools",
+  ];
   booleanFields.forEach((field) => {
     if (field in processedUpdateData) {
       processedUpdateData[field] = processedUpdateData[field] ? 1 : 0;
@@ -303,6 +313,64 @@ export const handleTestModel = catchAsync(async (req, res) => {
   res.json(createSuccessResponse(testResult, "模型測試完成"));
 });
 
+/**
+ * 複製模型
+ * @route POST /api/models/:id/copy
+ * @access Admin
+ */
+export const handleCopyModel = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { new_name_suffix = "_副本", new_display_name } = req.body;
+
+  // 檢查原模型是否存在
+  const originalModel = await ModelModel.getModelById(parseInt(id));
+  if (!originalModel) {
+    throw new NotFoundError("要複製的模型不存在");
+  }
+
+  // 準備新模型數據
+  const newModelData = {
+    ...originalModel,
+    id: undefined, // 移除原ID
+    model_name: originalModel.model_name + new_name_suffix,
+    display_name:
+      new_display_name ||
+      (originalModel.display_name
+        ? originalModel.display_name + new_name_suffix
+        : null),
+    is_default: false, // 複製的模型不設為預設
+    usage_count: 0, // 重置使用次數
+    total_tokens_used: 0, // 重置 token 使用量
+    created_at: undefined, // 讓資料庫自動設置創建時間
+    updated_at: undefined, // 讓資料庫自動設置更新時間
+  };
+
+  // 檢查新模型名稱是否已存在
+  const existingModel = await ModelModel.checkModelExists(
+    newModelData.model_name,
+    newModelData.provider
+  );
+
+  if (existingModel) {
+    throw new BusinessError(
+      `模型名稱 "${newModelData.model_name}" 在該提供商下已存在`
+    );
+  }
+
+  // 創建新模型
+  const copiedModel = await ModelModel.createModel(newModelData);
+
+  logger.audit(req.user.id, "MODEL_COPIED", {
+    original_model_id: id,
+    original_model_name: originalModel.model_name,
+    new_model_id: copiedModel.id,
+    new_model_name: copiedModel.model_name,
+    provider: originalModel.provider,
+  });
+
+  res.json(createSuccessResponse(copiedModel, "模型複製成功"));
+});
+
 export default {
   handleGetAllModels,
   handleGetModelById,
@@ -313,4 +381,5 @@ export default {
   handleGetModelStats,
   handleSyncModelAvailability,
   handleTestModel,
+  handleCopyModel,
 };

@@ -130,6 +130,16 @@
           <span v-else>-</span>
         </template>
 
+        <!-- 工具呼叫列 -->
+        <template #can_call_tools="{ record }">
+          <a-tag
+            v-if="record.can_call_tools"
+            color="green">
+            支援
+          </a-tag>
+          <span v-else>-</span>
+        </template>
+
         <!-- 最大 Tokens 列 -->
         <template #max_tokens="{ record }">
           {{ formatNumber(record.max_tokens) }}
@@ -156,6 +166,13 @@
               @click="handleEdit(record)">
               <EditOutlined />
               編輯
+            </a-button>
+            <a-button
+              type="text"
+              size="small"
+              @click="handleCopy(record)">
+              <CopyOutlined />
+              複製
             </a-button>
             <a-button
               type="text"
@@ -188,6 +205,9 @@
               <a-menu>
                 <a-menu-item @click="handleEdit(record)">
                   <EditOutlined /> 編輯
+                </a-menu-item>
+                <a-menu-item @click="handleCopy(record)">
+                  <CopyOutlined /> 複製
                 </a-menu-item>
                 <a-menu-item @click="handleTest(record)">
                   <PlayCircleOutlined /> 測試
@@ -309,7 +329,7 @@
                   :src="iconPreviewUrl"
                   :alt="formData.icon"
                   class="icon-preview"
-                  style="margin-right: 12px; color: background-color:white;"
+                  style="margin-right:12px;color:background-color:white;"
                   @error="handlePreviewError" />
                 <component
                   v-else
@@ -368,9 +388,9 @@
           <a-col
             :xs="24"
             :sm="24"
-            :md="12"
-            :lg="12"
-            :xl="12">
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="預設模型"
               name="is_default">
@@ -383,15 +403,30 @@
           <a-col
             :xs="24"
             :sm="24"
-            :md="12"
-            :lg="12"
-            :xl="12">
+            :md="8"
+            :lg="8"
+            :xl="8">
             <a-form-item
               label="多模態支援"
               name="is_multimodal">
               <a-switch v-model:checked="formData.is_multimodal" />
               <span style="margin-left: 8px; color: #666; font-size: 13px">
                 支援圖像、音頻等多模態輸入
+              </span>
+            </a-form-item>
+          </a-col>
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="8"
+            :lg="8"
+            :xl="8">
+            <a-form-item
+              label="工具呼叫"
+              name="can_call_tools">
+              <a-switch v-model:checked="formData.can_call_tools" />
+              <span style="margin-left: 8px; color: #666; font-size: 13px">
+                支援MCP工具呼叫功能
               </span>
             </a-form-item>
           </a-col>
@@ -534,6 +569,7 @@ import {
   updateModel,
   deleteModel,
   testModel,
+  copyModel,
 } from "@/api/models";
 import {
   convertModelBoolFields,
@@ -547,6 +583,7 @@ import {
   DeleteOutlined,
   MoreOutlined,
   PlusOutlined,
+  CopyOutlined,
 } from "@ant-design/icons-vue";
 
 // 響應式數據
@@ -637,6 +674,14 @@ const columns = computed(() => {
       responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
     },
     {
+      title: "工具呼叫",
+      dataIndex: "can_call_tools",
+      key: "can_call_tools",
+      slots: { customRender: "can_call_tools" },
+      width: 90,
+      responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
+    },
+    {
       title: "最大 Tokens",
       dataIndex: "max_tokens",
       key: "max_tokens",
@@ -658,6 +703,7 @@ const columns = computed(() => {
     {
       title: "配置",
       key: "config",
+      align: "center",
       slots: { customRender: "config" },
       width: 70,
       responsive: ["md", "lg", "xl"], // 僅在中等及以上螢幕顯示
@@ -709,6 +755,7 @@ const formData = reactive({
   config: "",
   is_default: false,
   is_multimodal: false,
+  can_call_tools: false,
   max_tokens: 4096,
   temperature: 0.7,
   top_p: 0.9,
@@ -888,6 +935,29 @@ const handleEdit = (record) => {
   modalVisible.value = true;
 };
 
+const handleCopy = async (record) => {
+  try {
+    loading.value = true;
+
+    // 調用複製 API
+    const response = await copyModel(record.id, {
+      new_name_suffix: "_副本", // 在名稱後添加副本標識
+    });
+
+    if (response.success) {
+      message.success(`模型 "${record.model_name}" 複製成功`);
+      handleLoadModels(); // 重新載入數據以顯示新複製的模型
+    } else {
+      message.error(response.message || "複製失敗");
+    }
+  } catch (error) {
+    console.error("複製模型失敗:", error);
+    message.error("複製失敗，請稍後重試");
+  } finally {
+    loading.value = false;
+  }
+};
+
 const handleDelete = async (record) => {
   try {
     const response = await deleteModel(record.id);
@@ -974,6 +1044,7 @@ const handleViewConfig = (record) => {
       模型ID: record.model_id,
       預設模型: record.is_default ? "是" : "否",
       多模態支援: record.is_multimodal ? "是" : "否",
+      工具呼叫: record.can_call_tools ? "是" : "否",
     },
     參數配置: {
       最大Tokens: record.max_tokens,
@@ -1091,6 +1162,7 @@ const resetForm = () => {
     config: "",
     is_default: false,
     is_multimodal: false,
+    can_call_tools: false,
     max_tokens: 4096,
     temperature: 0.7,
     top_p: 0.9,

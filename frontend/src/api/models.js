@@ -34,3 +34,8 @@ export const testModel = async (modelId, testData) => {
   const response = await api.post(`/api/models/${modelId}/test`, testData);
   return response.data;
 };
+
+export const copyModel = async (modelId, copyOptions = {}) => {
+  const response = await api.post(`/api/models/${modelId}/copy`, copyOptions);
+  return response.data;
+};

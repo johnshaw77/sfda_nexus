@@ -393,12 +393,73 @@ class ChatService {
       // 格式化工具結果
       const formattedResults = mcpToolParser.formatToolResults(toolResults);
 
-      // 組合最終回應
-      const finalResponse = this.combineResponseWithResults(
-        aiResponse,
-        formattedResults,
-        toolResults
-      );
+      // 檢查是否有成功的工具執行，如果有，需要進行二次 AI 調用
+      const hasSuccessfulTools = toolResults.some((result) => result.success);
+      let finalResponse;
+
+      if (hasSuccessfulTools) {
+        console.log("=== 開始二次 AI 調用，基於工具結果生成回應 ===");
+
+        try {
+          // 構建包含工具結果的二次調用消息
+          const followUpPrompt = `
+基於以下工具調用結果，請提供一個完整、自然的回應：
+
+工具執行結果：
+${formattedResults}
+
+請基於這些真實數據回答用戶的問題，提供清晰、有用的回應。不要重複顯示工具調用的技術細節，而是要用自然的語言整理和解釋這些資訊。
+`;
+
+          // 獲取原始對話上下文中的最後一個用戶消息
+          const lastUserMessage =
+            context.messages && context.messages.length > 0
+              ? context.messages[context.messages.length - 1]
+              : null;
+
+          // 構建二次調用的消息
+          const followUpMessages = [];
+
+          if (lastUserMessage && lastUserMessage.role === "user") {
+            followUpMessages.push({
+              role: "user",
+              content: lastUserMessage.content,
+            });
+          }
+
+          followUpMessages.push({
+            role: "assistant",
+            content: followUpPrompt,
+          });
+
+          // 進行二次 AI 調用
+          const secondaryAIResponse = await AIService.callModel({
+            model: context.model || "qwen3:30b",
+            messages: followUpMessages,
+            temperature: 0.7,
+            max_tokens: 2048,
+            endpoint_url: context.endpoint_url,
+          });
+
+          finalResponse = secondaryAIResponse.content || formattedResults;
+          console.log("二次 AI 調用成功，生成最終回應");
+        } catch (secondaryError) {
+          console.error("二次 AI 調用失敗:", secondaryError.message);
+          // 如果二次調用失敗，使用組合回應作為後備
+          finalResponse = this.combineResponseWithResults(
+            aiResponse,
+            formattedResults,
+            toolResults
+          );
+        }
+      } else {
+        // 如果沒有成功的工具執行，使用原有邏輯
+        finalResponse = this.combineResponseWithResults(
+          aiResponse,
+          formattedResults,
+          toolResults
+        );
+      }
 
       console.log("=== CHAT SERVICE: 處理完成 ===");
       const result = {
@@ -408,12 +469,14 @@ class ChatService {
         tool_results: toolResults,
         formatted_results: formattedResults,
         final_response: finalResponse,
+        used_secondary_ai: hasSuccessfulTools,
       };
       console.log("最終結果:", {
         has_tool_calls: result.has_tool_calls,
         tool_calls_count: result.tool_calls?.length || 0,
         tool_results_count: result.tool_results?.length || 0,
         final_response_length: result.final_response?.length || 0,
+        used_secondary_ai: result.used_secondary_ai,
       });
 
       return result;
@@ -441,40 +504,24 @@ class ChatService {
    * @returns {string} 組合後的回應
    */
   combineResponseWithResults(originalResponse, formattedResults, toolResults) {
-    // 移除原始回應中的工具調用指令
-    let cleanResponse = originalResponse;
-
-    // 移除 JSON 格式的工具調用
-    cleanResponse = cleanResponse.replace(/```json\s*\{[\s\S]*?\}\s*```/gi, "");
-
-    // 移除 XML 格式的工具調用
-    cleanResponse = cleanResponse.replace(
-      /<tool_call[\s\S]*?<\/tool_call>/gi,
-      ""
-    );
-
-    // 清理多餘的空白
-    cleanResponse = cleanResponse.replace(/\n\s*\n\s*\n/g, "\n\n").trim();
-
     // 檢查是否有成功的工具執行
     const hasSuccessfulTools = toolResults.some((result) => result.success);
 
     if (!hasSuccessfulTools) {
-      return `${cleanResponse}\n\n⚠️ **工具執行遇到問題**\n\n${formattedResults}`;
+      // 🚨 關鍵修正：當所有工具調用都失敗時，絕對不返回 AI 的原始回應
+      // 因為原始回應可能包含編造的數據，違反全域規則
+      return `❌ **工具調用失敗**
+
+由於系統工具無法正常執行，無法獲取您所需的資料。
+
+${formattedResults}
+
+⚠️ **重要提醒**：為確保資料準確性，我無法提供未經工具驗證的資訊。請檢查系統狀態或聯繫管理員。`;
     }
 
-    // 組合回應
-    const sections = [];
-
-    if (cleanResponse) {
-      sections.push(cleanResponse);
-    }
-
-    sections.push("## 🔧 工具執行結果");
-    sections.push("");
-    sections.push(formattedResults);
-
-    return sections.join("\n\n");
+    // 當工具調用成功時，返回格式化的工具結果
+    // 注意：這裡只返回工具結果，後續需要進行二次 AI 調用來生成完整回應
+    return formattedResults;
   }
 
   /**
