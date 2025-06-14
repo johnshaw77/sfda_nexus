@@ -1,123 +1,160 @@
 #!/usr/bin/env node
 
 /**
- * 完整工具調用流程測試
- * 模擬從用戶請求到前端顯示的完整流程
+ * 完整工作流程測試腳本
  */
 
-import axios from "axios";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const MCP_SERVER_URL = "http://localhost:8080";
-const BACKEND_URL = "http://localhost:3000";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, "../../.env") });
+
+import AIService from "../../src/services/ai.service.js";
+import mcpToolParser from "../../src/services/mcpToolParser.service.js";
+import mcpClient from "../../src/services/mcp.service.js";
+import { initializeDatabase } from "../../src/config/database.config.js";
 
 async function testFullWorkflow() {
-  console.log("🧪 測試完整工具調用流程...\n");
+  console.log("🔍 測試完整工作流程");
 
-  // 1. 測試 MCP Server 工具調用
-  console.log("1️⃣ 測試 MCP Server 工具調用...");
   try {
-    const mcpResponse = await axios.post(
-      `${MCP_SERVER_URL}/api/hr/get_department_list`,
-      { includeStats: true, includeInactive: false },
-      { timeout: 5000 }
-    );
+    await initializeDatabase();
+    await mcpClient.initialize();
 
-    if (mcpResponse.data.success) {
-      console.log("✅ MCP Server 工具調用成功");
-      console.log(
-        `   返回部門數量: ${mcpResponse.data.result?.departments?.length || 0}`
-      );
-      if (mcpResponse.data.result?.departments?.length > 0) {
-        console.log(
-          `   第一個部門: ${mcpResponse.data.result.departments[0].departmentName}`
-        );
-      }
-    } else {
-      console.log("❌ MCP Server 工具調用失敗");
+    // 使用簡化的系統提示詞
+    const simplePrompt = `你是一個AI助手，可以使用工具來查詢資料。
+
+可用工具：
+- get_employee_info: 查詢員工資訊，參數：employeeId（員工編號，如A123456）
+
+工具調用格式：
+{"tool": "get_employee_info", "parameters": {"employeeId": "A123456"}}
+
+當用戶要求查詢員工資訊時，請使用工具調用格式回應。`;
+
+    console.log("=== 第一步：AI 生成工具調用 ===");
+
+    const response = await AIService.callModel({
+      provider: "ollama",
+      model: "qwen3:8b",
+      endpoint_url: "http://localhost:11434",
+      messages: [
+        {
+          role: "system",
+          content: simplePrompt,
+        },
+        {
+          role: "user",
+          content: "請查詢工號 A123456 的員工信息",
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 200,
+    });
+
+    console.log("AI 回應:", response.content);
+
+    console.log("\n=== 第二步：解析工具調用 ===");
+
+    const hasToolCalls = mcpToolParser.hasToolCalls(response.content);
+    console.log("包含工具調用:", hasToolCalls);
+
+    if (!hasToolCalls) {
+      console.log("❌ 未檢測到工具調用，測試結束");
       return;
     }
-  } catch (error) {
-    console.log(`❌ MCP Server 連接失敗: ${error.message}`);
-    return;
-  }
 
-  // 2. 測試後端聊天服務（需要認證令牌）
-  console.log("\n2️⃣ 測試後端聊天服務整合...");
-  console.log("   注意：此測試需要有效的認證令牌");
+    const toolCalls = await mcpToolParser.parseToolCalls(response.content, {
+      user_id: 1,
+    });
 
-  // 模擬聊天請求的格式
-  const chatRequest = {
-    content: "現在有哪些部門？請幫我列出清單",
-    agent_id: 27, // Qwen-Agent ID
-    temperature: 0.7,
-    max_tokens: 4096,
-  };
+    console.log("解析到工具調用數量:", toolCalls.length);
+    toolCalls.forEach((call, idx) => {
+      console.log(`${idx + 1}. 工具: ${call.name}, 參數:`, call.parameters);
+    });
 
-  console.log("   聊天請求格式:");
-  console.log(
-    `   POST ${BACKEND_URL}/api/chat/conversations/{conversationId}/messages`
-  );
-  console.log(`   Body: ${JSON.stringify(chatRequest, null, 2)}`);
+    console.log("\n=== 第三步：執行工具調用 ===");
 
-  // 3. 測試預期的回應格式
-  console.log("\n3️⃣ 預期的回應格式...");
-  const expectedResponse = {
-    success: true,
-    data: {
-      user_message: {
-        id: 123,
-        role: "user",
-        content: "現在有哪些部門？請幫我列出清單",
-      },
-      assistant_message: {
-        id: 124,
-        role: "assistant",
-        content: "以下是公司的部門列表：...",
-        metadata: {
-          has_tool_calls: true,
-          tool_calls: [
-            {
-              tool: "hr.get_department_list",
-              parameters: { includeStats: true, includeInactive: false },
-            },
-          ],
-          tool_results: [
-            {
-              success: true,
-              result: "工具調用結果會放在這裡",
-            },
-          ],
+    // 使用 mcpToolParser 的 executeToolCalls 方法，它會自動查找工具 ID
+    const results = await mcpToolParser.executeToolCalls(toolCalls, {
+      user_id: 1,
+      conversation_id: 1,
+    });
+
+    console.log("工具執行結果數量:", results.length);
+
+    for (const result of results) {
+      if (result.success) {
+        console.log("✅ 工具執行成功!");
+        console.log("工具名稱:", result.tool_name);
+        console.log("服務名稱:", result.service_name);
+        console.log("執行時間:", result.execution_time + "ms");
+
+        if (result.data) {
+          console.log("\n📊 員工資訊:");
+          if (result.data.basic) {
+            console.log("姓名:", result.data.basic.name || "未提供");
+            console.log("員工編號:", result.data.basic.employeeId || "未提供");
+            console.log("入職日期:", result.data.basic.hireDate || "未提供");
+          }
+          if (result.data.department) {
+            console.log(
+              "部門:",
+              result.data.department.departmentName || "未提供"
+            );
+            console.log(
+              "部門代碼:",
+              result.data.department.departmentCode || "未提供"
+            );
+          }
+          if (result.data.position) {
+            console.log("職位:", result.data.position.jobTitle || "未提供");
+            console.log("職級:", result.data.position.jobLevel || "未提供");
+          }
+        }
+      } else {
+        console.log("❌ 工具執行失敗:", result.error);
+      }
+    }
+
+    console.log("\n=== 第四步：生成最終回應 ===");
+
+    // 模擬第二次 AI 調用，整合工具結果
+    const finalPrompt = `基於以下工具執行結果，為用戶提供友好的回應：
+
+工具調用結果：員工 A123456 的資訊已成功查詢。
+
+請用中文回應用戶。`;
+
+    const finalResponse = await AIService.callModel({
+      provider: "ollama",
+      model: "qwen3:8b",
+      endpoint_url: "http://localhost:11434",
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是一個友好的AI助手，請根據工具執行結果為用戶提供清晰的回應。",
         },
-      },
-    },
-  };
+        {
+          role: "user",
+          content: finalPrompt,
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 300,
+    });
 
-  console.log("   assistant_message.metadata 結構:");
-  console.log(
-    JSON.stringify(expectedResponse.data.assistant_message.metadata, null, 2)
-  );
-
-  // 4. 前端 MessageBubble 顯示邏輯
-  console.log("\n4️⃣ 前端顯示邏輯...");
-  console.log("   MessageBubble.vue 應該檢查：");
-  console.log("   - message.metadata?.tool_calls?.length > 0");
-  console.log("   - 使用 effectiveToolCalls 計算屬性");
-  console.log("   - 顯示 ToolCallDisplay 組件");
-
-  // 5. 驗證修正
-  console.log("\n5️⃣ 修正驗證...");
-  console.log("✅ URL 路徑修正：/api/{module}/{toolFunction}");
-  console.log("✅ MessageBubble.vue 增加 effectiveToolCalls");
-  console.log("✅ 支持 metadata.tool_calls 讀取");
-
-  console.log("\n🎯 測試建議：");
-  console.log("1. 在前端聊天界面測試問題：'現在有哪些部門？'");
-  console.log("2. 檢查開發者工具中的網絡請求");
-  console.log("3. 查看 assistant_message.metadata 是否包含工具調用結果");
-  console.log("4. 確認前端正確顯示 ToolCallDisplay 組件");
-
-  console.log("\n🏁 完整流程測試完成");
+    console.log("最終回應:", finalResponse.content);
+  } catch (error) {
+    console.error("測試失敗:", error.message);
+  }
 }
 
-// 執行測試
-testFullWorkflow().catch(console.error);
+testFullWorkflow().then(() => {
+  console.log("\n🎉 完整工作流程測試完成");
+  process.exit(0);
+});

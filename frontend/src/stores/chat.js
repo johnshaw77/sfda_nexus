@@ -258,13 +258,32 @@ export const useChatStore = defineStore("chat", () => {
       // console.log("回應數據:", response.data);
       // console.log("回應數據結構:", JSON.stringify(response.data, null, 2));
 
-      const { user_message, assistant_message, conversation } =
+      const { user_message, assistant_message, conversation, debug_info } =
         response.data.data;
 
       // console.log("解析後的數據:");
       // console.log("用戶訊息:", user_message);
       // console.log("AI 訊息:", assistant_message);
       // console.log("對話信息:", conversation);
+
+      // 處理調試信息
+      if (debug_info && debug_info.stages) {
+        // 通過事件總線發送調試信息到調試面板
+        debug_info.stages.forEach((stage) => {
+          window.dispatchEvent(
+            new CustomEvent("debug_info", {
+              detail: {
+                sessionId: debug_info.sessionId,
+                conversationId: conversationId,
+                stage: stage.stage,
+                timestamp: stage.timestamp,
+                message: stage.data.message || `${stage.stage} 階段`,
+                ...stage.data,
+              },
+            })
+          );
+        });
+      }
 
       // 添加消息到當前對話
       if (currentConversation.value?.id === conversationId) {

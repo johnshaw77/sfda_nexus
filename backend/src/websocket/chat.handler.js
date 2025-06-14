@@ -1,47 +1,46 @@
 /**
  * WebSocket 聊天處理器
- * 處理實時聊天相關的WebSocket事件
+ * 處理實時聊天相關的 WebSocket 消息
  */
 
 import ConversationModel from "../models/Conversation.model.js";
 import MessageModel from "../models/Message.model.js";
 import AIService from "../services/ai.service.js";
+import chatService from "../services/chat.service.js";
 import { query } from "../config/database.config.js";
 import logger from "../utils/logger.util.js";
 import jwt from "jsonwebtoken";
 
 /**
- * 驗證WebSocket JWT Token
+ * 驗證 WebSocket Token
  * @param {string} token - JWT Token
- * @returns {Object|null} 用戶信息或null
+ * @returns {Promise<Object|null>} 用戶信息或 null
  */
 export const verifyWebSocketToken = async (token) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token) return null;
 
-    // 檢查token是否在黑名單中
-    const { rows: blacklistRows } = await query(
-      "SELECT * FROM token_blacklist WHERE token = ?",
-      [token]
-    );
+    // 移除 Bearer 前綴（如果存在）
+    const cleanToken = token.replace(/^Bearer\s+/, "");
 
-    if (blacklistRows.length > 0) {
-      return null;
-    }
+    // 驗證 JWT
+    const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
 
-    // 獲取用戶信息
-    const { rows: userRows } = await query(
+    // 查詢用戶信息
+    const { rows } = await query(
       "SELECT id, username, email, role, is_active FROM users WHERE id = ?",
-      [decoded.id]
+      [decoded.userId]
     );
 
-    if (userRows.length === 0 || !userRows[0].is_active) {
+    if (rows.length === 0 || !rows[0].is_active) {
       return null;
     }
 
-    return userRows[0];
+    return rows[0];
   } catch (error) {
-    logger.error("WebSocket token驗證失敗", { error: error.message });
+    logger.error("WebSocket Token 驗證失敗", {
+      error: error.message,
+    });
     return null;
   }
 };
@@ -161,10 +160,35 @@ export const handleRealtimeChat = async (
       4096 * 0.7
     );
 
+    // 🔧 生成包含 MCP 工具資訊的動態系統提示詞
+    let baseSystemPrompt = "";
+    if (conversation.agent_id) {
+      const { rows: agentRows } = await query(
+        "SELECT system_prompt FROM agents WHERE id = ?",
+        [conversation.agent_id]
+      );
+
+      if (agentRows.length > 0) {
+        baseSystemPrompt = agentRows[0].system_prompt;
+      }
+    }
+
+    // 生成包含 MCP 工具資訊的動態系統提示詞
+    const systemPromptContent = await chatService.generateSystemPrompt(
+      baseSystemPrompt || "",
+      {
+        user_id: client.userId,
+        conversation_id: conversationId,
+        model_type: model.model_type,
+      }
+    );
+
     // 準備AI調用參數
     const aiOptions = {
       provider: model.model_type,
       model: model.model_id,
+      endpoint_url: model.endpoint_url,
+      api_key: model.api_key_encrypted,
       messages: contextMessages.map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -173,34 +197,48 @@ export const handleRealtimeChat = async (
       max_tokens: 4096,
     };
 
-    // 如果有智能體，添加系統提示
-    if (conversation.agent_id) {
-      const { rows: agentRows } = await query(
-        "SELECT system_prompt FROM agents WHERE id = ?",
-        [conversation.agent_id]
-      );
-
-      if (agentRows.length > 0) {
-        aiOptions.messages.unshift({
-          role: "system",
-          content: agentRows[0].system_prompt,
-        });
-      }
+    // 如果有系統提示詞，添加到消息開頭
+    if (systemPromptContent) {
+      aiOptions.messages.unshift({
+        role: "system",
+        content: systemPromptContent,
+      });
     }
 
     // 調用AI模型
     const aiResponse = await AIService.callModel(aiOptions);
 
-    // 創建AI回應消息
+    // 🔧 處理 AI 回應，包含 MCP 工具調用檢測和執行
+    const chatResult = await chatService.processChatMessage(
+      aiResponse.content,
+      {
+        user_id: client.userId,
+        conversation_id: conversationId,
+        model_id: model.id,
+        endpoint_url: model.endpoint_url,
+      }
+    );
+
+    // 使用處理後的回應內容
+    const finalContent = chatResult.final_response || aiResponse.content;
+
+    // 創建AI回應消息（包含工具調用資訊）
     const assistantMessage = await MessageModel.create({
       conversation_id: conversationId,
       role: "assistant",
-      content: aiResponse.content,
+      content: finalContent,
       content_type: "text",
       tokens_used: aiResponse.tokens_used,
       cost: aiResponse.cost,
       model_info: aiResponse.model_info,
       processing_time: aiResponse.processing_time,
+      metadata: {
+        has_tool_calls: chatResult.has_tool_calls,
+        tool_calls: chatResult.tool_calls || [],
+        tool_results: chatResult.tool_results || [],
+        used_secondary_ai: chatResult.used_secondary_ai || false,
+        original_response: chatResult.original_response,
+      },
     });
 
     // 停止AI輸入狀態
@@ -220,6 +258,13 @@ export const handleRealtimeChat = async (
         conversationId: conversationId,
         tokens: aiResponse.tokens_used,
         cost: aiResponse.cost,
+        // 🔧 添加工具調用相關信息
+        toolInfo: {
+          hasToolCalls: chatResult.has_tool_calls,
+          toolCallsCount: chatResult.tool_calls?.length || 0,
+          toolResultsCount: chatResult.tool_results?.length || 0,
+          usedSecondaryAI: chatResult.used_secondary_ai || false,
+        },
       },
     });
 
@@ -242,6 +287,8 @@ export const handleRealtimeChat = async (
       userMessageId: userMessage.id,
       assistantMessageId: assistantMessage.id,
       tokens: aiResponse.tokens_used,
+      hasToolCalls: chatResult.has_tool_calls,
+      toolCallsCount: chatResult.tool_calls?.length || 0,
     });
   } catch (error) {
     logger.error("實時聊天處理失敗", {

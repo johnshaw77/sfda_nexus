@@ -150,16 +150,21 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       data,
     });
 
-    sendToUser(user.id, {
-      type: "debug_info",
-      data: {
-        sessionId: debugSession.sessionId,
-        conversationId,
-        stage,
-        timestamp: Date.now(),
-        ...data,
-      },
-    });
+    // 嘗試通過 WebSocket 發送（如果有連接）
+    try {
+      sendToUser(user.id, {
+        type: "debug_info",
+        data: {
+          sessionId: debugSession.sessionId,
+          conversationId,
+          stage,
+          timestamp: Date.now(),
+          ...data,
+        },
+      });
+    } catch (error) {
+      // WebSocket 發送失敗時忽略，調試信息會在響應中返回
+    }
   };
 
   sendDebugInfo("start", {
@@ -311,14 +316,6 @@ export const handleSendMessage = catchAsync(async (req, res) => {
         model_type: model.model_type,
       }
     );
-
-    // 如果有系統提示詞，添加到消息開頭
-    if (systemPromptContent) {
-      aiOptions.messages.unshift({
-        role: "system",
-        content: systemPromptContent,
-      });
-    }
 
     sendDebugInfo("system_prompt_generated", {
       message: "系統提示詞已生成",
@@ -481,6 +478,14 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       temperature: temperature || 0.7,
       max_tokens: max_tokens || 4096,
     };
+
+    // 如果有系統提示詞，添加到消息開頭
+    if (systemPromptContent) {
+      aiOptions.messages.unshift({
+        role: "system",
+        content: systemPromptContent,
+      });
+    }
 
     sendDebugInfo("ai_calling", {
       message: "正在調用 AI 模型",
@@ -650,6 +655,13 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       messageId: assistantMessage.id,
       success: true,
     });
+
+    // 在響應中包含調試信息
+    responseData.debug_info = {
+      sessionId: debugSession.sessionId,
+      stages: debugSession.stages,
+      totalTime: Date.now() - debugSession.startTime,
+    };
 
     res.json(createSuccessResponse(responseData, "訊息發送成功"));
   } catch (aiError) {
@@ -1076,13 +1088,67 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
       } else if (chunk.type === "done") {
         finalStats = chunk;
 
-        // 最終更新assistant訊息
+        // 🔧 處理工具調用 - 在串流完成後檢測和執行工具調用
+        let finalContent = chunk.full_content;
+        let toolCallMetadata = {
+          has_tool_calls: false,
+          tool_calls: [],
+          tool_results: [],
+          used_secondary_ai: false,
+          original_response: chunk.full_content,
+        };
+
+        try {
+          console.log("=== 串流模式：開始處理工具調用 ===");
+          const chatResult = await chatService.processChatMessage(
+            chunk.full_content,
+            {
+              user_id: user.id,
+              conversation_id: conversationId,
+              model_id: model.id,
+              endpoint_url: model.endpoint_url,
+            }
+          );
+
+          console.log("串流模式工具調用結果:", {
+            has_tool_calls: chatResult.has_tool_calls,
+            tool_calls_count: chatResult.tool_calls?.length || 0,
+            tool_results_count: chatResult.tool_results?.length || 0,
+          });
+
+          // 如果有工具調用，使用處理後的回應
+          if (chatResult.has_tool_calls) {
+            finalContent = chatResult.final_response || chunk.full_content;
+            toolCallMetadata = {
+              has_tool_calls: chatResult.has_tool_calls,
+              tool_calls: chatResult.tool_calls || [],
+              tool_results: chatResult.tool_results || [],
+              used_secondary_ai: chatResult.used_secondary_ai || false,
+              original_response: chatResult.original_response,
+            };
+
+            // 發送工具調用信息
+            sendSSE("tool_calls_processed", {
+              assistant_message_id: assistantMessageId,
+              tool_calls: toolCallMetadata.tool_calls,
+              tool_results: toolCallMetadata.tool_results,
+              has_tool_calls: toolCallMetadata.has_tool_calls,
+              conversation_id: conversationId,
+            });
+          }
+        } catch (toolError) {
+          console.error("串流模式工具調用處理失敗:", toolError.message);
+          // 工具調用失敗時，繼續使用原始回應
+        }
+
+        // 最終更新assistant訊息（包含工具調用結果）
         if (assistantMessageId) {
           await MessageModel.update(assistantMessageId, {
-            content: chunk.full_content,
+            content: finalContent,
             tokens_used: chunk.tokens_used,
             cost: chunk.cost,
             processing_time: chunk.processing_time,
+            metadata: toolCallMetadata,
             model_info: {
               provider: chunk.provider,
               model: chunk.model_info,
@@ -1093,14 +1159,21 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           });
         }
 
-        // 發送完成事件
+        // 發送完成事件（包含工具調用信息）
         sendSSE("stream_done", {
           assistant_message_id: assistantMessageId,
-          full_content: chunk.full_content,
+          full_content: finalContent,
           tokens_used: chunk.tokens_used,
           cost: chunk.cost,
           processing_time: chunk.processing_time,
           conversation_id: conversationId,
+          // 🔧 添加工具調用信息
+          tool_info: {
+            has_tool_calls: toolCallMetadata.has_tool_calls,
+            tool_calls_count: toolCallMetadata.tool_calls?.length || 0,
+            tool_results_count: toolCallMetadata.tool_results?.length || 0,
+            used_secondary_ai: toolCallMetadata.used_secondary_ai,
+          },
         });
 
         logger.info("AI串流回應完成", {

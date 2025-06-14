@@ -17,6 +17,43 @@ import {
 const clients = new Map();
 const rooms = new Map(); // 房間管理（用於群組聊天）
 
+// WebSocket 調試配置
+const WS_DEBUG = {
+  // 是否啟用詳細調試（可通過環境變數控制）
+  VERBOSE:
+    process.env.WS_DEBUG === "true" || process.env.NODE_ENV === "development",
+  // 需要記錄的消息類型（重要操作）
+  IMPORTANT_TYPES: ["auth", "realtime_chat", "error"],
+  // 心跳和狀態消息（通常不需要記錄）
+  QUIET_TYPES: ["ping", "pong", "typing_status", "conversation_status"],
+};
+
+/**
+ * 智能日誌記錄 - 根據消息類型決定是否記錄
+ * @param {string} level - 日誌級別
+ * @param {string} message - 日誌消息
+ * @param {Object} data - 日誌數據
+ */
+const smartLog = (level, message, data = {}) => {
+  const messageType = data.type;
+
+  // 如果是重要消息類型，總是記錄
+  if (WS_DEBUG.IMPORTANT_TYPES.includes(messageType)) {
+    logger[level](message, data);
+    return;
+  }
+
+  // 如果是安靜消息類型且未啟用詳細調試，則跳過
+  if (WS_DEBUG.QUIET_TYPES.includes(messageType) && !WS_DEBUG.VERBOSE) {
+    return;
+  }
+
+  // 其他情況根據詳細調試設置決定
+  if (WS_DEBUG.VERBOSE) {
+    logger[level](message, data);
+  }
+};
+
 /**
  * 生成客戶端ID
  * @returns {string} 唯一的客戶端ID
@@ -79,7 +116,10 @@ const joinRoom = (clientId, roomId) => {
     client.rooms.add(roomId);
   }
 
-  logger.debug("客戶端加入房間", { clientId, roomId });
+  // 只在詳細調試模式下記錄房間操作
+  if (WS_DEBUG.VERBOSE) {
+    logger.debug("客戶端加入房間", { clientId, roomId });
+  }
 };
 
 /**
@@ -101,7 +141,10 @@ const leaveRoom = (clientId, roomId) => {
     client.rooms.delete(roomId);
   }
 
-  logger.debug("客戶端離開房間", { clientId, roomId });
+  // 只在詳細調試模式下記錄房間操作
+  if (WS_DEBUG.VERBOSE) {
+    logger.debug("客戶端離開房間", { clientId, roomId });
+  }
 };
 
 /**
@@ -116,7 +159,9 @@ export const initializeWebSocket = (httpServer, wsPort = 3001) => {
     perMessageDeflate: false, // 關閉消息壓縮以提高性能
   });
 
-  logger.info(`WebSocket服務器已啟動，監聽端口: ${wsPort}`);
+  logger.info(`WebSocket服務器已啟動，監聽端口: ${wsPort}`, {
+    debugMode: WS_DEBUG.VERBOSE ? "詳細" : "簡潔",
+  });
 
   // 處理新的WebSocket連接
   wss.on("connection", (ws, request) => {
@@ -226,7 +271,8 @@ const handleMessage = async (clientId, message) => {
   const client = clients.get(clientId);
   if (!client) return;
 
-  logger.debug("收到WebSocket消息", {
+  // 使用智能日誌記錄
+  smartLog("debug", "收到WebSocket消息", {
     clientId,
     type: message.type,
     userId: client.userId,

@@ -21,35 +21,44 @@
           :offset="[10, 0]" />
       </div>
       <div class="debug-controls">
-        <a-button
-          type="text"
-          size="small"
-          @click.stop="handleResetPosition"
-          title="重置位置">
-          <AimOutlined />
-        </a-button>
-        <a-button
-          type="text"
-          size="small"
-          @click.stop="clearMessages"
-          title="清空調試信息">
-          <ClearOutlined />
-        </a-button>
-        <a-button
-          type="text"
-          size="small"
-          @click.stop="toggleAutoScroll"
-          :class="{ active: autoScroll }"
-          title="自動滾動">
-          <VerticalAlignBottomOutlined />
-        </a-button>
+        <a-tooltip title="重置位置">
+          <a-button
+            type="text"
+            size="small"
+            @click.stop="handleResetPosition"
+            title="重置位置">
+            <AimOutlined />
+          </a-button>
+        </a-tooltip>
+        <a-tooltip title="清空調試信息">
+          <a-button
+            type="text"
+            size="small"
+            @click.stop="clearMessages"
+            title="清空調試信息">
+            <ClearOutlined />
+          </a-button>
+        </a-tooltip>
 
-        <UpOutlined
-          v-if="isExpanded"
-          class="expand-icon" />
-        <DownOutlined
-          v-else
-          class="expand-icon" />
+        <a-tooltip title="自動滾動">
+          <a-button
+            type="text"
+            size="small"
+            @click.stop="toggleAutoScroll"
+            :class="{ active: autoScroll }"
+            title="自動滾動">
+            <VerticalAlignBottomOutlined />
+          </a-button>
+        </a-tooltip>
+
+        <a-tooltip title="展開/收起">
+          <UpOutlined
+            v-if="isExpanded"
+            class="expand-icon" />
+          <DownOutlined
+            v-else
+            class="expand-icon" />
+        </a-tooltip>
       </div>
     </div>
 
@@ -617,15 +626,24 @@ const handleDebugMessage = (data) => {
   scrollToBottom();
 };
 
+// 自定義事件處理（用於 HTTP 請求的調試信息）
+const handleCustomDebugEvent = (event) => {
+  handleDebugMessage(event.detail);
+};
+
 // 生命週期
 onMounted(() => {
-  // 監聽調試信息事件
+  // 監聽 WebSocket 調試信息事件
   addEventListener("debug_info", handleDebugMessage);
+
+  // 監聽自定義調試信息事件（用於 HTTP 請求）
+  window.addEventListener("debug_info", handleCustomDebugEvent);
 });
 
 onUnmounted(() => {
   // 移除事件監聽器
   removeEventListener("debug_info", handleDebugMessage);
+  window.removeEventListener("debug_info", handleCustomDebugEvent);
 });
 
 watch(

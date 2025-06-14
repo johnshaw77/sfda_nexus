@@ -15,7 +15,7 @@ export const dbConfig = {
   host: process.env.DB_HOST || "localhost",
   port: parseInt(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
+  password: process.env.DB_PASSWORD || "MyPwd@1234",
   database: process.env.DB_NAME || "sfda_nexus",
 
   // 連接池配置
@@ -58,6 +58,8 @@ let pool = null;
  */
 export const initializeDatabase = async () => {
   try {
+    console.log("🔍 初始化資料庫連接池");
+    console.log("🔍 資料庫配置:", dbConfig);
     pool = mysql.createPool(dbConfig);
 
     // 測試連接並設置字符集

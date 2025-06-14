@@ -67,6 +67,7 @@ declare module 'vue' {
     ATypographyText: typeof import('ant-design-vue/es')['TypographyText']
     AUpload: typeof import('ant-design-vue/es')['Upload']
     AvatarUpload: typeof import('./src/components/common/AvatarUpload.vue')['default']
+    ChatDebugPanel: typeof import('./src/components/chat/ChatDebugPanel.vue')['default']
     CodeHighlight: typeof import('./src/components/common/CodeHighlight.vue')['default']
     CodeHighlightCopy: typeof import('./src/components/common/CodeHighlight-copy.vue')['default']
     CodeHighlightTest: typeof import('./src/components/common/CodeHighlight-test.vue')['default']

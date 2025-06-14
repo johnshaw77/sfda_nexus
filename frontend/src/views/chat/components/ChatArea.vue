@@ -798,7 +798,7 @@ import { useConfigStore } from "@/stores/config";
 import MessageBubble from "./MessageBubble.vue";
 import ModelSelector from "./ModelSelector.vue";
 import FileAnalysisCard from "@/components/common/FileAnalysisCard.vue";
-import ChatDebugPanel from "./ChatDebugPanel.vue";
+import ChatDebugPanel from "@/components/chat/ChatDebugPanel.vue";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 import {
   getAgentQuickCommands,

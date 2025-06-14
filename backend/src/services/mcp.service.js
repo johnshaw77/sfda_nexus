@@ -293,6 +293,45 @@ class McpClient {
       const businessData =
         toolExecution?.result?.data || toolExecution?.result || {};
 
+      // 🚨 關鍵修正：檢查業務邏輯錯誤
+      // 檢查 MCP 工具是否返回了業務錯誤
+      const hasBusinessError =
+        // 檢查是否有明確的錯誤標記
+        toolExecution?.success === false ||
+        mcpResult?.success === false ||
+        // 檢查是否有錯誤信息
+        toolExecution?.error ||
+        mcpResult?.error ||
+        // 檢查業務數據是否為空（對於查詢類工具，空數據通常表示未找到）
+        (tool.name.includes("get_") &&
+          (!businessData || Object.keys(businessData).length === 0));
+
+      if (hasBusinessError) {
+        // 提取錯誤信息
+        const errorMessage =
+          toolExecution?.error?.message ||
+          toolExecution?.error ||
+          mcpResult?.error?.message ||
+          mcpResult?.error ||
+          `${tool.name} 執行失敗：未找到相關數據`;
+
+        logger.warn("MCP 工具業務邏輯錯誤", {
+          tool_id: toolId,
+          tool_name: tool.name,
+          error: errorMessage,
+          businessData,
+          user_id: context.user_id,
+        });
+
+        return {
+          success: false,
+          tool_name: tool.name,
+          service_name: tool.service_name,
+          error: errorMessage,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
       return {
         success: true,
         tool_name: tool.name,

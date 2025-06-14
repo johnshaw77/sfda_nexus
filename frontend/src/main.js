@@ -26,7 +26,8 @@ NProgress.configure({
 const app = createApp(App);
 
 // 使用插件
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
 app.use(router);
 
 // 引入 antd 的所有 icon
@@ -40,5 +41,23 @@ for (const [key, component] of Object.entries(Icons)) {
 // 引入並註冊全域組件
 import CodeHighlight from "./components/common/CodeHighlight.vue";
 app.component("CodeHighlight", CodeHighlight);
-// 掛載應用
+
+// 初始化 WebSocket 連接
+import { useWebSocketStore } from "./stores/websocket";
+import { useAuthStore } from "./stores/auth";
+
+// 在應用掛載後初始化 WebSocket
 app.mount("#app");
+
+// 等待 DOM 掛載完成後初始化 WebSocket
+setTimeout(() => {
+  const authStore = useAuthStore();
+  const wsStore = useWebSocketStore();
+
+  // 如果用戶已登錄，自動連接 WebSocket
+  if (authStore.token) {
+    console.log("🔌 自動連接 WebSocket...");
+    wsStore.initialize();
+    wsStore.connect();
+  }
+}, 100);

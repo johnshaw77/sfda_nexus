@@ -73,6 +73,17 @@ export const useAuthStore = defineStore("auth", () => {
       user.value = userData;
       saveTokens(accessToken, refreshTokenValue);
 
+      // 登錄成功後自動連接 WebSocket
+      try {
+        const { useWebSocketStore } = await import("./websocket");
+        const wsStore = useWebSocketStore();
+        console.log("🔌 登錄成功，連接 WebSocket...");
+        wsStore.initialize();
+        wsStore.connect();
+      } catch (wsError) {
+        console.error("WebSocket 連接失敗:", wsError);
+      }
+
       message.success("登入成功");
       return { success: true, user: userData };
     } catch (error) {
@@ -118,6 +129,16 @@ export const useAuthStore = defineStore("auth", () => {
     } catch (error) {
       console.error("登出請求失敗:", error);
     } finally {
+      // 登出時斷開 WebSocket 連接
+      try {
+        const { useWebSocketStore } = await import("./websocket");
+        const wsStore = useWebSocketStore();
+        console.log("🔌 登出，斷開 WebSocket...");
+        wsStore.disconnect();
+      } catch (wsError) {
+        console.error("WebSocket 斷開失敗:", wsError);
+      }
+
       clearTokens();
       message.success("已登出");
     }
