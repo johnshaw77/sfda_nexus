@@ -1941,9 +1941,13 @@ const handleQuickCommand = ({ key }) => {
   const commandText = commandMap[key];
   if (commandText) {
     messageText.value = commandText;
-    // 自動發送消息
+    // 不自動發送，讓用戶自行決定是否發送
+    // 可以選擇性地聚焦到輸入框
     nextTick(() => {
-      handleSendMessage();
+      const textarea = document.querySelector(".message-input textarea");
+      if (textarea) {
+        textarea.focus();
+      }
     });
   }
 };

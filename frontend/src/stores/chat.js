@@ -851,6 +851,16 @@ export const useChatStore = defineStore("chat", () => {
           }
 
           messages.value[contentMessageIndex].tokens_used = data.tokens_used;
+
+          // 更新思考內容（如果有的話）
+          if (data.thinking_content) {
+            messages.value[contentMessageIndex].thinking_content =
+              data.thinking_content;
+            console.log(
+              "串流中收到思考內容:",
+              data.thinking_content.substring(0, 100) + "..."
+            );
+          }
         }
         break;
 
@@ -870,6 +880,10 @@ export const useChatStore = defineStore("chat", () => {
             delete messages.value[finalMessageIndex].typingTimer;
           }
 
+          // 保存現有的思考內容（如果有的話）
+          const existingThinkingContent =
+            messages.value[finalMessageIndex].thinking_content;
+
           // 確保最終內容完整顯示
           messages.value[finalMessageIndex].content = data.full_content;
           messages.value[finalMessageIndex].tokens_used = data.tokens_used;
@@ -877,6 +891,74 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[finalMessageIndex].processing_time =
             data.processing_time;
           messages.value[finalMessageIndex].isStreaming = false; // 串流結束
+
+          // 保留思考內容（優先使用現有的，如果沒有則使用新的）
+          if (existingThinkingContent) {
+            messages.value[finalMessageIndex].thinking_content =
+              existingThinkingContent;
+            console.log("stream_done: 保留現有思考內容");
+          }
+        }
+        break;
+
+      case "tool_calls_processed":
+        // 工具調用處理完成
+        console.log("工具調用處理完成:", data);
+
+        // 更新對應的 AI 訊息，添加工具調用信息和思考內容
+        const toolMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (toolMessageIndex !== -1) {
+          // 保存現有的思考內容
+          const existingThinkingContent =
+            messages.value[toolMessageIndex].thinking_content;
+
+          // 添加工具調用相關信息
+          messages.value[toolMessageIndex].tool_calls = data.tool_calls || [];
+          messages.value[toolMessageIndex].tool_results =
+            data.tool_results || [];
+          messages.value[toolMessageIndex].has_tool_calls =
+            data.has_tool_calls || false;
+
+          // 添加思考內容（優先使用新的，如果沒有則保留現有的）
+          if (data.thinking_content) {
+            messages.value[toolMessageIndex].thinking_content =
+              data.thinking_content;
+            console.log("tool_calls_processed: 使用新的思考內容");
+          } else if (existingThinkingContent) {
+            messages.value[toolMessageIndex].thinking_content =
+              existingThinkingContent;
+            console.log("tool_calls_processed: 保留現有思考內容");
+          }
+        }
+        break;
+
+      case "thinking_content_processed":
+        // 思考內容處理完成（無工具調用時）
+        console.log("思考內容處理完成:", data);
+
+        // 更新對應的 AI 訊息，添加思考內容
+        const thinkingMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (thinkingMessageIndex !== -1) {
+          // 保存現有的思考內容
+          const existingThinkingContent =
+            messages.value[thinkingMessageIndex].thinking_content;
+
+          // 添加思考內容（優先使用新的，如果沒有則保留現有的）
+          if (data.thinking_content) {
+            messages.value[thinkingMessageIndex].thinking_content =
+              data.thinking_content;
+            console.log("thinking_content_processed: 使用新的思考內容");
+          } else if (existingThinkingContent) {
+            messages.value[thinkingMessageIndex].thinking_content =
+              existingThinkingContent;
+            console.log("thinking_content_processed: 保留現有思考內容");
+          }
         }
         break;
 

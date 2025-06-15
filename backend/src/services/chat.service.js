@@ -340,9 +340,25 @@ class ChatService {
     console.log("AI 回應內容:", aiResponse);
 
     try {
+      // 首先提取思考內容（無論是否有工具調用）
+      let thinkingContent = null;
+      let cleanedAIResponse = aiResponse;
+
+      const thinkMatch = aiResponse.match(/<think>([\s\S]*?)<\/think>/);
+      if (thinkMatch) {
+        thinkingContent = thinkMatch[1].trim();
+        // 移除 <think>...</think> 標籤及其內容
+        cleanedAIResponse = aiResponse
+          .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+          .trim();
+        console.log("=== 提取到思考內容 ===");
+        console.log("思考內容長度:", thinkingContent.length);
+        console.log("清理後回應長度:", cleanedAIResponse.length);
+      }
+
       // 檢查是否包含工具調用
       console.log("=== 檢查工具調用 ===");
-      const hasTools = mcpToolParser.hasToolCalls(aiResponse);
+      const hasTools = mcpToolParser.hasToolCalls(cleanedAIResponse);
       console.log("包含工具調用:", hasTools);
 
       if (!hasTools) {
@@ -350,7 +366,8 @@ class ChatService {
         return {
           original_response: aiResponse,
           has_tool_calls: false,
-          final_response: aiResponse,
+          final_response: cleanedAIResponse,
+          thinking_content: thinkingContent, // 即使沒有工具調用也返回思考內容
         };
       }
 
@@ -362,7 +379,10 @@ class ChatService {
 
       // 解析工具調用
       console.log("=== 開始解析工具調用 ===");
-      const toolCalls = await mcpToolParser.parseToolCalls(aiResponse, context);
+      const toolCalls = await mcpToolParser.parseToolCalls(
+        cleanedAIResponse,
+        context
+      );
       console.log("解析到工具調用數量:", toolCalls.length);
 
       if (toolCalls.length > 0) {
@@ -397,6 +417,7 @@ class ChatService {
       // 檢查是否有成功的工具執行，如果有，需要進行二次 AI 調用
       const hasSuccessfulTools = toolResults.some((result) => result.success);
       let finalResponse;
+      // thinkingContent 已在上面定義，不需要重新宣告
 
       console.log("=== 工具結果檢查 ===");
       console.log("工具結果數量:", toolResults.length);
@@ -458,13 +479,24 @@ ${formattedResults}`;
             max_tokens: 1024,
           });
 
-          // 處理二次 AI 調用的回應，移除 <think> 標籤
+          // 處理二次 AI 調用的回應，提取 <think> 標籤內容
           let cleanedResponse = secondaryAIResponse.content || formattedResults;
 
-          // 移除 <think>...</think> 標籤及其內容
-          cleanedResponse = cleanedResponse
-            .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
-            .trim();
+          // 提取 <think>...</think> 標籤內容（如果二次調用中也有思考內容）
+          const secondaryThinkMatch = cleanedResponse.match(
+            /<think>([\s\S]*?)<\/think>/
+          );
+          if (secondaryThinkMatch) {
+            // 如果二次調用中也有思考內容，合併或替換
+            const secondaryThinking = secondaryThinkMatch[1].trim();
+            thinkingContent = thinkingContent
+              ? `${thinkingContent}\n\n--- 二次思考 ---\n${secondaryThinking}`
+              : secondaryThinking;
+            // 移除 <think>...</think> 標籤及其內容
+            cleanedResponse = cleanedResponse
+              .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+              .trim();
+          }
 
           finalResponse = cleanedResponse || formattedResults;
           console.log("=== 二次 AI 調用成功 ===");
@@ -502,6 +534,7 @@ ${formattedResults}`;
         formatted_results: formattedResults,
         final_response: finalResponse,
         used_secondary_ai: hasSuccessfulTools,
+        thinking_content: thinkingContent, // 添加思考內容
       };
       console.log("最終結果:", {
         has_tool_calls: result.has_tool_calls,

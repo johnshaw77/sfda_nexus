@@ -152,16 +152,16 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
     // 嘗試通過 WebSocket 發送（如果有連接）
     try {
-    sendToUser(user.id, {
-      type: "debug_info",
-      data: {
-        sessionId: debugSession.sessionId,
-        conversationId,
-        stage,
-        timestamp: Date.now(),
-        ...data,
-      },
-    });
+      sendToUser(user.id, {
+        type: "debug_info",
+        data: {
+          sessionId: debugSession.sessionId,
+          conversationId,
+          stage,
+          timestamp: Date.now(),
+          ...data,
+        },
+      });
     } catch (error) {
       // WebSocket 發送失敗時忽略，調試信息會在響應中返回
     }
@@ -587,6 +587,8 @@ export const handleSendMessage = catchAsync(async (req, res) => {
         tool_calls: chatResult.tool_calls || [],
         tool_results: chatResult.tool_results || [],
         original_response: chatResult.original_response,
+        thinking_content:
+          chatResult.thinking_content || aiResponse.thinking_content || null, // 添加思考內容
       },
     });
 
@@ -1036,11 +1038,22 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     let finalStats = null;
 
     // 處理串流回應
+    let accumulatedThinkingContent = "";
+
     for await (const chunk of aiStreamGenerator) {
       // 檢查客戶端是否仍然連接
       if (!isClientConnected) {
         logger.info("客戶端已斷開，停止串流處理", { conversationId });
         break;
+      }
+
+      // 累積思考內容（如果有的話）
+      if (chunk.thinking_content) {
+        accumulatedThinkingContent = chunk.thinking_content;
+        console.log(
+          "=== 串流接收到思考內容 ===",
+          accumulatedThinkingContent.substring(0, 100) + "..."
+        );
       }
 
       if (chunk.type === "content") {
@@ -1050,6 +1063,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
         const sent = sendSSE("stream_content", {
           content: chunk.content,
           full_content: fullContent,
+          thinking_content: accumulatedThinkingContent, // 包含思考內容
           tokens_used: chunk.tokens_used,
           assistant_message_id: assistantMessageId,
         });
@@ -1089,16 +1103,21 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
 
         // 🔧 處理工具調用 - 在串流完成後檢測和執行工具調用
         let finalContent = chunk.full_content;
+        let finalThinkingContent =
+          accumulatedThinkingContent || chunk.thinking_content;
         let toolCallMetadata = {
           has_tool_calls: false,
           tool_calls: [],
           tool_results: [],
           used_secondary_ai: false,
           original_response: chunk.full_content,
+          thinking_content: finalThinkingContent, // 使用累積的思考內容
         };
 
         try {
           console.log("=== 串流模式：開始處理工具調用 ===");
+          console.log("累積的思考內容長度:", finalThinkingContent?.length || 0);
+
           const chatResult = await chatService.processChatMessage(
             chunk.full_content,
             {
@@ -1116,17 +1135,27 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
             has_tool_calls: chatResult.has_tool_calls,
             tool_calls_count: chatResult.tool_calls?.length || 0,
             tool_results_count: chatResult.tool_results?.length || 0,
+            has_thinking_content: !!chatResult.thinking_content,
+            stream_thinking_content: !!finalThinkingContent,
           });
+
+          // 更新最終內容（無論是否有工具調用）
+          finalContent = chatResult.final_response || chunk.full_content;
+
+          // 優先使用串流中的思考內容，如果沒有則使用chat service提取的
+          if (!finalThinkingContent && chatResult.thinking_content) {
+            finalThinkingContent = chatResult.thinking_content;
+          }
 
           // 如果有工具調用，使用處理後的回應
           if (chatResult.has_tool_calls) {
-            finalContent = chatResult.final_response || chunk.full_content;
             toolCallMetadata = {
               has_tool_calls: chatResult.has_tool_calls,
               tool_calls: chatResult.tool_calls || [],
               tool_results: chatResult.tool_results || [],
               used_secondary_ai: chatResult.used_secondary_ai || false,
               original_response: chatResult.original_response,
+              thinking_content: finalThinkingContent, // 使用最終的思考內容
             };
 
             // 發送工具調用信息
@@ -1135,12 +1164,21 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               tool_calls: toolCallMetadata.tool_calls,
               tool_results: toolCallMetadata.tool_results,
               has_tool_calls: toolCallMetadata.has_tool_calls,
+              thinking_content: finalThinkingContent, // 發送最終的思考內容
+              conversation_id: conversationId,
+            });
+          } else if (finalThinkingContent) {
+            // 即使沒有工具調用，如果有思考內容也要發送
+            sendSSE("thinking_content_processed", {
+              assistant_message_id: assistantMessageId,
+              thinking_content: finalThinkingContent,
               conversation_id: conversationId,
             });
           }
         } catch (toolError) {
           console.error("串流模式工具調用處理失敗:", toolError.message);
-          // 工具調用失敗時，繼續使用原始回應
+          // 工具調用失敗時，繼續使用原始回應，但保留思考內容
+          toolCallMetadata.thinking_content = finalThinkingContent;
         }
 
         // 最終更新assistant訊息（包含工具調用結果）

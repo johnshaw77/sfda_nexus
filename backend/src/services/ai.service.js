@@ -21,6 +21,7 @@ export class AIService {
       max_tokens = 4096,
       stream = false,
       endpoint_url,
+      enable_thinking = true, // 新增：啟用思考模式參數
     } = options;
 
     try {
@@ -64,6 +65,12 @@ export class AIService {
         ? this.convertToOllamaFormat(messages)
         : messages;
 
+      // 檢查是否為支援思考模式的模型
+      const isThinkingModel =
+        model.toLowerCase().includes("qwen3") ||
+        model.toLowerCase().includes("deepseek-r1") ||
+        model.toLowerCase().includes("smallthinker");
+
       const requestData = {
         model: model,
         messages: ollamaMessages,
@@ -73,6 +80,14 @@ export class AIService {
         },
         stream: stream,
       };
+
+      // 為支援思考模式的模型添加 think 參數
+      if (isThinkingModel && enable_thinking) {
+        requestData.think = true;
+        console.log("=== 啟用思考模式 ===");
+        console.log("模型支援思考模式:", model);
+        console.log("思考模式已啟用");
+      }
 
       logger.debug("調用 Ollama 模型", {
         model,
@@ -96,10 +111,14 @@ export class AIService {
 
       const processingTime = Date.now() - startTime;
 
+      const messageContent = response.data.message?.content || "";
+      const thinkingContent = response.data.message?.thinking || null;
+
       const result = {
-        content: response.data.message?.content || "",
+        content: messageContent,
+        thinking_content: thinkingContent, // 新增：思考內容
         model: model,
-        tokens_used: this.estimateTokens(response.data.message?.content || ""),
+        tokens_used: this.estimateTokens(messageContent),
         cost: 0, // Ollama 本地模型無費用
         processing_time: processingTime,
         provider: "ollama",
@@ -119,9 +138,21 @@ export class AIService {
       // 調試：打印完整的 AI 回應信息
       console.log("=== OLLAMA AI 回應調試信息 ===");
       console.log("多模態請求:", hasMultimodal ? "是" : "否");
+      console.log(
+        "思考模式啟用:",
+        isThinkingModel && enable_thinking ? "是" : "否"
+      );
       console.log("原始回應數據:", JSON.stringify(response.data, null, 2));
       console.log("解析後的回應內容:", result.content);
       console.log("回應內容長度:", result.content.length);
+      if (result.thinking_content) {
+        console.log("=== 思考內容 ===");
+        console.log("思考內容長度:", result.thinking_content.length);
+        console.log(
+          "思考內容預覽:",
+          result.thinking_content.substring(0, 200) + "..."
+        );
+      }
       console.log("估算 tokens:", result.tokens_used);
       console.log("處理時間:", processingTime, "ms");
 
@@ -413,12 +444,16 @@ export class AIService {
       // 檢查是否有多模態內容
       const hasMultimodal = messages.some((msg) => Array.isArray(msg.content));
 
+      // 檢查是否為支持思考模式的模型
+      const isThinkingModel = this.isThinkingCapableModel(model);
+
       console.log("=== OLLAMA 串流調用開始 ===");
       console.log("URL:", `${ollamaUrl}/api/chat`);
       console.log("模型:", model);
       console.log("端點URL:", ollamaUrl);
       console.log("消息數量:", messages.length);
       console.log("多模態內容:", hasMultimodal ? "是" : "否");
+      console.log("思考模式:", isThinkingModel ? "啟用" : "不支持");
       console.log("串流模式: 啟用");
       console.log("使用資料庫配置的端點:", endpoint_url ? "是" : "否");
 
@@ -444,22 +479,31 @@ export class AIService {
         });
       }
 
+      // 構建請求數據
+      const requestData = {
+        model: model,
+        messages: hasMultimodal
+          ? this.convertToOllamaFormat(messages)
+          : messages,
+        stream: true, // 啟用串流
+        options: {
+          temperature: temperature,
+          num_predict: max_tokens,
+        },
+      };
+
+      // 為支持思考模式的模型添加 think 參數
+      if (isThinkingModel) {
+        requestData.think = true;
+        console.log("=== 思考模式已啟用 ===");
+      }
+
       const response = await fetch(`${ollamaUrl}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: model,
-          messages: hasMultimodal
-            ? this.convertToOllamaFormat(messages)
-            : messages,
-          stream: true, // 啟用串流
-          options: {
-            temperature: temperature,
-            num_predict: max_tokens,
-          },
-        }),
+        body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
@@ -472,12 +516,16 @@ export class AIService {
       if (hasMultimodal) {
         console.log("準備接收多模態串流回應...");
       }
+      if (isThinkingModel) {
+        console.log("準備接收思考內容...");
+      }
 
       // 返回串流生成器
       return this.createOllamaStreamGenerator(
         response,
         startTime,
-        hasMultimodal
+        hasMultimodal,
+        isThinkingModel
       );
     } catch (error) {
       console.error("=== OLLAMA 串流調用失敗 ===");
@@ -492,13 +540,15 @@ export class AIService {
   static async *createOllamaStreamGenerator(
     response,
     startTime,
-    hasMultimodal
+    hasMultimodal,
+    isThinkingModel
   ) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let totalTokens = 0;
     let fullContent = "";
+    let thinkingContent = "";
 
     try {
       while (true) {
@@ -519,6 +569,15 @@ export class AIService {
             try {
               const data = JSON.parse(line);
 
+              // 處理思考內容
+              if (isThinkingModel && data.message && data.message.thinking) {
+                thinkingContent += data.message.thinking;
+                console.log(
+                  "=== 串流思考內容 ===",
+                  data.message.thinking.substring(0, 100) + "..."
+                );
+              }
+
               if (data.message && data.message.content) {
                 const content = data.message.content;
                 fullContent += content;
@@ -529,6 +588,7 @@ export class AIService {
                   type: "content",
                   content: content,
                   full_content: fullContent,
+                  thinking_content: thinkingContent,
                   tokens_used: totalTokens,
                   done: data.done || false,
                   model: data.model,
@@ -541,9 +601,19 @@ export class AIService {
 
                 console.log("=== OLLAMA 串流完成 ===");
                 console.log("多模態請求:", hasMultimodal ? "是" : "否");
+                console.log("思考模式:", isThinkingModel ? "是" : "否");
                 console.log("總內容長度:", fullContent.length);
+                console.log("思考內容長度:", thinkingContent.length);
                 console.log("處理時間:", processingTime, "ms");
                 console.log("總 tokens:", totalTokens);
+
+                if (isThinkingModel && thinkingContent) {
+                  console.log("=== 串流思考內容提取完成 ===");
+                  console.log(
+                    "思考內容預覽:",
+                    thinkingContent.substring(0, 200) + "..."
+                  );
+                }
 
                 if (hasMultimodal) {
                   console.log("=== 串流多模態處理結果 ===");
@@ -562,6 +632,7 @@ export class AIService {
                 yield {
                   type: "done",
                   full_content: fullContent,
+                  thinking_content: thinkingContent,
                   tokens_used: totalTokens,
                   processing_time: processingTime,
                   cost: this.calculateCost("ollama", totalTokens),
@@ -966,6 +1037,22 @@ export class AIService {
     const outputCost = (outputTokens / 1000) * modelPricing.output;
 
     return inputCost + outputCost;
+  }
+
+  /**
+   * 檢查模型是否支持思考模式
+   * @param {string} model - 模型名稱
+   * @returns {boolean} 是否支持思考模式
+   */
+  static isThinkingCapableModel(model) {
+    if (!model) return false;
+
+    const modelLower = model.toLowerCase();
+    const thinkingModels = ["qwen3", "deepseek-r1", "smallthinker"];
+
+    return thinkingModels.some((thinkingModel) =>
+      modelLower.includes(thinkingModel)
+    );
   }
 
   /**

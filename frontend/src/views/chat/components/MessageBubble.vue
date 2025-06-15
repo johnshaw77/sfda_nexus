@@ -133,6 +133,32 @@
         </div>
       </div>
 
+      <!-- 思考過程顯示 -->
+      <div
+        v-if="message.role === 'assistant' && getThinkingContent()"
+        class="thinking-section">
+        <div
+          class="thinking-header"
+          @click="toggleThinkingCollapse"
+          style="cursor: pointer">
+          <div class="thinking-header-left">
+            <BulbOutlined />
+            <span>思考過程</span>
+          </div>
+          <div class="thinking-header-right">
+            <DownOutlined
+              :class="['collapse-icon', { collapsed: thinkingCollapsed }]" />
+          </div>
+        </div>
+        <div
+          v-show="!thinkingCollapsed"
+          class="thinking-content">
+          <div class="thinking-text">
+            {{ getThinkingContent() }}
+          </div>
+        </div>
+      </div>
+
       <!-- 主要內容 -->
       <div class="message-text">
         <!-- AI 消息 - 錯誤訊息使用純文本顯示 -->
@@ -442,6 +468,7 @@ const isUserMessageCollapsed = ref(true);
 const shouldShowExpandButton = ref(false);
 const codeHighlightRef = ref(null);
 const toolCallsCollapsed = ref(true); // 工具調用預設為折疊狀態
+const thinkingCollapsed = ref(true); // 思考過程預設為折疊狀態
 
 // 用戶消息的最大高度（行數）
 const MAX_USER_MESSAGE_LINES = 6;
@@ -594,6 +621,11 @@ const toggleToolCallsCollapse = () => {
   toolCallsCollapsed.value = !toolCallsCollapsed.value;
 };
 
+// 切換思考過程折疊狀態
+const toggleThinkingCollapse = () => {
+  thinkingCollapsed.value = !thinkingCollapsed.value;
+};
+
 // 計算屬性：獲取當前智能體頭像
 const currentAgentAvatar = computed(() => {
   // 如果消息中有 agent_id，查找對應智能體
@@ -617,6 +649,21 @@ const currentAgentAvatar = computed(() => {
   // 默認返回 null，會使用默認頭像
   return null;
 });
+
+// 獲取思考內容的方法
+const getThinkingContent = () => {
+  // 優先從直接屬性獲取（流式模式）
+  if (props.message.thinking_content) {
+    return props.message.thinking_content;
+  }
+
+  // 從 metadata 獲取（非流式模式）
+  if (props.message.metadata?.thinking_content) {
+    return props.message.metadata.thinking_content;
+  }
+
+  return null;
+};
 
 // 計算屬性
 const getSenderName = () => {
@@ -1260,6 +1307,86 @@ const handleImageError = (event) => {
 }
 
 :root[data-theme="dark"] .collapse-icon {
+  color: var(--custom-text-secondary);
+}
+
+/* 思考過程樣式 */
+.thinking-section {
+  margin-top: 12px;
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 8px;
+  background: var(--custom-bg-secondary);
+  overflow: hidden;
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--custom-bg-tertiary);
+  border-bottom: 1px solid var(--custom-border-primary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--custom-text-secondary);
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.thinking-header:hover {
+  background: var(--custom-bg-quaternary);
+}
+
+.thinking-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thinking-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.thinking-content {
+  padding: 12px;
+  background: var(--custom-bg-primary);
+}
+
+.thinking-text {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--custom-text-secondary);
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-left: 3px solid #faad14;
+}
+
+/* 暗黑模式下的思考過程樣式 */
+:root[data-theme="dark"] .thinking-section {
+  border-color: var(--custom-border-secondary);
+  background: var(--custom-bg-primary);
+}
+
+:root[data-theme="dark"] .thinking-header {
+  background: var(--custom-bg-secondary);
+  border-bottom-color: var(--custom-border-secondary);
+  color: var(--custom-text-primary);
+}
+
+:root[data-theme="dark"] .thinking-header:hover {
+  background: var(--custom-bg-tertiary);
+}
+
+:root[data-theme="dark"] .thinking-content {
+  background: var(--custom-bg-primary);
+}
+
+:root[data-theme="dark"] .thinking-text {
+  background: rgba(255, 255, 255, 0.02);
   color: var(--custom-text-secondary);
 }
 
