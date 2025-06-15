@@ -1059,7 +1059,27 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
       if (chunk.type === "content") {
         fullContent = chunk.full_content || fullContent + chunk.content;
 
-        // 發送串流內容
+        // 🔧 修復：如果是第一個內容塊，先創建assistant訊息記錄
+        if (!assistantMessageId) {
+          const assistantMessage = await MessageModel.create({
+            conversation_id: conversationId,
+            role: "assistant",
+            content: fullContent,
+            content_type: "text",
+            tokens_used: chunk.tokens_used,
+            model_info: { provider: chunk.provider, model: chunk.model },
+            processing_time: null, // 串流模式下會在最後更新
+          });
+          assistantMessageId = assistantMessage.id;
+
+          // 🔧 修復：先發送 assistant_message_created 事件
+          sendSSE("assistant_message_created", {
+            assistant_message_id: assistantMessageId,
+            conversation_id: conversationId,
+          });
+        }
+
+        // 🔧 修復：然後發送串流內容（確保前端已有 assistant 消息）
         const sent = sendSSE("stream_content", {
           content: chunk.content,
           full_content: fullContent,
@@ -1074,25 +1094,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           break;
         }
 
-        // 如果是第一個內容塊，創建assistant訊息記錄
-        if (!assistantMessageId) {
-          const assistantMessage = await MessageModel.create({
-            conversation_id: conversationId,
-            role: "assistant",
-            content: fullContent,
-            content_type: "text",
-            tokens_used: chunk.tokens_used,
-            model_info: { provider: chunk.provider, model: chunk.model },
-            processing_time: null, // 串流模式下會在最後更新
-          });
-          assistantMessageId = assistantMessage.id;
-
-          sendSSE("assistant_message_created", {
-            assistant_message_id: assistantMessageId,
-            conversation_id: conversationId,
-          });
-        } else {
-          // 更新existing assistant訊息
+        // 更新 assistant 訊息
+        if (assistantMessageId) {
           await MessageModel.update(assistantMessageId, {
             content: fullContent,
             tokens_used: chunk.tokens_used,

@@ -575,8 +575,8 @@ export class AIService {
               if (isThinkingModel && data.message && data.message.thinking) {
                 thinkingContent += data.message.thinking;
                 console.log(
-                  "=== DeepSeek 串流思考內容 ===",
-                  data.message.thinking.substring(0, 50) + "..."
+                  "=== 串流思考內容 ===",
+                  data.message.thinking.substring(0, 100) + "..."
                 );
               }
 
