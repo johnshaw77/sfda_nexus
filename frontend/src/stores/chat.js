@@ -29,6 +29,7 @@ export const useChatStore = defineStore("chat", () => {
   const aiTyping = ref(false);
   const isStreaming = ref(false);
   const streamController = ref(null); // 用於控制串流停止
+  const streamingMessageId = ref(null); // 當前正在串流的消息 ID
 
   // 分頁狀態
   const conversationPagination = ref({
@@ -796,6 +797,9 @@ export const useChatStore = defineStore("chat", () => {
         // AI 助手訊息記錄已創建
         //console.log("AI 訊息記錄已創建:", data.assistant_message_id);
 
+        // 設置當前串流的消息 ID
+        streamingMessageId.value = data.assistant_message_id;
+
         // 創建新的 AI 訊息對象，準備接收串流內容
         const newAssistantMessage = {
           id: data.assistant_message_id,
@@ -854,12 +858,24 @@ export const useChatStore = defineStore("chat", () => {
 
           // 更新思考內容（如果有的話）
           if (data.thinking_content) {
-            messages.value[contentMessageIndex].thinking_content =
-              data.thinking_content;
             console.log(
-              "串流中收到思考內容:",
+              "🧠 串流中收到思考內容:",
               data.thinking_content.substring(0, 100) + "..."
             );
+            console.log("🧠 思考內容長度:", data.thinking_content.length);
+            console.log("🧠 消息索引:", contentMessageIndex);
+            console.log("🧠 消息ID:", messages.value[contentMessageIndex]?.id);
+
+            // 直接更新思考內容
+            messages.value[contentMessageIndex].thinking_content =
+              data.thinking_content;
+
+            // 確保消息標記為流式狀態
+            messages.value[contentMessageIndex].isStreaming = true;
+
+            // 強制觸發響應式更新
+            const updatedMessage = { ...messages.value[contentMessageIndex] };
+            messages.value.splice(contentMessageIndex, 1, updatedMessage);
           }
         }
         break;
@@ -867,6 +883,11 @@ export const useChatStore = defineStore("chat", () => {
       case "stream_done":
         // 串流完成
         //console.log("串流完成:", data);
+
+        // 清除當前串流的消息 ID
+        if (streamingMessageId.value === data.assistant_message_id) {
+          streamingMessageId.value = null;
+        }
 
         // 更新最終訊息狀態
         const finalMessageIndex = messages.value.findIndex(
@@ -1068,6 +1089,7 @@ export const useChatStore = defineStore("chat", () => {
     isTyping,
     aiTyping,
     isStreaming,
+    streamingMessageId,
     conversationPagination,
     messagePagination,
 

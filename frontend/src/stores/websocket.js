@@ -5,7 +5,7 @@
 
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { message } from "ant-design-vue";
+import { message as antMessage } from "ant-design-vue";
 import { useAuthStore } from "./auth";
 
 export const useWebSocketStore = defineStore("websocket", () => {
@@ -92,7 +92,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
         if (reconnectAttempts.value < maxReconnectAttempts) {
           handleReconnect();
         } else {
-          message.error("WebSocket連接失敗，請檢查網絡連接");
+          antMessage.error("WebSocket連接失敗，請檢查網絡連接");
         }
       };
 
@@ -176,12 +176,14 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
       case "auth_error":
         console.error("WebSocket認證失敗:", data.message);
-        message.error(`WebSocket認證失敗: ${data.message}`);
+        // 暫時禁用錯誤提示，專注於測試思考模式
+        // antMessage.error(`WebSocket認證失敗: ${data.message}`);
         break;
 
       case "error":
         console.error("WebSocket錯誤:", data.message);
-        message.error(data.message);
+        // 暫時禁用錯誤提示，專注於測試思考模式
+        // antMessage.error(data.message);
         break;
 
       case "pong":

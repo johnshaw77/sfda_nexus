@@ -549,6 +549,8 @@ export class AIService {
     let totalTokens = 0;
     let fullContent = "";
     let thinkingContent = "";
+    let isInThinkingMode = false;
+    let currentThinkingBuffer = "";
 
     try {
       while (true) {
@@ -569,26 +571,89 @@ export class AIService {
             try {
               const data = JSON.parse(line);
 
-              // 處理思考內容
+              // 處理 DeepSeek-R1 的思考內容（直接從 message.thinking）
               if (isThinkingModel && data.message && data.message.thinking) {
                 thinkingContent += data.message.thinking;
                 console.log(
-                  "=== 串流思考內容 ===",
-                  data.message.thinking.substring(0, 100) + "..."
+                  "=== DeepSeek 串流思考內容 ===",
+                  data.message.thinking.substring(0, 50) + "..."
                 );
               }
 
               if (data.message && data.message.content) {
                 const content = data.message.content;
-                fullContent += content;
+                let processedContent = content;
+                let currentThinking = "";
+
+                // 處理 Qwen3 的 <think> 標籤
+                if (isThinkingModel) {
+                  const thinkStart = content.indexOf("<think>");
+                  const thinkEnd = content.indexOf("</think>");
+
+                  if (thinkStart !== -1 && !isInThinkingMode) {
+                    // 發現思考開始標籤
+                    isInThinkingMode = true;
+                    console.log("🧠 開始 Qwen3 思考模式");
+
+                    // 提取 <think> 之前的內容作為正常回應
+                    processedContent = content.substring(0, thinkStart);
+
+                    // 如果同一塊中有結束標籤
+                    if (thinkEnd !== -1) {
+                      // 完整的思考塊
+                      const thinkContent = content.substring(
+                        thinkStart + 7,
+                        thinkEnd
+                      );
+                      thinkingContent += thinkContent;
+                      processedContent += content.substring(thinkEnd + 8);
+                      isInThinkingMode = false;
+                      console.log(
+                        "🧠 完整思考塊:",
+                        thinkContent.substring(0, 50) + "..."
+                      );
+                    } else {
+                      // 只有開始標籤，開始收集
+                      currentThinkingBuffer = content.substring(thinkStart + 7);
+                    }
+                  } else if (isInThinkingMode) {
+                    // 在思考模式中
+                    if (thinkEnd !== -1) {
+                      // 找到結束標籤
+                      currentThinkingBuffer += content.substring(0, thinkEnd);
+                      thinkingContent += currentThinkingBuffer;
+                      processedContent = content.substring(thinkEnd + 8);
+                      isInThinkingMode = false;
+                      currentThinkingBuffer = "";
+                      console.log(
+                        "🧠 思考內容完成:",
+                        thinkingContent.substring(thinkingContent.length - 50)
+                      );
+                    } else {
+                      // 仍在思考中，繼續收集
+                      currentThinkingBuffer += content;
+                      thinkingContent += content;
+                      processedContent = "";
+                      console.log(
+                        "🧠 收集思考內容:",
+                        content.substring(0, 20) + "..."
+                      );
+                    }
+                  }
+                }
+
+                // 只有非思考內容才添加到 fullContent
+                if (processedContent) {
+                  fullContent += processedContent;
+                }
                 totalTokens++;
 
                 // 產出串流數據塊
                 yield {
                   type: "content",
-                  content: content,
+                  content: processedContent, // 發送處理後的內容（不包含 <think> 標籤）
                   full_content: fullContent,
-                  thinking_content: thinkingContent,
+                  thinking_content: thinkingContent, // 發送累積的思考內容
                   tokens_used: totalTokens,
                   done: data.done || false,
                   model: data.model,

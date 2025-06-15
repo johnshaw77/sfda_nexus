@@ -470,6 +470,21 @@ const codeHighlightRef = ref(null);
 const toolCallsCollapsed = ref(true); // 工具調用預設為折疊狀態
 const thinkingCollapsed = ref(true); // 思考過程預設為折疊狀態
 
+// 計算屬性：判斷消息是否正在串流
+const isMessageStreaming = computed(() => {
+  // 檢查消息是否正在串流
+  return (
+    props.message.metadata?.streaming ||
+    props.message.streaming ||
+    chatStore.streamingMessageId === props.message.id
+  );
+});
+
+// 計算屬性：判斷是否有思考內容
+const hasThinkingContent = computed(() => {
+  return !!getThinkingContent();
+});
+
 // 用戶消息的最大高度（行數）
 const MAX_USER_MESSAGE_LINES = 6;
 
@@ -654,11 +669,19 @@ const currentAgentAvatar = computed(() => {
 const getThinkingContent = () => {
   // 優先從直接屬性獲取（流式模式）
   if (props.message.thinking_content) {
+    console.log(
+      "🧠 從直接屬性獲取思考內容:",
+      props.message.thinking_content.length
+    );
     return props.message.thinking_content;
   }
 
   // 從 metadata 獲取（非流式模式）
   if (props.message.metadata?.thinking_content) {
+    console.log(
+      "🧠 從 metadata 獲取思考內容:",
+      props.message.metadata.thinking_content.length
+    );
     return props.message.metadata.thinking_content;
   }
 
@@ -691,6 +714,69 @@ watch(
     if (props.message.role === "user") {
       nextTick(() => {
         checkUserMessageHeight();
+      });
+    }
+  },
+  { immediate: true }
+);
+
+// 監控思考內容和串流狀態變化
+watch(
+  [hasThinkingContent, isMessageStreaming],
+  ([hasThinking, isStreaming]) => {
+    console.log("🧠 思考內容狀態變化:", { hasThinking, isStreaming });
+
+    if (hasThinking) {
+      if (isStreaming) {
+        // 串流中且有思考內容時，展開思考區域
+        thinkingCollapsed.value = false;
+        console.log("🧠 思考內容串流中，展開思考區域");
+      } else {
+        // 串流完成後，延遲 2 秒自動折疊思考區域
+        setTimeout(() => {
+          if (!isMessageStreaming.value) {
+            thinkingCollapsed.value = true;
+            console.log("🧠 思考內容串流完成，自動折疊思考區域");
+          }
+        }, 2000);
+      }
+    }
+  },
+  { immediate: true }
+);
+
+// 監控思考內容變化（用於調試）
+watch(
+  () => getThinkingContent(),
+  (newThinking, oldThinking) => {
+    if (newThinking !== oldThinking) {
+      console.log("🧠 思考內容更新:", {
+        hasContent: !!newThinking,
+        length: newThinking?.length || 0,
+        preview: newThinking?.substring(0, 100) + "..." || "無內容",
+        messageId: props.message.id,
+        isStreaming: isMessageStreaming.value,
+      });
+
+      // 如果有思考內容且正在流式傳輸，確保思考區域展開
+      if (newThinking && isMessageStreaming.value) {
+        thinkingCollapsed.value = false;
+        console.log("🧠 自動展開思考區域");
+      }
+    }
+  },
+  { immediate: true }
+);
+
+// 監控消息的思考內容屬性變化
+watch(
+  () => props.message.thinking_content,
+  (newContent) => {
+    if (newContent) {
+      console.log("🧠 直接屬性變化:", {
+        length: newContent.length,
+        preview: newContent.substring(0, 50) + "...",
+        messageId: props.message.id,
       });
     }
   },
