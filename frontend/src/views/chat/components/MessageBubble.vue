@@ -8,41 +8,85 @@
       'error-message': isErrorMessage,
     }">
     <!-- 消息頭部信息 -->
-    <!--
     <div class="message-header">
-       <div class="message-avatar">
+      <div class="message-avatar">
+        <!-- 用戶頭像 -->
         <a-avatar
           v-if="message.role === 'user'"
           :size="32"
-          :style="{ backgroundColor: '#1890ff' }">
-          <UserOutlined />
+          :src="authStore.user?.avatar"
+          :style="{
+            backgroundColor: authStore.user?.avatar ? 'transparent' : '#1890ff',
+          }">
+          <UserOutlined v-if="!authStore.user?.avatar" />
         </a-avatar>
-        <a-avatar
+
+        <!-- AI智能體頭像 -->
+        <div
           v-else-if="message.role === 'assistant'"
-          :size="32"
-          :style="{ backgroundColor: '#52c41a' }">
-          <RobotOutlined />
-        </a-avatar>
+          class="agent-avatar-wrapper">
+          <!-- 如果智能體有 base64 avatar，顯示圖片 -->
+          <a-avatar
+            v-if="
+              currentAgentAvatar &&
+              typeof currentAgentAvatar === 'string' &&
+              currentAgentAvatar.startsWith('data:')
+            "
+            :size="32"
+            :src="currentAgentAvatar"
+            class="agent-avatar-image" />
+          <!-- 如果智能體有頭像配置但不是圖片，使用漸變背景 -->
+          <a-avatar
+            v-else-if="
+              currentAgentAvatar && typeof currentAgentAvatar === 'object'
+            "
+            :size="32"
+            :style="{
+              backgroundColor: 'transparent',
+              background:
+                currentAgentAvatar.gradient ||
+                currentAgentAvatar.background ||
+                '#52c41a',
+            }"
+            class="agent-avatar-bg">
+            <!-- 如果有自定義圖標 -->
+            <svg
+              v-if="currentAgentAvatar.icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="currentColor">
+              <path :d="currentAgentAvatar.icon" />
+            </svg>
+            <!-- 沒有自定義圖標使用默認 -->
+            <RobotOutlined v-else />
+          </a-avatar>
+          <!-- 沒有頭像配置時使用默認 -->
+          <a-avatar
+            v-else
+            :size="32"
+            :style="{ backgroundColor: '#52c41a' }">
+            <RobotOutlined />
+          </a-avatar>
+        </div>
+
+        <!-- 系統消息頭像 -->
         <a-avatar
           v-else
           :size="32"
           :style="{ backgroundColor: '#faad14' }">
           <InfoCircleOutlined />
         </a-avatar>
-      </div> -->
-    <!-- TODO: 先暫時隱藏 -->
-    <!-- <div class="message-info">
+      </div>
+      <div class="message-info">
         <div class="message-sender">
           {{ getSenderName() }}
         </div>
         <div class="message-time">
-          {{ formatTime(message.created_at) }}
+          {{ formatMessageTime(message.created_at) }}
         </div>
-      </div> 
-
-
-      
-    </div> -->
+      </div>
+    </div>
 
     <!-- 消息內容 TODO: 做TEST-->
     <div class="message-content">
@@ -59,6 +103,33 @@
         </div>
         <div class="quote-content">
           {{ getQuotePreview(message.quoted_message.content) }}
+        </div>
+      </div>
+
+      <!-- 工具調用結果顯示 - 移到最終回應內容之前 -->
+      <div
+        v-if="message.role === 'assistant' && effectiveToolCalls.length > 0"
+        class="tool-calls-section">
+        <div
+          class="tool-calls-header"
+          @click="toggleToolCallsCollapse"
+          style="cursor: pointer">
+          <div class="tool-calls-header-left">
+            <ToolOutlined />
+            <span>工具調用 ({{ effectiveToolCalls.length }})</span>
+          </div>
+          <div class="tool-calls-header-right">
+            <DownOutlined
+              :class="['collapse-icon', { collapsed: toolCallsCollapsed }]" />
+          </div>
+        </div>
+        <div
+          v-show="!toolCallsCollapsed"
+          class="tool-calls-list">
+          <ToolCallDisplay
+            v-for="(toolCall, index) in effectiveToolCalls"
+            :key="index"
+            :tool-call="toolCall" />
         </div>
       </div>
 
@@ -185,46 +256,65 @@
         </div>
       </div>
 
-      <!-- 工具調用結果顯示 -->
-      <div
-        v-if="message.role === 'assistant' && effectiveToolCalls.length > 0"
-        class="tool-calls-section">
-        <div
-          class="tool-calls-header"
-          @click="toggleToolCallsCollapse"
-          style="cursor: pointer">
-          <div class="tool-calls-header-left">
-            <ToolOutlined />
-            <span>工具調用 ({{ effectiveToolCalls.length }})</span>
-          </div>
-          <div class="tool-calls-header-right">
-            <DownOutlined
-              :class="['collapse-icon', { collapsed: toolCallsCollapsed }]" />
-          </div>
-        </div>
-        <div
-          v-show="!toolCallsCollapsed"
-          class="tool-calls-list">
-          <ToolCallDisplay
-            v-for="(toolCall, index) in effectiveToolCalls"
-            :key="index"
-            :tool-call="toolCall" />
-        </div>
-      </div>
-
       <!-- AI 模型信息 -->
       <div
         v-if="message.role === 'assistant' && message.model_info"
         class="model-info">
-        <a-tag :color="getModelColor('gemini')">
-          {{ message.model_info.model || "Unknown Model" }}
-        </a-tag>
-        <span class="token-usage"> Token: {{ message.tokens_used || 0 }} </span>
-        <span
-          class="cost-info"
-          v-if="message.cost && parseFloat(message.cost) > 0">
-          Cost: ${{ parseFloat(message.cost).toFixed(6) }}
-        </span>
+        <div class="model-info-left">
+          <a-tag :color="getModelColor('gemini')">
+            {{ message.model_info.model || "Unknown Model" }}
+          </a-tag>
+          <span class="token-usage">
+            Token: {{ message.tokens_used || 0 }}
+          </span>
+          <span
+            class="cost-info"
+            v-if="message.cost && parseFloat(message.cost) > 0">
+            Cost: ${{ parseFloat(message.cost).toFixed(6) }}
+          </span>
+        </div>
+
+        <!-- 工具欄放在模型信息右側 -->
+        <div
+          v-show="!message.isStreaming && message.status !== 'sending'"
+          class="model-info-actions">
+          <a-tooltip title="複製消息">
+            <a-button
+              type="text"
+              size="small"
+              @click="handleCopyMessage">
+              <CopyOutlined />
+            </a-button>
+          </a-tooltip>
+
+          <a-tooltip title="重新生成">
+            <a-button
+              type="text"
+              size="small"
+              @click="handleRegenerateResponse">
+              <ReloadOutlined />
+            </a-button>
+          </a-tooltip>
+
+          <a-tooltip title="引用回覆">
+            <a-button
+              type="text"
+              size="small"
+              @click="handleQuoteMessage">
+              <MessageOutlined />
+            </a-button>
+          </a-tooltip>
+
+          <a-tooltip title="刪除消息">
+            <a-button
+              type="text"
+              size="small"
+              @click="handleDeleteMessage"
+              class="danger-item">
+              <DeleteOutlined />
+            </a-button>
+          </a-tooltip>
+        </div>
       </div>
 
       <!-- AI回應工具欄 -->
@@ -261,49 +351,40 @@
           </template>
         </a-button>
       </div> -->
+    </div>
 
-      <div
-        v-show="!message.isStreaming && message.status !== 'sending'"
-        class="message-actions">
-        <a-tooltip title="複製消息">
-          <a-button
-            type="text"
-            size="small"
-            @click="handleCopyMessage">
-            <CopyOutlined />
-          </a-button>
-        </a-tooltip>
+    <!-- 用戶消息和系統消息的工具欄（AI消息工具欄已集成到模型信息中） -->
+    <div
+      v-if="message.role !== 'assistant'"
+      v-show="!message.isStreaming && message.status !== 'sending'"
+      class="message-actions">
+      <a-tooltip title="複製消息">
+        <a-button
+          type="text"
+          size="small"
+          @click="handleCopyMessage">
+          <CopyOutlined />
+        </a-button>
+      </a-tooltip>
 
-        <a-tooltip
-          v-if="message.role === 'assistant'"
-          title="重新生成">
-          <a-button
-            type="text"
-            size="small"
-            @click="handleRegenerateResponse">
-            <ReloadOutlined />
-          </a-button>
-        </a-tooltip>
+      <a-tooltip title="引用回覆">
+        <a-button
+          type="text"
+          size="small"
+          @click="handleQuoteMessage">
+          <MessageOutlined />
+        </a-button>
+      </a-tooltip>
 
-        <a-tooltip title="引用回覆">
-          <a-button
-            type="text"
-            size="small"
-            @click="handleQuoteMessage">
-            <MessageOutlined />
-          </a-button>
-        </a-tooltip>
-
-        <a-tooltip title="刪除消息">
-          <a-button
-            type="text"
-            size="small"
-            @click="handleDeleteMessage"
-            class="danger-item">
-            <DeleteOutlined />
-          </a-button>
-        </a-tooltip>
-      </div>
+      <a-tooltip title="刪除消息">
+        <a-button
+          type="text"
+          size="small"
+          @click="handleDeleteMessage"
+          class="danger-item">
+          <DeleteOutlined />
+        </a-button>
+      </a-tooltip>
     </div>
     <!-- 消息狀態 -->
     <div
@@ -327,6 +408,8 @@ import { computed, ref, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { message as antMessage } from "ant-design-vue";
 import { useChatStore } from "@/stores/chat";
 import { useConfigStore } from "@/stores/config";
+import { useAuthStore } from "@/stores/auth";
+import { useAgentsStore } from "@/stores/agents";
 import { formatMessageTime } from "@/utils/datetimeFormat";
 import { getFilePreviewUrl, getImageBlobUrl } from "@/api/files";
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
@@ -350,6 +433,8 @@ const emit = defineEmits(["quote-message", "regenerate-response"]);
 // Store
 const chatStore = useChatStore();
 const configStore = useConfigStore();
+const authStore = useAuthStore();
+const agentsStore = useAgentsStore();
 
 // 響應式狀態
 const userMessageContent = ref(null);
@@ -357,8 +442,6 @@ const isUserMessageCollapsed = ref(true);
 const shouldShowExpandButton = ref(false);
 const codeHighlightRef = ref(null);
 const toolCallsCollapsed = ref(true); // 工具調用預設為折疊狀態
-const toolbarPosition = ref({ x: 0, y: 0 }); // 工具欄位置
-const showToolbar = ref(false); // 工具欄顯示狀態
 
 // 用戶消息的最大高度（行數）
 const MAX_USER_MESSAGE_LINES = 6;
@@ -511,52 +594,40 @@ const toggleToolCallsCollapse = () => {
   toolCallsCollapsed.value = !toolCallsCollapsed.value;
 };
 
-// 處理鼠標移動事件（工具欄跟隨鼠標）
-const handleMouseMove = (event) => {
-  if (!showToolbar.value) return;
-
-  const rect = event.currentTarget.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-
-  // 計算工具欄位置，確保不超出視窗邊界
-  const toolbarWidth = 200; // 估計工具欄寬度
-  const toolbarHeight = 40; // 估計工具欄高度
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
-
-  let finalX = x + 10; // 鼠標右側 10px
-  let finalY = y - toolbarHeight - 10; // 鼠標上方 10px
-
-  // 防止超出右邊界
-  if (rect.left + finalX + toolbarWidth > windowWidth) {
-    finalX = x - toolbarWidth - 10; // 移到鼠標左側
+// 計算屬性：獲取當前智能體頭像
+const currentAgentAvatar = computed(() => {
+  // 如果消息中有 agent_id，查找對應智能體
+  if (props.message.agent_id) {
+    const agent = agentsStore.getAgentById(props.message.agent_id);
+    return agent?.avatar;
   }
 
-  // 防止超出上邊界
-  if (rect.top + finalY < 0) {
-    finalY = y + 10; // 移到鼠標下方
+  // 如果有 agent_name，通過名稱查找
+  if (props.message.agent_name) {
+    const agent = agentsStore.getAgentByName(props.message.agent_name);
+    return agent?.avatar;
   }
 
-  toolbarPosition.value = { x: finalX, y: finalY };
-};
+  // 嘗試從當前對話獲取智能體信息
+  const currentAgent = agentsStore.getCurrentAgent;
+  if (currentAgent) {
+    return currentAgent.avatar;
+  }
 
-// 處理鼠標進入事件
-const handleMouseEnter = (event) => {
-  showToolbar.value = true;
-  handleMouseMove(event);
-};
-
-// 處理鼠標離開事件
-const handleMouseLeave = () => {
-  showToolbar.value = false;
-};
+  // 默認返回 null，會使用默認頭像
+  return null;
+});
 
 // 計算屬性
 const getSenderName = () => {
   switch (props.message.role) {
     case "user":
-      return "用戶";
+      return (
+        authStore.user?.display_name ||
+        authStore.user?.username ||
+        authStore.user?.email ||
+        "用戶"
+      );
     case "assistant":
       return props.message.agent_name || "AI助手";
     case "system":
@@ -804,6 +875,22 @@ const handleImageError = (event) => {
   flex-shrink: 0;
 }
 
+.agent-avatar-wrapper {
+  position: relative;
+}
+
+.agent-avatar-image {
+  border: 2px solid rgba(82, 196, 26, 0.2);
+}
+
+.agent-avatar-bg {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.agent-avatar-bg svg {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .message-info {
   flex: 1;
   min-width: 0;
@@ -831,7 +918,6 @@ const handleImageError = (event) => {
   right: -10px;
   display: flex;
   gap: 4px;
-  margin-top: 10px;
   background: var(--custom-bg-secondary);
   border: 1px solid var(--custom-border-primary);
   border-radius: 6px;
@@ -841,6 +927,12 @@ const handleImageError = (event) => {
 
 .message-bubble:hover .message-actions {
   opacity: 1;
+}
+
+/* 系統消息工具欄居中 */
+.system-message .message-actions {
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .user-message .message-actions :deep(.ant-btn) {
@@ -1096,12 +1188,12 @@ const handleImageError = (event) => {
   backdrop-filter: blur(4px);
 }
 
-/* 工具調用樣式 */
+/* 工具調用樣式 - 適配暗黑模式 */
 .tool-calls-section {
   margin-top: 12px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--custom-border-primary);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--custom-bg-secondary);
   overflow: hidden;
 }
 
@@ -1110,17 +1202,17 @@ const handleImageError = (event) => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #f0f0f0;
-  border-bottom: 1px solid #e8e8e8;
+  background: var(--custom-bg-tertiary);
+  border-bottom: 1px solid var(--custom-border-primary);
   font-size: 13px;
   font-weight: 500;
-  color: #595959;
+  color: var(--custom-text-secondary);
   user-select: none;
   transition: background-color 0.2s ease;
 }
 
 .tool-calls-header:hover {
-  background: #e8e8e8;
+  background: var(--custom-bg-quaternary);
 }
 
 .tool-calls-header-left {
@@ -1136,7 +1228,7 @@ const handleImageError = (event) => {
 
 .collapse-icon {
   transition: transform 0.2s ease;
-  color: #8c8c8c;
+  color: var(--custom-text-tertiary);
   font-size: 12px;
 }
 
@@ -1151,12 +1243,55 @@ const handleImageError = (event) => {
   gap: 8px;
 }
 
+/* 暗黑模式下的工具調用樣式 */
+:root[data-theme="dark"] .tool-calls-section {
+  border-color: var(--custom-border-secondary);
+  background: var(--custom-bg-primary);
+}
+
+:root[data-theme="dark"] .tool-calls-header {
+  background: var(--custom-bg-secondary);
+  border-bottom-color: var(--custom-border-secondary);
+  color: var(--custom-text-primary);
+}
+
+:root[data-theme="dark"] .tool-calls-header:hover {
+  background: var(--custom-bg-tertiary);
+}
+
+:root[data-theme="dark"] .collapse-icon {
+  color: var(--custom-text-secondary);
+}
+
 .model-info {
   margin-top: 8px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   font-size: 12px;
+}
+
+.model-info-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-info-actions {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  gap: 4px;
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 6px;
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message-bubble:hover .model-info-actions {
+  opacity: 1;
 }
 
 .token-usage {

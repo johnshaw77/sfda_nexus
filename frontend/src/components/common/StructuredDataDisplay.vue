@@ -429,14 +429,14 @@ const getColumnWidth = (key) => {
 
 .kv-key {
   font-weight: 500;
-  color: #8c8c8c;
+  color: var(--custom-text-primary);
   min-width: 120px;
   margin-right: 12px;
   flex-shrink: 0;
 }
 
 .kv-value {
-  color: #262626;
+  color: var(--custom-text-primary);
   flex: 1;
   word-break: break-word;
 }

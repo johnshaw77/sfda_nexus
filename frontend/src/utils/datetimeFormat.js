@@ -4,6 +4,8 @@ import relativeTime from "dayjs/plugin/relativeTime"; // 載入相對時間插�
 import calendar from "dayjs/plugin/calendar"; // 載入日曆插件
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore"; // 載入比較插件
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter"; // 載入比較插件
+import timezone from "dayjs/plugin/timezone"; // 載入時區插件
+import utc from "dayjs/plugin/utc"; // 載入 UTC 插件
 
 // 設定 dayjs
 dayjs.locale("zh-tw"); // 使用繁體中文
@@ -11,6 +13,19 @@ dayjs.extend(relativeTime); // 啟用相對時間插件
 dayjs.extend(calendar); // 啟用日曆插件
 dayjs.extend(isSameOrBefore); // 啟用比較插件
 dayjs.extend(isSameOrAfter); // 啟用比較插件
+dayjs.extend(timezone); // 啟用時區插件
+dayjs.extend(utc); // 啟用 UTC 插件
+
+// 獲取用戶本地時區，默認為台北時區
+const getUserTimezone = () => {
+  return dayjs.tz.guess() || "Asia/Taipei";
+};
+
+// 將 UTC 時間轉換為本地時間
+const toLocalTime = (timestamp) => {
+  if (!timestamp) return null;
+  return dayjs.utc(timestamp).tz(getUserTimezone());
+};
 
 /**
  * 格式化時間戳為相對時間（例如：剛剛、5分鐘前）
@@ -19,7 +34,8 @@ dayjs.extend(isSameOrAfter); // 啟用比較插件
  */
 export const formatRelativeTime = (timestamp) => {
   if (!timestamp) return "剛剛";
-  return dayjs(timestamp).fromNow();
+  const localTime = toLocalTime(timestamp);
+  return localTime ? localTime.fromNow() : "剛剛";
 };
 
 /**
@@ -30,26 +46,28 @@ export const formatRelativeTime = (timestamp) => {
 export const formatChatTime = (timestamp) => {
   if (!timestamp) return "";
 
-  const date = dayjs(timestamp);
-  const now = dayjs();
+  const localTime = toLocalTime(timestamp);
+  if (!localTime) return "";
+
+  const now = dayjs().tz(getUserTimezone());
 
   // 今天
-  if (date.isSame(now, "day")) {
-    return date.format("HH:mm");
+  if (localTime.isSame(now, "day")) {
+    return localTime.format("HH:mm");
   }
 
   // 昨天
-  if (date.isSame(now.subtract(1, "day"), "day")) {
+  if (localTime.isSame(now.subtract(1, "day"), "day")) {
     return "昨天";
   }
 
   // 本週
-  if (date.isAfter(now.subtract(7, "day"))) {
-    return date.format("dddd"); // 星期幾
+  if (localTime.isAfter(now.subtract(7, "day"))) {
+    return localTime.format("dddd"); // 星期幾
   }
 
   // 更早
-  return date.format("M月D日");
+  return localTime.format("M月D日");
 };
 
 /**
@@ -60,21 +78,23 @@ export const formatChatTime = (timestamp) => {
 export const formatMessageTime = (timestamp) => {
   if (!timestamp) return "";
 
-  const date = dayjs(timestamp);
-  const now = dayjs();
+  const localTime = toLocalTime(timestamp);
+  if (!localTime) return "";
+
+  const now = dayjs().tz(getUserTimezone());
 
   // 今天
-  if (date.isSame(now, "day")) {
-    return date.format("HH:mm");
+  if (localTime.isSame(now, "day")) {
+    return localTime.format("HH:mm");
   }
 
   // 昨天
-  if (date.isSame(now.subtract(1, "day"), "day")) {
-    return `昨天 ${date.format("HH:mm")}`;
+  if (localTime.isSame(now.subtract(1, "day"), "day")) {
+    return `昨天 ${localTime.format("HH:mm")}`;
   }
 
   // 更早
-  return date.format("YYYY/MM/DD HH:mm");
+  return localTime.format("YYYY/MM/DD HH:mm");
 };
 
 /**
@@ -95,21 +115,23 @@ export const formatTimestamp = (timestamp, options = {}) => {
     monthFormat = "MM/DD HH:mm:ss",
   } = options;
 
-  const time = dayjs(timestamp);
-  const now = dayjs();
+  const localTime = toLocalTime(timestamp);
+  if (!localTime) return "-";
+
+  const now = dayjs().tz(getUserTimezone());
 
   // 如果是今天的時間且需要顯示相對時間
-  if (showRelative && time.isSame(now, "day")) {
-    return time.fromNow();
+  if (showRelative && localTime.isSame(now, "day")) {
+    return localTime.fromNow();
   }
 
   // 如果是今年的時間
-  if (time.isSame(now, "year")) {
-    return time.format(monthFormat);
+  if (localTime.isSame(now, "year")) {
+    return localTime.format(monthFormat);
   }
 
   // 其他情況顯示完整日期時間
-  return time.format(yearFormat);
+  return localTime.format(yearFormat);
 };
 
 /**
@@ -119,7 +141,8 @@ export const formatTimestamp = (timestamp, options = {}) => {
  * @returns {string} 格式化後的日期字串
  */
 export const formatDate = (date, format = "YYYY/MM/DD") => {
-  return dayjs(date).format(format);
+  const localTime = toLocalTime(date);
+  return localTime ? localTime.format(format) : dayjs(date).format(format);
 };
 
 /**

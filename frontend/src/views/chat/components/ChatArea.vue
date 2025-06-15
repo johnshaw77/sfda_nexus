@@ -71,6 +71,76 @@
 
       <!-- 模型選擇和設置 -->
       <div class="chat-controls">
+        <!-- 快速命令下拉選單 -->
+        <a-dropdown
+          :trigger="['click']"
+          placement="bottomLeft">
+          <a-tooltip
+            title="快速命令"
+            :arrow="false"
+            placement="bottom">
+            <a-button
+              type="text"
+              class="quick-commands-btn">
+              <ThunderboltOutlined />
+              快速命令
+              <DownOutlined style="font-size: 10px; margin-left: 4px" />
+            </a-button>
+          </a-tooltip>
+          <template #overlay>
+            <a-menu @click="handleQuickCommand">
+              <a-menu-item-group title="數據查詢">
+                <a-menu-item key="query-employee">
+                  <UserOutlined />
+                  查詢員工資料
+                </a-menu-item>
+                <a-menu-item key="query-department">
+                  <TeamOutlined />
+                  查詢部門信息
+                </a-menu-item>
+                <a-menu-item key="query-salary">
+                  <DollarOutlined />
+                  查詢薪資信息
+                </a-menu-item>
+              </a-menu-item-group>
+
+              <a-menu-divider />
+
+              <a-menu-item-group title="報表生成">
+                <a-menu-item key="report-monthly">
+                  <FileTextOutlined />
+                  生成月度報表
+                </a-menu-item>
+                <a-menu-item key="report-attendance">
+                  <CalendarOutlined />
+                  考勤統計報表
+                </a-menu-item>
+                <a-menu-item key="report-performance">
+                  <TrophyOutlined />
+                  績效評估報表
+                </a-menu-item>
+              </a-menu-item-group>
+
+              <a-menu-divider />
+
+              <a-menu-item-group title="系統操作">
+                <a-menu-item key="backup-data">
+                  <CloudDownloadOutlined />
+                  數據備份
+                </a-menu-item>
+                <a-menu-item key="system-check">
+                  <SafetyOutlined />
+                  系統檢查
+                </a-menu-item>
+                <a-menu-item key="clear-cache">
+                  <DeleteOutlined />
+                  清理緩存
+                </a-menu-item>
+              </a-menu-item-group>
+            </a-menu>
+          </template>
+        </a-dropdown>
+
         <!-- 串流模式切換 -->
         <a-tooltip
           title="啟用後將使用類似 ChatGPT 的逐字顯示效果"
@@ -1841,6 +1911,35 @@ const handleClearMessages = async () => {
   }
 };
 
+// 處理快速命令點擊
+const handleQuickCommand = ({ key }) => {
+  const commandMap = {
+    // 數據查詢
+    "query-employee": "請幫我查詢員工資料，我需要查看員工的基本信息",
+    "query-department": "請幫我查詢部門信息，包括部門結構和人員分佈",
+    "query-salary": "請幫我查詢薪資信息，包括薪資統計和分析",
+
+    // 報表生成
+    "report-monthly": "請幫我生成本月的月度報表，包括各項關鍵指標",
+    "report-attendance": "請幫我生成考勤統計報表，分析員工出勤情況",
+    "report-performance": "請幫我生成績效評估報表，評估員工表現",
+
+    // 系統操作
+    "backup-data": "請幫我執行數據備份操作，確保數據安全",
+    "system-check": "請幫我進行系統檢查，確認系統運行狀態",
+    "clear-cache": "請幫我清理系統緩存，優化系統性能",
+  };
+
+  const commandText = commandMap[key];
+  if (commandText) {
+    messageText.value = commandText;
+    // 自動發送消息
+    nextTick(() => {
+      handleSendMessage();
+    });
+  }
+};
+
 const handleStopStream = () => {
   if (chatStore.isStreaming) {
     chatStore.stopCurrentStream();
@@ -2283,6 +2382,25 @@ const getModelEndpoint = () => {
 .debug-active {
   background: var(--primary-color) !important;
   color: white !important;
+}
+
+.quick-commands-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--custom-text-primary);
+  border: 1px solid var(--custom-border-color);
+  border-radius: 6px;
+  padding: 4px 12px;
+  height: 32px;
+  transition: all 0.2s ease;
+}
+
+.quick-commands-btn:hover {
+  border-color: var(--custom-primary-color);
+  color: var(--custom-primary-color);
+  background-color: var(--custom-primary-color-light);
 }
 
 .model-option {

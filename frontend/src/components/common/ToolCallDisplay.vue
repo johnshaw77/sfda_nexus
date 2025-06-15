@@ -206,10 +206,10 @@ const formatTimestamp = (timestamp) => {
 
 <style scoped>
 .tool-call-display {
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--custom-border-primary);
   border-radius: 8px;
   margin: 8px 0;
-  background: #fafafa;
+  background: var(--custom-bg-secondary);
   overflow: hidden;
 }
 
@@ -218,8 +218,8 @@ const formatTimestamp = (timestamp) => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #e8e8e8;
+  background: var(--custom-bg-tertiary);
+  border-bottom: 1px solid var(--custom-border-primary);
 }
 
 .tool-info {
@@ -230,12 +230,12 @@ const formatTimestamp = (timestamp) => {
 
 .tool-icon {
   font-size: 16px;
-  color: #1890ff;
+  color: var(--custom-primary-color);
 }
 
 .tool-name {
   font-weight: 500;
-  color: #262626;
+  color: var(--custom-text-primary);
 }
 
 .tool-status {
@@ -246,7 +246,7 @@ const formatTimestamp = (timestamp) => {
 
 .execution-time {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--custom-text-tertiary);
 }
 
 .section-title {
@@ -254,7 +254,7 @@ const formatTimestamp = (timestamp) => {
   align-items: center;
   gap: 6px;
   font-weight: 500;
-  color: #595959;
+  color: var(--custom-text-secondary);
   margin-bottom: 8px;
   font-size: 13px;
 }
@@ -266,8 +266,8 @@ const formatTimestamp = (timestamp) => {
 }
 
 .tool-parameters {
-  background: #f9f9f9;
-  border-bottom: 1px solid #e8e8e8;
+  background: var(--custom-bg-primary);
+  border-bottom: 1px solid var(--custom-border-primary);
 }
 
 .parameters-content,
@@ -276,12 +276,12 @@ const formatTimestamp = (timestamp) => {
 }
 
 .json-display {
-  background: #fff;
-  border: 1px solid #d9d9d9;
+  background: var(--custom-bg-component);
+  border: 1px solid var(--custom-border-secondary);
   border-radius: 4px;
   padding: 8px;
   font-size: 12px;
-  color: #595959;
+  color: var(--custom-text-secondary);
   overflow-x: auto;
   margin: 0;
 }
@@ -291,28 +291,29 @@ const formatTimestamp = (timestamp) => {
 }
 
 .result-content.success {
-  color: #52c41a;
+  color: var(--custom-success-color);
 }
 
 .result-content.error {
-  color: #ff4d4f;
+  color: var(--custom-error-color);
 }
 
 .structured-result {
-  background: #fff;
-  border: 1px solid #d9d9d9;
+  background: var(--custom-bg-component);
+  border: 1px solid var(--custom-border-secondary);
   border-radius: 4px;
   padding: 12px;
 }
 
 .text-result {
-  background: #fff;
-  border: 1px solid #d9d9d9;
+  background: var(--custom-bg-component);
+  border: 1px solid var(--custom-border-secondary);
   border-radius: 4px;
   padding: 12px;
   white-space: pre-wrap;
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 13px;
+  color: var(--custom-text-primary);
 }
 
 .error-message {
@@ -321,11 +322,12 @@ const formatTimestamp = (timestamp) => {
 }
 
 .error-details {
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
+  background: var(--custom-error-bg);
+  border: 1px solid var(--custom-error-border);
   border-radius: 4px;
   padding: 8px;
   font-size: 12px;
+  color: var(--custom-error-color);
 }
 
 .metadata-item {
@@ -336,40 +338,50 @@ const formatTimestamp = (timestamp) => {
 .metadata-item .label {
   font-weight: 500;
   min-width: 60px;
-  color: #8c8c8c;
+  color: var(--custom-text-tertiary);
 }
 
 .metadata-item .value {
-  color: #262626;
+  color: var(--custom-text-primary);
 }
 
 .toggle-details {
   margin-left: auto;
   padding: 0;
   height: auto;
+  color: var(--custom-text-secondary);
 }
 
-/* 深色模式支援 */
-.dark .tool-call-display {
-  background: #1f1f1f;
-  border-color: #434343;
+.toggle-details:hover {
+  color: var(--custom-primary-color);
 }
 
-.dark .tool-call-header {
-  background: #262626;
-  border-color: #434343;
+/* 為了向後兼容，保留深色模式支援（使用 CSS 變量覆蓋） */
+:root[data-theme="dark"] .tool-call-display {
+  background: var(--custom-bg-primary);
+  border-color: var(--custom-border-secondary);
 }
 
-.dark .tool-parameters {
-  background: #1a1a1a;
-  border-color: #434343;
+:root[data-theme="dark"] .tool-call-header {
+  background: var(--custom-bg-secondary);
+  border-color: var(--custom-border-secondary);
 }
 
-.dark .json-display,
-.dark .structured-result,
-.dark .text-result {
-  background: #0f0f0f;
-  border-color: #434343;
-  color: #d9d9d9;
+:root[data-theme="dark"] .tool-parameters {
+  background: var(--custom-bg-primary);
+  border-color: var(--custom-border-secondary);
+}
+
+:root[data-theme="dark"] .json-display,
+:root[data-theme="dark"] .structured-result,
+:root[data-theme="dark"] .text-result {
+  background: var(--custom-bg-component);
+  border-color: var(--custom-border-secondary);
+  color: var(--custom-text-primary);
+}
+
+:root[data-theme="dark"] .error-details {
+  background: var(--custom-error-bg);
+  border-color: var(--custom-error-border);
 }
 </style>

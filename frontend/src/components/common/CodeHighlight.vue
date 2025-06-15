@@ -17,12 +17,14 @@
     <div
       v-if="isStreaming"
       class="streaming-indicator">
-      <div class="typing-dots">
-        <span></span>
-        <span></span>
-        <span></span>
+      <div class="streaming-tag">
+        <div class="typing-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <span class="streaming-text">正在接收內容處理中...</span>
       </div>
-      <span class="streaming-text">正在接收內容...</span>
     </div>
   </div>
 </template>
@@ -458,8 +460,20 @@ defineExpose({
   background: var(--bg-color-secondary, #f5f5f5);
   border-top: 1px solid var(--border-color, #e8e8e8);
   display: flex;
+  align-items: flex-start;
+}
+
+.streaming-tag {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  background: var(--success-color, #52c41a);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(82, 196, 26, 0.3);
 }
 
 .typing-dots {
@@ -471,7 +485,7 @@ defineExpose({
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--primary-color, #1890ff);
+  background: var(--success-color, #52c41a);
   animation: typing 1.4s infinite ease-in-out;
 }
 
@@ -498,6 +512,17 @@ defineExpose({
 .streaming-text {
   font-size: calc(var(--chat-font-size, 16px) - 2px);
   color: var(--text-color-secondary, #666);
+}
+
+.streaming-tag .streaming-text {
+  color: white;
+  font-size: 12px;
+}
+
+.streaming-tag .typing-dots span {
+  background: white;
+  width: 4px;
+  height: 4px;
 }
 
 /* 基本 Markdown 樣式 */
