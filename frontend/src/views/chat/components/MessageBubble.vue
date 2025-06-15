@@ -144,6 +144,12 @@
           <div class="thinking-header-left">
             <BulbOutlined />
             <span>思考過程</span>
+            <span
+              v-if="isMessageStreaming"
+              class="thinking-indicator">
+              <LoadingOutlined spin />
+              <span class="thinking-status">思考中...</span>
+            </span>
           </div>
           <div class="thinking-header-right">
             <DownOutlined
@@ -154,7 +160,12 @@
           v-show="!thinkingCollapsed"
           class="thinking-content">
           <div class="thinking-text">
-            {{ getThinkingContent() }}
+            {{ displayedThinkingContent }}
+            <span
+              v-if="isThinkingAnimating"
+              class="thinking-cursor"
+              >|</span
+            >
           </div>
         </div>
       </div>
@@ -470,6 +481,11 @@ const codeHighlightRef = ref(null);
 const toolCallsCollapsed = ref(true); // 工具調用預設為折疊狀態
 const thinkingCollapsed = ref(true); // 思考過程預設為折疊狀態
 
+// 思考內容動畫相關
+const displayedThinkingContent = ref("");
+const isThinkingAnimating = ref(false);
+const thinkingAnimationTimer = ref(null);
+
 // 計算屬性：判斷消息是否正在串流
 const isMessageStreaming = computed(() => {
   // 檢查消息是否正在串流
@@ -601,12 +617,17 @@ onMounted(() => {
   });
 });
 
-// 清理 blob URLs
+// 清理 blob URLs 和計時器
 onUnmounted(() => {
   imageBlobUrls.value.forEach((blobUrl) => {
     URL.revokeObjectURL(blobUrl);
   });
   imageBlobUrls.value.clear();
+
+  // 清理思考內容動畫計時器
+  if (thinkingAnimationTimer.value) {
+    clearTimeout(thinkingAnimationTimer.value);
+  }
 });
 
 // 檢查用戶消息高度並決定是否顯示展開按鈕
@@ -745,7 +766,56 @@ watch(
   { immediate: true }
 );
 
-// 監控思考內容變化（用於調試）
+// 思考內容動畫函數
+const animateThinkingContent = (targetContent) => {
+  if (!targetContent) {
+    displayedThinkingContent.value = "";
+    isThinkingAnimating.value = false;
+    return;
+  }
+
+  const currentLength = displayedThinkingContent.value.length;
+  const targetLength = targetContent.length;
+
+  // 如果目標內容比當前顯示的短，直接更新（處理內容被替換的情況）
+  if (targetLength < currentLength) {
+    displayedThinkingContent.value = targetContent;
+    return;
+  }
+
+  // 如果內容沒有變化，不需要動畫
+  if (targetContent === displayedThinkingContent.value) {
+    return;
+  }
+
+  // 開始動畫
+  isThinkingAnimating.value = true;
+
+  // 清除之前的計時器
+  if (thinkingAnimationTimer.value) {
+    clearTimeout(thinkingAnimationTimer.value);
+  }
+
+  // 逐字符添加新內容
+  const addNextChar = () => {
+    if (displayedThinkingContent.value.length < targetContent.length) {
+      displayedThinkingContent.value = targetContent.substring(
+        0,
+        displayedThinkingContent.value.length + 1
+      );
+
+      // 繼續添加下一個字符
+      thinkingAnimationTimer.value = setTimeout(addNextChar, 20); // 20ms 間隔
+    } else {
+      // 動畫完成
+      isThinkingAnimating.value = false;
+    }
+  };
+
+  addNextChar();
+};
+
+// 監控思考內容變化（用於調試和動畫）
 watch(
   () => getThinkingContent(),
   (newThinking, oldThinking) => {
@@ -762,6 +832,15 @@ watch(
       if (newThinking && isMessageStreaming.value) {
         thinkingCollapsed.value = false;
         console.log("🧠 自動展開思考區域");
+      }
+
+      // 啟動思考內容動畫
+      if (isMessageStreaming.value) {
+        animateThinkingContent(newThinking);
+      } else {
+        // 如果不是流式狀態，直接顯示完整內容
+        displayedThinkingContent.value = newThinking || "";
+        isThinkingAnimating.value = false;
       }
     }
   },
@@ -1429,6 +1508,29 @@ const handleImageError = (event) => {
   gap: 6px;
 }
 
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: #1890ff;
+  font-size: 12px;
+}
+
+.thinking-status {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .thinking-header-right {
   display: flex;
   align-items: center;
@@ -1449,6 +1551,24 @@ const handleImageError = (event) => {
   padding: 8px 12px;
   border-radius: 4px;
   border-left: 3px solid #faad14;
+  position: relative;
+}
+
+.thinking-cursor {
+  color: #1890ff;
+  font-weight: bold;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* 暗黑模式下的思考過程樣式 */
