@@ -41,13 +41,14 @@
               :arrow="false">
               <a-button
                 type="text"
+                class="theme-toggle-btn"
                 @click="configStore.toggleTheme">
                 <Lightbulb
                   v-if="configStore.isDarkMode"
-                  :size="14" />
+                  :size="16" />
                 <MoonStar
                   v-else
-                  :size="14" />
+                  :size="16" />
               </a-button>
             </a-tooltip>
 
@@ -70,7 +71,7 @@
                 <a-button
                   type="text"
                   @click="handleOnlineUsers">
-                  <Users :size="16" />
+                  <TeamOutlined />
                 </a-button>
               </a-badge>
             </a-tooltip>
@@ -84,9 +85,30 @@
                 <a-button
                   type="text"
                   @click="handleSystemNotifications">
-                  <Bell :size="16" />
+                  <BellOutlined />
                 </a-button>
               </a-badge>
+            </a-tooltip>
+
+            <a-tooltip
+              title="刷新頁面"
+              :arrow="false">
+              <a-button
+                type="text"
+                @click="handleRefresh">
+                <ReloadOutlined />
+              </a-button>
+            </a-tooltip>
+
+            <a-tooltip
+              :title="isFullscreen ? '退出全屏' : '全屏'"
+              :arrow="false">
+              <a-button
+                type="text"
+                @click="handleFullscreen">
+                <ExpandOutlined v-if="!isFullscreen" />
+                <CompressOutlined v-else />
+              </a-button>
             </a-tooltip>
           </div>
 
@@ -290,7 +312,7 @@
               <a-button
                 type="text"
                 @click="handleRefresh">
-                <RefreshCw :size="16" />
+                <ReloadOutlined />
               </a-button>
             </a-tooltip>
 
@@ -298,12 +320,8 @@
               <a-button
                 type="text"
                 @click="handleFullscreen">
-                <Maximize
-                  v-if="!isFullscreen"
-                  :size="16" />
-                <Minimize
-                  v-else
-                  :size="16" />
+                <ExpandOutlined v-if="!isFullscreen" />
+                <CompressOutlined v-else />
               </a-button>
             </a-tooltip>
           </div>
@@ -468,16 +486,33 @@ import { useFullscreen } from "@vueuse/core";
 import { Grid } from "ant-design-vue";
 import Logo from "@/components/common/Logo.vue";
 import {
-  Maximize,
-  Minimize,
-  MoonStar,
-  Lightbulb,
-  Users,
-  Bell,
-  RefreshCw,
-  User,
-  Settings,
-} from "lucide-vue-next";
+  TeamOutlined,
+  BellOutlined,
+  ReloadOutlined,
+  ExpandOutlined,
+  CompressOutlined,
+  ArrowLeftOutlined,
+  DownOutlined,
+  UserOutlined,
+  SettingOutlined,
+  MenuOutlined,
+  DashboardOutlined,
+  CrownOutlined,
+  LogoutOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
+  ApiOutlined,
+  RobotOutlined,
+  ThunderboltOutlined,
+  CloudServerOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  ToolOutlined,
+  DatabaseOutlined,
+  CloudDownloadOutlined,
+  LineChartOutlined,
+} from "@ant-design/icons-vue";
+import { Lightbulb, MoonStar } from "lucide-vue-next";
 
 // 響應式斷點
 const { useBreakpoint } = Grid;
@@ -979,6 +1014,20 @@ const loadSystemStats = () => {
   .header-content {
     padding: 0 16px;
   }
+}
+
+/* 主題切換按鈕樣式 */
+.theme-toggle-btn {
+  padding: 8px 12px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--custom-bg-quaternary) !important;
 }
 
 /* 主題切換開關樣式 */

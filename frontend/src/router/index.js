@@ -168,6 +168,15 @@ const routes = [
           icon: "ExperimentOutlined",
         },
       },
+      {
+        path: "logs",
+        name: "AuditLogs",
+        component: () => import("@/views/admin/logs.vue"),
+        meta: {
+          title: "審計日誌",
+          icon: "FileTextOutlined",
+        },
+      },
     ],
   },
 

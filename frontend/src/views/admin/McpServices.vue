@@ -67,10 +67,12 @@
             :xl="12">
             <a-input
               :value="customEndpoint"
-              placeholder="輸入自定義端點，留空使用預設端點"
+              placeholder="localhost:8080"
               @pressEnter="handleDiscoverServices"
               @input="(e) => (customEndpoint = e.target.value)"
-              style="width: 100%" />
+              style="width: 100%">
+              <template #addonBefore>http://</template>
+            </a-input>
           </a-col>
           <a-col
             :xs="24"
@@ -842,9 +844,22 @@ const rowSelection = computed(() => ({
 const handleDiscoverServices = async () => {
   discovering.value = true;
   try {
-    const response = await mcpApi.discoverServices(
-      customEndpoint.value || null
-    );
+    // 構建完整的端點 URL
+    let endpoint = null;
+    if (customEndpoint.value && customEndpoint.value.trim()) {
+      const trimmedEndpoint = customEndpoint.value.trim();
+      // 如果用戶輸入的端點不包含協議，則添加 http://
+      if (
+        !trimmedEndpoint.startsWith("http://") &&
+        !trimmedEndpoint.startsWith("https://")
+      ) {
+        endpoint = `http://${trimmedEndpoint}`;
+      } else {
+        endpoint = trimmedEndpoint;
+      }
+    }
+
+    const response = await mcpApi.discoverServices(endpoint);
     if (response.data.success) {
       discoveredServices.value = response.data.data.services;
       message.success(`發現 ${response.data.data.services.length} 個服務`);
@@ -865,7 +880,22 @@ const handleDiscoverServices = async () => {
 const handleFullSync = async () => {
   syncing.value = true;
   try {
-    const response = await mcpApi.syncServices(customEndpoint.value || null);
+    // 構建完整的端點 URL
+    let endpoint = null;
+    if (customEndpoint.value && customEndpoint.value.trim()) {
+      const trimmedEndpoint = customEndpoint.value.trim();
+      // 如果用戶輸入的端點不包含協議，則添加 http://
+      if (
+        !trimmedEndpoint.startsWith("http://") &&
+        !trimmedEndpoint.startsWith("https://")
+      ) {
+        endpoint = `http://${trimmedEndpoint}`;
+      } else {
+        endpoint = trimmedEndpoint;
+      }
+    }
+
+    const response = await mcpApi.syncServices(endpoint);
     if (response.data.success) {
       message.success(
         `同步完成：${response.data.data.services.length} 個服務，${response.data.data.tools.length} 個工具`

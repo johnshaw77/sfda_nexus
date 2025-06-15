@@ -189,11 +189,22 @@
       <div
         v-if="message.role === 'assistant' && effectiveToolCalls.length > 0"
         class="tool-calls-section">
-        <div class="tool-calls-header">
-          <ToolOutlined />
-          <span>工具調用 ({{ effectiveToolCalls.length }})</span>
+        <div
+          class="tool-calls-header"
+          @click="toggleToolCallsCollapse"
+          style="cursor: pointer">
+          <div class="tool-calls-header-left">
+            <ToolOutlined />
+            <span>工具調用 ({{ effectiveToolCalls.length }})</span>
+          </div>
+          <div class="tool-calls-header-right">
+            <DownOutlined
+              :class="['collapse-icon', { collapsed: toolCallsCollapsed }]" />
+          </div>
         </div>
-        <div class="tool-calls-list">
+        <div
+          v-show="!toolCallsCollapsed"
+          class="tool-calls-list">
           <ToolCallDisplay
             v-for="(toolCall, index) in effectiveToolCalls"
             :key="index"
@@ -345,6 +356,9 @@ const userMessageContent = ref(null);
 const isUserMessageCollapsed = ref(true);
 const shouldShowExpandButton = ref(false);
 const codeHighlightRef = ref(null);
+const toolCallsCollapsed = ref(true); // 工具調用預設為折疊狀態
+const toolbarPosition = ref({ x: 0, y: 0 }); // 工具欄位置
+const showToolbar = ref(false); // 工具欄顯示狀態
 
 // 用戶消息的最大高度（行數）
 const MAX_USER_MESSAGE_LINES = 6;
@@ -490,6 +504,52 @@ const checkUserMessageHeight = () => {
 // 切換用戶消息展開狀態
 const toggleUserMessageExpand = () => {
   isUserMessageCollapsed.value = !isUserMessageCollapsed.value;
+};
+
+// 切換工具調用折疊狀態
+const toggleToolCallsCollapse = () => {
+  toolCallsCollapsed.value = !toolCallsCollapsed.value;
+};
+
+// 處理鼠標移動事件（工具欄跟隨鼠標）
+const handleMouseMove = (event) => {
+  if (!showToolbar.value) return;
+
+  const rect = event.currentTarget.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  // 計算工具欄位置，確保不超出視窗邊界
+  const toolbarWidth = 200; // 估計工具欄寬度
+  const toolbarHeight = 40; // 估計工具欄高度
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+
+  let finalX = x + 10; // 鼠標右側 10px
+  let finalY = y - toolbarHeight - 10; // 鼠標上方 10px
+
+  // 防止超出右邊界
+  if (rect.left + finalX + toolbarWidth > windowWidth) {
+    finalX = x - toolbarWidth - 10; // 移到鼠標左側
+  }
+
+  // 防止超出上邊界
+  if (rect.top + finalY < 0) {
+    finalY = y + 10; // 移到鼠標下方
+  }
+
+  toolbarPosition.value = { x: finalX, y: finalY };
+};
+
+// 處理鼠標進入事件
+const handleMouseEnter = (event) => {
+  showToolbar.value = true;
+  handleMouseMove(event);
+};
+
+// 處理鼠標離開事件
+const handleMouseLeave = () => {
+  showToolbar.value = false;
 };
 
 // 計算屬性
@@ -765,20 +825,21 @@ const handleImageError = (event) => {
 
 .message-actions {
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.3s ease;
   position: absolute;
   bottom: -35px;
   right: -10px;
   display: flex;
   gap: 4px;
   margin-top: 10px;
-}
-
-.ai-message .message-actions,
-.message-bubble:hover .message-actions {
   background: var(--custom-bg-secondary);
   border: 1px solid var(--custom-border-primary);
   border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message-bubble:hover .message-actions {
   opacity: 1;
 }
 
@@ -1047,13 +1108,40 @@ const handleImageError = (event) => {
 .tool-calls-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   padding: 8px 12px;
   background: #f0f0f0;
   border-bottom: 1px solid #e8e8e8;
   font-size: 13px;
   font-weight: 500;
   color: #595959;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.tool-calls-header:hover {
+  background: #e8e8e8;
+}
+
+.tool-calls-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-calls-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.collapse-icon {
+  transition: transform 0.2s ease;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.collapse-icon.collapsed {
+  transform: rotate(-90deg);
 }
 
 .tool-calls-list {

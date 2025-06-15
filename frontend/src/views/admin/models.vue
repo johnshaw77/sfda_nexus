@@ -38,10 +38,8 @@
               placeholder="選擇提供商"
               style="width: 100%"
               allow-clear>
-              <a-select-option value="openai">OpenAI</a-select-option>
-              <a-select-option value="gemini">Google Gemini</a-select-option>
-              <a-select-option value="claude">Anthropic Claude</a-select-option>
               <a-select-option value="ollama">Ollama</a-select-option>
+              <a-select-option value="gemini">Google Gemini</a-select-option>
             </a-select>
           </a-col>
           <a-col
@@ -257,12 +255,8 @@
               <a-select
                 v-model:value="formData.provider"
                 placeholder="選擇提供商">
-                <a-select-option value="openai">OpenAI</a-select-option>
-                <a-select-option value="gemini">Google Gemini</a-select-option>
-                <a-select-option value="claude"
-                  >Anthropic Claude</a-select-option
-                >
                 <a-select-option value="ollama">Ollama</a-select-option>
+                <a-select-option value="gemini">Google Gemini</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
@@ -351,8 +345,8 @@
           </a-col>
         </a-row>
 
-        <!-- 第二行：API 配置 -->
-        <a-row :gutter="16">
+        <!-- 第三行：API 配置 -->
+        <a-row :gutter="[16, 16]">
           <a-col
             :xs="24"
             :sm="24"
@@ -362,9 +356,11 @@
             <a-form-item
               label="API 端點"
               name="endpoint_url">
-              <a-input
+              <a-auto-complete
                 v-model:value="formData.endpoint_url"
-                placeholder="輸入API端點URL" />
+                placeholder="輸入 API 端點 URL"
+                :options="endpointOptions"
+                allow-clear />
             </a-form-item>
           </a-col>
           <a-col
@@ -378,7 +374,7 @@
               name="api_key_encrypted">
               <a-input-password
                 v-model:value="formData.api_key_encrypted"
-                placeholder="輸入API密鑰" />
+                placeholder="輸入 API 密鑰（可選）" />
             </a-form-item>
           </a-col>
         </a-row>
@@ -555,7 +551,7 @@
       <template #footer>
         <a-button @click="configModalVisible = false">關閉</a-button>
       </template>
-      <JsonHighlight :content="selectedConfig" />
+      <JsonViewer :data="selectedConfig" />
     </a-modal>
   </div>
 </template>
@@ -575,7 +571,7 @@ import {
   convertModelBoolFields,
   MODEL_BOOL_FIELDS,
 } from "@/utils/dataConverter";
-import JsonHighlight from "@/components/common/JsonHighlight.vue";
+import JsonViewer from "@/components/common/JsonViewer.vue";
 import {
   EyeOutlined,
   EditOutlined,
@@ -599,6 +595,12 @@ const formRef = ref();
 // 響應式斷點
 const isSmallScreen = ref(false);
 const isMediumScreen = ref(false);
+
+// API 端點選項
+const endpointOptions = ref([
+  { value: "http://localhost:11434" },
+  { value: "http://10.8.32.39:8000/ollama" },
+]);
 
 // 監聽螢幕大小變化
 const updateScreenSize = () => {
@@ -1065,7 +1067,7 @@ const handleViewConfig = (record) => {
           : {},
   };
 
-  // 直接傳遞對象給 JsonHighlight 組件
+  // 直接傳遞對象給 JsonViewer 組件
   selectedConfig.value = configInfo;
   configModalVisible.value = true;
 };

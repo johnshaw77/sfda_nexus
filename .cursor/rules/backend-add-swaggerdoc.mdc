@@ -4,3 +4,20 @@ globs: *.route.js
 alwaysApply: false
 ---
 後端 route 在撰寫時記得要撰寫 swagger doc
+
+開發暫時性測試腳本
+
+資料庫配置  
+- 資料庫類型: MySQL  
+- 執行環境: Docker  
+- 帳號: root  
+- 密碼: MyPwd@1234  
+
+登入模擬  
+- 使用的帳號: admin (後端檢查時，key 值是 identifier) 
+- 密碼: admin123  
+- 目標: 取得 JWT token - 登入 API 回應的結構是 access_token 而不是 token
+
+SQL 命令要求  
+- 請避免使用 limit ? offset ? 格式  
+- 請使用明確的變量格式: limit ${limit} offset ${offset}  
