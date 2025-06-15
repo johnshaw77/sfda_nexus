@@ -26,10 +26,10 @@ export const verifyWebSocketToken = async (token) => {
     // 驗證 JWT
     const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
 
-    // 查詢用戶信息
+    // 查詢用戶信息 - 修復：使用 decoded.id 而不是 decoded.userId
     const { rows } = await query(
       "SELECT id, username, email, role, is_active FROM users WHERE id = ?",
-      [decoded.userId]
+      [decoded.id]
     );
 
     if (rows.length === 0 || !rows[0].is_active) {
@@ -199,10 +199,10 @@ export const handleRealtimeChat = async (
 
     // 如果有系統提示詞，添加到消息開頭
     if (systemPromptContent) {
-        aiOptions.messages.unshift({
-          role: "system",
+      aiOptions.messages.unshift({
+        role: "system",
         content: systemPromptContent,
-        });
+      });
     }
 
     // 調用AI模型
