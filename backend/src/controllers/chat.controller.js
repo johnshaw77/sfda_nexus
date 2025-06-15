@@ -152,16 +152,16 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
     // 嘗試通過 WebSocket 發送（如果有連接）
     try {
-      sendToUser(user.id, {
-        type: "debug_info",
-        data: {
-          sessionId: debugSession.sessionId,
-          conversationId,
-          stage,
-          timestamp: Date.now(),
-          ...data,
-        },
-      });
+    sendToUser(user.id, {
+      type: "debug_info",
+      data: {
+        sessionId: debugSession.sessionId,
+        conversationId,
+        stage,
+        timestamp: Date.now(),
+        ...data,
+      },
+    });
     } catch (error) {
       // WebSocket 發送失敗時忽略，調試信息會在響應中返回
     }
@@ -521,6 +521,10 @@ export const handleSendMessage = catchAsync(async (req, res) => {
         user_id: user.id,
         conversation_id: conversationId,
         model_id: model.id,
+        model_config: model,
+        endpoint_url: model.endpoint_url,
+        user_question: content, // 用戶的原始問題
+        original_question: content,
       }
     );
 
@@ -656,12 +660,7 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       success: true,
     });
 
-    // 在響應中包含調試信息
-    responseData.debug_info = {
-      sessionId: debugSession.sessionId,
-      stages: debugSession.stages,
-      totalTime: Date.now() - debugSession.startTime,
-    };
+    // 調試信息已移除以提升性能
 
     res.json(createSuccessResponse(responseData, "訊息發送成功"));
   } catch (aiError) {
@@ -1106,7 +1105,10 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               user_id: user.id,
               conversation_id: conversationId,
               model_id: model.id,
+              model_config: model,
               endpoint_url: model.endpoint_url,
+              user_question: content, // 用戶的原始問題
+              original_question: content,
             }
           );
 

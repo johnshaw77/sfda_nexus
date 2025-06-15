@@ -131,7 +131,7 @@ export const handleGetSystemConfig = catchAsync(async (req, res) => {
       WHERE is_active = 1
       ORDER BY config_key
     `;
-    const configs = await query(configQuery);
+    const { rows: configs } = await query(configQuery);
 
     // 將配置轉換為對象格式
     const configObject = {};
@@ -267,19 +267,19 @@ export const handleGetAuditLogs = catchAsync(async (req, res) => {
     LEFT JOIN users u ON al.user_id = u.id
     ${whereClause}
     ORDER BY al.created_at ${sortOrder}
-    LIMIT ? OFFSET ?
+    LIMIT ${parseInt(limit)} OFFSET ${offset}
   `;
 
-  const logs = await query(logsQuery, [
-    ...queryParams,
-    parseInt(limit),
-    offset,
-  ]);
+  const { rows: logs } = await query(logsQuery, queryParams);
 
   // 處理響應數據
   const processedLogs = logs.map((log) => ({
     ...log,
-    details: log.details ? JSON.parse(log.details) : null,
+    details: log.details
+      ? typeof log.details === "string"
+        ? JSON.parse(log.details)
+        : log.details
+      : null,
   }));
 
   const responseData = {

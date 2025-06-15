@@ -321,7 +321,7 @@ router.get("/:id", authenticateToken, ModelsController.handleGetModelById);
 router.post(
   "/",
   authenticateToken,
-  requireRole(["admin"]),
+  requireRole(["super_admin", "admin"]),
   ModelsController.handleCreateModel
 );
 

@@ -199,10 +199,10 @@ export const handleRealtimeChat = async (
 
     // 如果有系統提示詞，添加到消息開頭
     if (systemPromptContent) {
-      aiOptions.messages.unshift({
-        role: "system",
+        aiOptions.messages.unshift({
+          role: "system",
         content: systemPromptContent,
-      });
+        });
     }
 
     // 調用AI模型

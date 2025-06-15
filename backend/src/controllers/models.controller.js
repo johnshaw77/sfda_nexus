@@ -135,10 +135,14 @@ export const handleUpdateModel = catchAsync(async (req, res) => {
     throw new NotFoundError("模型不存在");
   }
 
-  // 處理布林值欄位，確保 MySQL 相容性
+  // 處理欄位映射：前端 model_name -> 後端 name
   const processedUpdateData = { ...updateData };
+  if (processedUpdateData.model_name) {
+    processedUpdateData.name = processedUpdateData.model_name;
+    delete processedUpdateData.model_name;
+  }
 
-  // 將 JavaScript 布林值轉換為 MySQL 相容的數字 //NOTE: 這個前端也能做
+  // 處理布林值欄位，確保 MySQL 相容性
   const booleanFields = [
     "is_active",
     "is_default",

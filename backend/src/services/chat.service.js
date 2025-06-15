@@ -7,6 +7,7 @@ import McpToolModel from "../models/McpTool.model.js";
 import mcpToolParser from "./mcpToolParser.service.js";
 import logger from "../utils/logger.util.js";
 import globalPromptService from "./globalPrompt.service.js";
+import AIService from "./ai.service.js";
 
 class ChatService {
   constructor() {
@@ -397,52 +398,83 @@ class ChatService {
       const hasSuccessfulTools = toolResults.some((result) => result.success);
       let finalResponse;
 
+      console.log("=== 工具結果檢查 ===");
+      console.log("工具結果數量:", toolResults.length);
+      console.log(
+        "工具結果詳情:",
+        toolResults.map((r) => ({
+          tool_name: r.tool_name,
+          success: r.success,
+          error: r.error,
+        }))
+      );
+      console.log("hasSuccessfulTools:", hasSuccessfulTools);
+
       if (hasSuccessfulTools) {
         console.log("=== 開始二次 AI 調用，基於工具結果生成回應 ===");
 
         try {
           // 構建包含工具結果的二次調用消息
-          const followUpPrompt = `
-基於以下工具調用結果，請提供一個完整、自然的回應：
+          const systemPrompt = `你是一個專業的 AI 助理。基於工具調用的結果，用自然、簡潔的語言回答用戶的問題。
+
+重要規則：
+1. 只基於工具返回的真實數據回答
+2. 直接回答用戶的具體問題，不要重複顯示技術細節
+3. 用友好、自然的語言表達
+4. 如果用戶問特定信息（如 email），直接提供該信息
 
 工具執行結果：
-${formattedResults}
+${formattedResults}`;
 
-請基於這些真實數據回答用戶的問題，提供清晰、有用的回應。不要重複顯示工具調用的技術細節，而是要用自然的語言整理和解釋這些資訊。
-`;
-
-          // 獲取原始對話上下文中的最後一個用戶消息
-          const lastUserMessage =
-            context.messages && context.messages.length > 0
-              ? context.messages[context.messages.length - 1]
-              : null;
+          // 獲取用戶的原始問題
+          const userQuestion =
+            context.user_question ||
+            context.original_question ||
+            "請基於以上數據提供回應";
 
           // 構建二次調用的消息
-          const followUpMessages = [];
-
-          if (lastUserMessage && lastUserMessage.role === "user") {
-            followUpMessages.push({
+          const followUpMessages = [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            {
               role: "user",
-              content: lastUserMessage.content,
-            });
-          }
+              content: userQuestion,
+            },
+          ];
 
-          followUpMessages.push({
-            role: "assistant",
-            content: followUpPrompt,
-          });
+          // 獲取模型配置
+          const modelConfig = context.model_config || {};
 
           // 進行二次 AI 調用
           const secondaryAIResponse = await AIService.callModel({
-            model: context.model || "qwen3:30b",
+            provider: modelConfig.model_type || "ollama",
+            model: modelConfig.model_id || context.model || "qwen3:32b",
+            endpoint_url: context.endpoint_url || modelConfig.endpoint_url,
+            api_key: modelConfig.api_key_encrypted,
             messages: followUpMessages,
             temperature: 0.7,
-            max_tokens: 2048,
-            endpoint_url: context.endpoint_url,
+            max_tokens: 1024,
           });
 
-          finalResponse = secondaryAIResponse.content || formattedResults;
-          console.log("二次 AI 調用成功，生成最終回應");
+          // 處理二次 AI 調用的回應，移除 <think> 標籤
+          let cleanedResponse = secondaryAIResponse.content || formattedResults;
+
+          // 移除 <think>...</think> 標籤及其內容
+          cleanedResponse = cleanedResponse
+            .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+            .trim();
+
+          finalResponse = cleanedResponse || formattedResults;
+          console.log("=== 二次 AI 調用成功 ===");
+          console.log("原始 AI 回應內容:", secondaryAIResponse.content);
+          console.log("清理後回應內容:", cleanedResponse);
+          console.log(
+            "二次 AI 回應長度:",
+            secondaryAIResponse.content?.length || 0
+          );
+          console.log("最終回應:", finalResponse.substring(0, 200) + "...");
         } catch (secondaryError) {
           console.error("二次 AI 調用失敗:", secondaryError.message);
           // 如果二次調用失敗，使用組合回應作為後備

@@ -129,10 +129,10 @@ export const createMcpService = async (serviceData) => {
 
   const result = await query(sql, [
     name,
-    endpoint_url,
-    description,
-    owner,
-    icon,
+    endpoint_url || null,
+    description || null,
+    owner || null,
+    icon || null,
     version,
     is_active ? 1 : 0,
   ]);

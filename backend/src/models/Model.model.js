@@ -185,10 +185,10 @@ export const createModel = async (modelData) => {
 
   const sql = `
     INSERT INTO ai_models (
-      name, display_name, model_type, model_id, description, icon,
+      name, display_name, model_type, model_id, description,
       max_tokens, temperature, top_p, pricing, capabilities,
       is_default, is_multimodal, can_call_tools, endpoint_url, api_key_encrypted
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const result = await query(sql, [
@@ -196,8 +196,7 @@ export const createModel = async (modelData) => {
     display_name,
     provider,
     model_id,
-    description,
-    icon,
+    description || null,
     max_tokens,
     temperature,
     top_p,
@@ -206,8 +205,8 @@ export const createModel = async (modelData) => {
     is_default,
     is_multimodal,
     can_call_tools,
-    endpoint_url,
-    api_key_encrypted,
+    endpoint_url || null,
+    api_key_encrypted || null,
   ]);
 
   return {
@@ -243,7 +242,6 @@ export const updateModel = async (modelId, updateData) => {
     "model_id",
     "display_name",
     "description",
-    "icon",
     "max_tokens",
     "temperature",
     "top_p",
