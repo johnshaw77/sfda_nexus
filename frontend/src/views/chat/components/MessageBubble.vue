@@ -145,10 +145,12 @@
             <BulbOutlined />
             <span>思考過程</span>
             <span
-              v-if="isMessageStreaming"
+              v-if="isMessageStreaming || isThinkingAnimating"
               class="thinking-indicator">
               <LoadingOutlined spin />
-              <span class="thinking-status">思考中...</span>
+              <span class="thinking-status">
+                {{ isThinkingAnimating ? "思考中..." : "生成中..." }}
+              </span>
             </span>
           </div>
           <div class="thinking-header-right">
@@ -774,45 +776,49 @@ const animateThinkingContent = (targetContent) => {
     return;
   }
 
-  const currentLength = displayedThinkingContent.value.length;
-  const targetLength = targetContent.length;
-
-  // 如果目標內容比當前顯示的短，直接更新（處理內容被替換的情況）
-  if (targetLength < currentLength) {
-    displayedThinkingContent.value = targetContent;
-    return;
-  }
-
   // 如果內容沒有變化，不需要動畫
   if (targetContent === displayedThinkingContent.value) {
     return;
   }
 
-  // 開始動畫
-  isThinkingAnimating.value = true;
+  // 如果是第一次出現思考內容，或者內容完全不同，重新開始動畫
+  const shouldRestartAnimation =
+    displayedThinkingContent.value === "" ||
+    !targetContent.startsWith(displayedThinkingContent.value);
 
-  // 清除之前的計時器
-  if (thinkingAnimationTimer.value) {
-    clearTimeout(thinkingAnimationTimer.value);
-  }
+  if (shouldRestartAnimation) {
+    displayedThinkingContent.value = "";
+    isThinkingAnimating.value = true;
 
-  // 逐字符添加新內容
-  const addNextChar = () => {
-    if (displayedThinkingContent.value.length < targetContent.length) {
-      displayedThinkingContent.value = targetContent.substring(
-        0,
-        displayedThinkingContent.value.length + 1
-      );
-
-      // 繼續添加下一個字符
-      thinkingAnimationTimer.value = setTimeout(addNextChar, 20); // 20ms 間隔
-    } else {
-      // 動畫完成
-      isThinkingAnimating.value = false;
+    // 清除之前的計時器
+    if (thinkingAnimationTimer.value) {
+      clearTimeout(thinkingAnimationTimer.value);
     }
-  };
 
-  addNextChar();
+    console.log("🧠 開始思考內容動畫，目標長度:", targetContent.length);
+
+    // 逐字符添加新內容
+    const addNextChar = () => {
+      if (displayedThinkingContent.value.length < targetContent.length) {
+        displayedThinkingContent.value = targetContent.substring(
+          0,
+          displayedThinkingContent.value.length + 1
+        );
+
+        // 繼續添加下一個字符，使用較快的速度
+        thinkingAnimationTimer.value = setTimeout(addNextChar, 15); // 15ms 間隔，更快的動畫
+      } else {
+        // 動畫完成
+        isThinkingAnimating.value = false;
+        console.log("🧠 思考內容動畫完成");
+      }
+    };
+
+    addNextChar();
+  } else {
+    // 如果是增量更新，直接更新到目標內容
+    displayedThinkingContent.value = targetContent;
+  }
 };
 
 // 監控思考內容變化（用於調試和動畫）
@@ -826,20 +832,20 @@ watch(
         preview: newThinking?.substring(0, 100) + "..." || "無內容",
         messageId: props.message.id,
         isStreaming: isMessageStreaming.value,
+        oldLength: oldThinking?.length || 0,
       });
 
-      // 如果有思考內容且正在流式傳輸，確保思考區域展開
-      if (newThinking && isMessageStreaming.value) {
+      // 如果有思考內容，確保思考區域展開
+      if (newThinking) {
         thinkingCollapsed.value = false;
         console.log("🧠 自動展開思考區域");
-      }
 
-      // 啟動思考內容動畫
-      if (isMessageStreaming.value) {
+        // 總是啟動動畫，無論是否在流式狀態
+        // 這樣可以模擬實時思考的效果
         animateThinkingContent(newThinking);
       } else {
-        // 如果不是流式狀態，直接顯示完整內容
-        displayedThinkingContent.value = newThinking || "";
+        // 沒有思考內容時清空顯示
+        displayedThinkingContent.value = "";
         isThinkingAnimating.value = false;
       }
     }
