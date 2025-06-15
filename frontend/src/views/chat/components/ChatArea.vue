@@ -7,6 +7,20 @@
         <div
           v-if="agent"
           class="agent-info">
+          <!-- 展開按鈕 (僅在對話面板折疊時顯示) -->
+          <a-tooltip
+            v-if="conversationPanelCollapsed"
+            title="展開對話面板"
+            placement="bottom"
+            :arrow="false">
+            <a-button
+              type="text"
+              class="conversation-expand-btn"
+              @click="handleToggleConversationCollapse">
+              <MenuUnfoldOutlined />
+            </a-button>
+          </a-tooltip>
+
           <div class="agent-avatar">
             <!-- 如果有 base64 avatar，直接顯示圖片 -->
             <img
@@ -334,35 +348,22 @@
               >
             </div>
           </div>
-
-          <!-- 停止對話按鈕 -->
-          <div
-            v-if="isAIResponding"
-            class="stop-stream-container">
-            <a-button
-              type="default"
-              danger
-              @click="handleStopStream"
-              class="stop-stream-button">
-              <template #icon>
-                <svg
-                  viewBox="0 0 24 24"
-                  width="16"
-                  height="16"
-                  fill="currentColor">
-                  <rect
-                    x="6"
-                    y="6"
-                    width="12"
-                    height="12"
-                    rx="2" />
-                </svg>
-              </template>
-              停止對話
-            </a-button>
-          </div>
         </div>
       </a-spin>
+    </div>
+
+    <!-- 停止對話按鈕 -->
+    <div
+      v-if="isAIResponding"
+      class="stop-stream-container">
+      <a-button
+        type="default"
+        danger
+        @click="handleStopStream"
+        class="stop-stream-button">
+        <StopOutlined />
+        停止對話
+      </a-button>
     </div>
 
     <!-- 可拖拉的分隔線 -->
@@ -574,7 +575,7 @@
               }
             "
             @paste="handlePaste"
-            :placeholder="`向 ${agent?.name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送，支援拖拉或貼上檔案)`"
+            :placeholder="`向 ${agent?.display_name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送，支援拖拉或貼上檔案)`"
             :auto-size="false"
             :disabled="sending"
             @keydown="handleKeyDown"
@@ -1116,7 +1117,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  conversationPanelCollapsed: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+// Emits
+const emit = defineEmits(["toggle-conversation-collapse"]);
 
 // 方法
 const formatTime = formatMessageTime;
@@ -1940,6 +1948,12 @@ const handleQuickCommand = ({ key }) => {
   }
 };
 
+// 處理對話面板折疊
+const handleToggleConversationCollapse = () => {
+  // 向父組件發送事件，讓父組件處理折疊邏輯
+  emit("toggle-conversation-collapse");
+};
+
 const handleStopStream = () => {
   if (chatStore.isStreaming) {
     chatStore.stopCurrentStream();
@@ -2339,7 +2353,7 @@ const getModelEndpoint = () => {
 }
 
 .chat-area-header {
-  padding: 16px 24px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--custom-border-primary);
   display: flex;
   align-items: center;
@@ -2521,7 +2535,7 @@ const getModelEndpoint = () => {
 }
 
 .stop-stream-container {
-  position: fixed;
+  position: absolute;
   bottom: 120px; /* 固定在輸入框上方 */
   left: 50%;
   transform: translateX(-50%);
@@ -2549,11 +2563,11 @@ const getModelEndpoint = () => {
   transform: translateY(-1px);
 }
 
-.stop-stream-button svg {
+.stop-stream-button .anticon {
   transition: transform 0.3s ease;
 }
 
-.stop-stream-button:hover svg {
+.stop-stream-button:hover .anticon {
   transform: scale(1.1);
 }
 
@@ -2792,6 +2806,22 @@ const getModelEndpoint = () => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.conversation-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--custom-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.conversation-expand-btn:hover {
+  background-color: var(--custom-bg-tertiary);
+  color: var(--custom-primary-color);
 }
 
 .agent-avatar {

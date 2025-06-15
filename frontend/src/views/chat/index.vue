@@ -5,7 +5,7 @@
       <!-- 左側對話列表側邊欄 -->
       <a-layout-sider
         :collapsed="sidebarCollapsed"
-        :collapsed-width="60"
+        :collapsed-width="0"
         :width="300"
         :trigger="null"
         :breakpoint="breakpoint"
@@ -22,27 +22,6 @@
           :expanding="isExpanding"
           :is-mobile="isMobile"
           :parentCollapsed="sidebarCollapsed" />
-
-        <!-- 側邊欄摺疊時的展開按鈕 (桌面端) -->
-        <div
-          v-if="!isMobile && sidebarCollapsed"
-          class="collapsed-sidebar-content">
-          <!-- <div class="collapsed-sidebar-logo">
-            <MessageCircleMore :size="24" />
-          </div>
-          <div class="collapsed-sidebar-text">聊天</div>
-          <div class="collapsed-sidebar-divider"></div> -->
-          <a-tooltip
-            title="展開對話面板"
-            placement="right">
-            <a-button
-              type="text"
-              @click="handleExpandSidebar"
-              class="collapsed-expand-btn">
-              <PanelLeftOpen :size="20" />
-            </a-button>
-          </a-tooltip>
-        </div>
       </a-layout-sider>
 
       <!-- 主要聊天內容區域 -->
@@ -82,7 +61,9 @@
           <div class="chat-main">
             <ChatArea
               v-if="selectedAgent"
-              :agent="selectedAgent" />
+              :agent="selectedAgent"
+              :conversation-panel-collapsed="sidebarCollapsed"
+              @toggle-conversation-collapse="handleToggleCollapse" />
             <WelcomeScreen v-else />
           </div>
         </a-layout-content>
@@ -209,19 +190,8 @@ const handleNewConversation = () => {
 };
 
 // 處理來自 ConversationList 的摺疊事件
-const handleToggleCollapse = (collapsed) => {
-  sidebarCollapsed.value = collapsed;
-};
-
-// 展開側邊欄
-const handleExpandSidebar = () => {
-  isExpanding.value = true;
-  sidebarCollapsed.value = false;
-
-  // 重置展開動畫狀態
-  setTimeout(() => {
-    isExpanding.value = false;
-  }, 300);
+const handleToggleCollapse = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
 };
 
 // 監聽響應式變化

@@ -246,8 +246,8 @@ const handleToggleCollapse = () => {
 
   // 等待淡出動畫完成後再摺疊側邊欄
   setTimeout(() => {
-    // 通知父組件摺疊側邊欄
-    emit("toggle-collapse", true);
+    // 通知父組件切換側邊欄狀態
+    emit("toggle-collapse");
     // 重置淡出狀態
     isFadingOut.value = false;
   }, 150); // 縮短為 150ms 的淡出時間
