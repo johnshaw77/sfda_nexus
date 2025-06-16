@@ -690,8 +690,9 @@ export const useChatStore = defineStore("chat", () => {
         }
       }
 
-      // 重新載入對話以獲取最新狀態
-      await handleGetMessages(conversationId);
+      // 🔧 修復：移除重新載入對話的邏輯，避免覆蓋串流內容
+      // 串流過程中已經實時更新了消息內容，不需要重新載入
+      // await handleGetMessages(conversationId);
 
       //console.log("=== 串流聊天完成 ===");
     } catch (err) {
@@ -825,58 +826,123 @@ export const useChatStore = defineStore("chat", () => {
         break;
 
       case "stream_content":
-        // 串流內容數據
-        //console.log("收到串流內容:", data.content);
+        // 串流內容更新
+        console.log("🔄 前端收到 stream_content 事件:", {
+          hasContent: !!data.content,
+          contentLength: data.content?.length || 0,
+          hasFullContent: !!data.full_content,
+          fullContentLength: data.full_content?.length || 0,
+          hasThinkingContent: !!data.thinking_content,
+          thinkingContentLength: data.thinking_content?.length || 0,
+          assistantMessageId: data.assistant_message_id,
+          tokensUsed: data.tokens_used,
+        });
 
-        // 第一次收到內容時，隱藏思考狀態
-        if (aiTyping.value) {
-          aiTyping.value = false;
+        // 如果有思考內容，詳細打印
+        if (data.thinking_content) {
+          console.log("🧠 前端收到思考內容詳情:", {
+            length: data.thinking_content.length,
+            preview: data.thinking_content.substring(0, 200) + "...",
+            messageId: data.assistant_message_id,
+          });
         }
 
-        updateStreamingContent(data.full_content);
-
-        // 更新當前對話中的 AI 訊息內容
-        const contentMessageIndex = messages.value.findIndex(
+        // 查找對應的消息
+        const streamMessage = messages.value.find(
           (msg) => msg.id === data.assistant_message_id
         );
 
-        if (contentMessageIndex !== -1) {
-          // 實現打字機效果：逐字符顯示
-          const currentMessage = messages.value[contentMessageIndex];
-          const newContent = data.full_content;
-          const currentContent = currentMessage.content || "";
+        if (streamMessage) {
+          console.log("✅ 找到對應的流式消息:", {
+            messageId: streamMessage.id,
+            currentContentLength: streamMessage.content?.length || 0,
+            newContentLength: data.content?.length || 0,
+            currentThinkingLength: streamMessage.thinking_content?.length || 0,
+            newThinkingLength: data.thinking_content?.length || 0,
+            isStreaming: streamMessage.isStreaming,
+          });
 
-          // 如果新內容比當前內容長，則逐字符添加
-          if (newContent.length > currentContent.length) {
-            animateTyping(contentMessageIndex, currentContent, newContent);
-          } else {
-            // 直接更新（處理內容被替換的情況）
-            messages.value[contentMessageIndex].content = newContent;
+          // 找到消息在數組中的索引（用於打字機動畫）
+          const messageIndex = messages.value.findIndex(
+            (msg) => msg.id === data.assistant_message_id
+          );
+
+          // 處理思考內容的即時顯示
+          if (data.thinking_content !== undefined) {
+            console.log("🧠 即時更新思考內容:", {
+              messageId: streamMessage.id,
+              oldLength: streamMessage.thinking_content?.length || 0,
+              newLength: data.thinking_content.length,
+              hasDelta: !!data.thinking_delta,
+              deltaLength: data.thinking_delta?.length || 0,
+            });
+
+            // 如果有思考內容增量，記錄詳情
+            if (data.thinking_delta) {
+              console.log("🧠 收到思考內容增量:", {
+                deltaLength: data.thinking_delta.length,
+                deltaPreview: data.thinking_delta.substring(0, 50) + "...",
+                totalLength: data.thinking_content.length,
+              });
+            }
+
+            // 直接更新思考內容（現在支持即時串流）
+            streamMessage.thinking_content = data.thinking_content;
           }
 
-          messages.value[contentMessageIndex].tokens_used = data.tokens_used;
+          // 處理主要內容的即時顯示（使用打字機效果）
+          if (data.content !== undefined && messageIndex !== -1) {
+            const currentContent = streamMessage.content || "";
+            const newContent = data.content;
 
-          // 更新思考內容（如果有的話）
-          if (data.thinking_content) {
-            console.log(
-              "🧠 串流中收到思考內容:",
-              data.thinking_content.substring(0, 100) + "..."
-            );
-            console.log("🧠 思考內容長度:", data.thinking_content.length);
-            console.log("🧠 消息索引:", contentMessageIndex);
-            console.log("🧠 消息ID:", messages.value[contentMessageIndex]?.id);
+            console.log("📝 準備打字機動畫:", {
+              messageId: streamMessage.id,
+              currentLength: currentContent.length,
+              newLength: newContent.length,
+              shouldAnimate: newContent.length > currentContent.length,
+              hasDelta: !!data.content_delta,
+              deltaLength: data.content_delta?.length || 0,
+              deltaPreview:
+                data.content_delta?.substring(0, 20) + "..." || "無",
+            });
 
-            // 直接更新思考內容
-            messages.value[contentMessageIndex].thinking_content =
-              data.thinking_content;
-
-            // 確保消息標記為流式狀態
-            messages.value[contentMessageIndex].isStreaming = true;
-
-            // 強制觸發響應式更新
-            const updatedMessage = { ...messages.value[contentMessageIndex] };
-            messages.value.splice(contentMessageIndex, 1, updatedMessage);
+            // 如果有新內容，使用打字機動畫
+            if (newContent.length > currentContent.length) {
+              animateTyping(messageIndex, currentContent, newContent);
+            } else {
+              // 如果內容沒有增加，直接更新
+              streamMessage.content = newContent;
+            }
           }
+
+          // 更新完整內容（用於最終狀態）
+          if (data.full_content !== undefined) {
+            streamMessage.full_content = data.full_content;
+          }
+
+          // 更新其他屬性
+          if (data.tokens_used !== undefined) {
+            streamMessage.tokens_used = data.tokens_used;
+          }
+          if (data.cost !== undefined) {
+            streamMessage.cost = data.cost;
+          }
+          if (data.processing_time !== undefined) {
+            streamMessage.processing_time = data.processing_time;
+          }
+
+          // 確保消息仍在流式狀態
+          streamMessage.isStreaming = true;
+          streamingMessageId.value = data.assistant_message_id;
+
+          console.log("📝 消息更新完成:", {
+            messageId: streamMessage.id,
+            contentLength: streamMessage.content?.length || 0,
+            thinkingLength: streamMessage.thinking_content?.length || 0,
+            isStreaming: streamMessage.isStreaming,
+          });
+        } else {
+          console.warn("⚠️ 未找到對應的流式消息:", data.assistant_message_id);
         }
         break;
 

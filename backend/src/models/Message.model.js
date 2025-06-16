@@ -225,7 +225,16 @@ export class MessageModel {
    * @returns {Promise<Object>} 更新後的訊息信息
    */
   static async update(id, updateData) {
-    const allowedFields = ["content", "attachments", "metadata", "is_edited"];
+    const allowedFields = [
+      "content",
+      "attachments",
+      "metadata",
+      "is_edited",
+      "tokens_used",
+      "cost",
+      "processing_time",
+      "model_info",
+    ];
 
     const updateFields = [];
     const updateValues = [];
@@ -234,7 +243,10 @@ export class MessageModel {
     Object.keys(updateData).forEach((key) => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
         updateFields.push(`${key} = ?`);
-        if (["attachments", "metadata"].includes(key) && updateData[key]) {
+        if (
+          ["attachments", "metadata", "model_info"].includes(key) &&
+          updateData[key]
+        ) {
           updateValues.push(JSON.stringify(updateData[key]));
         } else {
           updateValues.push(updateData[key]);
