@@ -827,6 +827,7 @@ export const useChatStore = defineStore("chat", () => {
 
       case "stream_content":
         // 串流內容更新
+        /*
         console.log("🔄 前端收到 stream_content 事件:", {
           hasContent: !!data.content,
           contentLength: data.content?.length || 0,
@@ -837,6 +838,7 @@ export const useChatStore = defineStore("chat", () => {
           assistantMessageId: data.assistant_message_id,
           tokensUsed: data.tokens_used,
         });
+        */
 
         // 如果有思考內容，詳細打印
         if (data.thinking_content) {

@@ -575,10 +575,10 @@ export class AIService {
               if (isThinkingModel && data.message && data.message.thinking) {
                 const newThinkingContent = data.message.thinking;
                 thinkingContent += newThinkingContent;
-                console.log(
-                  "🧠 串流思考內容 (直接字段):",
-                  newThinkingContent.substring(0, 100) + "..."
-                );
+                // console.log(
+                //   "🧠 串流思考內容 (直接字段):",
+                //   newThinkingContent.substring(0, 100) + "..."
+                // );
 
                 // 🔧 修復：立即發送思考內容更新
                 yield {
@@ -697,11 +697,11 @@ export class AIService {
                 console.log("總 tokens:", totalTokens);
 
                 if (isThinkingModel && thinkingContent) {
-                  console.log("=== 串流思考內容提取完成 ===");
-                  console.log(
-                    "思考內容預覽:",
-                    thinkingContent.substring(0, 200) + "..."
-                  );
+                  // console.log("=== 串流思考內容提取完成 ===");
+                  // console.log(
+                  //   "思考內容預覽:",
+                  //   thinkingContent.substring(0, 200) + "..."
+                  // );
                 }
 
                 if (hasMultimodal) {

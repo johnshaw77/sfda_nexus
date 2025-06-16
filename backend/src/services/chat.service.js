@@ -335,9 +335,9 @@ class ChatService {
    * @returns {Promise<Object>} 處理結果
    */
   async processChatMessage(aiResponse, context = {}) {
-    console.log("=== CHAT SERVICE: 開始處理聊天消息 ===");
-    console.log("AI 回應長度:", aiResponse.length);
-    console.log("AI 回應內容:", aiResponse);
+    // console.log("=== CHAT SERVICE: 開始處理聊天消息 ===");
+    // console.log("AI 回應長度:", aiResponse.length);
+    // console.log("AI 回應內容:", aiResponse);
 
     try {
       // 首先提取思考內容（無論是否有工具調用）

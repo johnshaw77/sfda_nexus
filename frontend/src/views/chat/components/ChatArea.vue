@@ -1274,6 +1274,15 @@ const handleSendMessage = async () => {
 
       const attachments = finalAttachments.length > 0 ? finalAttachments : null;
 
+      // 🔍 調試：檢查附件信息
+      console.log("=== 前端發送消息調試 ===");
+      console.log("預覽檔案數量:", previewFiles.value.length);
+      console.log("待發送附件數量:", pendingAttachments.value.length);
+      console.log("最終附件數量:", finalAttachments.length);
+      console.log("最終附件內容:", finalAttachments);
+      console.log("傳遞給後端的附件:", attachments);
+      console.log("================================");
+
       // 清空輸入框和重置狀態
       messageText.value = "";
       quotedMessage.value = null;

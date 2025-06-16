@@ -382,6 +382,10 @@ export const handleSendMessage = catchAsync(async (req, res) => {
             console.log("消息ID:", msg.id);
             console.log("附件數量:", msg.attachments.length);
             console.log("當前模型類型:", model.model_type);
+            console.log(
+              "附件詳細信息:",
+              JSON.stringify(msg.attachments, null, 2)
+            );
 
             for (const attachment of msg.attachments) {
               console.log("處理附件:", {
@@ -390,6 +394,22 @@ export const handleSendMessage = catchAsync(async (req, res) => {
                 mime_type: attachment.mime_type,
                 file_size: attachment.file_size,
               });
+
+              console.log("🔍 檢查附件類型條件:");
+              console.log("  - mime_type:", attachment.mime_type);
+              console.log("  - filename:", attachment.filename);
+              console.log(
+                "  - 是否為圖片:",
+                attachment.mime_type?.startsWith("image/")
+              );
+              console.log(
+                "  - 是否為文本 (startsWith):",
+                attachment.mime_type?.startsWith("text/")
+              );
+              console.log(
+                "  - 是否為 CSV (endsWith):",
+                attachment.filename?.toLowerCase().endsWith(".csv")
+              );
 
               // 檢查是否為圖片附件
               if (
@@ -457,6 +477,106 @@ export const handleSendMessage = catchAsync(async (req, res) => {
                 } catch (dbError) {
                   console.error("查詢檔案信息失敗:", dbError);
                   logger.warn("無法獲取附件文件信息", {
+                    attachmentId: attachment.id,
+                    error: dbError.message,
+                  });
+                }
+              }
+              // 檢查是否為文本檔案（CSV、TXT、JSON 等）
+              else if (
+                attachment.mime_type &&
+                (attachment.mime_type.startsWith("text/") ||
+                  attachment.mime_type === "application/json" ||
+                  attachment.filename.toLowerCase().endsWith(".csv") ||
+                  attachment.filename.toLowerCase().endsWith(".txt") ||
+                  attachment.filename.toLowerCase().endsWith(".md"))
+              ) {
+                console.log("🔍 文本檔案條件匹配成功!");
+                try {
+                  // 獲取文本檔案信息
+                  const { rows: fileRows } = await query(
+                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
+                    [attachment.id]
+                  );
+
+                  console.log(`=== 處理文本檔案附件 ${attachment.id} ===`);
+                  console.log("檔案查詢結果:", fileRows);
+                  console.log("檔案類型:", attachment.mime_type);
+                  console.log("檔案名稱:", attachment.filename);
+
+                  if (fileRows.length > 0) {
+                    const filePath = fileRows[0].file_path;
+                    console.log("文本檔案路徑:", filePath);
+
+                    // 讀取文本檔案內容
+                    const fs = await import("fs/promises");
+
+                    try {
+                      const fileContent = await fs.readFile(filePath, "utf8");
+
+                      console.log(
+                        "文本檔案讀取成功，內容長度:",
+                        fileContent.length
+                      );
+                      console.log(
+                        "內容預覽:",
+                        fileContent.substring(0, 200) + "..."
+                      );
+
+                      // 將檔案內容添加到消息中
+                      const fileInfo = `
+
+--- 檔案：${attachment.filename} ---
+檔案類型：${attachment.mime_type}
+檔案大小：${attachment.file_size} 位元組
+
+檔案內容：
+\`\`\`
+${fileContent}
+\`\`\`
+--- 檔案結束 ---
+
+`;
+
+                      // 將檔案內容追加到消息內容中
+                      if (typeof formattedMessage.content === "string") {
+                        console.log("將檔案內容添加到文本消息中");
+                        formattedMessage.content =
+                          formattedMessage.content + fileInfo;
+                      } else {
+                        // 如果是多模態格式，添加到文本部分
+                        if (Array.isArray(formattedMessage.content)) {
+                          console.log("將檔案內容添加到多模態消息中");
+                          const textPart = formattedMessage.content.find(
+                            (part) => part.type === "text"
+                          );
+                          if (textPart) {
+                            textPart.text = textPart.text + fileInfo;
+                          }
+                        }
+                      }
+
+                      console.log("✅ 已將文本檔案內容添加到消息中");
+                      console.log(
+                        "更新後的消息內容長度:",
+                        typeof formattedMessage.content === "string"
+                          ? formattedMessage.content.length
+                          : formattedMessage.content[0]?.text?.length || 0
+                      );
+                    } catch (fileError) {
+                      console.error("讀取文本檔案失敗:", fileError);
+                      logger.warn("無法讀取文本檔案", {
+                        filePath,
+                        error: fileError.message,
+                        attachmentId: attachment.id,
+                      });
+                    }
+                  } else {
+                    console.warn("未找到文本檔案記錄:", attachment.id);
+                  }
+                } catch (dbError) {
+                  console.error("查詢文本檔案信息失敗:", dbError);
+                  logger.warn("無法獲取文本檔案附件信息", {
                     attachmentId: attachment.id,
                     error: dbError.message,
                   });
@@ -967,6 +1087,111 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   });
                 }
               }
+              // 檢查是否為文本檔案（CSV、TXT、JSON 等）
+              else if (
+                attachment.mime_type &&
+                (attachment.mime_type.startsWith("text/") ||
+                  attachment.mime_type === "application/json" ||
+                  attachment.filename.toLowerCase().endsWith(".csv") ||
+                  attachment.filename.toLowerCase().endsWith(".txt") ||
+                  attachment.filename.toLowerCase().endsWith(".md"))
+              ) {
+                console.log("🔍 串流模式：文本檔案條件匹配成功!");
+                try {
+                  // 獲取文本檔案信息
+                  const { rows: fileRows } = await query(
+                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
+                    [attachment.id]
+                  );
+
+                  console.log(
+                    `=== 串流模式：處理文本檔案附件 ${attachment.id} ===`
+                  );
+                  console.log("檔案查詢結果:", fileRows);
+                  console.log("檔案類型:", attachment.mime_type);
+                  console.log("檔案名稱:", attachment.filename);
+
+                  if (fileRows.length > 0) {
+                    const filePath = fileRows[0].file_path;
+                    console.log("文本檔案路徑:", filePath);
+
+                    // 讀取文本檔案內容
+                    const fs = await import("fs/promises");
+
+                    try {
+                      const fileContent = await fs.readFile(filePath, "utf8");
+
+                      console.log(
+                        "串流模式：文本檔案讀取成功，內容長度:",
+                        fileContent.length
+                      );
+                      console.log(
+                        "內容預覽:",
+                        fileContent.substring(0, 200) + "..."
+                      );
+
+                      // 將檔案內容添加到消息中
+                      const fileInfo = `
+
+--- 檔案：${attachment.filename} ---
+檔案類型：${attachment.mime_type}
+檔案大小：${attachment.file_size} 位元組
+
+檔案內容：
+\`\`\`
+${fileContent}
+\`\`\`
+--- 檔案結束 ---
+
+`;
+
+                      // 將檔案內容追加到消息內容中
+                      if (typeof formattedMessage.content === "string") {
+                        console.log("串流模式：將檔案內容添加到文本消息中");
+                        formattedMessage.content =
+                          formattedMessage.content + fileInfo;
+                      } else {
+                        // 如果是多模態格式，添加到文本部分
+                        if (Array.isArray(formattedMessage.content)) {
+                          console.log("串流模式：將檔案內容添加到多模態消息中");
+                          const textPart = formattedMessage.content.find(
+                            (part) => part.type === "text"
+                          );
+                          if (textPart) {
+                            textPart.text = textPart.text + fileInfo;
+                          }
+                        }
+                      }
+
+                      console.log("✅ 串流模式：已將文本檔案內容添加到消息中");
+                      console.log(
+                        "更新後的消息內容長度:",
+                        typeof formattedMessage.content === "string"
+                          ? formattedMessage.content.length
+                          : formattedMessage.content[0]?.text?.length || 0
+                      );
+                    } catch (fileError) {
+                      console.error("串流模式：讀取文本檔案失敗:", fileError);
+                      logger.warn("無法讀取文本檔案", {
+                        filePath,
+                        error: fileError.message,
+                        attachmentId: attachment.id,
+                      });
+                    }
+                  } else {
+                    console.warn(
+                      "串流模式：未找到文本檔案記錄:",
+                      attachment.id
+                    );
+                  }
+                } catch (dbError) {
+                  console.error("串流模式：查詢文本檔案信息失敗:", dbError);
+                  logger.warn("無法獲取文本檔案附件信息", {
+                    attachmentId: attachment.id,
+                    error: dbError.message,
+                  });
+                }
+              }
             }
 
             // 如果有圖片內容，將消息轉換為多模態格式
@@ -1083,21 +1308,24 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
       // 累積思考內容（如果有的話）
       if (chunk.thinking_content) {
         accumulatedThinkingContent = chunk.thinking_content;
+        /*
         console.log(
           "=== 串流接收到思考內容 ===",
           accumulatedThinkingContent.substring(0, 100) + "..."
-        );
+        );*/
       }
 
       if (chunk.type === "thinking") {
         // 🔧 新增：處理即時思考內容
         accumulatedThinkingContent = chunk.thinking_content;
+        /*
         console.log(
           "🧠 即時思考內容更新:",
           chunk.thinking_delta?.substring(0, 50) + "...",
           "累積長度:",
           accumulatedThinkingContent.length
         );
+        */
 
         // 確保有 assistant 消息 ID
         if (!assistantMessageId) {

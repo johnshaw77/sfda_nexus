@@ -642,11 +642,11 @@ const checkUserMessageHeight = () => {
 
   shouldShowExpandButton.value = element.scrollHeight > maxHeight;
 
-  console.log("檢查用戶消息高度:", {
-    scrollHeight: element.scrollHeight,
-    maxHeight,
-    shouldShow: shouldShowExpandButton.value,
-  });
+  // console.log("檢查用戶消息高度:", {
+  //   scrollHeight: element.scrollHeight,
+  //   maxHeight,
+  //   shouldShow: shouldShowExpandButton.value,
+  // });
 };
 
 // 切換用戶消息展開狀態
@@ -690,6 +690,7 @@ const currentAgentAvatar = computed(() => {
 
 // 獲取思考內容的方法
 const getThinkingContent = () => {
+  /*
   console.log("🧠 [MessageBubble] 檢查思考內容:", {
     messageId: props.message.id,
     role: props.message.role,
@@ -702,30 +703,35 @@ const getThinkingContent = () => {
     streamingMessageId: chatStore.streamingMessageId,
     isCurrentStreaming: chatStore.streamingMessageId === props.message.id,
   });
+  */
 
   // 優先從直接屬性獲取（流式模式）
   if (props.message.thinking_content) {
+    /*
     console.log(
       "🧠 [MessageBubble] 從直接屬性獲取思考內容:",
       props.message.thinking_content.length,
       "字符，預覽:",
       props.message.thinking_content.substring(0, 100) + "..."
     );
+    */
     return props.message.thinking_content;
   }
 
   // 從 metadata 獲取（非流式模式）
   if (props.message.metadata?.thinking_content) {
+    /*
     console.log(
       "🧠 [MessageBubble] 從 metadata 獲取思考內容:",
       props.message.metadata.thinking_content.length,
       "字符，預覽:",
       props.message.metadata.thinking_content.substring(0, 100) + "..."
     );
+    */
     return props.message.metadata.thinking_content;
   }
 
-  console.log("🧠 [MessageBubble] 沒有找到思考內容");
+  // console.log("🧠 [MessageBubble] 沒有找到思考內容");
   return null;
 };
 
@@ -766,6 +772,7 @@ watch(
   () => getThinkingContent(),
   (newThinking, oldThinking) => {
     if (newThinking !== oldThinking) {
+      /*
       console.log("🧠 [MessageBubble] 思考內容更新:", {
         messageId: props.message.id,
         hasContent: !!newThinking,
@@ -777,6 +784,7 @@ watch(
         thinkingCollapsed: thinkingCollapsed.value,
         displayedLength: displayedThinkingContent.value.length,
       });
+      */
 
       // 如果有思考內容，確保思考區域展開
       if (newThinking) {
@@ -810,7 +818,7 @@ watch(
         // 沒有思考內容時清空顯示
         displayedThinkingContent.value = "";
         isThinkingAnimating.value = false;
-        console.log("🧠 [MessageBubble] 清空思考內容顯示");
+        // console.log("🧠 [MessageBubble] 清空思考內容顯示");
       }
     }
   },

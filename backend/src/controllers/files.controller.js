@@ -133,18 +133,31 @@ export const handleUploadFile = catchAsync(async (req, res) => {
       // 檢查是否已存在相同檔案（去重）
       const existingFile = await FileModel.getFileByHash(fileHash);
       if (existingFile) {
-        // 刪除剛上傳的重複檔案
-        await fs.unlink(req.file.path);
+        // 檢查檔案實體是否真的存在
+        try {
+          await fs.access(existingFile.file_path);
+          // 檔案存在，進行去重
+          await fs.unlink(req.file.path);
 
-        logger.info("檔案去重", {
-          user_id: req.user.id,
-          existing_file_id: existingFile.id,
-          duplicate_filename: req.file.originalname,
-        });
+          logger.info("檔案去重", {
+            user_id: req.user.id,
+            existing_file_id: existingFile.id,
+            duplicate_filename: req.file.originalname,
+          });
 
-        return res.json(
-          createSuccessResponse(existingFile, "檔案已存在，返回現有檔案")
-        );
+          return res.json(
+            createSuccessResponse(existingFile, "檔案已存在，返回現有檔案")
+          );
+        } catch (accessError) {
+          // 檔案記錄存在但實體檔案不存在，刪除孤立記錄
+          logger.warn("發現孤立檔案記錄，將清理", {
+            file_id: existingFile.id,
+            file_path: existingFile.file_path,
+          });
+
+          await FileModel.deleteFile(existingFile.id);
+          // 繼續處理新檔案上傳
+        }
       }
 
       // 確定檔案類型
@@ -242,9 +255,23 @@ export const handleUploadMultipleFiles = catchAsync(async (req, res) => {
         // 檢查是否已存在相同檔案
         const existingFile = await FileModel.getFileByHash(fileHash);
         if (existingFile) {
-          await fs.unlink(file.path);
-          uploadedFiles.push(existingFile);
-          continue;
+          // 檢查檔案實體是否真的存在
+          try {
+            await fs.access(existingFile.file_path);
+            // 檔案存在，進行去重
+            await fs.unlink(file.path);
+            uploadedFiles.push(existingFile);
+            continue;
+          } catch (accessError) {
+            // 檔案記錄存在但實體檔案不存在，刪除孤立記錄
+            logger.warn("發現孤立檔案記錄，將清理", {
+              file_id: existingFile.id,
+              file_path: existingFile.file_path,
+            });
+
+            await FileModel.deleteFile(existingFile.id);
+            // 繼續處理新檔案上傳
+          }
         }
 
         // 確定檔案類型
@@ -604,10 +631,12 @@ export const handleGetFileContent = catchAsync(async (req, res) => {
  */
 export const handleAnalyzeFile = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { type } = req.body;
+  const { type, model = "qwen3:8b" } = req.body;
 
-  if (!["summarize", "generate"].includes(type)) {
-    throw new ValidationError("無效的分析類型，支援: summarize, generate");
+  if (!["summarize", "generate", "csv_analysis"].includes(type)) {
+    throw new ValidationError(
+      "無效的分析類型，支援: summarize, generate, csv_analysis"
+    );
   }
 
   const file = await FileModel.getFileById(parseInt(id));
@@ -621,34 +650,214 @@ export const handleAnalyzeFile = catchAsync(async (req, res) => {
     throw new BusinessError("沒有權限存取此檔案");
   }
 
-  // 獲取檔案內容
-  const contentResponse = await handleGetFileContent(
-    { ...req, params: { id } },
-    { json: () => ({ data: { content: null } }) }
-  );
-
-  // 這是一個簡化的實現，實際應該調用 AI 服務
   let result;
-  if (type === "summarize") {
-    result = {
-      summary: `這是檔案 "${file.filename}" 的關鍵要點總結：\n\n• 檔案大小：${file.file_size} 位元組\n• 檔案類型：${file.mime_type}\n• 上傳時間：${file.created_at}\n\n注意：這是一個示例總結，實際實現需要整合 AI 模型來分析檔案內容。`,
-    };
-  } else {
-    result = {
-      document: `基於檔案 "${file.filename}" 生成的文檔：\n\n# ${file.filename} 分析報告\n\n## 檔案資訊\n- 檔案名稱：${file.filename}\n- 檔案大小：${file.file_size} 位元組\n- MIME 類型：${file.mime_type}\n- 上傳時間：${file.created_at}\n\n## 內容分析\n\n待實現：需要整合 AI 模型來生成更詳細的分析報告。\n\n## 建議\n\n1. 檔案結構良好\n2. 建議進一步優化\n3. 可以考慮添加更多功能\n\n---\n*本報告由 SFDA Nexus 系統自動生成*`,
-    };
-  }
 
-  logger.info("檔案分析完成", {
-    user_id: req.user.id,
-    file_id: file.id,
-    analysis_type: type,
-  });
+  try {
+    // 如果是 CSV 分析，使用專門的 CSV 服務
+    if (type === "csv_analysis" && file.mime_type === "text/csv") {
+      // 動態導入 CSV 服務
+      const { CSVService } = await import("../services/csv.service.js");
+
+      console.log("=== 開始 CSV 專業分析 ===");
+      console.log("檔案:", file.filename);
+      console.log("大小:", file.file_size, "位元組");
+      console.log("使用模型:", model);
+
+      // 使用專業的 CSV 分析服務
+      const csvAnalysis = await CSVService.analyzeCSVFile(file.file_path, {
+        includeAIInsights: true,
+        model: model,
+        maxRows: 5000, // 限制最大處理行數
+      });
+
+      result = {
+        analysis_type: "csv_professional",
+        csv_data: {
+          filename: file.filename,
+          total_rows: csvAnalysis.csvData.totalRows,
+          total_columns: csvAnalysis.csvData.totalColumns,
+          headers: csvAnalysis.csvData.headers,
+          sample_rows: csvAnalysis.csvData.sample_rows,
+        },
+        data_types: csvAnalysis.typeAnalysis,
+        statistics: csvAnalysis.basicStats,
+        quality_report: csvAnalysis.qualityReport,
+        ai_insights: csvAnalysis.aiInsights,
+        metadata: csvAnalysis.metadata,
+        model_used: model,
+      };
+
+      console.log("=== CSV 分析完成 ===");
+      console.log("數據行數:", csvAnalysis.csvData.totalRows);
+      console.log("欄位數量:", csvAnalysis.csvData.totalColumns);
+      console.log(
+        "品質分數:",
+        csvAnalysis.qualityReport.summary.quality_score.toFixed(1)
+      );
+      console.log(
+        "AI 洞察長度:",
+        csvAnalysis.aiInsights?.insights?.length || 0
+      );
+    } else {
+      // 其他類型的文件分析
+      let fileContent = "";
+      try {
+        fileContent = await fs.readFile(file.file_path, "utf8");
+      } catch (error) {
+        throw new BusinessError("無法讀取檔案內容");
+      }
+
+      // 動態導入 AI 服務
+      const { AIService } = await import("../services/ai.service.js");
+
+      let aiPrompt = "";
+
+      if (type === "summarize") {
+        aiPrompt = `請總結以下檔案的關鍵要點：
+
+檔案名稱：${file.filename}
+檔案類型：${file.mime_type}
+檔案大小：${file.file_size} 位元組
+
+檔案內容：
+\`\`\`
+${fileContent.substring(0, 8000)}${fileContent.length > 8000 ? "\n... (內容過長，已截取前8000字符)" : ""}
+\`\`\`
+
+請提供：
+1. 內容摘要
+2. 關鍵要點
+3. 主要發現
+4. 建議行動
+
+請用繁體中文回答。`;
+      } else if (type === "generate") {
+        aiPrompt = `基於以下檔案內容，生成一份詳細的分析報告：
+
+檔案名稱：${file.filename}
+檔案類型：${file.mime_type}
+檔案大小：${file.file_size} 位元組
+
+檔案內容：
+\`\`\`
+${fileContent.substring(0, 8000)}${fileContent.length > 8000 ? "\n... (內容過長，已截取前8000字符)" : ""}
+\`\`\`
+
+請生成一份包含以下部分的完整報告：
+1. 執行摘要
+2. 詳細分析
+3. 發現和洞察
+4. 建議和下一步行動
+5. 結論
+
+請用繁體中文撰寫，格式要專業且易讀。`;
+      }
+
+      // 調用 AI 模型進行分析
+      const aiResponse = await AIService.callOllama({
+        model: model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "你是一個專業的數據分析師和文檔分析專家。請提供詳細、準確且有洞察力的分析。",
+          },
+          {
+            role: "user",
+            content: aiPrompt,
+          },
+        ],
+        temperature: 0.3, // 較低溫度確保分析的一致性
+        max_tokens: 4096,
+        enable_thinking: true, // 啟用思考模式
+      });
+
+      if (type === "summarize") {
+        result = {
+          analysis_type: "text_summary",
+          summary: aiResponse.content,
+          thinking_process: aiResponse.thinking_content,
+          model_used: model,
+          processing_time: aiResponse.processing_time,
+        };
+      } else {
+        result = {
+          analysis_type: "text_report",
+          document: aiResponse.content,
+          thinking_process: aiResponse.thinking_content,
+          model_used: model,
+          processing_time: aiResponse.processing_time,
+        };
+      }
+    }
+
+    logger.info("AI 檔案分析完成", {
+      user_id: req.user.id,
+      file_id: file.id,
+      analysis_type: type,
+      model_used: model,
+      file_type: file.mime_type,
+    });
+  } catch (aiError) {
+    logger.error("AI 分析失敗", {
+      user_id: req.user.id,
+      file_id: file.id,
+      analysis_type: type,
+      error: aiError.message,
+    });
+
+    // 降級到基本分析
+    if (type === "csv_analysis") {
+      try {
+        const fileContent = await fs.readFile(file.file_path, "utf8");
+        const lines = fileContent.split("\n");
+        const headers = lines[0] ? lines[0].split(",") : [];
+
+        result = {
+          analysis_type: "csv_basic",
+          analysis: `CSV 檔案基本分析：\n\n• 檔案名稱：${file.filename}\n• 估計行數：${lines.length - 1}\n• 欄位數量：${headers.length}\n• 欄位名稱：${headers.join(", ")}\n\n注意：AI 分析服務暫時不可用，這是基本的結構分析。`,
+          error: "AI 服務不可用，提供基本分析",
+          file_info: {
+            filename: file.filename,
+            size: file.file_size,
+            mime_type: file.mime_type,
+            rows_estimated: lines.length - 1,
+            columns_estimated: headers.length,
+          },
+        };
+      } catch (readError) {
+        result = {
+          analysis_type: "error",
+          error: "無法讀取檔案內容",
+          file_info: {
+            filename: file.filename,
+            size: file.file_size,
+            mime_type: file.mime_type,
+          },
+        };
+      }
+    } else {
+      // 使用原有的示例實現作為降級方案
+      if (type === "summarize") {
+        result = {
+          analysis_type: "basic_summary",
+          summary: `檔案 "${file.filename}" 的基本信息：\n\n• 檔案大小：${file.file_size} 位元組\n• 檔案類型：${file.mime_type}\n• 上傳時間：${file.created_at}\n\n注意：AI 分析服務暫時不可用。`,
+          error: "AI 服務不可用",
+        };
+      } else {
+        result = {
+          analysis_type: "basic_report",
+          document: `# ${file.filename} 基本報告\n\n## 檔案資訊\n- 檔案名稱：${file.filename}\n- 檔案大小：${file.file_size} 位元組\n- MIME 類型：${file.mime_type}\n- 上傳時間：${file.created_at}\n\n注意：AI 分析服務暫時不可用，這是基本的檔案信息報告。`,
+          error: "AI 服務不可用",
+        };
+      }
+    }
+  }
 
   res.json(
     createSuccessResponse(
       result,
-      `檔案${type === "summarize" ? "總結" : "文檔生成"}完成`
+      `檔案${type === "csv_analysis" ? "CSV分析" : type === "summarize" ? "總結" : "文檔生成"}完成`
     )
   );
 });
@@ -660,7 +869,7 @@ export const handleAnalyzeFile = catchAsync(async (req, res) => {
  */
 export const handleAskFileQuestion = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { question } = req.body;
+  const { question, model = "qwen3:8b" } = req.body;
 
   if (!question || !question.trim()) {
     throw new ValidationError("問題不能為空");
@@ -677,21 +886,92 @@ export const handleAskFileQuestion = catchAsync(async (req, res) => {
     throw new BusinessError("沒有權限存取此檔案");
   }
 
-  // 這是一個簡化的實現，實際應該調用 AI 服務
-  const answer = `關於檔案 "${file.filename}" 的問題「${question}」：\n\n基於檔案信息，我可以告訴您：\n- 檔案大小：${file.file_size} 位元組\n- 檔案類型：${file.mime_type}\n- 上傳時間：${file.created_at}\n\n注意：這是一個示例回答。要獲得更準確的答案，需要整合 AI 模型來分析檔案的實際內容並回答您的問題。\n\n如果您有其他關於此檔案的問題，請隨時提問！`;
+  // 獲取檔案內容
+  let fileContent = "";
+  try {
+    fileContent = await fs.readFile(file.file_path, "utf8");
+  } catch (error) {
+    throw new BusinessError("無法讀取檔案內容");
+  }
 
-  logger.info("檔案問答完成", {
-    user_id: req.user.id,
-    file_id: file.id,
-    question_length: question.length,
-  });
+  // 動態導入 AI 服務
+  const { AIService } = await import("../services/ai.service.js");
+
+  let answer = "";
+  let thinkingProcess = "";
+
+  try {
+    // 構建針對檔案內容的問答提示
+    const aiPrompt = `基於以下檔案內容回答用戶問題：
+
+檔案名稱：${file.filename}
+檔案類型：${file.mime_type}
+檔案大小：${file.file_size} 位元組
+
+檔案內容：
+\`\`\`
+${fileContent.substring(0, 8000)}${fileContent.length > 8000 ? "\n... (內容過長，已截取前8000字符)" : ""}
+\`\`\`
+
+用戶問題：${question}
+
+請基於檔案內容提供準確、詳細的回答。如果檔案內容不足以回答問題，請明確說明。請用繁體中文回答。`;
+
+    // 調用 AI 模型
+    const aiResponse = await AIService.callOllama({
+      model: model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是一個專業的文檔分析助手。請基於提供的檔案內容準確回答用戶問題，如果內容不足以回答請誠實說明。",
+        },
+        {
+          role: "user",
+          content: aiPrompt,
+        },
+      ],
+      temperature: 0.2, // 較低溫度確保回答的準確性
+      max_tokens: 2048,
+      enable_thinking: true,
+    });
+
+    answer = aiResponse.content;
+    thinkingProcess = aiResponse.thinking_content;
+
+    logger.info("AI 檔案問答完成", {
+      user_id: req.user.id,
+      file_id: file.id,
+      question_length: question.length,
+      answer_length: answer.length,
+      model_used: model,
+      processing_time: aiResponse.processing_time,
+    });
+  } catch (aiError) {
+    logger.error("AI 問答失敗", {
+      user_id: req.user.id,
+      file_id: file.id,
+      question: question.substring(0, 100),
+      error: aiError.message,
+    });
+
+    // 降級到基本回答
+    answer = `關於檔案 "${file.filename}" 的問題「${question}」：\n\n很抱歉，AI 分析服務暫時不可用。\n\n基於檔案基本信息：\n- 檔案大小：${file.file_size} 位元組\n- 檔案類型：${file.mime_type}\n- 上傳時間：${file.created_at}\n\n建議稍後重試或聯繫系統管理員。`;
+  }
 
   res.json(
     createSuccessResponse(
       {
         answer,
+        thinking_process: thinkingProcess,
         question,
         filename: file.filename,
+        model_used: model,
+        file_info: {
+          size: file.file_size,
+          type: file.mime_type,
+          content_length: fileContent.length,
+        },
       },
       "問答完成"
     )

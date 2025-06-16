@@ -325,11 +325,13 @@ class McpToolParser {
   async executeToolCalls(toolCalls, context = {}) {
     const results = [];
 
+    /*
     logger.info("開始執行工具調用", {
       callCount: toolCalls.length,
       userId: context.user_id,
       conversationId: context.conversation_id,
     });
+    */
 
     for (const [index, toolCall] of toolCalls.entries()) {
       try {

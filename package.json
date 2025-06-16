@@ -1,0 +1,27 @@
+{
+  "name": "sfda_nexus",
+  "version": "1.0.0",
+  "description": "## 🎯 項目概述",
+  "main": "serve_test.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnshaw77/sfda_nexus.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/johnshaw77/sfda_nexus/issues"
+  },
+  "homepage": "https://github.com/johnshaw77/sfda_nexus#readme",
+  "dependencies": {
+    "form-data": "^4.0.3",
+    "node-fetch": "^3.3.2"
+  }
+}
