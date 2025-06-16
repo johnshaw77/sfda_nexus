@@ -580,34 +580,6 @@ router.delete(
 
 /**
  * @swagger
- * /api/mcp/services/{id}/permanent:
- *   delete:
- *     summary: 永久刪除 MCP 服務（硬刪除）
- *     tags: [MCP Services]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: MCP 服務 ID
- *     responses:
- *       200:
- *         description: MCP 服務永久刪除成功
- *       404:
- *         description: MCP 服務不存在
- */
-router.delete(
-  "/:id/permanent",
-  authenticateToken,
-  requireRole(["admin", "super_admin"]),
-  handlePermanentDeleteMcpService
-);
-
-/**
- * @swagger
  * /api/mcp/services/batch:
  *   delete:
  *     summary: 批量刪除 MCP 服務（軟刪除）
@@ -716,6 +688,34 @@ router.delete(
   authenticateToken,
   requireRole(["admin", "super_admin"]),
   handleBatchPermanentDeleteMcpServices
+);
+
+/**
+ * @swagger
+ * /api/mcp/services/{id}/permanent:
+ *   delete:
+ *     summary: 永久刪除 MCP 服務（硬刪除）
+ *     tags: [MCP Services]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: MCP 服務 ID
+ *     responses:
+ *       200:
+ *         description: MCP 服務永久刪除成功
+ *       404:
+ *         description: MCP 服務不存在
+ */
+router.delete(
+  "/:id/permanent",
+  authenticateToken,
+  requireRole(["admin", "super_admin"]),
+  handlePermanentDeleteMcpService
 );
 
 /**

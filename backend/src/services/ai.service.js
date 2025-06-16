@@ -571,13 +571,25 @@ export class AIService {
             try {
               const data = JSON.parse(line);
 
-              // 處理 DeepSeek-R1 的思考內容（直接從 message.thinking）
+              // 處理思考內容（支持多種格式）
               if (isThinkingModel && data.message && data.message.thinking) {
-                thinkingContent += data.message.thinking;
+                const newThinkingContent = data.message.thinking;
+                thinkingContent += newThinkingContent;
                 console.log(
-                  "=== 串流思考內容 ===",
-                  data.message.thinking.substring(0, 100) + "..."
+                  "🧠 串流思考內容 (直接字段):",
+                  newThinkingContent.substring(0, 100) + "..."
                 );
+
+                // 🔧 修復：立即發送思考內容更新
+                yield {
+                  type: "thinking",
+                  thinking_content: thinkingContent, // 發送累積的思考內容
+                  thinking_delta: newThinkingContent, // 發送新增的思考內容
+                  tokens_used: totalTokens,
+                  done: false,
+                  model: data.model,
+                  provider: "ollama",
+                };
               }
 
               if (data.message && data.message.content) {
@@ -585,7 +597,7 @@ export class AIService {
                 let processedContent = content;
                 let currentThinking = "";
 
-                // 處理 Qwen3 的 <think> 標籤
+                // 處理 Qwen3 的 <think> 標籤（備用方案）
                 if (isThinkingModel) {
                   const thinkStart = content.indexOf("<think>");
                   const thinkEnd = content.indexOf("</think>");
@@ -593,7 +605,7 @@ export class AIService {
                   if (thinkStart !== -1 && !isInThinkingMode) {
                     // 發現思考開始標籤
                     isInThinkingMode = true;
-                    console.log("🧠 開始 Qwen3 思考模式");
+                    console.log("🧠 開始 Qwen3 思考模式 (<think> 標籤)");
 
                     // 提取 <think> 之前的內容作為正常回應
                     processedContent = content.substring(0, thinkStart);
@@ -609,7 +621,7 @@ export class AIService {
                       processedContent += content.substring(thinkEnd + 8);
                       isInThinkingMode = false;
                       console.log(
-                        "🧠 完整思考塊:",
+                        "🧠 完整思考塊 (<think> 標籤):",
                         thinkContent.substring(0, 50) + "..."
                       );
                     } else {
@@ -626,7 +638,7 @@ export class AIService {
                       isInThinkingMode = false;
                       currentThinkingBuffer = "";
                       console.log(
-                        "🧠 思考內容完成:",
+                        "🧠 思考內容完成 (<think> 標籤):",
                         thinkingContent.substring(thinkingContent.length - 50)
                       );
                     } else {
@@ -635,9 +647,20 @@ export class AIService {
                       thinkingContent += content;
                       processedContent = "";
                       console.log(
-                        "🧠 收集思考內容:",
+                        "🧠 收集思考內容 (<think> 標籤):",
                         content.substring(0, 20) + "..."
                       );
+
+                      // 🔧 修復：即時發送思考內容增量
+                      yield {
+                        type: "thinking",
+                        thinking_content: thinkingContent, // 發送累積的思考內容
+                        thinking_delta: content, // 發送新增的思考內容
+                        tokens_used: totalTokens,
+                        done: false,
+                        model: data.model,
+                        provider: "ollama",
+                      };
                     }
                   }
                 }
@@ -651,7 +674,8 @@ export class AIService {
                 // 產出串流數據塊
                 yield {
                   type: "content",
-                  content: processedContent, // 發送處理後的內容（不包含 <think> 標籤）
+                  content: fullContent, // 🔧 修復：發送累積內容用於打字機動畫
+                  content_delta: processedContent, // 發送增量內容用於調試
                   full_content: fullContent,
                   thinking_content: thinkingContent, // 發送累積的思考內容
                   tokens_used: totalTokens,
@@ -854,7 +878,8 @@ export class AIService {
                   // 產出串流數據塊
                   yield {
                     type: "content",
-                    content: content,
+                    content: fullContent, // 🔧 修復：發送累積內容用於打字機動畫
+                    content_delta: content, // 發送增量內容用於調試
                     full_content: fullContent,
                     tokens_used: totalTokens,
                     done: false,
@@ -1115,9 +1140,19 @@ export class AIService {
     const modelLower = model.toLowerCase();
     const thinkingModels = ["qwen3", "deepseek-r1", "smallthinker"];
 
-    return thinkingModels.some((thinkingModel) =>
-      modelLower.includes(thinkingModel)
-    );
+    console.log("🧠 檢查思考模型能力:");
+    console.log("  原始模型名稱:", model);
+    console.log("  小寫模型名稱:", modelLower);
+    console.log("  支持的思考模型:", thinkingModels);
+
+    const isThinking = thinkingModels.some((thinkingModel) => {
+      const matches = modelLower.includes(thinkingModel);
+      console.log(`  檢查 "${thinkingModel}": ${matches ? "匹配" : "不匹配"}`);
+      return matches;
+    });
+
+    console.log("  最終結果:", isThinking ? "支持思考模式" : "不支持思考模式");
+    return isThinking;
   }
 
   /**

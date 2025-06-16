@@ -817,6 +817,29 @@ watch(
   { immediate: true }
 );
 
+// 監聽串流狀態變化，在串流完成後自動折疊思考內容
+watch(
+  () => chatStore.streamingMessageId,
+  (newStreamingId, oldStreamingId) => {
+    // 如果之前正在串流的消息是當前消息，且現在串流結束了
+    if (
+      oldStreamingId === props.message.id &&
+      newStreamingId !== props.message.id &&
+      hasThinkingContent.value
+    ) {
+      console.log("🧠 [MessageBubble] 檢測到串流完成，準備自動折疊思考內容");
+
+      // 延遲折疊，給用戶時間看到完整的思考內容
+      setTimeout(() => {
+        if (!isThinkingAnimating.value) {
+          thinkingCollapsed.value = true;
+          console.log("🧠 [MessageBubble] 串流完成後自動折疊思考內容");
+        }
+      }, 2000); // 2秒後自動折疊
+    }
+  }
+);
+
 // 思考內容動畫函數
 const animateThinkingContent = (targetContent) => {
   if (!targetContent) {

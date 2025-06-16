@@ -283,6 +283,12 @@ export const handleBatchDeleteMcpServices = catchAsync(async (req, res) => {
 
 /**
  * 批量永久刪除 MCP 服務（硬刪除）
+ *
+ * 🔧 設計理念：
+ * - 完全獨立的本地數據庫操作，不依賴 mcp-server 狀態
+ * - 支持刪除任何本地記錄的服務，無論 mcp-server 是否可用
+ * - 適用於清理過時服務、測試服務或不再需要的服務
+ *
  * @route DELETE /api/mcp/services/batch/permanent
  * @access Admin
  */

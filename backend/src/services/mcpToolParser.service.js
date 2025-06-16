@@ -9,20 +9,30 @@ import logger from "../utils/logger.util.js";
 
 class McpToolParser {
   constructor() {
-    // 工具調用的正則模式，支援多種格式
+    // 工具調用的正則模式，支援多種格式（移除容易誤判的函數調用格式）
     this.toolCallPatterns = [
       // JSON 格式: {"tool": "tool_name", "parameters": {...}}
       /```json\s*(\{[\s\S]*?\})\s*```/gi,
       // 直接 JSON 格式（沒有 ```json 包裝）
       /\{(?:[^{}]|{[^{}]*})*"tool"(?:[^{}]|{[^{}]*})*\}/g,
-      // 函數調用格式: tool_name(param1="value1", param2="value2")
-      /(\w+)\s*\(\s*([^)]*)\s*\)/gi,
       // 標籤格式: <tool_call name="tool_name" params="...">
       /<tool_call\s+name="([^"]+)"\s*(?:params="([^"]*)")?\s*\/?>/gi,
       // XML 格式: <tool_call><name>tool_name</name><parameters>...</parameters></tool_call>
       /<tool_call>\s*<name>([^<]+)<\/name>\s*<parameters>([\s\S]*?)<\/parameters>\s*<\/tool_call>/gi,
       // 簡單格式: <tool_call>tool_name\nparameters_json</tool_call>
       /<tool_call>([\s\S]*?)<\/tool_call>/gi,
+    ];
+
+    // 常見的非工具調用模式，用於排除誤判
+    this.excludePatterns = [
+      // 數學函數
+      /\b(sin|cos|tan|log|ln|exp|sqrt|abs|max|min|floor|ceil|round)\s*\(/gi,
+      // 編程概念
+      /\b(function|method|class|if|for|while|return|console|print)\s*\(/gi,
+      // 量子計算術語
+      /\b(qubit|gate|circuit|measure|hadamard|cnot|pauli)\s*\(/gi,
+      // 其他常見模式
+      /\b(example|demo|test|sample)\s*\(/gi,
     ];
   }
 
@@ -113,19 +123,6 @@ class McpToolParser {
             format: "json",
           };
         }
-      }
-
-      // 函數調用格式
-      if (pattern.source.includes("\\w+")) {
-        const toolName = match[1];
-        const paramStr = match[2] || "";
-        const parameters = this.parseParameters(paramStr);
-
-        return {
-          name: toolName,
-          parameters,
-          format: "function",
-        };
       }
 
       // 標籤格式

@@ -13,6 +13,15 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "http://localhost:8080",
   "http://localhost:5174", // Vue CLI 預設端口
+  "http://localhost:5175", // Vue CLI 預設端口
+  "http://localhost:5176", // Vue CLI 預設端口
+  "http://localhost:5177", // Vue CLI 預設端口
+  "http://localhost:5178", // Vue CLI 預設端口
+  "http://localhost:5179", // Vue CLI 預設端口
+  "http://localhost:5180", // Vue CLI 預設端口
+  "http://localhost:5181", // Vue CLI 預設端口
+  "http://localhost:5182",
+  "http://127.0.0.1:5500", // Vue CLI 預設端口
 ];
 
 // 生產環境額外允許的域名
@@ -83,9 +92,24 @@ export const corsConfig = {
 
 // 開發環境的寬鬆配置
 export const developmentCorsConfig = {
-  origin: true, // 允許所有來源
+  origin: (origin, callback) => {
+    // 開發環境允許所有來源，包括 file:// 協議
+    console.log("🔍 CORS 檢查 - 來源:", origin);
+    callback(null, true);
+  },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: "*",
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Cache-Control",
+    "Connection",
+    "Keep-Alive",
+    "*",
+  ],
+  exposedHeaders: ["Cache-Control", "Connection", "Content-Type", "*"],
   credentials: true,
   optionsSuccessStatus: 200,
 };

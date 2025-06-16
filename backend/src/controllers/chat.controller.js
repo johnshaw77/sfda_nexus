@@ -134,6 +134,15 @@ export const handleSendMessage = catchAsync(async (req, res) => {
   const { user } = req;
   const { conversationId } = req.params;
 
+  // 調試：檢查路由參數
+  console.log("🔍 調試路由參數:", {
+    conversationId,
+    conversationIdType: typeof conversationId,
+    params: req.params,
+    url: req.url,
+    method: req.method,
+  });
+
   // 發送調試信息：開始處理
   const debugSession = {
     sessionId: `debug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -243,11 +252,24 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     contentType: content_type,
   });
 
+  // 調試：檢查創建用戶消息的參數
+  console.log("🔍 調試用戶消息參數:", {
+    conversation_id: conversationId,
+    role: "user",
+    content: content?.substring(0, 50) + "...",
+    content_type: content_type,
+    attachments: attachments,
+    metadata: metadata,
+    conversationIdType: typeof conversationId,
+    contentType: typeof content,
+    contentTypeType: typeof content_type,
+  });
+
   const userMessage = await MessageModel.create({
     conversation_id: conversationId,
     role: "user",
     content: content,
-    content_type: content_type,
+    content_type: content_type || "text",
     attachments: attachments || null,
     metadata: metadata || null,
   });
@@ -269,10 +291,21 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       message: "正在獲取對話上下文",
     });
 
+    // 調試：檢查 max_tokens 值
+    console.log("🔍 調試 max_tokens:", {
+      max_tokens,
+      type: typeof max_tokens,
+      calculation: max_tokens * 0.7,
+      isNaN: isNaN(max_tokens * 0.7),
+    });
+
+    const maxContextTokens =
+      max_tokens && !isNaN(max_tokens) ? max_tokens * 0.7 : 2800; // 默認值
+
     const contextMessages = await MessageModel.getContextMessages(
       conversationId,
       20,
-      max_tokens * 0.7
+      maxContextTokens
     );
 
     sendDebugInfo("context_loaded", {
@@ -697,8 +730,8 @@ export const handleSendMessage = catchAsync(async (req, res) => {
  */
 export const handleSendMessageStream = catchAsync(async (req, res) => {
   const { user } = req;
+  const { conversationId } = req.params; // 從路由參數獲取
   const {
-    conversation_id: conversationId,
     content,
     content_type = "text",
     attachments,
@@ -1056,7 +1089,51 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
         );
       }
 
-      if (chunk.type === "content") {
+      if (chunk.type === "thinking") {
+        // 🔧 新增：處理即時思考內容
+        accumulatedThinkingContent = chunk.thinking_content;
+        console.log(
+          "🧠 即時思考內容更新:",
+          chunk.thinking_delta?.substring(0, 50) + "...",
+          "累積長度:",
+          accumulatedThinkingContent.length
+        );
+
+        // 確保有 assistant 消息 ID
+        if (!assistantMessageId) {
+          const assistantMessage = await MessageModel.create({
+            conversation_id: conversationId,
+            role: "assistant",
+            content: "",
+            content_type: "text",
+            tokens_used: chunk.tokens_used,
+            model_info: { provider: chunk.provider, model: chunk.model },
+            processing_time: null,
+          });
+          assistantMessageId = assistantMessage.id;
+
+          // 發送 assistant_message_created 事件
+          sendSSE("assistant_message_created", {
+            assistant_message_id: assistantMessageId,
+            conversation_id: conversationId,
+          });
+        }
+
+        // 🔧 立即發送思考內容更新
+        const sent = sendSSE("stream_content", {
+          content: "", // 思考階段沒有正式內容
+          full_content: fullContent,
+          thinking_content: accumulatedThinkingContent, // 即時思考內容
+          thinking_delta: chunk.thinking_delta, // 新增的思考內容
+          tokens_used: chunk.tokens_used,
+          assistant_message_id: assistantMessageId,
+        });
+
+        if (!sent) {
+          logger.info("思考內容SSE發送失敗，停止串流處理", { conversationId });
+          break;
+        }
+      } else if (chunk.type === "content") {
         fullContent = chunk.full_content || fullContent + chunk.content;
 
         // 🔧 修復：如果是第一個內容塊，先創建assistant訊息記錄

@@ -15,6 +15,10 @@ class McpClient {
   constructor() {
     this.clients = new Map(); // 儲存已連接的 MCP 客戶端
     this.connectionTimeout = 5000; // 連接超時時間（毫秒）
+    this.retryAttempts = 3; // 重試次數
+    this.retryDelay = 2000; // 重試延遲（毫秒）
+    this.reconnectInterval = 30000; // 重新連接檢查間隔（30秒）
+    this.reconnectTimer = null; // 重新連接定時器
   }
 
   /**
@@ -28,12 +32,120 @@ class McpClient {
         service_count: activeServices.length,
       });
 
-      for (const service of activeServices) {
-        await this.connectToService(service);
-      }
+      // 並行初始化所有服務（不等待全部成功）
+      const initPromises = activeServices.map((service) =>
+        this.connectToServiceWithRetry(service).catch((error) => {
+          logger.warn(`服務 ${service.name} 初始化失敗，將在後台重試`, {
+            service_id: service.id,
+            error: error.message,
+          });
+        })
+      );
+
+      await Promise.allSettled(initPromises);
+
+      // 啟動定期重新連接檢查
+      this.startReconnectTimer();
     } catch (error) {
+      console.log("MCP Fail", error);
       logger.error("初始化 MCP 服務失敗", { error: error.message });
     }
+  }
+
+  /**
+   * 啟動重新連接定時器
+   */
+  startReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearInterval(this.reconnectTimer);
+    }
+
+    this.reconnectTimer = setInterval(async () => {
+      await this.checkAndReconnectServices();
+    }, this.reconnectInterval);
+
+    logger.info("MCP 重新連接定時器已啟動", {
+      interval: this.reconnectInterval / 1000 + "秒",
+    });
+  }
+
+  /**
+   * 檢查並重新連接失敗的服務
+   */
+  async checkAndReconnectServices() {
+    try {
+      const activeServices = await McpServiceModel.getActiveMcpServices();
+
+      for (const service of activeServices) {
+        const clientInfo = this.clients.get(service.id);
+
+        // 如果服務未連接或連接已失效，嘗試重新連接
+        if (!clientInfo || !clientInfo.connected) {
+          logger.info(`嘗試重新連接 MCP 服務: ${service.name}`, {
+            service_id: service.id,
+          });
+
+          await this.connectToServiceWithRetry(service).catch((error) => {
+            logger.debug(`重新連接失敗: ${service.name}`, {
+              service_id: service.id,
+              error: error.message,
+            });
+          });
+        }
+      }
+    } catch (error) {
+      logger.error("重新連接檢查失敗", { error: error.message });
+    }
+  }
+
+  /**
+   * 帶重試機制的服務連接
+   * @param {Object} service - MCP 服務配置
+   * @param {number} attempt - 當前重試次數
+   */
+  async connectToServiceWithRetry(service, attempt = 1) {
+    try {
+      await this.connectToService(service);
+
+      const clientInfo = this.clients.get(service.id);
+      if (clientInfo && clientInfo.connected) {
+        logger.info(`MCP 服務連接成功: ${service.name}`, {
+          service_id: service.id,
+          attempt: attempt,
+        });
+        return;
+      }
+
+      throw new Error("連接失敗");
+    } catch (error) {
+      if (attempt < this.retryAttempts) {
+        logger.info(
+          `MCP 服務連接失敗，${this.retryDelay / 1000}秒後重試 (${attempt}/${this.retryAttempts}): ${service.name}`,
+          {
+            service_id: service.id,
+            error: error.message,
+          }
+        );
+
+        await this.sleep(this.retryDelay);
+        return this.connectToServiceWithRetry(service, attempt + 1);
+      } else {
+        logger.warn(`MCP 服務連接失敗，已達最大重試次數: ${service.name}`, {
+          service_id: service.id,
+          attempts: this.retryAttempts,
+          error: error.message,
+        });
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * 睡眠函數
+   * @param {number} ms - 毫秒數
+   */
+  sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -69,7 +181,12 @@ class McpClient {
           endpoint: service.endpoint_url,
         });
       } else {
-        logger.warn("MCP 服務連接失敗", {
+        console.log("MCP 服務連接失敗", {
+          service_id: service.id,
+          service_name: service.name,
+          endpoint: service.endpoint_url,
+        });
+        logger.debug("MCP 服務連接失敗", {
           service_id: service.id,
           service_name: service.name,
           endpoint: service.endpoint_url,
@@ -237,11 +354,35 @@ class McpClient {
       }
 
       // 獲取對應的服務客戶端
-      const clientInfo = this.clients.get(tool.mcp_service_id);
+      let clientInfo = this.clients.get(tool.mcp_service_id);
       logger.info("🔧 客戶端資訊存在:", !!clientInfo);
 
-      if (!clientInfo) {
-        throw new Error(`MCP 服務 ${tool.mcp_service_id} 未連接`);
+      // 如果客戶端不存在或未連接，嘗試即時重連
+      if (!clientInfo || !clientInfo.connected) {
+        logger.info(`🔧 服務未連接，嘗試即時重連: ${tool.service_name}`, {
+          service_id: tool.mcp_service_id,
+        });
+
+        try {
+          // 獲取服務配置
+          const service = await McpServiceModel.getMcpServiceById(
+            tool.mcp_service_id
+          );
+          if (service && service.is_active) {
+            await this.connectToServiceWithRetry(service, 1);
+            clientInfo = this.clients.get(tool.mcp_service_id);
+          }
+        } catch (reconnectError) {
+          logger.warn(`即時重連失敗: ${tool.service_name}`, {
+            service_id: tool.mcp_service_id,
+            error: reconnectError.message,
+          });
+        }
+
+        // 重連後仍然無法連接
+        if (!clientInfo || !clientInfo.connected) {
+          throw new Error(`MCP 服務 ${tool.mcp_service_id} 未連接，重連失敗`);
+        }
       }
 
       // 獲取模組名稱
@@ -405,6 +546,13 @@ class McpClient {
    * 斷開所有服務連接
    */
   async disconnectAll() {
+    // 清理重連定時器
+    if (this.reconnectTimer) {
+      clearInterval(this.reconnectTimer);
+      this.reconnectTimer = null;
+      logger.info("MCP 重新連接定時器已停止");
+    }
+
     const serviceIds = Array.from(this.clients.keys());
 
     for (const serviceId of serviceIds) {

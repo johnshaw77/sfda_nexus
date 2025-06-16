@@ -133,6 +133,14 @@ const handleGracefulShutdown = async (signal) => {
   logger.info(`收到 ${signal} 信號，正在優雅關閉服務器...`);
 
   try {
+    // 關閉 MCP 客戶端連接
+    await mcpClient.disconnectAll();
+    logger.info("✅ MCP 客戶端已關閉");
+  } catch (error) {
+    logger.error("關閉 MCP 客戶端時發生錯誤:", error);
+  }
+
+  try {
     // 關閉資料庫連接池
     await closeDatabase();
     logger.info("✅ 資料庫連接池已關閉");
