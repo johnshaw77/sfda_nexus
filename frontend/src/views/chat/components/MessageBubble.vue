@@ -690,11 +690,26 @@ const currentAgentAvatar = computed(() => {
 
 // 獲取思考內容的方法
 const getThinkingContent = () => {
+  console.log("🧠 [MessageBubble] 檢查思考內容:", {
+    messageId: props.message.id,
+    role: props.message.role,
+    hasDirectThinking: !!props.message.thinking_content,
+    hasMetadataThinking: !!props.message.metadata?.thinking_content,
+    directLength: props.message.thinking_content?.length || 0,
+    metadataLength: props.message.metadata?.thinking_content?.length || 0,
+    messageContent: props.message.content?.substring(0, 50) + "...",
+    isStreaming: props.message.isStreaming,
+    streamingMessageId: chatStore.streamingMessageId,
+    isCurrentStreaming: chatStore.streamingMessageId === props.message.id,
+  });
+
   // 優先從直接屬性獲取（流式模式）
   if (props.message.thinking_content) {
     console.log(
-      "🧠 從直接屬性獲取思考內容:",
-      props.message.thinking_content.length
+      "🧠 [MessageBubble] 從直接屬性獲取思考內容:",
+      props.message.thinking_content.length,
+      "字符，預覽:",
+      props.message.thinking_content.substring(0, 100) + "..."
     );
     return props.message.thinking_content;
   }
@@ -702,12 +717,15 @@ const getThinkingContent = () => {
   // 從 metadata 獲取（非流式模式）
   if (props.message.metadata?.thinking_content) {
     console.log(
-      "🧠 從 metadata 獲取思考內容:",
-      props.message.metadata.thinking_content.length
+      "🧠 [MessageBubble] 從 metadata 獲取思考內容:",
+      props.message.metadata.thinking_content.length,
+      "字符，預覽:",
+      props.message.metadata.thinking_content.substring(0, 100) + "..."
     );
     return props.message.metadata.thinking_content;
   }
 
+  console.log("🧠 [MessageBubble] 沒有找到思考內容");
   return null;
 };
 
@@ -743,25 +761,56 @@ watch(
   { immediate: true }
 );
 
-// 監控思考內容和串流狀態變化
+// 監控思考內容變化（用於調試和動畫）
 watch(
-  [hasThinkingContent, isMessageStreaming],
-  ([hasThinking, isStreaming]) => {
-    console.log("🧠 思考內容狀態變化:", { hasThinking, isStreaming });
+  () => getThinkingContent(),
+  (newThinking, oldThinking) => {
+    if (newThinking !== oldThinking) {
+      console.log("🧠 [MessageBubble] 思考內容更新:", {
+        messageId: props.message.id,
+        hasContent: !!newThinking,
+        length: newThinking?.length || 0,
+        preview: newThinking?.substring(0, 100) + "..." || "無內容",
+        isStreaming: isMessageStreaming.value,
+        oldLength: oldThinking?.length || 0,
+        isCurrentStreaming: chatStore.streamingMessageId === props.message.id,
+        thinkingCollapsed: thinkingCollapsed.value,
+        displayedLength: displayedThinkingContent.value.length,
+      });
 
-    if (hasThinking) {
-      if (isStreaming) {
-        // 串流中且有思考內容時，展開思考區域
+      // 如果有思考內容，確保思考區域展開
+      if (newThinking) {
         thinkingCollapsed.value = false;
-        console.log("🧠 思考內容串流中，展開思考區域");
+        console.log("🧠 [MessageBubble] 自動展開思考區域");
+
+        // 🔧 修復：只有在真正串流狀態下才啟動動畫
+        // 檢查是否為當前正在串流的消息
+        const isCurrentlyStreaming =
+          chatStore.streamingMessageId === props.message.id;
+
+        if (isCurrentlyStreaming) {
+          // 真正的串流狀態，啟動動畫
+          console.log("🧠 [MessageBubble] 串流狀態，啟動思考內容動畫");
+          animateThinkingContent(newThinking);
+        } else {
+          // 歷史消息或非串流狀態，直接顯示完整內容
+          console.log("🧠 [MessageBubble] 非串流狀態，直接顯示完整思考內容");
+          displayedThinkingContent.value = newThinking;
+          isThinkingAnimating.value = false;
+
+          // 歷史消息的思考區域在載入後自動折疊
+          setTimeout(() => {
+            if (!isMessageStreaming.value) {
+              thinkingCollapsed.value = true;
+              console.log("🧠 [MessageBubble] 歷史消息思考區域自動折疊");
+            }
+          }, 1000); // 1秒後自動折疊，給用戶時間看到有思考內容
+        }
       } else {
-        // 串流完成後，延遲 2 秒自動折疊思考區域
-        setTimeout(() => {
-          if (!isMessageStreaming.value) {
-            thinkingCollapsed.value = true;
-            console.log("🧠 思考內容串流完成，自動折疊思考區域");
-          }
-        }, 2000);
+        // 沒有思考內容時清空顯示
+        displayedThinkingContent.value = "";
+        isThinkingAnimating.value = false;
+        console.log("🧠 [MessageBubble] 清空思考內容顯示");
       }
     }
   },
@@ -820,53 +869,6 @@ const animateThinkingContent = (targetContent) => {
     displayedThinkingContent.value = targetContent;
   }
 };
-
-// 監控思考內容變化（用於調試和動畫）
-watch(
-  () => getThinkingContent(),
-  (newThinking, oldThinking) => {
-    if (newThinking !== oldThinking) {
-      console.log("🧠 思考內容更新:", {
-        hasContent: !!newThinking,
-        length: newThinking?.length || 0,
-        preview: newThinking?.substring(0, 100) + "..." || "無內容",
-        messageId: props.message.id,
-        isStreaming: isMessageStreaming.value,
-        oldLength: oldThinking?.length || 0,
-      });
-
-      // 如果有思考內容，確保思考區域展開
-      if (newThinking) {
-        thinkingCollapsed.value = false;
-        console.log("🧠 自動展開思考區域");
-
-        // 總是啟動動畫，無論是否在流式狀態
-        // 這樣可以模擬實時思考的效果
-        animateThinkingContent(newThinking);
-      } else {
-        // 沒有思考內容時清空顯示
-        displayedThinkingContent.value = "";
-        isThinkingAnimating.value = false;
-      }
-    }
-  },
-  { immediate: true }
-);
-
-// 監控消息的思考內容屬性變化
-watch(
-  () => props.message.thinking_content,
-  (newContent) => {
-    if (newContent) {
-      console.log("🧠 直接屬性變化:", {
-        length: newContent.length,
-        preview: newContent.substring(0, 50) + "...",
-        messageId: props.message.id,
-      });
-    }
-  },
-  { immediate: true }
-);
 
 // 錯誤檢測邏輯
 const isErrorMessage = computed(() => {
