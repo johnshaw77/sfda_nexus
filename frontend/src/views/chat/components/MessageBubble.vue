@@ -317,20 +317,6 @@
       <div
         v-if="message.role === 'assistant' && message.model_info"
         class="model-info">
-        <div class="model-info-left">
-          <a-tag :color="getModelColor('gemini')">
-            {{ message.model_info.model || "Unknown Model" }}
-          </a-tag>
-          <span class="token-usage">
-            Token: {{ message.tokens_used || 0 }}
-          </span>
-          <span
-            class="cost-info"
-            v-if="message.cost && parseFloat(message.cost) > 0">
-            Cost: ${{ parseFloat(message.cost).toFixed(6) }}
-          </span>
-        </div>
-
         <!-- 工具欄放在模型信息右側 -->
         <div
           v-show="!message.isStreaming && message.status !== 'sending'"
@@ -371,6 +357,19 @@
               <DeleteOutlined />
             </a-button>
           </a-tooltip>
+        </div>
+        <div class="model-info-right">
+          <span class="token-usage">
+            Token: {{ message.tokens_used || 0 }}
+          </span>
+          <!-- <span
+            class="cost-info"
+            v-if="message.cost && parseFloat(message.cost) > 0">
+            Cost: ${{ parseFloat(message.cost).toFixed(6) }}
+          </span> -->
+          <a-tag :color="getModelColor('gemini')">
+            {{ message.model_info.model || "Unknown Model" }}
+          </a-tag>
         </div>
       </div>
 
@@ -1925,26 +1924,27 @@ const getFileTypeColor = (attachment) => {
   justify-content: space-between;
   gap: 12px;
   font-size: 12px;
+  border-top: 1px solid var(--custom-border-primary);
 }
 
-.model-info-left {
+.model-info-right {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .model-info-actions {
-  opacity: 0;
+  flex: 1;
+  opacity: 1;
   transition: opacity 0.3s ease;
   display: flex;
   gap: 4px;
-  background: var(--custom-bg-secondary);
+  /* background: var(--custom-bg-secondary);
   border: 1px solid var(--custom-border-primary);
-  border-radius: 6px;
-  padding: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+  border-radius: 6px; */
+  padding: 6px;
+  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
 }
 
 .message-bubble:hover .model-info-actions {

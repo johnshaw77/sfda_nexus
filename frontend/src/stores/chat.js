@@ -409,6 +409,30 @@ export const useChatStore = defineStore("chat", () => {
     }
   };
 
+  // 發送消息（公共函數，自動處理對話創建和選擇）
+  const sendMessage = async (content, options = {}) => {
+    try {
+      let conversationId = currentConversation.value?.id;
+
+      // 如果沒有當前對話，創建一個新對話
+      if (!conversationId) {
+        const title = options.title || "新對話";
+        const newConversation = await handleCreateConversation({ title });
+        conversationId = newConversation.id;
+
+        // 選擇新創建的對話
+        await handleSelectConversation(newConversation);
+      }
+
+      // 使用串流模式發送消息
+      return await sendMessageStream(conversationId, content, options);
+    } catch (error) {
+      console.error("發送消息失敗:", error);
+      message.error("發送消息失敗");
+      throw error;
+    }
+  };
+
   // 置頂/取消置頂對話
   const handleTogglePinConversation = async (conversationId, pinned = true) => {
     try {
@@ -1190,5 +1214,6 @@ export const useChatStore = defineStore("chat", () => {
     stopCurrentStream,
     handleSSEEvent,
     handleAddConversationToHistory,
+    sendMessage,
   };
 });

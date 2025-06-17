@@ -316,10 +316,13 @@ class McpClient {
       "Hr 服務": "hr",
       "Finance 服務": "finance",
       "Tasks 服務": "tasks",
-      // 支援多種命名格式
+      "Mil 服務": "mil",
+      // 支援多種命名格式和可能的編碼問題
       hr: "hr",
       finance: "finance",
       tasks: "tasks",
+      mil: "mil",
+      "Mil ??": "mil", // 處理可能的字符編碼問題
     };
 
     return moduleMap[serviceName] || serviceName.toLowerCase();
@@ -431,8 +434,10 @@ class McpClient {
       // 提取 MCP 回應中的實際業務數據，同時保留元數據
       const mcpResult = response.data;
       const toolExecution = mcpResult?.result || {};
-      const businessData =
-        toolExecution?.result?.data || toolExecution?.result || {};
+      let businessData =
+        mcpResult?.result?.data || toolExecution?.data || toolExecution || {};
+
+      // MCP 服務器已經統一了資料結構，包含 result 字段
 
       // 🚨 關鍵修正：檢查業務邏輯錯誤
       // 檢查 MCP 工具是否返回了業務錯誤

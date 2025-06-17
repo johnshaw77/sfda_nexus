@@ -433,6 +433,7 @@ export const handleCallTool = catchAsync(async (req, res) => {
       user_name: req.user.username,
       timestamp: new Date().toISOString(),
     });
+    console.log("result", result);
 
     // 記錄調用日誌
     logger.audit(req.user.id, "MCP_TOOL_CALLED", {
