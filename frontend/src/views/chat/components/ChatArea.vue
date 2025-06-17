@@ -536,18 +536,38 @@
                   </div>
                 </div>
 
-                <!-- 解釋此圖按鈕（放在卡片下方，僅圖片顯示） -->
-                <div
-                  v-if="file.preview && file.mimeType.startsWith('image/')"
-                  class="image-actions">
+                <!-- 快速命令按鈕 -->
+                <div class="file-actions">
+                  <!-- 圖片的解釋按鈕 -->
                   <a-button
+                    v-if="file.preview && file.mimeType.startsWith('image/')"
                     type="text"
                     size="small"
                     @click="handleExplainImage(file)"
-                    class="explain-btn">
+                    class="action-btn">
                     <EyeOutlined />
                     解釋此圖
                   </a-button>
+
+                  <!-- 文檔檔案的快速命令 -->
+                  <template v-else-if="isDocumentFile(file)">
+                    <a-button
+                      type="text"
+                      size="small"
+                      @click="handleSummarizeFile(file)"
+                      class="action-btn">
+                      <FileTextOutlined />
+                      關鍵要點
+                    </a-button>
+                    <a-button
+                      type="text"
+                      size="small"
+                      @click="handleGenerateDocument(file)"
+                      class="action-btn">
+                      <EditOutlined />
+                      生成文件
+                    </a-button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -1764,6 +1784,82 @@ const handleExplainImage = (file) => {
   });
 };
 
+// 判斷是否為文檔檔案
+const isDocumentFile = (file) => {
+  const documentTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+    "text/csv",
+    "text/markdown",
+    "text/x-markdown",
+    "application/json",
+    "text/javascript",
+    "text/css",
+    "text/html",
+    "application/xml",
+    "text/xml",
+    "application/x-yaml",
+    "text/yaml",
+  ];
+  return documentTypes.includes(file.mimeType);
+};
+
+// 處理檔案關鍵要點
+const handleSummarizeFile = (file) => {
+  const summarizeText = `請分析這個檔案的關鍵要點`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + summarizeText;
+  } else {
+    messageText.value = summarizeText;
+  }
+
+  // 將焦點設置到輸入框
+  nextTick(() => {
+    if (messageInput.value) {
+      const textareaEl =
+        messageInput.value.$el?.querySelector("textarea") ||
+        messageInput.value.$el;
+      if (textareaEl) {
+        textareaEl.focus();
+        // 將游標移到文字末尾
+        textareaEl.setSelectionRange(
+          textareaEl.value.length,
+          textareaEl.value.length
+        );
+      }
+    }
+  });
+};
+
+// 處理生成文件
+const handleGenerateDocument = (file) => {
+  const generateText = `基於這個檔案內容，請生成一份完整的文件：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + generateText;
+  } else {
+    messageText.value = generateText;
+  }
+
+  // 將焦點設置到輸入框
+  nextTick(() => {
+    if (messageInput.value) {
+      const textareaEl =
+        messageInput.value.$el?.querySelector("textarea") ||
+        messageInput.value.$el;
+      if (textareaEl) {
+        textareaEl.focus();
+        // 將游標移到文字末尾
+        textareaEl.setSelectionRange(
+          textareaEl.value.length,
+          textareaEl.value.length
+        );
+      }
+    }
+  });
+};
+
 const formatFileSize = (bytes) => {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -2086,6 +2182,9 @@ watch(
 onMounted(async () => {
   try {
     loading.value = true;
+
+    // 確保輸入面板預設展開
+    inputCollapsed.value = false;
 
     // 載入用戶偏好的輸入區域高度
     loadInputAreaHeight();
@@ -3302,13 +3401,15 @@ const getModelEndpoint = () => {
   color: var(--custom-text-secondary);
 }
 
-/* 解釋此圖按鈕樣式（放在卡片下方） */
-.image-actions {
+/* 檔案快速命令按鈕樣式（放在卡片下方） */
+.file-actions {
   display: flex;
   justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
-.explain-btn {
+.action-btn {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -3323,9 +3424,8 @@ const getModelEndpoint = () => {
   white-space: nowrap; /* 防止文字換行 */
 }
 
-.explain-btn:hover {
+.action-btn:hover {
   background: var(--custom-bg-quaternary) !important;
-
   transform: scale(1.02);
 }
 

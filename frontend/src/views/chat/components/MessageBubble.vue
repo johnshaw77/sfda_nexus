@@ -271,27 +271,45 @@
           :key="attachment.id"
           class="attachment-item"
           @click="handleViewAttachment(attachment)">
-          <div class="attachment-icon">
-            <FileOutlined v-if="attachment.file_type === 'attachment'" />
-            <PictureOutlined
-              v-else-if="
-                attachment.file_type === 'image' ||
-                attachment.mime_type?.startsWith('image/')
-              " />
-            <VideoCameraOutlined
-              v-else-if="attachment.mime_type?.startsWith('video/')" />
-            <AudioOutlined
-              v-else-if="attachment.mime_type?.startsWith('audio/')" />
-            <FileOutlined v-else />
-          </div>
-          <div class="attachment-info">
-            <div class="attachment-name">
-              {{ attachment.filename || attachment.name }}
+          <div class="attachment-card">
+            <div class="attachment-icon">
+              <component
+                :is="getFileIcon(attachment)"
+                :style="{ color: getFileTypeColor(attachment) }" />
             </div>
-            <div class="attachment-size">
-              {{ formatFileSize(attachment.file_size || attachment.size) }}
+            <div class="attachment-info">
+              <div class="attachment-name">
+                {{ attachment.filename || attachment.name }}
+              </div>
+              <div class="attachment-meta">
+                <!-- <span
+                  class="file-type-label"
+                  :style="{ color: getFileTypeColor(attachment) }">
+                  {{ getFileTypeLabel(attachment) }}
+                </span> -->
+                <span class="attachment-size">
+                  {{ getFileTypeLabel(attachment) }}
+                  {{ formatFileSize(attachment.file_size || attachment.size) }}
+                </span>
+              </div>
             </div>
           </div>
+
+          <!-- 檔案操作按鈕 -->
+          <!-- <div class="attachment-actions">
+            <a-button
+              class="action-button"
+              @click.stop="handleSummarizeFile(attachment)">
+              <FileTextOutlined />
+              總結關鍵要點
+            </a-button>
+            <a-button
+              class="action-button"
+              @click.stop="handleGenerateDocument(attachment)">
+              <FileAddOutlined />
+              生成文件
+            </a-button>
+          </div> -->
         </div>
       </div>
 
@@ -450,9 +468,27 @@ import { useConfigStore } from "@/stores/config";
 import { useAuthStore } from "@/stores/auth";
 import { useAgentsStore } from "@/stores/agents";
 import { formatMessageTime } from "@/utils/datetimeFormat";
-import { getFilePreviewUrl, getImageBlobUrl } from "@/api/files";
+import {
+  getFilePreviewUrl,
+  getImageBlobUrl,
+  askFileQuestion,
+} from "@/api/files";
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
 import ToolCallDisplay from "@/components/common/ToolCallDisplay.vue";
+import {
+  FileOutlined,
+  FileTextOutlined,
+  FileAddOutlined,
+  PictureOutlined,
+  VideoCameraOutlined,
+  AudioOutlined,
+  TableOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
+  FilePptOutlined,
+  // ... 其他已有的圖標
+} from "@ant-design/icons-vue";
 
 // Props
 const props = defineProps({
@@ -1003,6 +1039,169 @@ const handleImageError = (event) => {
     "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRkZFQkVFIiBzdHJva2U9IiNGRjc4NzUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iNSw1Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNzUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iI0ZGNzg3NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+5ZyW54mH6L275LiK5aSx5pWXPC90ZXh0Pgo8L3N2Zz4K";
   antMessage.error("圖片載入失敗");
 };
+
+// 處理總結關鍵要點
+const handleSummarizeFile = async (attachment) => {
+  try {
+    // 防止事件冒泡
+    event?.stopPropagation();
+
+    const chatStore = useChatStore();
+    const loadingMessage = antMessage.loading("正在分析檔案內容...", 0);
+
+    // 向 AI 發送總結檔案的請求
+    await chatStore.sendMessage(
+      `請總結這個檔案的關鍵要點：${attachment.filename}`,
+      {
+        attachments: [attachment],
+      }
+    );
+
+    loadingMessage();
+  } catch (error) {
+    console.error("總結檔案失敗:", error);
+    antMessage.error("總結檔案失敗，請稍後再試");
+  }
+};
+
+// 處理生成文件
+const handleGenerateDocument = async (attachment) => {
+  try {
+    // 防止事件冒泡
+    event?.stopPropagation();
+
+    const chatStore = useChatStore();
+    const loadingMessage = antMessage.loading("正在生成文件...", 0);
+
+    // 向 AI 發送生成文件的請求
+    await chatStore.sendMessage(
+      `請根據這個檔案的內容生成一份完整的文件：${attachment.filename}`,
+      {
+        attachments: [attachment],
+      }
+    );
+
+    loadingMessage();
+  } catch (error) {
+    console.error("生成文件失敗:", error);
+    antMessage.error("生成文件失敗，請稍後再試");
+  }
+};
+
+// 添加檔案類型判斷方法
+const getFileType = (attachment) => {
+  const filename = attachment.filename || attachment.name || "";
+  const mimeType = attachment.mime_type || "";
+  const extension = filename.toLowerCase().split(".").pop();
+
+  // 表格檔案
+  if (extension === "csv" || mimeType === "text/csv") {
+    return "csv";
+  }
+  if (
+    extension === "xlsx" ||
+    extension === "xls" ||
+    mimeType.includes("spreadsheet")
+  ) {
+    return "excel";
+  }
+
+  // 文檔檔案
+  if (extension === "pdf" || mimeType === "application/pdf") {
+    return "pdf";
+  }
+  if (
+    extension === "doc" ||
+    extension === "docx" ||
+    mimeType.includes("document")
+  ) {
+    return "word";
+  }
+  if (
+    extension === "ppt" ||
+    extension === "pptx" ||
+    mimeType.includes("presentation")
+  ) {
+    return "powerpoint";
+  }
+
+  // 媒體檔案
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+  if (mimeType.startsWith("video/")) {
+    return "video";
+  }
+  if (mimeType.startsWith("audio/")) {
+    return "audio";
+  }
+
+  return "file";
+};
+
+// 獲取檔案圖標組件
+const getFileIcon = (attachment) => {
+  const fileType = getFileType(attachment);
+
+  switch (fileType) {
+    case "csv":
+      return TableOutlined;
+    case "excel":
+      return FileExcelOutlined;
+    case "pdf":
+      return FilePdfOutlined;
+    case "word":
+      return FileWordOutlined;
+    case "powerpoint":
+      return FilePptOutlined;
+    case "image":
+      return PictureOutlined;
+    case "video":
+      return VideoCameraOutlined;
+    case "audio":
+      return AudioOutlined;
+    default:
+      return FileOutlined;
+  }
+};
+
+// 獲取檔案類型標籤
+const getFileTypeLabel = (attachment) => {
+  const fileType = getFileType(attachment);
+
+  const labels = {
+    csv: "CSV 表格",
+    excel: "Excel 表格",
+    pdf: "PDF 文檔",
+    word: "Word 文檔",
+    powerpoint: "PowerPoint",
+    image: "圖片",
+    video: "影片",
+    audio: "音訊",
+    file: "檔案",
+  };
+
+  return labels[fileType] || "檔案";
+};
+
+// 獲取檔案類型顏色
+const getFileTypeColor = (attachment) => {
+  const fileType = getFileType(attachment);
+
+  const colors = {
+    csv: "#52c41a", // 綠色
+    excel: "#13c2c2", // 青色
+    pdf: "#f5222d", // 紅色
+    word: "#1890ff", // 藍色
+    powerpoint: "#fa8c16", // 橙色
+    image: "#722ed1", // 紫色
+    video: "#eb2f96", // 粉色
+    audio: "#faad14", // 黃色
+    file: "#8c8c8c", // 灰色
+  };
+
+  return colors[fileType] || "#8c8c8c";
+};
 </script>
 
 <style scoped>
@@ -1303,53 +1502,137 @@ const handleImageError = (event) => {
   margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .attachment-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 6px;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
   cursor: pointer;
-  transition: background 0.2s;
+  background-color: var(--color-bg-container);
+  border: 1px solid var(--color-border);
+  width: 100%;
+  max-width: 320px;
 }
 
-.attachment-item:hover {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.user-message .attachment-item {
-  background: var(--custom-bg-secondary);
-}
-
-.user-message .attachment-item:hover {
-  background: var(--custom-bg-tertiary);
+.attachment-card {
+  display: flex;
+  padding: 12px;
+  align-items: center;
 }
 
 .attachment-icon {
-  font-size: 16px;
-  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  margin-right: 12px;
+  background-color: var(--color-bg-elevated);
+  border-radius: 8px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.attachment-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: currentColor;
+  opacity: 0.1;
+  transition: opacity 0.3s ease;
+}
+
+.attachment-item:hover .attachment-icon::before {
+  opacity: 0.15;
 }
 
 .attachment-info {
   flex: 1;
-  min-width: 0;
+  overflow: hidden;
 }
 
 .attachment-name {
-  font-size: 13px;
   font-weight: 500;
+  margin-bottom: 6px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.attachment-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-type-label {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: currentColor;
+  color: white;
+  opacity: 0.9;
+  flex-shrink: 0;
 }
 
 .attachment-size {
-  font-size: 11px;
-  opacity: 0.7;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.attachment-actions {
+  display: flex;
+  border-top: 1px solid var(--color-border);
+}
+
+.action-button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.action-button:first-child {
+  border-right: 1px solid var(--color-border);
+}
+
+.action-button:hover {
+  background-color: var(--color-bg-elevated);
+}
+
+.action-button .anticon {
+  margin-right: 4px;
+}
+
+/* 暗色模式調整 */
+:root[data-theme="dark"] .attachment-item {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border-secondary);
+}
+
+:root[data-theme="dark"] .attachment-icon {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme="dark"] .action-button:hover {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* 圖片縮圖樣式 */
@@ -1640,7 +1923,7 @@ const handleImageError = (event) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
   font-size: 12px;
 }
 
@@ -1648,6 +1931,7 @@ const handleImageError = (event) => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
 }
 
 .model-info-actions {
@@ -1660,6 +1944,7 @@ const handleImageError = (event) => {
   border-radius: 6px;
   padding: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 .message-bubble:hover .model-info-actions {
