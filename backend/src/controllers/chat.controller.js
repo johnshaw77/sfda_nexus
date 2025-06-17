@@ -17,6 +17,7 @@ import {
 import logger from "../utils/logger.util.js";
 import Joi from "joi";
 import { sendToUser } from "../websocket/index.js";
+import { fixFilenameEncoding } from "../models/File.model.js";
 
 // 輸入驗證模式
 const schemas = {
@@ -388,6 +389,11 @@ export const handleSendMessage = catchAsync(async (req, res) => {
             );
 
             for (const attachment of msg.attachments) {
+              // 修復檔案名稱編碼
+              if (attachment.filename) {
+                attachment.filename = fixFilenameEncoding(attachment.filename);
+              }
+
               console.log("處理附件:", {
                 id: attachment.id,
                 filename: attachment.filename,
@@ -482,16 +488,18 @@ export const handleSendMessage = catchAsync(async (req, res) => {
                   });
                 }
               }
-              // 檢查是否為文本檔案（CSV、TXT、JSON 等）
+              // 檢查是否為文本檔案（CSV、TXT、JSON 等）或 PDF
               else if (
                 attachment.mime_type &&
                 (attachment.mime_type.startsWith("text/") ||
                   attachment.mime_type === "application/json" ||
+                  attachment.mime_type === "application/pdf" ||
                   attachment.filename.toLowerCase().endsWith(".csv") ||
                   attachment.filename.toLowerCase().endsWith(".txt") ||
-                  attachment.filename.toLowerCase().endsWith(".md"))
+                  attachment.filename.toLowerCase().endsWith(".md") ||
+                  attachment.filename.toLowerCase().endsWith(".pdf"))
               ) {
-                console.log("🔍 文本檔案條件匹配成功!");
+                console.log("🔍 文本檔案/PDF條件匹配成功!");
                 try {
                   // 獲取文本檔案信息
                   const { rows: fileRows } = await query(
@@ -508,14 +516,29 @@ export const handleSendMessage = catchAsync(async (req, res) => {
                     const filePath = fileRows[0].file_path;
                     console.log("文本檔案路徑:", filePath);
 
-                    // 讀取文本檔案內容
+                    // 根據檔案類型讀取內容
                     const fs = await import("fs/promises");
+                    let fileContent = "";
 
                     try {
-                      const fileContent = await fs.readFile(filePath, "utf8");
+                      // 檢查是否為 PDF 檔案
+                      if (
+                        attachment.mime_type === "application/pdf" ||
+                        attachment.filename.toLowerCase().endsWith(".pdf")
+                      ) {
+                        console.log("🔍 檢測到 PDF 檔案，使用 PDF 解析器");
+                        const { extractPdfText } = await import(
+                          "../services/pdf.service.js"
+                        );
+                        console.log("filePath:", filePath);
+                        fileContent = await extractPdfText(filePath);
+                      } else {
+                        // 普通文本檔案
+                        fileContent = await fs.readFile(filePath, "utf8");
+                      }
 
                       console.log(
-                        "文本檔案讀取成功，內容長度:",
+                        "檔案內容讀取成功，內容長度:",
                         fileContent.length
                       );
                       console.log(
@@ -1009,6 +1032,11 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
             console.log("當前模型類型:", model.model_type);
 
             for (const attachment of msg.attachments) {
+              // 修復檔案名稱編碼
+              if (attachment.filename) {
+                attachment.filename = fixFilenameEncoding(attachment.filename);
+              }
+
               console.log("處理附件:", {
                 id: attachment.id,
                 filename: attachment.filename,
@@ -1087,16 +1115,18 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   });
                 }
               }
-              // 檢查是否為文本檔案（CSV、TXT、JSON 等）
+              // 檢查是否為文本檔案（CSV、TXT、JSON 等）或 PDF
               else if (
                 attachment.mime_type &&
                 (attachment.mime_type.startsWith("text/") ||
                   attachment.mime_type === "application/json" ||
+                  attachment.mime_type === "application/pdf" ||
                   attachment.filename.toLowerCase().endsWith(".csv") ||
                   attachment.filename.toLowerCase().endsWith(".txt") ||
-                  attachment.filename.toLowerCase().endsWith(".md"))
+                  attachment.filename.toLowerCase().endsWith(".md") ||
+                  attachment.filename.toLowerCase().endsWith(".pdf"))
               ) {
-                console.log("🔍 串流模式：文本檔案條件匹配成功!");
+                console.log("🔍 串流模式：文本檔案/PDF條件匹配成功!");
                 try {
                   // 獲取文本檔案信息
                   const { rows: fileRows } = await query(
@@ -1115,14 +1145,30 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                     const filePath = fileRows[0].file_path;
                     console.log("文本檔案路徑:", filePath);
 
-                    // 讀取文本檔案內容
+                    // 根據檔案類型讀取內容
                     const fs = await import("fs/promises");
+                    let fileContent = "";
 
                     try {
-                      const fileContent = await fs.readFile(filePath, "utf8");
+                      // 檢查是否為 PDF 檔案
+                      if (
+                        attachment.mime_type === "application/pdf" ||
+                        attachment.filename.toLowerCase().endsWith(".pdf")
+                      ) {
+                        console.log(
+                          "🔍 串流模式：檢測到 PDF 檔案，使用 PDF 解析器"
+                        );
+                        const { extractPdfText } = await import(
+                          "../services/pdf.service.js"
+                        );
+                        fileContent = await extractPdfText(filePath);
+                      } else {
+                        // 普通文本檔案
+                        fileContent = await fs.readFile(filePath, "utf8");
+                      }
 
                       console.log(
-                        "串流模式：文本檔案讀取成功，內容長度:",
+                        "串流模式：檔案內容讀取成功，內容長度:",
                         fileContent.length
                       );
                       console.log(

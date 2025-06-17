@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/johnshaw77/sfda_nexus#readme",
   "dependencies": {
+    "axios": "^1.10.0",
     "form-data": "^4.0.3",
     "node-fetch": "^3.3.2"
   }

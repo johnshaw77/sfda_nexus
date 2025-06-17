@@ -8,6 +8,29 @@ import crypto from "crypto";
 import path from "path";
 
 /**
+ * 修復檔案名稱編碼問題
+ * @param {string} filename - 可能有編碼問題的檔案名稱
+ * @returns {string} 修復後的檔案名稱
+ */
+export const fixFilenameEncoding = (filename) => {
+  if (!filename) return filename;
+
+  try {
+    // 嘗試修復 UTF-8 編碼被錯誤解釋為 Latin-1 的問題
+    const fixedName = Buffer.from(filename, "latin1").toString("utf8");
+
+    // 檢查修復後的名稱是否包含有效的中文字符
+    if (/[\u4e00-\u9fff]/.test(fixedName)) {
+      return fixedName;
+    }
+  } catch (error) {
+    console.warn("檔案名稱編碼修復失敗:", error.message);
+  }
+
+  return filename;
+};
+
+/**
  * 創建檔案記錄
  * @param {Object} fileData - 檔案數據
  * @returns {Promise<Object>} 創建的檔案記錄
@@ -95,6 +118,11 @@ export const getFileById = async (fileId) => {
     }
   }
 
+  // 修復檔案名稱編碼問題
+  if (file.filename) {
+    file.filename = fixFilenameEncoding(file.filename);
+  }
+
   return file;
 };
 
@@ -131,6 +159,11 @@ export const getFileByHash = async (fileHash) => {
     }
   }
 
+  // 修復檔案名稱編碼問題
+  if (file.filename) {
+    file.filename = fixFilenameEncoding(file.filename);
+  }
+
   return file;
 };
 
@@ -141,7 +174,10 @@ export const getFileByHash = async (fileHash) => {
  * @returns {Promise<Array>} 檔案列表
  */
 export const getUserFiles = async (userId, options = {}) => {
-  const { file_type, limit = 50, offset = 0 } = options;
+  const { file_type } = options;
+  // 確保 limit 和 offset 是數字類型
+  const limit = parseInt(options.limit || 50, 10);
+  const offset = parseInt(options.offset || 0, 10);
 
   let sql = `
     SELECT 
@@ -158,8 +194,8 @@ export const getUserFiles = async (userId, options = {}) => {
     params.push(file_type);
   }
 
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-  params.push(limit, offset);
+  // 直接在 SQL 中使用數值，避免參數綁定問題
+  sql += ` ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
 
   const result = await query(sql, params);
 
@@ -172,6 +208,12 @@ export const getUserFiles = async (userId, options = {}) => {
         file.metadata = null;
       }
     }
+
+    // 修復檔案名稱編碼問題
+    if (file.filename) {
+      file.filename = fixFilenameEncoding(file.filename);
+    }
+
     return file;
   });
 };

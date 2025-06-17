@@ -38,7 +38,32 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const storedFilename = FileModel.generateStoredFilename(file.originalname);
+    // 修復檔案名稱編碼問題
+    let originalname = file.originalname;
+    try {
+      // 嘗試修復 UTF-8 編碼被錯誤解釋為 Latin-1 的問題
+      if (
+        Buffer.from(originalname, "latin1").toString("utf8") !== originalname
+      ) {
+        const fixedName = Buffer.from(originalname, "latin1").toString("utf8");
+        // 檢查修復後的名稱是否包含有效的中文字符
+        if (/[\u4e00-\u9fff]/.test(fixedName)) {
+          originalname = fixedName;
+          file.originalname = originalname; // 更新 file 對象中的原始名稱
+          logger.info("檔案名稱編碼修復", {
+            original: file.originalname,
+            fixed: originalname,
+          });
+        }
+      }
+    } catch (error) {
+      logger.warn("檔案名稱編碼修復失敗", {
+        filename: file.originalname,
+        error: error.message,
+      });
+    }
+
+    const storedFilename = FileModel.generateStoredFilename(originalname);
     cb(null, storedFilename);
   },
 });
@@ -165,11 +190,12 @@ export const handleUploadFile = catchAsync(async (req, res) => {
       if (req.file.mimetype.startsWith("image/")) {
         fileType = "image";
       } else if (
-        req.file.mimetype.includes("pdf") ||
+        req.file.mimetype === "application/pdf" ||
         req.file.mimetype.includes("document") ||
         req.file.mimetype.includes("sheet") ||
         req.file.mimetype.includes("presentation") ||
-        req.file.mimetype.includes("text/")
+        req.file.mimetype.includes("text/") ||
+        req.file.originalname.toLowerCase().endsWith(".pdf")
       ) {
         fileType = "document";
       }
