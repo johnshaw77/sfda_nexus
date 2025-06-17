@@ -44,31 +44,49 @@ class McpDiscoveryService {
           ""
         );
 
-        // 修正：確保 tools 一定是陣列
-        const toolNames = Array.isArray(moduleInfo.tools)
+        // 修正：處理新的工具格式，工具現在已經是完整的對象數組
+        const rawTools = Array.isArray(moduleInfo.tools)
           ? moduleInfo.tools
           : [];
-        // 獲取工具詳細資訊
         const tools = [];
-        for (const toolName of toolNames) {
-          const toolInfo = await this.getToolDetails(
-            moduleKey,
-            toolName,
-            serverUrl
-          );
-          tools.push({
-            name: toolName,
-            displayName: toolName
-              .replace(/_/g, " ")
-              .replace(/\b\w/g, (l) => l.toUpperCase()),
-            description: toolInfo.description || `${toolName} 工具`,
-            version: toolInfo.version || "1.0.0",
-            schema: toolInfo.schema || {},
-            cacheable: toolInfo.cacheable || false,
-            cacheTTL: toolInfo.cacheTTL || 0,
-            stats: toolInfo.stats || {},
-            enabled: false, // 預設未啟用
-          });
+
+        for (const toolItem of rawTools) {
+          // 處理新格式：工具已經是完整對象
+          if (typeof toolItem === "object" && toolItem.name) {
+            tools.push({
+              name: toolItem.name,
+              displayName: toolItem.name
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase()),
+              description: toolItem.description || `${toolItem.name} 工具`,
+              version: toolItem.version || "1.0.0",
+              schema: toolItem.inputSchema || toolItem.schema || {},
+              cacheable: toolItem.cacheable || false,
+              cacheTTL: toolItem.cacheTTL || 0,
+              stats: toolItem.stats || {},
+              enabled: false, // 預設未啟用
+            });
+          } else if (typeof toolItem === "string") {
+            // 向後兼容：如果還是字符串格式，使用舊的方式獲取詳細資訊
+            const toolInfo = await this.getToolDetails(
+              moduleKey,
+              toolItem,
+              serverUrl
+            );
+            tools.push({
+              name: toolItem,
+              displayName: toolItem
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase()),
+              description: toolInfo.description || `${toolItem} 工具`,
+              version: toolInfo.version || "1.0.0",
+              schema: toolInfo.schema || {},
+              cacheable: toolInfo.cacheable || false,
+              cacheTTL: toolInfo.cacheTTL || 0,
+              stats: toolInfo.stats || {},
+              enabled: false, // 預設未啟用
+            });
+          }
         }
 
         discoveredServices.push({
