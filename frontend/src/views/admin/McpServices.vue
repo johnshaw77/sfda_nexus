@@ -681,7 +681,7 @@ const syncing = ref(false);
 const enabling = ref(false);
 const disabling = ref(false);
 const loading = ref(false);
-const customEndpoint = ref("");
+const customEndpoint = ref("localhost:8080");
 const discoveredServices = ref([]);
 const syncedServices = ref([]);
 const selectedServiceKeys = ref([]);
@@ -931,9 +931,9 @@ const handleEnableSelected = async () => {
 
     const response = await mcpApi.enableSelectedServices(selectedServices);
     if (response.data.success) {
-      message.success(
-        `成功啟用 ${response.data.data.services.length} 個服務，${response.data.data.tools.length} 個工具`
-      );
+      const servicesCount = response.data.data?.enabledServices?.length || 0;
+      const toolsCount = response.data.data?.enabledTools?.length || 0;
+      message.success(`成功啟用 ${servicesCount} 個服務，${toolsCount} 個工具`);
 
       // 啟用後重新獲取同步的服務數據
       await handleLoadSyncedServices();
@@ -962,9 +962,7 @@ const handleEnableSingle = async (service) => {
   try {
     const response = await mcpApi.enableSelectedServices([service]);
     if (response.data.success) {
-      const toolsCount = Array.isArray(response.data.data?.tools)
-        ? response.data.data.tools.length
-        : 0;
+      const toolsCount = response.data.data?.enabledTools?.length || 0;
       message.success(
         `成功啟用服務 ${service.name}，包含 ${toolsCount} 個工具`
       );
