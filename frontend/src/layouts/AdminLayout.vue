@@ -5,6 +5,9 @@
       <div class="header-content">
         <!-- 左側 Logo 和標題 -->
         <div class="header-left">
+          <Logo
+            :width="36"
+            style="margin-top: 8px" />
           <!-- 手機端菜單按鈕 -->
           <a-button
             v-if="isMobile"
@@ -15,12 +18,14 @@
           </a-button>
 
           <div class="admin-logo">
-            <Logo :size="42" />
+            <img
+              src="/flexium_logo.png"
+              style="width: 96px; margin-top: -2px" />
             <span
               v-show="showLogoText"
-              class="logo-text"
-              >Nexus 管理後台</span
-            >
+              class="logo-text">
+              <span>Nexus 管理後台</span>
+            </span>
             <a-tag
               v-show="showAdminTag"
               color="gold"

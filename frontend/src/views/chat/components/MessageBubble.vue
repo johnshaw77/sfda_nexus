@@ -1864,7 +1864,7 @@ const getFileTypeColor = (attachment) => {
 
 .thinking-text {
   white-space: pre-wrap;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--custom-text-secondary);
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;

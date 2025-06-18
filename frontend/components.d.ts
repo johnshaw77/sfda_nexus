@@ -63,9 +63,12 @@ declare module 'vue' {
     ASubMenu: typeof import('ant-design-vue/es')['SubMenu']
     ASwitch: typeof import('ant-design-vue/es')['Switch']
     ATable: typeof import('ant-design-vue/es')['Table']
+    ATabPane: typeof import('ant-design-vue/es')['TabPane']
+    ATabs: typeof import('ant-design-vue/es')['Tabs']
     ATag: typeof import('ant-design-vue/es')['Tag']
     ATextarea: typeof import('ant-design-vue/es')['Textarea']
     ATooltip: typeof import('ant-design-vue/es')['Tooltip']
+    ATree: typeof import('ant-design-vue/es')['Tree']
     ATypographyParagraph: typeof import('ant-design-vue/es')['TypographyParagraph']
     ATypographyText: typeof import('ant-design-vue/es')['TypographyText']
     AUpload: typeof import('ant-design-vue/es')['Upload']
@@ -74,7 +77,6 @@ declare module 'vue' {
     CodeHighlight: typeof import('./src/components/common/CodeHighlight.vue')['default']
     CodeHighlightCopy: typeof import('./src/components/common/CodeHighlight-copy.vue')['default']
     CodeHighlightTest: typeof import('./src/components/common/CodeHighlight-test.vue')['default']
-    DebugPanel: typeof import('./src/components/chat/DebugPanel.vue')['default']
     FileAnalysisCard: typeof import('./src/components/common/FileAnalysisCard.vue')['default']
     FilePreview: typeof import('./src/components/common/FilePreview.vue')['default']
     GlobalPromptManager: typeof import('./src/components/admin/GlobalPromptManager.vue')['default']
@@ -87,6 +89,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     StatusTag: typeof import('./src/components/common/StatusTag.vue')['default']
     StructuredDataDisplay: typeof import('./src/components/common/StructuredDataDisplay.vue')['default']
+    TextConverterSettings: typeof import('./src/components/TextConverterSettings.vue')['default']
     ToolCallDisplay: typeof import('./src/components/common/ToolCallDisplay.vue')['default']
   }
 }

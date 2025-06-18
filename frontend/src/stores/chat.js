@@ -9,6 +9,7 @@ import api from "@/api/index.js";
 import { message } from "ant-design-vue";
 import { useWebSocketStore } from "./websocket";
 import { useConfigStore } from "./config";
+import textConverter from "@/utils/textConverter.js";
 
 export const useChatStore = defineStore("chat", () => {
   // 狀態
@@ -30,6 +31,10 @@ export const useChatStore = defineStore("chat", () => {
   const isStreaming = ref(false);
   const streamController = ref(null); // 用於控制串流停止
   const streamingMessageId = ref(null); // 當前正在串流的消息 ID
+
+  // 文字轉換設定
+  const textConversionMode = ref("auto"); // 'none', 'auto', 's2t', 't2s'
+  const isTextConverterEnabled = ref(true);
 
   // 分頁狀態
   const conversationPagination = ref({
@@ -197,7 +202,15 @@ export const useChatStore = defineStore("chat", () => {
 
       // 如果是第一頁，替換消息；否則追加到前面（歷史消息）
       if (messagePagination.value.current === 1) {
-        messages.value = messageData;
+        // 對載入的消息應用文字轉換
+        const convertedMessages =
+          isTextConverterEnabled.value && textConverter.isAvailable()
+            ? textConverter.convertMessagesThinkingContent(
+                messageData,
+                textConversionMode.value
+              )
+            : messageData;
+        messages.value = convertedMessages;
       } else {
         messages.value = [...messageData, ...messages.value];
       }
@@ -912,8 +925,16 @@ export const useChatStore = defineStore("chat", () => {
               });
             }
 
-            // 直接更新思考內容（現在支持即時串流）
-            streamMessage.thinking_content = data.thinking_content;
+            // 應用文字轉換後更新思考內容（現在支持即時串流）
+            const convertedThinkingContent =
+              isTextConverterEnabled.value && textConverter.isAvailable()
+                ? textConverter.convertStreamThinkingContent(
+                    data.thinking_content,
+                    textConversionMode.value
+                  )
+                : data.thinking_content;
+
+            streamMessage.thinking_content = convertedThinkingContent;
           }
 
           // 處理主要內容的即時顯示（使用打字機效果）
@@ -1037,9 +1058,18 @@ export const useChatStore = defineStore("chat", () => {
 
           // 添加思考內容（優先使用新的，如果沒有則保留現有的）
           if (data.thinking_content) {
+            // 應用文字轉換
+            const convertedContent =
+              isTextConverterEnabled.value && textConverter.isAvailable()
+                ? textConverter.convertThinkingContent(
+                    data.thinking_content,
+                    textConversionMode.value
+                  )
+                : data.thinking_content;
+
             messages.value[toolMessageIndex].thinking_content =
-              data.thinking_content;
-            console.log("tool_calls_processed: 使用新的思考內容");
+              convertedContent;
+            console.log("tool_calls_processed: 使用新的思考內容 (已轉換)");
           } else if (existingThinkingContent) {
             messages.value[toolMessageIndex].thinking_content =
               existingThinkingContent;
@@ -1064,9 +1094,20 @@ export const useChatStore = defineStore("chat", () => {
 
           // 添加思考內容（優先使用新的，如果沒有則保留現有的）
           if (data.thinking_content) {
+            // 應用文字轉換
+            const convertedContent =
+              isTextConverterEnabled.value && textConverter.isAvailable()
+                ? textConverter.convertThinkingContent(
+                    data.thinking_content,
+                    textConversionMode.value
+                  )
+                : data.thinking_content;
+
             messages.value[thinkingMessageIndex].thinking_content =
-              data.thinking_content;
-            console.log("thinking_content_processed: 使用新的思考內容");
+              convertedContent;
+            console.log(
+              "thinking_content_processed: 使用新的思考內容 (已轉換)"
+            );
           } else if (existingThinkingContent) {
             messages.value[thinkingMessageIndex].thinking_content =
               existingThinkingContent;
@@ -1168,6 +1209,33 @@ export const useChatStore = defineStore("chat", () => {
     }
   }
 
+  // 文字轉換相關方法
+  const setTextConversionMode = (mode) => {
+    textConversionMode.value = mode;
+    // 重新轉換當前載入的消息
+    if (messages.value.length > 0 && isTextConverterEnabled.value) {
+      messages.value = textConverter.convertMessagesThinkingContent(
+        messages.value,
+        mode
+      );
+    }
+  };
+
+  const toggleTextConverter = (enabled) => {
+    isTextConverterEnabled.value = enabled;
+    // 如果禁用轉換，需要重新載入消息以獲取原始內容
+    if (!enabled && currentConversation.value) {
+      handleGetMessages(currentConversation.value.id);
+    }
+  };
+
+  const getTextConverterInfo = () => ({
+    isEnabled: isTextConverterEnabled.value,
+    mode: textConversionMode.value,
+    isAvailable: textConverter.isAvailable(),
+    supportedModes: textConverter.getSupportedModes(),
+  });
+
   return {
     // 狀態
     conversations,
@@ -1184,6 +1252,9 @@ export const useChatStore = defineStore("chat", () => {
     streamingMessageId,
     conversationPagination,
     messagePagination,
+    // 文字轉換狀態
+    textConversionMode,
+    isTextConverterEnabled,
 
     // 計算屬性
     hasConversations,
@@ -1215,5 +1286,9 @@ export const useChatStore = defineStore("chat", () => {
     handleSSEEvent,
     handleAddConversationToHistory,
     sendMessage,
+    // 文字轉換方法
+    setTextConversionMode,
+    toggleTextConverter,
+    getTextConverterInfo,
   };
 });

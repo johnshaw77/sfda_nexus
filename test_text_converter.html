@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>OpenCC 文字轉換測試</title>
+    <style>
+      body {
+        font-family: "Microsoft YaHei", sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .test-section {
+        margin-bottom: 30px;
+        padding: 15px;
+        border: 1px solid #e8e8e8;
+        border-radius: 6px;
+      }
+      .test-title {
+        color: #1890ff;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 10px;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        font-family: inherit;
+        resize: vertical;
+      }
+      button {
+        background: #1890ff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px 5px 5px 0;
+      }
+      button:hover {
+        background: #40a9ff;
+      }
+      button:disabled {
+        background: #d9d9d9;
+        cursor: not-allowed;
+      }
+      .result {
+        background: #f6ffed;
+        border: 1px solid #b7eb8f;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+      }
+      .error {
+        background: #fff2f0;
+        border: 1px solid #ffccc7;
+        color: #a8071a;
+      }
+      .status {
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+      }
+      .status.success {
+        background: #f6ffed;
+        border: 1px solid #b7eb8f;
+        color: #389e0d;
+      }
+      .status.error {
+        background: #fff2f0;
+        border: 1px solid #ffccc7;
+        color: #a8071a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔄 OpenCC 文字轉換測試</h1>
+
+      <!-- 狀態顯示 -->
+      <div
+        id="status"
+        class="status">
+        正在初始化 OpenCC...
+      </div>
+
+      <!-- 預設測試 -->
+      <div class="test-section">
+        <div class="test-title">📝 預設測試文本</div>
+        <button onclick="testSimplified()">測試簡體轉繁體</button>
+        <button onclick="testTraditional()">測試繁體轉簡體</button>
+        <button onclick="testThinking()">測試思考內容</button>
+        <div
+          id="presetResult"
+          class="result"
+          style="display: none"></div>
+      </div>
+
+      <!-- 自定義測試 -->
+      <div class="test-section">
+        <div class="test-title">✏️ 自定義文本測試</div>
+        <textarea
+          id="inputText"
+          placeholder="請輸入要轉換的文本..."></textarea>
+        <br />
+        <button onclick="convertS2T()">簡體轉繁體</button>
+        <button onclick="convertT2S()">繁體轉簡體</button>
+        <button onclick="autoConvert()">自動轉換</button>
+        <div
+          id="customResult"
+          class="result"
+          style="display: none"></div>
+      </div>
+
+      <!-- 思考內容模擬測試 -->
+      <div class="test-section">
+        <div class="test-title">🧠 思考內容串流模擬</div>
+        <button onclick="simulateStream()">模擬串流轉換</button>
+        <button onclick="clearStream()">清除</button>
+        <div
+          id="streamContainer"
+          style="margin-top: 10px">
+          <div>原始串流:</div>
+          <div
+            id="originalStream"
+            style="
+              background: #f0f0f0;
+              padding: 10px;
+              border-radius: 4px;
+              margin: 5px 0;
+            "></div>
+          <div>轉換後串流:</div>
+          <div
+            id="convertedStream"
+            style="
+              background: #e6f7ff;
+              padding: 10px;
+              border-radius: 4px;
+              margin: 5px 0;
+            "></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { Converter } from "./frontend/node_modules/opencc-js/dist/opencc.esm.js";
+
+      let s2tConverter = null;
+      let t2sConverter = null;
+
+      // 測試文本
+      const testTexts = {
+        simplified:
+          "我正在思考这个问题。现在需要分析用户的需求，然后提供最合适的解决方案。这个过程包括数据处理、算法优化和结果验证。",
+        traditional:
+          "我正在思考這個問題。現在需要分析用戶的需求，然後提供最合適的解決方案。這個過程包括資料處理、演算法優化和結果驗證。",
+        thinking: `我来思考一下这个问题：
+
+用户询问关于数据分析的问题。我需要：
+1. 理解用户的具体需求
+2. 分析现有的数据结构
+3. 提供合适的分析方法
+4. 给出实际的实现步骤
+
+这个问题涉及到机器学习、统计分析和数据可视化等多个领域。我应该从最基础的数据预处理开始，然后逐步深入到复杂的分析算法。`,
+      };
+
+      // 初始化轉換器
+      async function initConverters() {
+        try {
+          s2tConverter = Converter({ from: "cn", to: "tw" });
+          t2sConverter = Converter({ from: "tw", to: "cn" });
+
+          document.getElementById("status").innerHTML =
+            "✅ OpenCC 初始化成功！";
+          document.getElementById("status").className = "status success";
+
+          // 啟用所有按鈕
+          const buttons = document.querySelectorAll("button");
+          buttons.forEach((btn) => (btn.disabled = false));
+        } catch (error) {
+          console.error("OpenCC 初始化失敗:", error);
+          document.getElementById(
+            "status"
+          ).innerHTML = `❌ OpenCC 初始化失敗: ${error.message}`;
+          document.getElementById("status").className = "status error";
+        }
+      }
+
+      // 顯示結果
+      function showResult(elementId, original, converted, method) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = `
+                <strong>${method}</strong><br>
+                <strong>原文:</strong> ${original}<br>
+                <strong>轉換:</strong> ${converted}
+            `;
+        element.style.display = "block";
+      }
+
+      // 預設測試函數
+      function testSimplified() {
+        if (!s2tConverter) return alert("轉換器未初始化");
+        const converted = s2tConverter(testTexts.simplified);
+        showResult(
+          "presetResult",
+          testTexts.simplified,
+          converted,
+          "簡體轉繁體"
+        );
+      }
+
+      window.testTraditional = function () {
+        if (!t2sConverter) return alert("轉換器未初始化");
+        const converted = t2sConverter(testTexts.traditional);
+        showResult(
+          "presetResult",
+          testTexts.traditional,
+          converted,
+          "繁體轉簡體"
+        );
+      };
+
+      window.testThinking = function () {
+        if (!s2tConverter) return alert("轉換器未初始化");
+        const converted = s2tConverter(testTexts.thinking);
+        showResult(
+          "presetResult",
+          testTexts.thinking,
+          converted,
+          "思考內容轉換"
+        );
+      };
+
+      // 自定義測試函數
+      window.convertS2T = function () {
+        if (!s2tConverter) return alert("轉換器未初始化");
+        const input = document.getElementById("inputText").value;
+        if (!input.trim()) return alert("請輸入文本");
+
+        const converted = s2tConverter(input);
+        showResult("customResult", input, converted, "簡體轉繁體");
+      };
+
+      window.convertT2S = function () {
+        if (!t2sConverter) return alert("轉換器未初始化");
+        const input = document.getElementById("inputText").value;
+        if (!input.trim()) return alert("請輸入文本");
+
+        const converted = t2sConverter(input);
+        showResult("customResult", input, converted, "繁體轉簡體");
+      };
+
+      window.autoConvert = function () {
+        if (!s2tConverter) return alert("轉換器未初始化");
+        const input = document.getElementById("inputText").value;
+        if (!input.trim()) return alert("請輸入文本");
+
+        // 簡單檢測（與前端代碼一致）
+        const simplifiedChars = [
+          "国",
+          "学",
+          "语",
+          "时",
+          "间",
+          "发",
+          "说",
+          "问",
+          "题",
+          "现",
+          "实",
+          "应",
+          "该",
+          "这",
+          "样",
+          "那",
+          "样",
+        ];
+        const hasSimplified = simplifiedChars.some((char) =>
+          input.includes(char)
+        );
+
+        if (hasSimplified) {
+          const converted = s2tConverter(input);
+          showResult("customResult", input, converted, "自動轉換 (簡→繁)");
+        } else {
+          showResult("customResult", input, input, "自動轉換 (無需轉換)");
+        }
+      };
+
+      // 串流模擬
+      window.simulateStream = function () {
+        if (!s2tConverter) return alert("轉換器未初始化");
+
+        const originalContainer = document.getElementById("originalStream");
+        const convertedContainer = document.getElementById("convertedStream");
+
+        // 模擬思考內容逐步產生
+        const streamText =
+          "我正在思考这个复杂的问题。首先需要分析用户的具体需求，然后查找相关的数据和资料。接下来要设计合适的解决方案，包括算法选择、参数调优和结果验证。这个过程需要综合考虑效率、准确性和可扩展性等多个因素。";
+
+        originalContainer.innerHTML = "";
+        convertedContainer.innerHTML = "";
+
+        let currentText = "";
+        let index = 0;
+
+        const timer = setInterval(() => {
+          if (index < streamText.length) {
+            currentText += streamText[index];
+            originalContainer.textContent = currentText;
+
+            // 即時轉換
+            const converted = s2tConverter(currentText);
+            convertedContainer.textContent = converted;
+
+            index++;
+          } else {
+            clearInterval(timer);
+          }
+        }, 100);
+      };
+
+      window.clearStream = function () {
+        document.getElementById("originalStream").innerHTML = "";
+        document.getElementById("convertedStream").innerHTML = "";
+      };
+
+      // 初始化
+      initConverters();
+
+      // 禁用所有按鈕直到初始化完成
+      const buttons = document.querySelectorAll("button");
+      buttons.forEach((btn) => (btn.disabled = true));
+    </script>
+  </body>
+</html>
