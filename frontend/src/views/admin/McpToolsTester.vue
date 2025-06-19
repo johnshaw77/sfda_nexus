@@ -473,6 +473,27 @@ const handleCallTool = async () => {
           } catch (error) {
             throw new Error(`參數 "${key}" 的 JSON 格式不正確`);
           }
+        } else if (
+          paramSchema?.type === "integer" ||
+          paramSchema?.type === "int"
+        ) {
+          // 處理整數類型參數
+          const numValue =
+            typeof value === "string" ? parseInt(value, 10) : value;
+          if (!isNaN(numValue)) {
+            processedParams[key] = numValue;
+          } else {
+            throw new Error(`參數 "${key}" 必須是有效的整數`);
+          }
+        } else if (paramSchema?.type === "number") {
+          // 處理數字類型參數
+          const numValue =
+            typeof value === "string" ? parseFloat(value) : value;
+          if (!isNaN(numValue)) {
+            processedParams[key] = numValue;
+          } else {
+            throw new Error(`參數 "${key}" 必須是有效的數字`);
+          }
         } else {
           processedParams[key] = value;
         }

@@ -26,12 +26,6 @@
               class="logo-text">
               <span>Nexus 管理後台</span>
             </span>
-            <a-tag
-              v-show="showAdminTag"
-              color="gold"
-              size="small"
-              >管理員</a-tag
-            >
           </div>
         </div>
 
@@ -96,16 +90,6 @@
             </a-tooltip>
 
             <a-tooltip
-              title="刷新頁面"
-              :arrow="false">
-              <a-button
-                type="text"
-                @click="handleRefresh">
-                <ReloadOutlined />
-              </a-button>
-            </a-tooltip>
-
-            <a-tooltip
               :title="isFullscreen ? '退出全屏' : '全屏'"
               :arrow="false">
               <a-button
@@ -128,11 +112,19 @@
                 :style="{ backgroundColor: '#f56a00' }">
                 <CrownOutlined v-if="!authStore.user?.avatar" />
               </a-avatar>
-              <span
+              <div
                 v-show="showUsername"
-                class="username"
-                >{{ authStore.user?.username }}</span
-              >
+                class="user-info">
+                <!-- <a-tag
+                  color="gold"
+                  size="small"
+                  style="margin-right: 8px">
+                  管理員
+                </a-tag> -->
+                <span class="username">{{
+                  authStore.user?.display_name || authStore.user?.username
+                }}</span>
+              </div>
               <DownOutlined />
             </a-button>
 
@@ -827,6 +819,11 @@ const loadSystemStats = () => {
 .user-menu-btn:hover {
   color: white;
   background: rgba(255, 255, 255, 0.1);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
 }
 
 .username {

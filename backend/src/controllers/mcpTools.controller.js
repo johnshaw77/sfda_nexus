@@ -450,6 +450,7 @@ export const handleCallTool = catchAsync(async (req, res) => {
       // 返回完整的結果對象，包含業務數據和元數據
       res.json(createSuccessResponse(result, "工具調用成功"));
     } else {
+      console.log("result.error", result.error);
       throw new BusinessError(`工具調用失敗：${result.error}`);
     }
   } catch (error) {

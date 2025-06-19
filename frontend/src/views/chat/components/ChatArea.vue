@@ -95,62 +95,97 @@
             placement="bottom">
             <a-button
               type="text"
-              class="quick-commands-btn">
+              class="quick-commands-btn"
+              :loading="loadingQuickCommands">
               <ThunderboltOutlined />
               快速命令
               <DownOutlined style="font-size: 10px; margin-left: 4px" />
             </a-button>
           </a-tooltip>
           <template #overlay>
-            <a-menu @click="handleQuickCommand">
-              <a-menu-item-group title="數據查詢">
-                <a-menu-item key="query-employee">
-                  <UserOutlined />
-                  查詢員工資料
+            <a-menu @click="handleDynamicQuickCommand">
+              <!-- 載入中狀態 -->
+              <template v-if="loadingQuickCommands">
+                <a-menu-item disabled>
+                  <a-spin
+                    size="small"
+                    style="margin-right: 8px" />
+                  載入快速命令中...
                 </a-menu-item>
-                <a-menu-item key="query-department">
-                  <TeamOutlined />
-                  查詢部門信息
-                </a-menu-item>
-                <a-menu-item key="query-salary">
-                  <DollarOutlined />
-                  查詢薪資信息
-                </a-menu-item>
-              </a-menu-item-group>
+              </template>
 
-              <a-menu-divider />
+              <!-- 動態載入的智能體快速命令 -->
+              <template v-else-if="agentQuickCommands.length > 0">
+                <a-menu-item-group
+                  :title="`${agent?.display_name || '智能體'} 專屬命令`">
+                  <a-menu-item
+                    v-for="command in agentQuickCommands"
+                    :key="command.id">
+                    <component
+                      :is="getIconComponent(command.icon)"
+                      v-if="command.icon"
+                      style="margin-right: 8px" />
+                    {{ command.text }}
+                    <span
+                      v-if="command.description"
+                      class="command-desc">
+                      - {{ command.description }}
+                    </span>
+                  </a-menu-item>
+                </a-menu-item-group>
+              </template>
 
-              <a-menu-item-group title="報表生成">
-                <a-menu-item key="report-monthly">
-                  <FileTextOutlined />
-                  生成月度報表
-                </a-menu-item>
-                <a-menu-item key="report-attendance">
-                  <CalendarOutlined />
-                  考勤統計報表
-                </a-menu-item>
-                <a-menu-item key="report-performance">
-                  <TrophyOutlined />
-                  績效評估報表
-                </a-menu-item>
-              </a-menu-item-group>
+              <!-- 如果沒有智能體特定的快速命令，顯示通用命令 -->
+              <template v-else>
+                <a-menu-item-group title="數據查詢">
+                  <a-menu-item key="query-employee">
+                    <UserOutlined />
+                    查詢員工資料
+                  </a-menu-item>
+                  <a-menu-item key="query-department">
+                    <TeamOutlined />
+                    查詢部門信息
+                  </a-menu-item>
+                  <a-menu-item key="query-salary">
+                    <DollarOutlined />
+                    查詢薪資信息
+                  </a-menu-item>
+                </a-menu-item-group>
 
-              <a-menu-divider />
+                <a-menu-divider />
 
-              <a-menu-item-group title="系統操作">
-                <a-menu-item key="backup-data">
-                  <CloudDownloadOutlined />
-                  數據備份
-                </a-menu-item>
-                <a-menu-item key="system-check">
-                  <SafetyOutlined />
-                  系統檢查
-                </a-menu-item>
-                <a-menu-item key="clear-cache">
-                  <DeleteOutlined />
-                  清理緩存
-                </a-menu-item>
-              </a-menu-item-group>
+                <a-menu-item-group title="報表生成">
+                  <a-menu-item key="report-monthly">
+                    <FileTextOutlined />
+                    生成月度報表
+                  </a-menu-item>
+                  <a-menu-item key="report-attendance">
+                    <CalendarOutlined />
+                    考勤統計報表
+                  </a-menu-item>
+                  <a-menu-item key="report-performance">
+                    <TrophyOutlined />
+                    績效評估報表
+                  </a-menu-item>
+                </a-menu-item-group>
+
+                <a-menu-divider />
+
+                <a-menu-item-group title="系統操作">
+                  <a-menu-item key="backup-data">
+                    <CloudDownloadOutlined />
+                    數據備份
+                  </a-menu-item>
+                  <a-menu-item key="system-check">
+                    <SafetyOutlined />
+                    系統檢查
+                  </a-menu-item>
+                  <a-menu-item key="clear-cache">
+                    <DeleteOutlined />
+                    清理緩存
+                  </a-menu-item>
+                </a-menu-item-group>
+              </template>
             </a-menu>
           </template>
         </a-dropdown>
@@ -2024,7 +2059,35 @@ const handleClearMessages = async () => {
   }
 };
 
-// 處理快速命令點擊
+// 處理動態快速命令點擊
+const handleDynamicQuickCommand = ({ key }) => {
+  // 如果是動態載入的智能體快速命令
+  const dynamicCommand = agentQuickCommands.value.find(
+    (cmd) => cmd.id === parseInt(key)
+  );
+  if (dynamicCommand) {
+    messageText.value = dynamicCommand.text;
+
+    // 統計使用次數（後台進行，不影響用戶體驗）
+    incrementCommandUsage(dynamicCommand.id).catch((error) => {
+      console.warn("統計快速命令詞使用次數失敗:", error);
+    });
+
+    // 聚焦到輸入框
+    nextTick(() => {
+      const textarea = document.querySelector(".message-input textarea");
+      if (textarea) {
+        textarea.focus();
+      }
+    });
+    return;
+  }
+
+  // 如果是靜態的回退命令，使用原來的邏輯
+  handleQuickCommand({ key });
+};
+
+// 處理快速命令點擊（保留作為回退）
 const handleQuickCommand = ({ key }) => {
   const commandMap = {
     // 數據查詢
@@ -2055,6 +2118,50 @@ const handleQuickCommand = ({ key }) => {
       }
     });
   }
+};
+
+// 獲取圖標組件
+const getIconComponent = (iconName) => {
+  if (!iconName) return null;
+
+  // 常用圖標映射表
+  const iconMap = {
+    user: "UserOutlined",
+    team: "TeamOutlined",
+    dollar: "DollarOutlined",
+    "file-text": "FileTextOutlined",
+    calendar: "CalendarOutlined",
+    trophy: "TrophyOutlined",
+    "cloud-download": "CloudDownloadOutlined",
+    safety: "SafetyOutlined",
+    delete: "DeleteOutlined",
+    book: "BookOutlined",
+    heart: "HeartOutlined",
+    star: "StarOutlined",
+    rocket: "RocketOutlined",
+    bulb: "BulbOutlined",
+    setting: "SettingOutlined",
+    question: "QuestionCircleOutlined",
+    info: "InfoCircleOutlined",
+    plus: "PlusOutlined",
+    edit: "EditOutlined",
+    search: "SearchOutlined",
+    filter: "FilterOutlined",
+    export: "ExportOutlined",
+    import: "ImportOutlined",
+    sync: "SyncOutlined",
+    bell: "BellOutlined",
+    message: "MessageOutlined",
+    mail: "MailOutlined",
+    phone: "PhoneOutlined",
+    home: "HomeOutlined",
+    shop: "ShopOutlined",
+    bank: "BankOutlined",
+    car: "CarOutlined",
+    environment: "EnvironmentOutlined",
+  };
+
+  return iconMap[iconName] || "QuestionCircleOutlined";
 };
 
 // 處理對話面板折疊
@@ -2527,6 +2634,21 @@ const getModelEndpoint = () => {
   border-color: var(--custom-primary-color);
   color: var(--custom-primary-color);
   background-color: var(--custom-primary-color-light);
+}
+
+/* 快速命令描述樣式 */
+.command-desc {
+  font-size: 11px;
+  color: var(--custom-text-tertiary);
+  margin-left: 4px;
+  opacity: 0.8;
+}
+
+/* 快速命令選單分組標題樣式 */
+:deep(.ant-menu-item-group-title) {
+  font-weight: 600;
+  color: var(--custom-primary-color);
+  font-size: 12px;
 }
 
 .model-option {

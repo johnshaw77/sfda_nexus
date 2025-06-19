@@ -476,8 +476,9 @@ class McpToolParser {
           }
         }
 
+        // 🔧 修復：如果沒有特定格式，嘗試智能格式化
         if (!formattedData) {
-          formattedData = JSON.stringify(result.data, null, 2);
+          formattedData = this.formatGeneralData(result.data);
         }
 
         sections.push(
@@ -495,6 +496,72 @@ class McpToolParser {
     }
 
     return sections.join("\n---\n\n");
+  }
+
+  /**
+   * 🔧 新增：智能格式化通用數據
+   * @param {any} data - 要格式化的數據
+   * @returns {string} 格式化後的文本
+   */
+  formatGeneralData(data) {
+    if (!data) return "無數據";
+
+    // 如果是數組，可能是表格數據
+    if (Array.isArray(data)) {
+      if (data.length === 0) return "查詢結果為空";
+
+      let formatted = `**查詢結果** (共 ${data.length} 條記錄):\n\n`;
+
+      // 取前幾條記錄做格式化，避免數據過長
+      const displayCount = Math.min(data.length, 20);
+
+      for (let i = 0; i < displayCount; i++) {
+        const item = data[i];
+        formatted += `**記錄 ${i + 1}:**\n`;
+
+        if (typeof item === "object" && item !== null) {
+          // 格式化對象的每個屬性
+          for (const [key, value] of Object.entries(item)) {
+            if (value !== null && value !== undefined) {
+              formatted += `- ${key}: ${value}\n`;
+            }
+          }
+        } else {
+          formatted += `- 值: ${item}\n`;
+        }
+        formatted += "\n";
+      }
+
+      if (data.length > displayCount) {
+        formatted += `... 還有 ${data.length - displayCount} 條記錄\n`;
+      }
+
+      return formatted;
+    }
+
+    // 如果是對象
+    if (typeof data === "object" && data !== null) {
+      let formatted = "**查詢結果:**\n\n";
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== null && value !== undefined) {
+          if (Array.isArray(value)) {
+            formatted += `**${key}** (${value.length} 項):\n`;
+            value.slice(0, 10).forEach((item, index) => {
+              formatted += `  ${index + 1}. ${typeof item === "object" ? JSON.stringify(item) : item}\n`;
+            });
+            if (value.length > 10) {
+              formatted += `  ... 還有 ${value.length - 10} 項\n`;
+            }
+          } else {
+            formatted += `**${key}**: ${value}\n`;
+          }
+        }
+      }
+      return formatted;
+    }
+
+    // 其他類型直接轉字符串
+    return String(data);
   }
 
   /**

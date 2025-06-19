@@ -1,6 +1,6 @@
 ---
 description: 
-globs: *.route.js
+globs: *.js
 alwaysApply: false
 ---
 後端 route 在撰寫時記得要撰寫 swagger doc

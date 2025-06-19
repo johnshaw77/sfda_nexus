@@ -96,6 +96,15 @@ export default {
   },
 
   /**
+   * 更新 MCP 服務
+   * @param {number} serviceId - 服務 ID
+   * @param {object} updateData - 更新數據
+   */
+  updateMcpService(serviceId, updateData) {
+    return request.put(`/api/mcp/services/${serviceId}`, updateData);
+  },
+
+  /**
    * 獲取所有 MCP 工具
    */
   getAllTools() {

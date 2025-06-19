@@ -251,10 +251,10 @@
             <a-button
               type="link"
               size="small"
-              :href="(record.endpoint_url || record.endpoint) + '/tools'"
+              :href="getEndpointUrl(record) + '/tools'"
               target="_blank"
               style="padding: 0; height: auto">
-              {{ formatEndpoint(record.endpoint_url || record.endpoint) }}
+              {{ formatEndpoint(getEndpointUrl(record)) }}
               <LinkOutlined style="margin-left: 4px" />
             </a-button>
           </template>
@@ -279,7 +279,12 @@
                   ">
                   <a-tag
                     :color="getToolTagColor(tool)"
-                    style="font-size: 12px; cursor: help"
+                    :style="{
+                      fontSize: '12px',
+                      cursor:
+                        viewMode === 'discover' ? 'not-allowed' : 'pointer',
+                      opacity: viewMode === 'discover' ? 0.6 : 1,
+                    }"
                     @click="handleQuickToolToggle(record, tool)">
                     <ToolOutlined class="tool-icon" />
                     <span v-if="!isSmallScreen">{{ tool.name }}</span>
@@ -371,6 +376,10 @@
                     工具詳情
                   </a-menu-item>
                   <template v-if="viewMode === 'manage'">
+                    <a-menu-item @click="handleEditService(record)">
+                      <EditOutlined />
+                      編輯
+                    </a-menu-item>
                     <a-menu-divider />
                     <a-menu-item
                       @click="handleDeleteService(record, false)"
@@ -432,6 +441,15 @@
                 <EyeOutlined />
                 工具詳情
               </a-button>
+              <a-button
+                v-if="viewMode === 'manage'"
+                type="text"
+                size="small"
+                @click="handleEditService(record)"
+                style="padding: 2px 4px; height: 24px; margin-bottom: 4px">
+                <EditOutlined />
+                編輯
+              </a-button>
               <a-dropdown
                 v-if="viewMode === 'manage'"
                 style="margin-bottom: 4px">
@@ -464,6 +482,71 @@
         </a-table>
       </div>
     </a-card>
+
+    <!-- 編輯服務對話框 -->
+    <a-modal
+      v-model:open="editModalVisible"
+      title="編輯 MCP 服務"
+      width="600px"
+      @ok="handleSaveEdit"
+      @cancel="handleCancelEdit"
+      :confirm-loading="saving">
+      <a-form
+        ref="editFormRef"
+        :model="editForm"
+        :rules="editRules"
+        layout="vertical">
+        <a-form-item
+          label="服務名稱"
+          name="name">
+          <a-input
+            :value="editForm.name"
+            @input="(e) => (editForm.name = e.target.value)" />
+        </a-form-item>
+
+        <a-form-item
+          label="服務描述"
+          name="description">
+          <a-textarea
+            :value="editForm.description"
+            @input="(e) => (editForm.description = e.target.value)"
+            :rows="3" />
+        </a-form-item>
+
+        <a-form-item
+          label="端點 URL"
+          name="endpoint_url">
+          <a-input
+            :value="editForm.endpoint_url"
+            @input="(e) => (editForm.endpoint_url = e.target.value)"
+            placeholder="http://localhost:8080" />
+        </a-form-item>
+
+        <a-form-item
+          label="版本"
+          name="version">
+          <a-input
+            :value="editForm.version"
+            @input="(e) => (editForm.version = e.target.value)" />
+        </a-form-item>
+
+        <a-form-item
+          label="擁有者"
+          name="owner">
+          <a-input
+            :value="editForm.owner"
+            @input="(e) => (editForm.owner = e.target.value)" />
+        </a-form-item>
+
+        <a-form-item name="is_active">
+          <a-checkbox
+            :checked="editForm.is_active"
+            @change="(e) => (editForm.is_active = e.target.checked)">
+            啟用服務
+          </a-checkbox>
+        </a-form-item>
+      </a-form>
+    </a-modal>
 
     <!-- 工具詳情對話框 -->
     <a-modal
@@ -533,17 +616,23 @@
             <a-button
               type="primary"
               size="small"
+              :disabled="viewMode === 'discover'"
               @click="handleEnableAllTools">
               全部啟用
             </a-button>
             <a-button
               size="small"
+              :disabled="viewMode === 'discover'"
               @click="handleDisableAllTools">
               全部停用
             </a-button>
             <a-divider type="vertical" />
             <span style="color: #666; font-size: 12px">
-              點擊標籤可切換啟用狀態 / 雙擊查看 Schema
+              {{
+                viewMode === "discover"
+                  ? "發現模式：請先同步服務到系統後才能管理工具狀態"
+                  : "點擊標籤可切換啟用狀態 / 雙擊查看 Schema"
+              }}
             </span>
           </a-space>
         </div>
@@ -558,7 +647,7 @@
             <a-tag
               :color="getToolTagColor(tool)"
               :style="{
-                cursor: 'pointer',
+                cursor: viewMode === 'discover' ? 'not-allowed' : 'pointer',
                 fontSize: '11px',
                 padding: '2px 6px',
                 borderRadius: '6px',
@@ -568,6 +657,7 @@
                 fontWeight: tool.enabled ? '500' : 'normal',
                 minWidth: '120px',
                 textAlign: 'center',
+                opacity: viewMode === 'discover' ? 0.6 : 1,
               }"
               @click="handleToolToggle(tool, !tool.enabled)">
               <!-- 工具圖標 -->
@@ -687,9 +777,32 @@ const syncedServices = ref([]);
 const selectedServiceKeys = ref([]);
 const toolsModalVisible = ref(false);
 const schemaModalVisible = ref(false);
+const editModalVisible = ref(false);
 const selectedService = ref(null);
 const selectedTool = ref(null);
+const editService = ref(null);
+const editFormRef = ref(null);
+const saving = ref(false);
 const lastSyncTime = ref("未同步");
+const currentDiscoveryEndpoint = ref(""); // 記錄當前發現會話使用的端點
+
+// 編輯表單數據
+const editForm = ref({
+  name: "",
+  description: "",
+  endpoint_url: "",
+  version: "",
+  owner: "",
+  is_active: true,
+});
+
+// 編輯表單驗證規則
+const editRules = {
+  name: [{ required: true, message: "請輸入服務名稱", trigger: "blur" }],
+  endpoint_url: [
+    { required: true, message: "請輸入端點 URL", trigger: "blur" },
+  ],
+};
 
 // 計算屬性
 const currentServices = computed(() => {
@@ -859,6 +972,9 @@ const handleDiscoverServices = async () => {
       }
     }
 
+    // 記錄當前發現會話使用的端點
+    currentDiscoveryEndpoint.value = endpoint || "";
+
     const response = await mcpApi.discoverServices(endpoint);
     if (response.data.success) {
       discoveredServices.value = response.data.data.services;
@@ -895,6 +1011,9 @@ const handleFullSync = async () => {
       }
     }
 
+    // 記錄當前同步會話使用的端點
+    currentDiscoveryEndpoint.value = endpoint || "";
+
     const response = await mcpApi.syncServices(endpoint);
     if (response.data.success) {
       message.success(
@@ -902,6 +1021,7 @@ const handleFullSync = async () => {
       );
       // 同步後自動切換到管理模式並重新加載數據
       viewMode.value = "manage";
+      currentDiscoveryEndpoint.value = ""; // 切換到管理模式時清除記錄
       await handleLoadSyncedServices();
     } else {
       message.error(response.data.message || "同步失敗");
@@ -1046,6 +1166,18 @@ const handleLoadSyncedServices = async () => {
     if (response.data.success) {
       syncedServices.value = response.data.data;
       lastSyncTime.value = new Date().toLocaleString();
+
+      // 驗證工具數據完整性
+      const servicesWithInvalidTools = syncedServices.value.filter(
+        (service) => service.tools && service.tools.some((tool) => !tool.id)
+      );
+
+      if (servicesWithInvalidTools.length > 0) {
+        console.warn(
+          "⚠️ 發現包含無效工具的服務:",
+          servicesWithInvalidTools.map((s) => s.name)
+        );
+      }
     } else {
       message.error(response.data.message || "加載同步服務失敗");
     }
@@ -1070,13 +1202,29 @@ const handleViewModeChange = (e) => {
   viewMode.value = e.target.value;
   selectedServiceKeys.value = []; // 切換模式時清空選擇
   if (viewMode.value === "manage") {
+    currentDiscoveryEndpoint.value = ""; // 清除發現端點記錄
     handleLoadSyncedServices();
   }
 };
 
 // 查看工具
 const handleViewTools = (service) => {
-  selectedService.value = service;
+  // 創建一個深拷貝以避免引用問題，並確保工具對象的完整性
+  selectedService.value = {
+    ...service,
+    tools:
+      service.tools?.map((tool) => ({
+        ...tool,
+        // 確保工具對象包含所有必要的屬性
+        id: tool.id,
+        name: tool.name,
+        displayName: tool.displayName || tool.name,
+        description: tool.description,
+        enabled: tool.enabled || tool.is_enabled,
+        schema: tool.schema,
+      })) || [],
+  };
+
   toolsModalVisible.value = true;
 };
 
@@ -1089,6 +1237,21 @@ const handleViewSchema = (tool) => {
 // 切換工具
 const handleToolToggle = async (tool, enabled) => {
   try {
+    // 在發現模式下，工具還沒有同步到系統，不能切換狀態
+    if (viewMode.value === "discover") {
+      message.warning("發現模式下的工具需要先同步到系統後才能切換狀態");
+      return;
+    }
+
+    // 驗證工具對象是否有效
+    if (!tool || !tool.id) {
+      console.error("❌ 工具 ID 缺失:", tool);
+      message.error(
+        `工具 "${tool?.name || "unknown"}" 缺少 ID，無法進行切換操作`
+      );
+      return;
+    }
+
     const response = await mcpApi.toggleTool(tool.id, enabled);
     if (response.data.success) {
       tool.enabled = enabled;
@@ -1107,16 +1270,34 @@ const handleToolToggle = async (tool, enabled) => {
 // 快速切換工具
 const handleQuickToolToggle = async (record, tool) => {
   try {
-    // 如果工具是字符串，說明是簡化顯示，需要從完整工具列表中找到對應的工具對象
+    // 在發現模式下，工具還沒有同步到系統，不能切換狀態
+    if (viewMode.value === "discover") {
+      message.warning("發現模式下的工具需要先同步到系統後才能切換狀態");
+      return;
+    }
+
+    // 確保我們有完整的工具對象
     let targetTool = tool;
+
+    // 如果工具是字符串，從記錄中找到對應的工具對象
     if (typeof tool === "string") {
       targetTool = record.tools.find(
         (t) => t.name === tool || t.displayName === tool
       );
+
       if (!targetTool) {
-        message.error("找不到對應的工具");
+        message.error(`找不到名為 "${tool}" 的工具`);
         return;
       }
+    }
+
+    // 驗證工具對象是否有效
+    if (!targetTool || !targetTool.id) {
+      console.error("❌ 工具 ID 缺失:", targetTool);
+      message.error(
+        `工具 "${targetTool?.name || "unknown"}" 缺少 ID，無法進行切換操作`
+      );
+      return;
     }
 
     const newEnabled = !targetTool.enabled;
@@ -1147,6 +1328,11 @@ const handleQuickToolToggle = async (record, tool) => {
 
 // 批量啟用工具
 const handleEnableAllTools = async () => {
+  if (viewMode.value === "discover") {
+    message.warning("發現模式下的工具需要先同步到系統後才能切換狀態");
+    return;
+  }
+
   if (!selectedService.value || !selectedService.value.tools) return;
 
   try {
@@ -1170,6 +1356,11 @@ const handleEnableAllTools = async () => {
 
 // 批量停用工具
 const handleDisableAllTools = async () => {
+  if (viewMode.value === "discover") {
+    message.warning("發現模式下的工具需要先同步到系統後才能切換狀態");
+    return;
+  }
+
   if (!selectedService.value || !selectedService.value.tools) return;
 
   try {
@@ -1257,14 +1448,87 @@ const handleBatchDelete = async (permanent = false) => {
   });
 };
 
+// 編輯服務
+const handleEditService = (service) => {
+  editService.value = service;
+  editForm.value = {
+    name: service.name || "",
+    description: service.description || "",
+    endpoint_url: service.endpoint_url || "",
+    version: service.version || "",
+    owner: service.owner || "",
+    is_active: service.is_active || false,
+  };
+  editModalVisible.value = true;
+};
+
+// 保存編輯
+const handleSaveEdit = async () => {
+  try {
+    await editFormRef.value.validate();
+    saving.value = true;
+
+    const response = await mcpApi.updateMcpService(
+      editService.value.id,
+      editForm.value
+    );
+    if (response.data.success) {
+      message.success("服務更新成功");
+      editModalVisible.value = false;
+      await handleLoadSyncedServices(); // 重新加載數據
+    } else {
+      message.error(response.data.message || "更新失敗");
+    }
+  } catch (error) {
+    if (error.errorFields) {
+      message.error("請檢查表單輸入");
+    } else {
+      console.error("更新服務失敗:", error);
+      message.error(
+        "更新失敗：" + (error.response?.data?.message || error.message)
+      );
+    }
+  } finally {
+    saving.value = false;
+  }
+};
+
+// 取消編輯
+const handleCancelEdit = () => {
+  editModalVisible.value = false;
+  editService.value = null;
+  editForm.value = {
+    name: "",
+    description: "",
+    endpoint_url: "",
+    version: "",
+    owner: "",
+    is_active: true,
+  };
+};
+
 // 工具方法
+const getEndpointUrl = (record) => {
+  console.log("x", record.endpoint);
+  // 在發現模式下，優先使用當前發現會話的端點
+  if (viewMode.value === "discover" && currentDiscoveryEndpoint.value) {
+    return currentDiscoveryEndpoint.value + "/api/" + record.moduleKey;
+  }
+  // 其他情況使用記錄中的端點
+  return record.endpoint_url || record.endpoint || "";
+};
+
 const formatEndpoint = (endpoint) => {
   if (!endpoint) return "";
   return endpoint.replace(/^https?:\/\//, "");
 };
 
 const getToolTagColor = (tool) => {
-  if (tool.enabled) return "green";
+  // 如果 tool 是字符串，返回默認顏色
+  if (typeof tool === "string") return "default";
+
+  // 檢查 enabled 屬性
+  if (tool.enabled || tool.is_enabled) return "green";
   return "default";
 };
 

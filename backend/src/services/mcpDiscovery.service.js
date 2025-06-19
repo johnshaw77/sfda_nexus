@@ -7,6 +7,17 @@ import axios from "axios";
 import { query, transaction, dbConfig } from "../config/database.config.js";
 import logger from "../utils/logger.util.js";
 
+// 創建專用的 axios 實例，避免循環引用
+const createHttpClient = () => {
+  return axios.create({
+    timeout: 10000,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  });
+};
+
 class McpDiscoveryService {
   constructor() {
     // 預設端點，但建議通過參數傳入
@@ -25,7 +36,10 @@ class McpDiscoveryService {
       logger.info(`開始探索 MCP 服務... (端點: ${serverUrl})`);
 
       // 獲取 MCP Server 資訊
-      const response = await axios.get(serverUrl, { timeout: 10000 });
+      const httpClient = createHttpClient();
+      console.log("🔍 正在連接到:", serverUrl);
+      const response = await httpClient.get(serverUrl);
+      console.log("✅ 連接成功，狀態:", response.status);
       const serverInfo = response.data;
 
       if (!serverInfo || !serverInfo.modules) {
@@ -104,7 +118,7 @@ class McpDiscoveryService {
 
       logger.info(`探索完成，發現 ${discoveredServices.length} 個服務`);
 
-      return {
+      const result = {
         success: true,
         data: {
           services: discoveredServices,
@@ -115,8 +129,19 @@ class McpDiscoveryService {
           },
         },
       };
+
+      console.log("🧪 測試 JSON 序列化...");
+      try {
+        JSON.stringify(result);
+        console.log("✅ JSON 序列化成功");
+      } catch (jsonError) {
+        console.error("❌ JSON 序列化失敗:", jsonError.message);
+        throw jsonError;
+      }
+
+      return result;
     } catch (error) {
-      logger.error("探索 MCP 服務失敗:", error);
+      logger.error("探索 MCP 服務失敗:", error.message || error);
 
       if (error.code === "ECONNREFUSED") {
         return {
@@ -126,10 +151,14 @@ class McpDiscoveryService {
         };
       }
 
+      // 避免循環引用，只返回錯誤訊息
+      const errorMessage =
+        error.response?.data?.message || error.message || "未知錯誤";
+
       return {
         success: false,
-        message: `探索 MCP 服務失敗: ${error.message}`,
-        error: error.message,
+        message: `探索 MCP 服務失敗: ${errorMessage}`,
+        error: errorMessage,
       };
     }
   }
@@ -150,7 +179,8 @@ class McpDiscoveryService {
 
       for (const endpoint of possibleEndpoints) {
         try {
-          const response = await axios.get(endpoint, { timeout: 3000 });
+          const httpClient = createHttpClient();
+          const response = await httpClient.get(endpoint);
 
           if (response.data) {
             // HR 服務格式：{ module: "hr", tools: [...] }

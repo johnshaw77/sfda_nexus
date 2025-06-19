@@ -170,7 +170,11 @@ class ChatService {
     // 添加使用說明
     sections.push("## 📝 工具調用格式");
     sections.push("");
-    sections.push("您可以使用以下任一格式調用工具：");
+    sections.push(
+      "**重要**: 當用戶需要特定功能時，您必須直接調用相應的工具，不要只是解釋如何使用。"
+    );
+    sections.push("");
+    sections.push("**工具調用的正確方式**：");
     sections.push("");
     sections.push("### 1. JSON 格式（推薦）");
     sections.push("```json");
@@ -179,6 +183,18 @@ class ChatService {
     sections.push(`  "parameters": {`);
     sections.push(`    "參數1": "值1",`);
     sections.push(`    "參數2": "值2"`);
+    sections.push(`  }`);
+    sections.push(`}`);
+    sections.push("```");
+    sections.push("");
+
+    sections.push("**MIL 工具調用範例**：");
+    sections.push("```json");
+    sections.push(`{`);
+    sections.push(`  "tool": "get-mil-list",`);
+    sections.push(`  "parameters": {`);
+    sections.push(`    "delayDayMax": 10,`);
+    sections.push(`    "limit": 5`);
     sections.push(`  }`);
     sections.push(`}`);
     sections.push("```");
@@ -195,26 +211,39 @@ class ChatService {
     sections.push("```");
     sections.push("");
 
-    sections.push("### 2. 函數調用格式");
-    sections.push('工具名稱(參數1="值1", 參數2="值2")');
-    sections.push("");
-    sections.push("**HR 工具調用範例**：");
-    sections.push('get_employee_info(employeeId="A123456")');
-    sections.push("");
-
-    sections.push("### 3. XML 格式");
+    sections.push("### 2. XML 格式");
     sections.push("<tool_call>");
-    sections.push("  <name>工具名稱</name>");
+    sections.push("  <n>工具名稱</n>");
     sections.push(
       '  <parameters>{"參數1": "值1", "參數2": "值2"}</parameters>'
     );
     sections.push("</tool_call>");
     sections.push("");
 
+    // 添加明確的執行指示
+    sections.push("## 🎯 工具執行規則");
+    sections.push("");
+    sections.push("**必須執行工具的情況**：");
+    sections.push("- 用戶要求查詢特定數據（如 MIL 清單、員工信息）");
+    sections.push("- 用戶明確提到工具名稱（如 get-mil-list）");
+    sections.push("- 用戶需要實時數據或資料庫查詢");
+    sections.push("");
+    sections.push("**正確的回應流程**：");
+    sections.push("1. 理解用戶需求");
+    sections.push("2. 直接調用適當的工具（使用 JSON 格式）");
+    sections.push("3. 等待工具執行結果");
+    sections.push("4. 基於結果回答用戶");
+    sections.push("");
+    sections.push("**錯誤的回應方式**：");
+    sections.push("❌ 只解釋如何使用工具而不實際調用");
+    sections.push("❌ 提供假設性或示例性的回答");
+    sections.push("❌ 要求用戶自己執行工具");
+    sections.push("");
+
     // 添加注意事項
     sections.push("## ⚠️ 重要提醒");
     sections.push("");
-    sections.push("1. **工具調用時機**: 只在用戶明確需要特定功能時才調用工具");
+    sections.push("1. **立即執行**: 不要解釋工具使用方法，直接調用工具");
     sections.push("2. **參數名稱**: 務必使用精確的參數名稱，嚴格按照工具定義");
     sections.push("   - 員工查詢: 使用 `employeeId` (不是 employee_id)");
     sections.push(
@@ -434,24 +463,36 @@ class ChatService {
       if (hasSuccessfulTools) {
         console.log("=== 開始二次 AI 調用，基於工具結果生成回應 ===");
 
+        // 🚀 標記正在進行二次調用，供前端顯示加載狀態
+        if (context.onSecondaryAIStart) {
+          context.onSecondaryAIStart();
+        }
+
         try {
-          // 構建包含工具結果的二次調用消息
-          const systemPrompt = `你是一個專業的 AI 助理。基於工具調用的結果，用自然、簡潔的語言回答用戶的問題。
+          // 🔧 修復二次調用提示詞：嚴格禁止技術回應，確保用戶友好
+          const systemPrompt = `你是一個專業的助理，基於工具查詢結果，直接回答用戶的問題。
+
+工具查詢結果：
+${formattedResults}
 
 重要規則：
-1. 只基於工具返回的真實數據回答
-2. 直接回答用戶的具體問題，不要重複顯示技術細節
-3. 用友好、自然的語言表達
-4. 如果用戶問特定信息（如 email），直接提供該信息
-
-工具執行結果：
-${formattedResults}`;
+1. 直接回答用戶問題，不要提供SQL語法或技術實現
+2. 用自然語言整理和呈現數據
+3. 如果是列表數據，用清晰的格式展示
+4. 不要解釋如何查詢，只提供最終答案
+5. 保持回應完整，不要中途停止`;
 
           // 獲取用戶的原始問題
           const userQuestion =
             context.user_question ||
             context.original_question ||
-            "請基於以上數據提供回應";
+            "請整理並回答用戶的問題";
+
+          console.log("=== 二次調用用戶問題 ===");
+          console.log("用戶問題:", userQuestion);
+          console.log("=== 傳給二次 AI 的格式化結果 ===");
+          console.log("長度:", formattedResults.length);
+          console.log("內容預覽:", formattedResults.substring(0, 500) + "...");
 
           // 構建二次調用的消息
           const followUpMessages = [
@@ -461,22 +502,24 @@ ${formattedResults}`;
             },
             {
               role: "user",
-              content: userQuestion,
+              content: `用戶問題：${userQuestion}
+
+請基於上述工具查詢結果，用自然語言直接回答這個問題。記住：不要提供SQL語法或技術實現，只提供用戶需要的最終答案。`,
             },
           ];
 
           // 獲取模型配置
           const modelConfig = context.model_config || {};
 
-          // 進行二次 AI 調用
+          // 🚀 優化二次 AI 調用：使用更快的設置
           const secondaryAIResponse = await AIService.callModel({
             provider: modelConfig.model_type || "ollama",
             model: modelConfig.model_id || context.model || "qwen3:32b",
             endpoint_url: context.endpoint_url || modelConfig.endpoint_url,
             api_key: modelConfig.api_key_encrypted,
             messages: followUpMessages,
-            temperature: 0.7,
-            max_tokens: 1024,
+            temperature: 0.3, // 🚀 降低隨機性，加快生成速度
+            max_tokens: 800, // 🔧 調整為適中數值，確保回應完整
           });
 
           // 處理二次 AI 調用的回應，提取 <think> 標籤內容

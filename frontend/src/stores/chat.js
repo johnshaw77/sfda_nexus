@@ -635,6 +635,12 @@ export const useChatStore = defineStore("chat", () => {
       const controller = new AbortController();
       streamController.value = controller;
 
+      // 🔧 增加超時時間以應對工具調用延遲
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        console.log("=== 串流請求超時，已中止連接 ===");
+      }, 300000); // 5分鐘超時（原來可能更短）
+
       // 注意：瀏覽器的 EventSource 只支援 GET 請求
       // 我們需要使用 fetch + ReadableStream 來實現 POST + SSE
       const streamUrl = `${configStore.apiBaseUrl}/api/chat/conversations/${conversationId}/messages/stream`;
@@ -646,10 +652,15 @@ export const useChatStore = defineStore("chat", () => {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
           "Cache-Control": "no-cache",
+          // 🔧 添加保持連接的頭部
+          Connection: "keep-alive",
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal, // 添加 abort signal
       });
+
+      // 🔧 清除超時計時器
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
@@ -1056,6 +1067,26 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[toolMessageIndex].has_tool_calls =
             data.has_tool_calls || false;
 
+          // 🔧 重要：同時更新 metadata 中的工具調用信息，確保 MessageBubble 能正確讀取
+          if (!messages.value[toolMessageIndex].metadata) {
+            messages.value[toolMessageIndex].metadata = {};
+          }
+          messages.value[toolMessageIndex].metadata.tool_calls =
+            data.tool_calls || [];
+          messages.value[toolMessageIndex].metadata.tool_results =
+            data.tool_results || [];
+          messages.value[toolMessageIndex].metadata.has_tool_calls =
+            data.has_tool_calls || false;
+
+          // 🔧 清除工具處理狀態
+          messages.value[toolMessageIndex].isProcessingTools = false;
+          messages.value[toolMessageIndex].toolProcessingMessage = null;
+          messages.value[toolMessageIndex].toolProcessingError = null;
+
+          // 🚀 清除二次調用優化狀態
+          messages.value[toolMessageIndex].isOptimizing = false;
+          messages.value[toolMessageIndex].optimizingMessage = null;
+
           // 添加思考內容（優先使用新的，如果沒有則保留現有的）
           if (data.thinking_content) {
             // 應用文字轉換
@@ -1113,6 +1144,72 @@ export const useChatStore = defineStore("chat", () => {
               existingThinkingContent;
             console.log("thinking_content_processed: 保留現有思考內容");
           }
+        }
+        break;
+
+      case "tool_processing_start":
+        // 🔧 新增：工具處理開始事件
+        console.log("工具處理開始:", data);
+
+        // 更新對應消息的狀態，顯示工具處理中
+        const startProcessingMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (startProcessingMessageIndex !== -1) {
+          messages.value[startProcessingMessageIndex].isProcessingTools = true;
+          messages.value[startProcessingMessageIndex].toolProcessingMessage =
+            data.message;
+        }
+        break;
+
+      case "tool_processing_heartbeat":
+        // 🔧 新增：工具處理心跳事件
+        console.log("工具處理心跳:", data);
+
+        // 更新工具處理狀態
+        const heartbeatMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (heartbeatMessageIndex !== -1) {
+          messages.value[heartbeatMessageIndex].toolProcessingMessage =
+            data.message;
+          messages.value[heartbeatMessageIndex].lastHeartbeat = data.timestamp;
+        }
+        break;
+
+      case "tool_processing_error":
+        // 🔧 新增：工具處理錯誤事件
+        console.error("工具處理錯誤:", data);
+
+        // 更新對應消息的錯誤狀態
+        const errorProcessingMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (errorProcessingMessageIndex !== -1) {
+          messages.value[errorProcessingMessageIndex].isProcessingTools = false;
+          messages.value[errorProcessingMessageIndex].toolProcessingError =
+            data.error;
+          messages.value[errorProcessingMessageIndex].toolProcessingMessage =
+            null;
+        }
+        break;
+
+      case "secondary_ai_start":
+        // 🚀 新增：二次 AI 調用開始事件
+        console.log("二次 AI 調用開始:", data);
+
+        // 更新對應消息的狀態，顯示正在優化回應
+        const secondaryStartMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (secondaryStartMessageIndex !== -1) {
+          messages.value[secondaryStartMessageIndex].isOptimizing = true;
+          messages.value[secondaryStartMessageIndex].optimizingMessage =
+            data.message;
         }
         break;
 

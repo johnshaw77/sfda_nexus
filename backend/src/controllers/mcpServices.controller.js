@@ -522,7 +522,15 @@ export const handleGetSyncedServices = catchAsync(async (req, res) => {
           }
 
           return {
-            ...tool,
+            id: tool.id, // 明確包含 ID
+            name: tool.name,
+            description: tool.description,
+            version: tool.version,
+            priority: tool.priority,
+            usage_count: tool.usage_count,
+            is_enabled: tool.is_enabled,
+            created_at: tool.created_at,
+            updated_at: tool.updated_at,
             input_schema: parsedSchema,
             enabled: Boolean(tool.is_enabled), // 前端兼容性
             displayName: tool.name
@@ -572,7 +580,8 @@ export const handleGetSyncedServices = catchAsync(async (req, res) => {
  */
 export const discoverServices = async (req, res) => {
   try {
-    const result = await mcpDiscoveryService.discoverServices();
+    const { endpoint } = req.query;
+    const result = await mcpDiscoveryService.discoverServices(endpoint);
 
     if (result.success) {
       res.json({
@@ -588,11 +597,14 @@ export const discoverServices = async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error("探索 MCP 服務失敗:", error);
+    logger.error("探索 MCP 服務失敗:", error.message || error);
+
+    // 避免循環引用錯誤
+    const errorMessage = error.message || "未知錯誤";
     res.status(500).json({
       success: false,
       message: "探索 MCP 服務失敗",
-      error: error.message,
+      error: errorMessage,
     });
   }
 };

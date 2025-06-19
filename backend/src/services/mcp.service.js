@@ -408,8 +408,9 @@ class McpClient {
         user_id: context.user_id,
       });
 
+      console.log(clientInfo.service.endpoint_url + endpoint);
       logger.info(
-        "🔧 準備發送請求到:",
+        "🔧 準備發送請求到:123",
         clientInfo.service.endpoint_url + endpoint
       );
 

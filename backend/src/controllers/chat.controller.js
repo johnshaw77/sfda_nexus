@@ -1472,7 +1472,17 @@ ${fileContent}
           console.log("=== 串流模式：開始處理工具調用 ===");
           console.log("累積的思考內容長度:", finalThinkingContent?.length || 0);
 
-          const chatResult = await chatService.processChatMessage(
+          // 🔧 新增：在開始工具處理前發送處理狀態
+          if (isClientConnected) {
+            sendSSE("tool_processing_start", {
+              assistant_message_id: assistantMessageId,
+              message: "正在檢查並處理工具調用...",
+              conversation_id: conversationId,
+            });
+          }
+
+          // 🔧 包裝工具調用處理，添加心跳機制
+          const toolCallPromise = chatService.processChatMessage(
             chunk.full_content,
             {
               user_id: user.id,
@@ -1482,8 +1492,38 @@ ${fileContent}
               endpoint_url: model.endpoint_url,
               user_question: content, // 用戶的原始問題
               original_question: content,
+              // 🚀 添加回調，通知前端二次調用開始
+              onSecondaryAIStart: () => {
+                if (isClientConnected) {
+                  sendSSE("secondary_ai_start", {
+                    assistant_message_id: assistantMessageId,
+                    message: "正在優化回應內容...",
+                    conversation_id: conversationId,
+                  });
+                }
+              },
             }
           );
+
+          // 🔧 添加心跳機制：每3秒發送一次心跳
+          const heartbeatInterval = setInterval(() => {
+            if (isClientConnected) {
+              sendSSE("tool_processing_heartbeat", {
+                assistant_message_id: assistantMessageId,
+                message: "工具處理中，請稍候...",
+                timestamp: Date.now(),
+                conversation_id: conversationId,
+              });
+            } else {
+              clearInterval(heartbeatInterval);
+            }
+          }, 3000);
+
+          // 🔧 等待工具調用完成
+          const chatResult = await toolCallPromise;
+
+          // 清除心跳
+          clearInterval(heartbeatInterval);
 
           console.log("串流模式工具調用結果:", {
             has_tool_calls: chatResult.has_tool_calls,
@@ -1513,24 +1553,38 @@ ${fileContent}
             };
 
             // 發送工具調用信息
-            sendSSE("tool_calls_processed", {
-              assistant_message_id: assistantMessageId,
-              tool_calls: toolCallMetadata.tool_calls,
-              tool_results: toolCallMetadata.tool_results,
-              has_tool_calls: toolCallMetadata.has_tool_calls,
-              thinking_content: finalThinkingContent, // 發送最終的思考內容
-              conversation_id: conversationId,
-            });
+            if (isClientConnected) {
+              sendSSE("tool_calls_processed", {
+                assistant_message_id: assistantMessageId,
+                tool_calls: toolCallMetadata.tool_calls,
+                tool_results: toolCallMetadata.tool_results,
+                has_tool_calls: toolCallMetadata.has_tool_calls,
+                thinking_content: finalThinkingContent, // 發送最終的思考內容
+                conversation_id: conversationId,
+              });
+            }
           } else if (finalThinkingContent) {
             // 即使沒有工具調用，如果有思考內容也要發送
-            sendSSE("thinking_content_processed", {
-              assistant_message_id: assistantMessageId,
-              thinking_content: finalThinkingContent,
-              conversation_id: conversationId,
-            });
+            if (isClientConnected) {
+              sendSSE("thinking_content_processed", {
+                assistant_message_id: assistantMessageId,
+                thinking_content: finalThinkingContent,
+                conversation_id: conversationId,
+              });
+            }
           }
         } catch (toolError) {
           console.error("串流模式工具調用處理失敗:", toolError.message);
+
+          // 🔧 發送工具處理錯誤事件
+          if (isClientConnected) {
+            sendSSE("tool_processing_error", {
+              assistant_message_id: assistantMessageId,
+              error: `工具處理失敗: ${toolError.message}`,
+              conversation_id: conversationId,
+            });
+          }
+
           // 工具調用失敗時，繼續使用原始回應，但保留思考內容
           toolCallMetadata.thinking_content = finalThinkingContent;
         }

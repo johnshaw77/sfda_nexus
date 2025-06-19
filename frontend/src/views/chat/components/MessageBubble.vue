@@ -172,6 +172,42 @@
         </div>
       </div>
 
+      <!-- 🔧 新增：工具處理狀態顯示 -->
+      <div
+        v-if="message.role === 'assistant' && message.isProcessingTools"
+        class="tool-processing-section">
+        <div class="tool-processing-header">
+          <ToolOutlined />
+          <span>{{
+            message.toolProcessingMessage || "正在處理工具調用..."
+          }}</span>
+          <LoadingOutlined
+            spin
+            class="processing-spinner" />
+        </div>
+      </div>
+
+      <!-- 🚀 新增：二次調用優化狀態顯示 -->
+      <div
+        v-if="message.role === 'assistant' && message.isOptimizing"
+        class="optimizing-section">
+        <div class="optimizing-header">
+          <BulbOutlined />
+          <span>{{ message.optimizingMessage || "正在優化回應內容..." }}</span>
+          <LoadingOutlined
+            spin
+            class="processing-spinner" />
+        </div>
+      </div>
+
+      <!-- 🔧 新增：工具處理錯誤顯示 -->
+      <div
+        v-if="message.role === 'assistant' && message.toolProcessingError"
+        class="tool-processing-error">
+        <ExclamationCircleOutlined />
+        <span>{{ message.toolProcessingError }}</span>
+      </div>
+
       <!-- 主要內容 -->
       <div class="message-text">
         <!-- AI 消息 - 錯誤訊息使用純文本顯示 -->
@@ -475,18 +511,22 @@ import {
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
 import ToolCallDisplay from "@/components/common/ToolCallDisplay.vue";
 import {
-  FileOutlined,
-  FileTextOutlined,
-  FileAddOutlined,
-  PictureOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
-  TableOutlined,
-  FileExcelOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FilePptOutlined,
-  // ... 其他已有的圖標
+  UserOutlined,
+  RobotOutlined,
+  InfoCircleOutlined,
+  CopyOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  MoreOutlined,
+  DownOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  QuestionCircleOutlined,
+  UpOutlined,
+  BulbOutlined,
+  LoadingOutlined,
+  ToolOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons-vue";
 
 // Props
@@ -570,24 +610,50 @@ const effectiveToolCalls = computed(() => {
     props.message.metadata?.tool_calls || props.message.tool_calls || [];
   const toolResults = props.message.metadata?.tool_results || [];
 
+  // 調試：當有工具調用時記錄計算過程
+  if (toolCalls.length > 0) {
+    console.log("🔧 [MessageBubble] effectiveToolCalls 計算:", {
+      messageId: props.message.id,
+      toolCallsCount: toolCalls.length,
+      toolResultsCount: toolResults.length,
+    });
+  }
+
   // 如果沒有工具調用，返回空陣列
   if (toolCalls.length === 0) {
     return [];
   }
 
   // 將工具調用和結果合併
-  return toolCalls.map((toolCall, index) => {
+  const results = toolCalls.map((toolCall, index) => {
     const result = toolResults[index];
 
-    return {
+    // 🔧 修復：更寬鬆的成功判斷邏輯
+    // 1. 明確檢查 success 為 true 或 "true" 或 truthy 值（如數字 1）
+    // 2. 如果沒有 success 字段但有數據且沒有錯誤，也認為成功
+    // 3. 有明確錯誤時認為失敗
+    const isSuccess = result
+      ? // 有明確錯誤時認為失敗
+        result.error
+        ? false
+        : // 明確成功標記
+          result.success === true ||
+          result.success === "true" ||
+          // 數字成功標記（如 1）
+          (typeof result.success === "number" && result.success > 0) ||
+          // 沒有 success 字段但有數據且沒有錯誤
+          (result.success === undefined && result.data && !result.error)
+      : false;
+
+    const effective = {
       // 工具調用基本信息
       toolName: toolCall.name || result?.tool_name || "unknown",
       name: toolCall.name || result?.tool_name,
       format: toolCall.format || "function",
       arguments: toolCall.parameters || {},
 
-      // 執行結果
-      success: result?.success || false,
+      // 執行結果 - 使用改進的成功判斷邏輯
+      success: isSuccess,
       result: result?.data || {},
       error: result?.error || null,
       executionTime: result?.execution_time || 0,
@@ -604,7 +670,26 @@ const effectiveToolCalls = computed(() => {
       // 調試信息
       details: result,
     };
+
+    // 調試：記錄工具調用的成功狀態計算結果
+    if (toolCalls.length > 0) {
+      console.log(`🔧 [MessageBubble] 工具調用 ${index} 狀態:`, {
+        toolName: effective.toolName,
+        success: effective.success,
+        hasError: !!result?.error,
+        hasData: !!result?.data,
+      });
+    }
+
+    return effective;
   });
+
+  // 調試：記錄最終的工具調用數據
+  if (toolCalls.length > 0) {
+    console.log("🔧 [MessageBubble] 工具調用數據處理完成");
+  }
+
+  return results;
 });
 
 // 獲取圖片 URL
@@ -1894,27 +1979,21 @@ const getFileTypeColor = (attachment) => {
 
 /* 暗黑模式下的思考過程樣式 */
 :root[data-theme="dark"] .thinking-section {
-  border-color: var(--custom-border-secondary);
-  background: var(--custom-bg-primary);
+  border-color: #3e4651;
 }
 
 :root[data-theme="dark"] .thinking-header {
-  background: var(--custom-bg-secondary);
-  border-bottom-color: var(--custom-border-secondary);
-  color: var(--custom-text-primary);
-}
-
-:root[data-theme="dark"] .thinking-header:hover {
-  background: var(--custom-bg-tertiary);
+  border-color: #3e4651;
+  background-color: #262626;
 }
 
 :root[data-theme="dark"] .thinking-content {
-  background: var(--custom-bg-primary);
+  background-color: #1f1f1f;
+  color: #b8b8b8;
 }
 
 :root[data-theme="dark"] .thinking-text {
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--custom-text-secondary);
+  color: #b8b8b8;
 }
 
 .model-info {
@@ -2029,5 +2108,90 @@ const getFileTypeColor = (attachment) => {
   .message-avatar {
     display: none;
   }
+}
+
+/* 🔧 新增：工具處理狀態樣式 */
+.tool-processing-section {
+  margin: 8px 0;
+  padding: 12px;
+  background-color: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 6px;
+  border-left: 3px solid #1890ff;
+}
+
+.tool-processing-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1890ff;
+  font-size: 14px;
+}
+
+.processing-spinner {
+  color: #1890ff;
+}
+
+.tool-processing-error {
+  margin: 8px 0;
+  padding: 12px;
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  border-left: 3px solid #ff4d4f;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cf1322;
+  font-size: 14px;
+}
+
+/* 暗黑模式下的工具處理狀態樣式 */
+[data-theme="dark"] .tool-processing-section {
+  background-color: #111b26;
+  border-color: #1e3a5f;
+}
+
+[data-theme="dark"] .tool-processing-header {
+  color: #69c0ff;
+}
+
+[data-theme="dark"] .processing-spinner {
+  color: #69c0ff;
+}
+
+[data-theme="dark"] .tool-processing-error {
+  background-color: #2a1215;
+  border-color: #58181c;
+  color: #ff7875;
+}
+
+/* 🚀 二次調用優化狀態樣式 */
+.optimizing-section {
+  margin: 8px 0;
+  padding: 12px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f4ff 100%);
+  border: 1px solid #b3d8ff;
+  border-radius: 6px;
+  border-left: 3px solid #52c41a;
+}
+
+.optimizing-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #389e0d;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 暗黑模式下的優化狀態樣式 */
+[data-theme="dark"] .optimizing-section {
+  background: linear-gradient(135deg, #0f1419 0%, #162329 100%);
+  border-color: #1e3a5f;
+}
+
+[data-theme="dark"] .optimizing-header {
+  color: #95de64;
 }
 </style>
