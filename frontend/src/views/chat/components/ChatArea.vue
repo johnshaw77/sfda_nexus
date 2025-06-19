@@ -252,8 +252,7 @@
       ref="messagesContainer"
       :style="{
         height: `calc(100% - ${inputCollapsed ? 60 : inputAreaHeight}px)`,
-      }"
-      @scroll="handleScrollToLoadMore">
+      }">
       <a-spin
         :spinning="loading"
         tip="載入消息中...">
@@ -334,7 +333,7 @@
             <p>
               {{
                 agent
-                  ? `${agent.name} 專精於 ${agent.tags?.join("、")}`
+                  ? `${agent.display_name} 專精於 ${agent.tags?.join("、")}`
                   : "向 AI 助手發送消息開始對話"
               }}
             </p>
@@ -993,53 +992,62 @@ const {
 } = useInfiniteScroll(
   messagesContainer,
   async () => {
+    console.log("🔄 VueUse 無限滾動觸發", {
+      hasMoreMessages: hasMoreMessages.value,
+      isLoadingMoreMessages: isLoadingMoreMessages.value,
+      currentMessages: chatStore.messages.length,
+      totalMessages: chatStore.messagePagination.total,
+    });
+
     if (hasMoreMessages.value && !isLoadingMoreMessages.value) {
       await handleLoadMoreMessages();
     }
   },
   {
     direction: "top", // 向上滾動載入歷史消息
-    distance: 100, // 距離頂部100px時觸發
+    distance: 50, // 減少距離，更容易觸發
+    interval: 16, // 增加檢查頻率 (60fps)
   }
 );
 
-// 方案2: 手動實現滾動檢測
-const handleScrollToLoadMore = () => {
-  if (
-    !messagesContainer.value ||
-    isLoadingMoreMessages.value ||
-    !hasMoreMessages.value
-  ) {
-    return;
-  }
-
-  const { scrollTop } = messagesContainer.value;
-
-  // 當滾動到頂部50px範圍內時載入更多
-  if (scrollTop <= 50) {
-    handleLoadMoreMessages();
-  }
-};
+// 已移除手動滾動檢測，統一使用 VueUse 的 useInfiniteScroll
 
 // 載入更多歷史消息
 const handleLoadMoreMessages = async () => {
+  console.log("📋 handleLoadMoreMessages 被調用", {
+    hasConversation: !!chatStore.currentConversation,
+    isLoading: isLoadingMoreMessages.value,
+    hasMore: hasMoreMessages.value,
+    currentMessages: chatStore.messages.length,
+    totalMessages: chatStore.messagePagination.total,
+    currentPage: chatStore.messagePagination.current,
+    pageSize: chatStore.messagePagination.pageSize,
+  });
+
   if (
     !chatStore.currentConversation ||
     isLoadingMoreMessages.value ||
     !hasMoreMessages.value
   ) {
+    console.log("❌ 載入條件不滿足，跳過載入");
     return;
   }
 
   try {
     isLoadingMoreMessages.value = true;
-    console.log("🔄 載入更多歷史消息...");
+    console.log("🔄 開始載入更多歷史消息...");
 
     // 記錄當前滾動位置
     const currentScrollHeight = messagesContainer.value?.scrollHeight || 0;
 
     // 載入下一頁
-    await chatStore.handleLoadMoreMessages();
+    const newMessages = await chatStore.handleLoadMoreMessages();
+
+    console.log("✅ 載入完成", {
+      newMessagesCount: newMessages?.length || 0,
+      totalMessages: chatStore.messages.length,
+      newPage: chatStore.messagePagination.current,
+    });
 
     // 恢復滾動位置，避免跳躍
     await nextTick();
@@ -1047,6 +1055,7 @@ const handleLoadMoreMessages = async () => {
       const newScrollHeight = messagesContainer.value.scrollHeight;
       const scrollDiff = newScrollHeight - currentScrollHeight;
       messagesContainer.value.scrollTop = scrollDiff;
+      console.log("📍 滾動位置已恢復", { scrollDiff });
     }
   } catch (error) {
     console.error("載入更多消息失敗:", error);
