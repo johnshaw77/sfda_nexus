@@ -44,6 +44,7 @@
 
     <!-- 對話列表 -->
     <div
+      ref="conversationListContainer"
       class="conversation-items"
       :class="{
         'fading-out': isFadingOut,
@@ -146,6 +147,29 @@
             </div>
           </div>
         </transition-group>
+
+        <!-- 載入更多對話的指示器 -->
+        <div
+          v-if="hasMoreConversations && !loading"
+          class="load-more-indicator">
+          <a-button
+            type="text"
+            @click="handleLoadMoreConversations"
+            :loading="isLoadingMore"
+            block>
+            <DownOutlined />
+            載入更多對話 ({{ chatStore.conversations.length }}/{{
+              chatStore.conversationPagination.total
+            }})
+          </a-button>
+        </div>
+
+        <div
+          v-if="isLoadingMore"
+          class="loading-more">
+          <a-spin size="small" />
+          <span>載入中...</span>
+        </div>
       </a-spin>
     </div>
 
@@ -167,6 +191,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { message, Empty } from "ant-design-vue";
+import { useInfiniteScroll } from "@vueuse/core";
 // Icons are globally registered in main.js
 import { useChatStore } from "@/stores/chat";
 import { useAgentsStore } from "@/stores/agents";
@@ -207,6 +232,10 @@ const renameModalVisible = ref(false);
 const newConversationTitle = ref("");
 const currentRenameConversation = ref(null);
 const isFadingOut = ref(false);
+const isLoadingMore = ref(false);
+
+// 對話列表容器引用
+const conversationListContainer = ref();
 
 // 計算屬性
 const filteredConversations = computed(() => {
@@ -230,6 +259,14 @@ const filteredConversations = computed(() => {
       conversation.last_message?.content
         ?.toLowerCase()
         .includes(searchKeyword.value.toLowerCase())
+  );
+});
+
+// 是否還有更多對話可載入
+const hasMoreConversations = computed(() => {
+  if (!chatStore.conversationPagination.total) return false;
+  return (
+    chatStore.conversations.length < chatStore.conversationPagination.total
   );
 });
 
@@ -366,6 +403,43 @@ const getLastMessagePreview = (conversation) => {
   const content = conversation.last_message.content;
   return content.length > 50 ? content.substring(0, 50) + "..." : content;
 };
+
+// 載入更多對話
+const handleLoadMoreConversations = async () => {
+  if (isLoadingMore.value || !hasMoreConversations.value) return;
+
+  try {
+    isLoadingMore.value = true;
+    console.log("🔄 手動載入更多對話...");
+    await chatStore.handleLoadMoreConversations();
+    console.log("✅ 對話載入完成");
+  } catch (error) {
+    console.error("載入更多對話失敗:", error);
+    message.error("載入更多對話失敗");
+  } finally {
+    isLoadingMore.value = false;
+  }
+};
+
+// 設置無限滾動
+const { canLoadMore, isLoading: infiniteLoading } = useInfiniteScroll(
+  conversationListContainer,
+  async () => {
+    if (
+      hasMoreConversations.value &&
+      !isLoadingMore.value &&
+      !chatStore.isLoading
+    ) {
+      console.log("🔄 無限滾動觸發，載入更多對話...");
+      await handleLoadMoreConversations();
+    }
+  },
+  {
+    direction: "bottom", // 向下滾動載入更多對話
+    distance: 50, // 距離底部50px時觸發
+    interval: 100, // 檢查間隔
+  }
+);
 
 // 生命週期
 onMounted(async () => {
@@ -671,5 +745,39 @@ onMounted(async () => {
     opacity: 1;
     box-shadow: 0 0 0 0 transparent;
   }
+}
+
+/* 載入更多對話的樣式 */
+.load-more-indicator {
+  padding: 12px 8px;
+  border-top: 1px solid var(--custom-border-primary);
+}
+
+.load-more-indicator .ant-btn {
+  color: var(--custom-text-secondary);
+  font-size: 12px;
+  height: auto;
+  padding: 8px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.load-more-indicator .ant-btn:hover {
+  background: var(--custom-bg-tertiary);
+  color: var(--primary-color);
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--custom-text-secondary);
+  font-size: 12px;
+  border-top: 1px solid var(--custom-border-primary);
 }
 </style>

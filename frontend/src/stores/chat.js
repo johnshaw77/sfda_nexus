@@ -552,6 +552,65 @@ export const useChatStore = defineStore("chat", () => {
     }
   };
 
+  // 載入更多對話
+  const handleLoadMoreConversations = async () => {
+    if (isLoading.value) return;
+
+    // 檢查是否還有更多對話可載入
+    if (conversations.value.length >= conversationPagination.value.total) {
+      console.log("📄 已載入所有對話");
+      return;
+    }
+
+    try {
+      console.log("🔄 載入更多對話...", {
+        currentPage: conversationPagination.value.current,
+        currentConversations: conversations.value.length,
+        total: conversationPagination.value.total,
+      });
+
+      isLoading.value = true;
+      conversationPagination.value.current++;
+
+      const response = await api.get("/api/chat/conversations", {
+        params: {
+          page: conversationPagination.value.current,
+          limit: conversationPagination.value.pageSize,
+        },
+      });
+
+      const { data: newConversations, pagination } = response.data.data;
+
+      // 追加新對話到現有列表
+      conversations.value = [...conversations.value, ...newConversations];
+
+      // 更新分頁信息
+      conversationPagination.value = {
+        current: pagination.page,
+        pageSize: pagination.limit,
+        total: pagination.total,
+      };
+
+      console.log("✅ 對話載入完成", {
+        newPage: conversationPagination.value.current,
+        newConversations: newConversations.length,
+        totalConversations: conversations.value.length,
+      });
+
+      return newConversations;
+    } catch (error) {
+      console.error("載入更多對話失敗:", error);
+      // 回滾頁數
+      conversationPagination.value.current = Math.max(
+        1,
+        conversationPagination.value.current - 1
+      );
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   // 搜索對話
   const handleSearchConversations = async (keyword) => {
     return await handleGetConversations({ search: keyword });
@@ -1375,6 +1434,7 @@ export const useChatStore = defineStore("chat", () => {
     handleSetTypingStatus,
     handleSetAITypingStatus,
     handleLoadMoreMessages,
+    handleLoadMoreConversations,
     handleSearchConversations,
     handleClearCurrentConversation,
     handleInitializeChat,
