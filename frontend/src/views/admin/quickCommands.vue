@@ -29,11 +29,11 @@
               allow-clear />
           </a-col>
           <a-col
-            :xs="16"
-            :sm="16"
-            :md="8"
-            :lg="6"
-            :xl="5">
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="5"
+            :xl="4">
             <a-select
               :value="filterStatus"
               placeholder="選擇狀態"
@@ -42,6 +42,27 @@
               allow-clear>
               <a-select-option value="active">啟用</a-select-option>
               <a-select-option value="inactive">停用</a-select-option>
+            </a-select>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+            :lg="5"
+            :xl="4">
+            <a-select
+              :value="filterAgent"
+              placeholder="選擇智能體"
+              style="width: 100%"
+              @change="handleAgentChange"
+              allow-clear>
+              <a-select-option value="general">通用</a-select-option>
+              <a-select-option
+                v-for="agent in availableAgents"
+                :key="agent.id"
+                :value="agent.id">
+                {{ agent.display_name || agent.name }}
+              </a-select-option>
             </a-select>
           </a-col>
           <a-col
@@ -62,7 +83,7 @@
       <!-- 快速命令列表 -->
       <a-table
         :columns="responsiveColumns"
-        :data-source="filteredCommands"
+        :data-source="paginatedCommands"
         :loading="loading"
         :pagination="pagination"
         :scroll="{ x: isSmallScreen ? 600 : 900 }"
@@ -211,8 +232,15 @@ const loading = ref(false);
 const searchText = ref("");
 
 const filterStatus = ref(undefined);
+const filterAgent = ref(undefined);
 const modalVisible = ref(false);
 const formRef = ref();
+
+// 排序狀態
+const sortInfo = ref({
+  field: null,
+  order: null,
+});
 
 // 表格配置
 const columns = [
@@ -327,6 +355,18 @@ const pagination = reactive({
   showTotal: (total) => `共 ${total} 條記錄`,
 });
 
+// 計算分頁後的數據
+const paginatedCommands = computed(() => {
+  const filtered = filteredCommands.value;
+  const start = (pagination.current - 1) * pagination.pageSize;
+  const end = start + pagination.pageSize;
+
+  // 更新總數
+  pagination.total = filtered.length;
+
+  return filtered.slice(start, end);
+});
+
 // 快速命令數據
 const commands = ref([]);
 const availableAgents = ref([]);
@@ -352,8 +392,9 @@ const modalTitle = computed(() =>
 );
 
 const filteredCommands = computed(() => {
-  let result = commands.value;
+  let result = [...commands.value];
 
+  // 搜索篩選
   if (searchText.value) {
     result = result.filter(
       (cmd) =>
@@ -365,9 +406,60 @@ const filteredCommands = computed(() => {
     );
   }
 
+  // 狀態篩選
   if (filterStatus.value) {
     const isActive = filterStatus.value === "active";
     result = result.filter((cmd) => cmd.is_active === isActive);
+  }
+
+  // 智能體篩選
+  if (filterAgent.value) {
+    if (filterAgent.value === "general") {
+      // 通用命令（沒有關聯智能體）
+      result = result.filter((cmd) => !cmd.agent_id);
+    } else {
+      // 特定智能體的命令
+      result = result.filter((cmd) => cmd.agent_id === filterAgent.value);
+    }
+  }
+
+  // 排序
+  if (sortInfo.value.field && sortInfo.value.order) {
+    result.sort((a, b) => {
+      const field = sortInfo.value.field;
+      let aVal = a[field];
+      let bVal = b[field];
+
+      // 處理智能體排序
+      if (field === "agent_id") {
+        aVal = aVal ? getAgentName(aVal) : "通用";
+        bVal = bVal ? getAgentName(bVal) : "通用";
+      }
+
+      // 處理數字類型
+      if (field === "usage_count") {
+        aVal = aVal || 0;
+        bVal = bVal || 0;
+      }
+
+      // 處理日期類型
+      if (field === "created_at") {
+        aVal = new Date(aVal || 0);
+        bVal = new Date(bVal || 0);
+      }
+
+      // 處理字符串類型
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+
+      if (sortInfo.value.order === "ascend") {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      } else {
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+      }
+    });
   }
 
   return result;
@@ -410,8 +502,8 @@ const handleLoadCommands = async () => {
       };
     });
 
-    // 設置總數為數據長度（如果後端沒有分頁信息）
-    pagination.total = commands.value.length;
+    // 重置分頁到第一頁
+    pagination.current = 1;
   } catch (error) {
     console.error("載入快速命令數據失敗:", error);
     message.error("載入快速命令數據失敗，請稍後重試");
@@ -442,19 +534,37 @@ const getAgentName = (agentId) => {
 
 const handleSearchChange = (e) => {
   searchText.value = e.target.value;
+  // 當搜索條件改變時，重置到第一頁
+  pagination.current = 1;
 };
 
 const handleSearch = () => {
   console.log("搜索:", searchText.value);
+  pagination.current = 1;
 };
 
 const handleStatusChange = (value) => {
   filterStatus.value = value;
+  // 當篩選條件改變時，重置到第一頁
+  pagination.current = 1;
+};
+
+const handleAgentChange = (value) => {
+  filterAgent.value = value;
+  // 當篩選條件改變時，重置到第一頁
+  pagination.current = 1;
 };
 
 const handleReset = () => {
   searchText.value = "";
   filterStatus.value = undefined;
+  filterAgent.value = undefined;
+  sortInfo.value = {
+    field: null,
+    order: null,
+  };
+  // 重置分頁
+  pagination.current = 1;
 };
 
 const handleAddCommand = () => {
@@ -519,9 +629,25 @@ const handleStatusToggle = async (record, newStatus) => {
 };
 
 const handleTableChange = (pag, filters, sorter) => {
+  // 更新分頁
   pagination.current = pag.current;
   pagination.pageSize = pag.pageSize;
-  handleLoadCommands();
+
+  // 更新排序信息
+  if (sorter && sorter.field) {
+    sortInfo.value = {
+      field: sorter.field,
+      order: sorter.order,
+    };
+  } else {
+    sortInfo.value = {
+      field: null,
+      order: null,
+    };
+  }
+
+  // 不需要重新載入數據，因為我們在前端進行排序和篩選
+  console.log("排序改變:", sortInfo.value);
 };
 
 const handleModalOk = async () => {
