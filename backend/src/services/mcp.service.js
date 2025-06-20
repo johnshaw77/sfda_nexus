@@ -215,8 +215,23 @@ class McpClient {
     try {
       const startTime = Date.now();
 
+      // 構建正確的測試端點
+      let testUrl;
+      if (endpointUrl.includes('/api/')) {
+        // 如果端點包含 /api/，直接加上 /tools
+        testUrl = `${endpointUrl}/tools`;
+      } else {
+        // 如果端點是基礎 URL，加上 /api/tools
+        testUrl = `${endpointUrl}/api/tools`;
+      }
+
+      logger.debug("測試 MCP 服務連接", {
+        original_url: endpointUrl,
+        test_url: testUrl,
+      });
+
       // 嘗試連接工具列表端點（實際存在的端點）
-      const response = await axios.get(`${endpointUrl}/tools`, {
+      const response = await axios.get(testUrl, {
         timeout: this.connectionTimeout,
       });
 
