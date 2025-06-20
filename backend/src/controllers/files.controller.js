@@ -90,6 +90,7 @@ const fileFilter = (req, file, cb) => {
     "text/plain",
     "text/csv",
     "text/markdown",
+    "text/x-markdown",
     // 壓縮檔
     "application/zip",
     "application/x-rar-compressed",
@@ -102,6 +103,15 @@ const fileFilter = (req, file, cb) => {
     "video/mp4",
     "video/avi",
     "video/quicktime",
+    // 其他常見開發文件
+    "application/json",
+    "text/javascript",
+    "text/css",
+    "text/html",
+    "application/xml",
+    "text/xml",
+    "application/x-yaml",
+    "text/yaml",
   ];
 
   if (allowedMimeTypes.includes(file.mimetype)) {
@@ -659,9 +669,9 @@ export const handleAnalyzeFile = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { type, model = "qwen3:8b" } = req.body;
 
-  if (!["summarize", "generate", "csv_analysis"].includes(type)) {
+  if (!["summarize", "generate", "csv_analysis", "excel_analysis"].includes(type)) {
     throw new ValidationError(
-      "無效的分析類型，支援: summarize, generate, csv_analysis"
+      "無效的分析類型，支援: summarize, generate, csv_analysis, excel_analysis"
     );
   }
 
@@ -723,6 +733,58 @@ export const handleAnalyzeFile = catchAsync(async (req, res) => {
       console.log(
         "AI 洞察長度:",
         csvAnalysis.aiInsights?.insights?.length || 0
+      );
+    } 
+    // 如果是 Excel 分析，使用專門的 Excel 服務
+    else if (type === "excel_analysis" && (
+      file.mime_type === "application/vnd.ms-excel" || 
+      file.mime_type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )) {
+      // 動態導入 Excel 服務
+      const { analyzeExcelFile } = await import("../services/excel.service.js");
+
+      console.log("=== 開始 Excel 專業分析 ===");
+      console.log("檔案:", file.filename);
+      console.log("大小:", file.file_size, "位元組");
+      console.log("MIME類型:", file.mime_type);
+      console.log("使用模型:", model);
+
+      // 使用專業的 Excel 分析服務
+      const excelAnalysis = await analyzeExcelFile(file.file_path, {
+        includeAIInsights: true,
+        model: model,
+        sheetLimit: 10, // 限制工作表數量
+        rowLimit: 5000, // 限制每個工作表的行數
+      });
+
+      result = {
+        analysis_type: "excel_professional",
+        excel_data: {
+          filename: file.filename,
+          total_sheets: excelAnalysis.excel_data.totalSheets,
+          sheet_names: excelAnalysis.excel_data.sheetNames,
+          total_rows: excelAnalysis.excel_data.totalRows,
+          total_cells: excelAnalysis.excel_data.totalCells,
+          file_size: excelAnalysis.excel_data.fileSize,
+        },
+        sheet_analysis: excelAnalysis.sheet_analysis,
+        quality_report: excelAnalysis.quality_report,
+        ai_insights: excelAnalysis.ai_insights,
+        metadata: excelAnalysis.metadata,
+        model_used: model,
+      };
+
+      console.log("=== Excel 分析完成 ===");
+      console.log("工作表數量:", excelAnalysis.excel_data.totalSheets);
+      console.log("總數據行數:", excelAnalysis.excel_data.totalRows);
+      console.log("總儲存格數:", excelAnalysis.excel_data.totalCells);
+      console.log(
+        "品質分數:",
+        excelAnalysis.quality_report.overall.quality_score.toFixed(1)
+      );
+      console.log(
+        "AI 洞察長度:",
+        excelAnalysis.ai_insights?.insights?.length || 0
       );
     } else {
       // 其他類型的文件分析

@@ -684,6 +684,34 @@
                       </a-button>
                     </template>
 
+                    <!-- Excel 檔案專用建議詞 -->
+                    <template v-else-if="isExcelFile(file)">
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleAnalyzeExcelData(file)"
+                        class="action-btn">
+                        <TableOutlined />
+                        數據分析
+                      </a-button>
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleGenerateExcelChart(file)"
+                        class="action-btn">
+                        <PieChartOutlined />
+                        生成圖表
+                      </a-button>
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleSummarizeExcelSheets(file)"
+                        class="action-btn">
+                        <FileSearchOutlined />
+                        工作表摘要
+                      </a-button>
+                    </template>
+
                     <!-- 通用文檔建議詞 -->
                     <template v-else>
                       <a-button
@@ -1727,40 +1755,54 @@ const handleFileUpload = async (file) => {
     }
 
     // 檢查檔案類型
-    const allowedTypes = [
+    const allowedMimeTypes = [
+      // 圖片
       "image/jpeg",
       "image/png",
       "image/gif",
       "image/webp",
+      "image/svg+xml",
+      // 文檔
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      // 文本
       "text/plain",
       "text/csv",
       "text/markdown",
       "text/x-markdown",
-
-      "xlsx",
-      "xls",
-      "csv",
-      "txt",
-      "docx",
-      "doc",
-      "pptx",
-      "ts",
-      "js",
+      // 其他常見開發文件
       "application/json",
-      "html",
-      "css",
-      "xml",
-      "yaml",
-      "yml",
+      "text/javascript",
+      "text/css",
+      "text/html",
+      "application/xml",
+      "text/xml",
+      "application/x-yaml",
+      "text/yaml",
+    ];
+
+    // 允許的文件擴展名（用於當 MIME 類型為空或不準確時）
+    const allowedExtensions = [
+      ".xlsx", ".xls", ".csv", ".txt", ".docx", ".doc", ".pptx", ".ppt",
+      ".pdf", ".md", ".markdown", ".ts", ".js", ".json", ".html", ".css", 
+      ".xml", ".yaml", ".yml", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"
     ];
 
     console.log("file.type", file.type);
+    console.log("file.name", file.name);
 
-    if (!allowedTypes.includes(file.type)) {
-      message.error("不支援的檔案類型");
+    // 檢查 MIME 類型或文件擴展名
+    const fileExtension = "." + file.name.split('.').pop().toLowerCase();
+    const isValidMimeType = allowedMimeTypes.includes(file.type);
+    const isValidExtension = allowedExtensions.includes(fileExtension);
+
+    if (!isValidMimeType && !isValidExtension) {
+      message.error(`不支援的檔案類型: ${file.type || fileExtension}`);
       return false;
     }
 
@@ -1843,18 +1885,27 @@ const handleFilePreview = async (file) => {
     }
 
     // 檢查檔案類型
-    const allowedTypes = [
+    const allowedMimeTypes = [
+      // 圖片
       "image/jpeg",
       "image/png",
       "image/gif",
       "image/webp",
+      "image/svg+xml",
+      // 文檔
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      // 文本
       "text/plain",
       "text/csv",
       "text/markdown",
       "text/x-markdown",
+      // 其他常見開發文件
       "application/json",
       "text/javascript",
       "text/css",
@@ -1865,8 +1916,20 @@ const handleFilePreview = async (file) => {
       "text/yaml",
     ];
 
-    if (!allowedTypes.includes(file.type)) {
-      message.error("不支援的檔案類型");
+    // 允許的文件擴展名（用於當 MIME 類型為空或不準確時）
+    const allowedExtensions = [
+      ".xlsx", ".xls", ".csv", ".txt", ".docx", ".doc", ".pptx", ".ppt",
+      ".pdf", ".md", ".markdown", ".ts", ".js", ".json", ".html", ".css", 
+      ".xml", ".yaml", ".yml", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"
+    ];
+
+    // 檢查 MIME 類型或文件擴展名
+    const fileExtension = "." + file.name.split('.').pop().toLowerCase();
+    const isValidMimeType = allowedMimeTypes.includes(file.type);
+    const isValidExtension = allowedExtensions.includes(fileExtension);
+
+    if (!isValidMimeType && !isValidExtension) {
+      message.error(`不支援的檔案類型: ${file.type || fileExtension}`);
       return false;
     }
 
@@ -2137,6 +2200,40 @@ const handleGenerateChart = (file) => {
     messageText.value += "\n\n" + chartText;
   } else {
     messageText.value = chartText;
+  }
+
+  setFocusToInput();
+};
+
+// Excel 專用處理函數
+const handleAnalyzeExcelData = (file) => {
+  const analyzeText = `請深度分析這個 Excel 檔案中的所有工作表數據，提供統計摘要、數據品質評估和業務洞察：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + analyzeText;
+  } else {
+    messageText.value = analyzeText;
+  }
+
+  setFocusToInput();
+};
+
+const handleGenerateExcelChart = (file) => {
+  const chartText = `請分析這個 Excel 檔案的數據結構，建議適合的圖表類型和數據視覺化方案，考慮多個工作表之間的關係：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + chartText;
+  } else {
+    messageText.value = chartText;
+  }
+
+  setFocusToInput();
+};
+
+const handleSummarizeExcelSheets = (file) => {
+  const summaryText = `請分析這個 Excel 檔案中所有工作表的結構和用途，提供每個工作表的摘要和整體檔案的功能說明：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + summaryText;
+  } else {
+    messageText.value = summaryText;
   }
 
   setFocusToInput();

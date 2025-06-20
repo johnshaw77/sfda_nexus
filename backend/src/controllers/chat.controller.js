@@ -7,6 +7,8 @@ import ConversationModel from "../models/Conversation.model.js";
 import MessageModel from "../models/Message.model.js";
 import AIService from "../services/ai.service.js";
 import chatService from "../services/chat.service.js";
+import AttachmentService from "../services/attachment.service.js";
+import MessageFormattingService from "../services/messageFormatting.service.js";
 import { query } from "../config/database.config.js";
 import {
   catchAsync,
@@ -17,7 +19,6 @@ import {
 import logger from "../utils/logger.util.js";
 import Joi from "joi";
 import { sendToUser } from "../websocket/index.js";
-import { fixFilenameEncoding } from "../models/File.model.js";
 
 // 輸入驗證模式
 const schemas = {
@@ -42,9 +43,9 @@ const schemas = {
     metadata: Joi.object().optional(),
     temperature: Joi.number().min(0).max(2).default(0.7),
     max_tokens: Joi.number().integer().min(1).max(32768).default(4096),
-    model_id: Joi.number().integer().optional(), // 允許指定不同的模型
-    endpoint_url: Joi.string().uri().optional(), // 允許前端傳遞端點URL
-    system_prompt: Joi.string().optional(), // 允許自定義系統提示詞
+    model_id: Joi.number().integer().optional(),
+    endpoint_url: Joi.string().uri().optional(),
+    system_prompt: Joi.string().optional(),
   }),
 
   updateConversation: Joi.object({
@@ -97,7 +98,7 @@ export const handleCreateConversation = catchAsync(async (req, res) => {
     user_id: user.id,
     agent_id: agent_id || null,
     model_id: model_id,
-    title: title || null, // 不設置默認標題，等第一條消息後自動生成
+    title: title || null,
     context: context || null,
   });
 
@@ -135,94 +136,21 @@ export const handleSendMessage = catchAsync(async (req, res) => {
   const { user } = req;
   const { conversationId } = req.params;
 
-  // 調試：檢查路由參數
-  console.log("🔍 調試路由參數:", {
-    conversationId,
-    conversationIdType: typeof conversationId,
-    params: req.params,
-    url: req.url,
-    method: req.method,
-  });
-
-  // 發送調試信息：開始處理
-  const debugSession = {
-    sessionId: `debug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    conversationId,
-    userId: user.id,
-    startTime: Date.now(),
-    stages: [],
-  };
-
-  const sendDebugInfo = (stage, data) => {
-    debugSession.stages.push({
-      stage,
-      timestamp: Date.now(),
-      data,
-    });
-
-    // 嘗試通過 WebSocket 發送（如果有連接）
-    try {
-      sendToUser(user.id, {
-        type: "debug_info",
-        data: {
-          sessionId: debugSession.sessionId,
-          conversationId,
-          stage,
-          timestamp: Date.now(),
-          ...data,
-        },
-      });
-    } catch (error) {
-      // WebSocket 發送失敗時忽略，調試信息會在響應中返回
-    }
-  };
-
-  sendDebugInfo("start", {
-    message: "開始處理聊天請求",
-    userContent: content,
-    parameters: {
-      temperature,
-      max_tokens,
-      model_id: model_id || "使用對話默認模型",
-    },
-  });
-
-  // 獲取對話信息
-  logger.debug("查詢對話信息", {
-    conversationId,
-    userId: user.id,
-    userRole: user.role,
-  });
-
+  // 獲取對話和權限檢查
   const conversation = await ConversationModel.findById(conversationId);
   if (!conversation) {
-    logger.error("對話不存在", { conversationId });
     throw new BusinessError("對話不存在");
   }
 
-  logger.debug("對話信息獲取成功", {
-    conversationId: conversation.id,
-    conversationUserId: conversation.user_id,
-    requestUserId: user.id,
-  });
-
-  // 檢查對話擁有權
   if (
     conversation.user_id !== user.id &&
     !["admin", "super_admin"].includes(user.role)
   ) {
-    logger.error("權限檢查失敗", {
-      conversationUserId: conversation.user_id,
-      requestUserId: user.id,
-      userRole: user.role,
-    });
     throw new BusinessError("無權訪問此對話");
   }
 
-  // 確定要使用的模型ID
+  // 確定要使用的模型
   const targetModelId = model_id || conversation.model_id;
-
-  // 獲取模型信息
   const { rows: modelRows } = await query(
     "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE",
     [targetModelId]
@@ -236,36 +164,7 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
   const model = modelRows[0];
 
-  sendDebugInfo("model_selected", {
-    message: "已選擇 AI 模型",
-    model: {
-      id: model.id,
-      name: model.model_id,
-      display_name: model.display_name,
-      provider: model.model_type,
-    },
-  });
-
   // 創建用戶訊息
-  logger.debug("創建用戶消息", {
-    conversationId,
-    contentLength: content.length,
-    contentType: content_type,
-  });
-
-  // 調試：檢查創建用戶消息的參數
-  console.log("🔍 調試用戶消息參數:", {
-    conversation_id: conversationId,
-    role: "user",
-    content: content?.substring(0, 50) + "...",
-    content_type: content_type,
-    attachments: attachments,
-    metadata: metadata,
-    conversationIdType: typeof conversationId,
-    contentType: typeof content,
-    contentTypeType: typeof content_type,
-  });
-
   const userMessage = await MessageModel.create({
     conversation_id: conversationId,
     role: "user",
@@ -273,11 +172,6 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     content_type: content_type || "text",
     attachments: attachments || null,
     metadata: metadata || null,
-  });
-
-  logger.debug("用戶消息創建成功", {
-    messageId: userMessage?.id,
-    conversationId,
   });
 
   logger.info("用戶訊息創建成功", {
@@ -288,58 +182,30 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
   try {
     // 獲取對話上下文
-    sendDebugInfo("context_loading", {
-      message: "正在獲取對話上下文",
-    });
-
-    // 調試：檢查 max_tokens 值
-    console.log("🔍 調試 max_tokens:", {
-      max_tokens,
-      type: typeof max_tokens,
-      calculation: max_tokens * 0.7,
-      isNaN: isNaN(max_tokens * 0.7),
-    });
-
-    const maxContextTokens =
-      max_tokens && !isNaN(max_tokens) ? max_tokens * 0.7 : 2800; // 默認值
-
+    const maxContextTokens = max_tokens && !isNaN(max_tokens) ? max_tokens * 0.7 : 2800;
     const contextMessages = await MessageModel.getContextMessages(
       conversationId,
       20,
       maxContextTokens
     );
 
-    sendDebugInfo("context_loaded", {
-      message: "對話上下文已載入",
-      messageCount: contextMessages.length,
-      contextPreview: contextMessages.slice(-3).map((msg) => ({
-        role: msg.role,
-        contentPreview:
-          msg.content.substring(0, 100) +
-          (msg.content.length > 100 ? "..." : ""),
-      })),
-    });
+    // 格式化消息（包含附件處理）
+    const formattedMessages = await MessageFormattingService.formatContextMessages(
+      contextMessages,
+      model.model_type
+    );
 
-    // 添加系統提示詞
+    // 準備系統提示詞
     let baseSystemPrompt = system_prompt;
-
     if (!baseSystemPrompt && conversation.agent_id) {
       const { rows: agentRows } = await query(
         "SELECT system_prompt FROM agents WHERE id = ?",
         [conversation.agent_id]
       );
-
       if (agentRows.length > 0) {
         baseSystemPrompt = agentRows[0].system_prompt;
       }
     }
-
-    sendDebugInfo("system_prompt_generating", {
-      message: "正在生成系統提示詞",
-      hasAgent: !!conversation.agent_id,
-      agentId: conversation.agent_id,
-      hasBasePrompt: !!baseSystemPrompt,
-    });
 
     // 生成包含 MCP 工具資訊的動態系統提示詞
     const systemPromptContent = await chatService.generateSystemPrompt(
@@ -351,16 +217,11 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       }
     );
 
-    sendDebugInfo("system_prompt_generated", {
-      message: "系統提示詞已生成",
-      promptLength: systemPromptContent?.length || 0,
-      hasToolInfo: systemPromptContent?.includes("可用工具系統") || false,
-      hasEmployeeTools:
-        systemPromptContent?.includes("get_employee_info") || false,
-      promptPreview:
-        systemPromptContent?.substring(0, 500) +
-          (systemPromptContent?.length > 500 ? "..." : "") || "",
-    });
+    // 組裝最終消息列表
+    const finalMessages = MessageFormattingService.assembleFinalMessages(
+      formattedMessages,
+      systemPromptContent
+    );
 
     // 準備AI調用參數
     const aiOptions = {
@@ -368,358 +229,15 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       model: model.model_id,
       endpoint_url: model.endpoint_url,
       api_key: model.api_key_encrypted,
-      messages: await Promise.all(
-        contextMessages.map(async (msg) => {
-          const formattedMessage = {
-            role: msg.role,
-            content: msg.content,
-          };
-
-          // 處理附件（特別是圖片）
-          if (msg.attachments && msg.attachments.length > 0) {
-            const attachmentContents = [];
-
-            console.log(`=== 處理消息附件 ===`);
-            console.log("消息ID:", msg.id);
-            console.log("附件數量:", msg.attachments.length);
-            console.log("當前模型類型:", model.model_type);
-            console.log(
-              "附件詳細信息:",
-              JSON.stringify(msg.attachments, null, 2)
-            );
-
-            for (const attachment of msg.attachments) {
-              // 修復檔案名稱編碼
-              if (attachment.filename) {
-                attachment.filename = fixFilenameEncoding(attachment.filename);
-              }
-
-              console.log("處理附件:", {
-                id: attachment.id,
-                filename: attachment.filename,
-                mime_type: attachment.mime_type,
-                file_size: attachment.file_size,
-              });
-
-              console.log("🔍 檢查附件類型條件:");
-              console.log("  - mime_type:", attachment.mime_type);
-              console.log("  - filename:", attachment.filename);
-              console.log(
-                "  - 是否為圖片:",
-                attachment.mime_type?.startsWith("image/")
-              );
-              console.log(
-                "  - 是否為文本 (startsWith):",
-                attachment.mime_type?.startsWith("text/")
-              );
-              console.log(
-                "  - 是否為 CSV (endsWith):",
-                attachment.filename?.toLowerCase().endsWith(".csv")
-              );
-
-              // 檢查是否為圖片附件
-              if (
-                attachment.mime_type &&
-                attachment.mime_type.startsWith("image/")
-              ) {
-                try {
-                  // 獲取圖片文件信息
-                  const { rows: fileRows } = await query(
-                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
-                    [attachment.id]
-                  );
-
-                  console.log(`=== 處理圖片附件 ${attachment.id} ===`);
-                  console.log("檔案查詢結果:", fileRows);
-
-                  if (fileRows.length > 0) {
-                    const filePath = fileRows[0].file_path;
-                    console.log("圖片文件路徑:", filePath);
-
-                    // 讀取圖片文件並轉換為base64
-                    const fs = await import("fs/promises");
-
-                    try {
-                      const fileBuffer = await fs.readFile(filePath);
-                      const base64Image = fileBuffer.toString("base64");
-                      const mimeType = attachment.mime_type;
-
-                      console.log(
-                        "圖片讀取成功，base64長度:",
-                        base64Image.length
-                      );
-                      console.log("MIME類型:", mimeType);
-
-                      // 為多模態模型格式化圖片內容
-                      if (model.model_type === "gemini") {
-                        attachmentContents.push({
-                          type: "image",
-                          source: {
-                            type: "base64",
-                            media_type: mimeType,
-                            data: base64Image,
-                          },
-                        });
-                        console.log("已添加圖片到 Gemini 多模態內容");
-                      } else if (model.model_type === "ollama") {
-                        // Ollama 多模態格式（支援 llava, qwen2-vl 等視覺模型）
-                        attachmentContents.push({
-                          type: "image_url",
-                          image_url: `data:${mimeType};base64,${base64Image}`,
-                        });
-                        console.log("已添加圖片到 Ollama 多模態內容");
-                      }
-                    } catch (fileError) {
-                      console.error("讀取圖片文件失敗:", fileError);
-                      logger.warn("無法讀取圖片文件", {
-                        filePath,
-                        error: fileError.message,
-                        attachmentId: attachment.id,
-                      });
-                    }
-                  } else {
-                    console.warn("未找到檔案記錄:", attachment.id);
-                  }
-                } catch (dbError) {
-                  console.error("查詢檔案信息失敗:", dbError);
-                  logger.warn("無法獲取附件文件信息", {
-                    attachmentId: attachment.id,
-                    error: dbError.message,
-                  });
-                }
-              }
-              // 檢查是否為文本檔案（CSV、TXT、JSON 等）、PDF 或 WORD
-              else if (
-                attachment.mime_type &&
-                (attachment.mime_type.startsWith("text/") ||
-                  attachment.mime_type === "application/json" ||
-                  attachment.mime_type === "application/pdf" ||
-                  attachment.mime_type ===
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-                  attachment.mime_type === "application/msword" ||
-                  attachment.filename.toLowerCase().endsWith(".csv") ||
-                  attachment.filename.toLowerCase().endsWith(".txt") ||
-                  attachment.filename.toLowerCase().endsWith(".md") ||
-                  attachment.filename.toLowerCase().endsWith(".pdf") ||
-                  attachment.filename.toLowerCase().endsWith(".docx") ||
-                  attachment.filename.toLowerCase().endsWith(".doc"))
-              ) {
-                console.log("🔍 文本檔案/PDF/WORD條件匹配成功!");
-                try {
-                  // 獲取文本檔案信息
-                  const { rows: fileRows } = await query(
-                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
-                    [attachment.id]
-                  );
-
-                  console.log(`=== 處理文本檔案附件 ${attachment.id} ===`);
-                  console.log("檔案查詢結果:", fileRows);
-                  console.log("檔案類型:", attachment.mime_type);
-                  console.log("檔案名稱:", attachment.filename);
-
-                  if (fileRows.length > 0) {
-                    const filePath = fileRows[0].file_path;
-                    console.log("文本檔案路徑:", filePath);
-
-                    // 根據檔案類型讀取內容
-                    const fs = await import("fs/promises");
-                    let fileContent = "";
-
-                    try {
-                      // 檢查檔案類型並使用相應的解析器
-                      if (
-                        attachment.mime_type === "application/pdf" ||
-                        attachment.filename.toLowerCase().endsWith(".pdf")
-                      ) {
-                        console.log("🔍 檢測到 PDF 檔案，使用 PDF 解析器");
-                        const { extractPdfText } = await import(
-                          "../services/pdf.service.js"
-                        );
-                        console.log("filePath:", filePath);
-                        fileContent = await extractPdfText(filePath);
-                      } else if (
-                        attachment.mime_type ===
-                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-                        attachment.mime_type === "application/msword" ||
-                        attachment.filename.toLowerCase().endsWith(".docx") ||
-                        attachment.filename.toLowerCase().endsWith(".doc")
-                      ) {
-                        console.log("🔍 檢測到 WORD 檔案，使用 WORD 解析器");
-                        const { extractWordText, isSupportedWordFile } =
-                          await import("../services/word.service.js");
-
-                        // 檢查是否為支援的 WORD 格式
-                        if (
-                          isSupportedWordFile(filePath, attachment.mime_type)
-                        ) {
-                          console.log("filePath:", filePath);
-                          fileContent = await extractWordText(filePath);
-                        } else {
-                          console.warn(
-                            "⚠️ 不支援的 WORD 格式（.doc 格式需要 .docx）"
-                          );
-                          fileContent =
-                            "此 WORD 檔案格式不受支援。請使用 .docx 格式的檔案。";
-                        }
-                      } else {
-                        // 普通文本檔案
-                        fileContent = await fs.readFile(filePath, "utf8");
-                      }
-
-                      console.log(
-                        "檔案內容讀取成功，內容長度:",
-                        fileContent.length
-                      );
-                      console.log(
-                        "內容預覽:",
-                        fileContent.substring(0, 200) + "..."
-                      );
-
-                      // 將檔案內容添加到消息中
-                      const fileInfo = `
-
---- 檔案：${attachment.filename} ---
-檔案類型：${attachment.mime_type}
-檔案大小：${attachment.file_size} 位元組
-
-檔案內容：
-\`\`\`
-${fileContent}
-\`\`\`
---- 檔案結束 ---
-
-`;
-
-                      // 將檔案內容追加到消息內容中
-                      if (typeof formattedMessage.content === "string") {
-                        console.log("將檔案內容添加到文本消息中");
-                        formattedMessage.content =
-                          formattedMessage.content + fileInfo;
-                      } else {
-                        // 如果是多模態格式，添加到文本部分
-                        if (Array.isArray(formattedMessage.content)) {
-                          console.log("將檔案內容添加到多模態消息中");
-                          const textPart = formattedMessage.content.find(
-                            (part) => part.type === "text"
-                          );
-                          if (textPart) {
-                            textPart.text = textPart.text + fileInfo;
-                          }
-                        }
-                      }
-
-                      console.log("✅ 已將文本檔案內容添加到消息中");
-                      console.log(
-                        "更新後的消息內容長度:",
-                        typeof formattedMessage.content === "string"
-                          ? formattedMessage.content.length
-                          : formattedMessage.content[0]?.text?.length || 0
-                      );
-                    } catch (fileError) {
-                      console.error("讀取文本檔案失敗:", fileError);
-                      logger.warn("無法讀取文本檔案", {
-                        filePath,
-                        error: fileError.message,
-                        attachmentId: attachment.id,
-                      });
-                    }
-                  } else {
-                    console.warn("未找到文本檔案記錄:", attachment.id);
-                  }
-                } catch (dbError) {
-                  console.error("查詢文本檔案信息失敗:", dbError);
-                  logger.warn("無法獲取文本檔案附件信息", {
-                    attachmentId: attachment.id,
-                    error: dbError.message,
-                  });
-                }
-              }
-            }
-
-            // 如果有圖片內容，將消息轉換為多模態格式
-            if (attachmentContents.length > 0) {
-              console.log(`=== 轉換為多模態格式 (${model.model_type}) ===`);
-              console.log("圖片內容數量:", attachmentContents.length);
-
-              if (model.model_type === "gemini") {
-                // Gemini格式：content是數組
-                formattedMessage.content = [
-                  {
-                    type: "text",
-                    text: msg.content,
-                  },
-                  ...attachmentContents,
-                ];
-                console.log("Gemini 多模態格式設置完成");
-              } else if (model.model_type === "ollama") {
-                // Ollama格式：保持OpenAI兼容的格式
-                formattedMessage.content = [
-                  {
-                    type: "text",
-                    text: msg.content,
-                  },
-                  ...attachmentContents,
-                ];
-                console.log("Ollama 多模態格式設置完成");
-              }
-
-              console.log("最終消息格式:", {
-                role: formattedMessage.role,
-                contentType: Array.isArray(formattedMessage.content)
-                  ? "multimodal"
-                  : "text",
-                partCount: Array.isArray(formattedMessage.content)
-                  ? formattedMessage.content.length
-                  : 1,
-              });
-            } else {
-              console.log("沒有可處理的圖片附件");
-            }
-          }
-
-          return formattedMessage;
-        })
-      ),
+      messages: finalMessages,
       temperature: temperature || 0.7,
       max_tokens: max_tokens || 4096,
     };
 
-    // 如果有系統提示詞，添加到消息開頭
-    if (systemPromptContent) {
-      aiOptions.messages.unshift({
-        role: "system",
-        content: systemPromptContent,
-      });
-    }
-
-    sendDebugInfo("ai_calling", {
-      message: "正在調用 AI 模型",
-      finalMessagesCount: aiOptions.messages.length,
-      systemPromptIncluded: aiOptions.messages[0]?.role === "system",
-      lastUserMessage:
-        content.substring(0, 200) + (content.length > 200 ? "..." : ""),
-    });
-
     // 調用AI模型
     const aiResponse = await AIService.callModel(aiOptions);
 
-    sendDebugInfo("ai_response_received", {
-      message: "AI 模型回應已接收",
-      provider: aiResponse.provider,
-      model: aiResponse.model,
-      responseLength: aiResponse.content.length,
-      tokensUsed: aiResponse.tokens_used,
-      processingTime: aiResponse.processing_time,
-      responsePreview:
-        aiResponse.content.substring(0, 300) +
-        (aiResponse.content.length > 300 ? "..." : ""),
-    });
-
     // 處理 AI 回應，包含 MCP 工具調用檢測和執行
-    sendDebugInfo("tool_processing_start", {
-      message: "開始處理工具調用檢測",
-    });
-
     const chatResult = await chatService.processChatMessage(
       aiResponse.content,
       {
@@ -728,56 +246,15 @@ ${fileContent}
         model_id: model.id,
         model_config: model,
         endpoint_url: model.endpoint_url,
-        user_question: content, // 用戶的原始問題
+        user_question: content,
         original_question: content,
       }
     );
 
-    sendDebugInfo("tool_processing_complete", {
-      message: "工具調用處理完成",
-      hasToolCalls: chatResult.has_tool_calls,
-      toolCallsCount: chatResult.tool_calls?.length || 0,
-      toolResultsCount: chatResult.tool_results?.length || 0,
-      usedSecondaryAI: chatResult.used_secondary_ai || false,
-      toolCalls:
-        chatResult.tool_calls?.map((call) => ({
-          name: call.name,
-          format: call.format,
-          parameters: call.parameters,
-        })) || [],
-      toolResults:
-        chatResult.tool_results?.map((result) => ({
-          tool_name: result.tool_name,
-          success: result.success,
-          execution_time: result.execution_time,
-          dataPreview:
-            typeof result.data === "object"
-              ? JSON.stringify(result.data).substring(0, 200) + "..."
-              : String(result.data).substring(0, 200),
-        })) || [],
-    });
-
     // 使用處理後的回應內容
     const finalContent = chatResult.final_response || aiResponse.content;
 
-    sendDebugInfo("final_response", {
-      message: "最終回應已生成",
-      finalLength: finalContent.length,
-      isModified: finalContent !== aiResponse.content,
-      finalPreview:
-        finalContent.substring(0, 300) +
-        (finalContent.length > 300 ? "..." : ""),
-    });
-
-    // 創建AI回應訊息（包含工具調用資訊）
-    console.log("=== 創建 AI 訊息 ===");
-    console.log("最終內容長度:", finalContent.length);
-    console.log("即將存儲的 metadata:", {
-      has_tool_calls: chatResult.has_tool_calls,
-      tool_calls_count: chatResult.tool_calls?.length || 0,
-      tool_results_count: chatResult.tool_results?.length || 0,
-    });
-
+    // 創建AI回應訊息
     const assistantMessage = await MessageModel.create({
       conversation_id: conversationId,
       role: "assistant",
@@ -792,17 +269,9 @@ ${fileContent}
         tool_calls: chatResult.tool_calls || [],
         tool_results: chatResult.tool_results || [],
         original_response: chatResult.original_response,
-        thinking_content:
-          chatResult.thinking_content || aiResponse.thinking_content || null, // 添加思考內容
+        thinking_content: chatResult.thinking_content || aiResponse.thinking_content || null,
       },
     });
-
-    console.log("=== AI 訊息創建完成 ===");
-    console.log("訊息 ID:", assistantMessage.id);
-    console.log(
-      "訊息 metadata:",
-      JSON.stringify(assistantMessage.metadata, null, 2)
-    );
 
     logger.info("AI回應生成成功", {
       conversationId: conversationId,
@@ -812,17 +281,15 @@ ${fileContent}
       processingTime: aiResponse.processing_time,
     });
 
-    // 如果對話沒有標題，根據第一條用戶消息自動生成標題
+    // 自動生成對話標題（如果需要）
     let updatedConversation = await ConversationModel.findById(conversationId);
     if (!updatedConversation.title) {
-      // 生成標題：取用戶消息的前30個字符，去除換行符
       const autoTitle = content.replace(/\n/g, " ").trim().substring(0, 30);
       if (autoTitle) {
         await query(
           "UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ?",
           [autoTitle, conversationId]
         );
-        // 重新獲取更新後的對話
         updatedConversation = await ConversationModel.findById(conversationId);
         logger.info("自動生成對話標題", {
           conversationId: conversationId,
@@ -831,52 +298,15 @@ ${fileContent}
       }
     }
 
-    // 調試：打印最終回應數據
+    // 返回結果
     const responseData = {
       user_message: userMessage,
       assistant_message: assistantMessage,
       conversation: updatedConversation,
     };
 
-    console.log("=== 最終回應數據調試 ===");
-    console.log("用戶訊息 ID:", responseData.user_message?.id);
-    console.log("AI 訊息 ID:", responseData.assistant_message?.id);
-    console.log(
-      "AI 訊息內容長度:",
-      responseData.assistant_message?.content?.length
-    );
-    console.log("對話 ID:", responseData.conversation?.id);
-    console.log("回應狀態: 準備發送給前端");
-    console.log("=== 最終回應數據調試結束 ===\n");
-
-    // 返回用戶訊息和AI回應
-    console.log("=== 準備發送響應給前端 ===");
-    console.log("responseData.assistant_message.metadata:", {
-      has_tool_calls: responseData.assistant_message.metadata?.has_tool_calls,
-      tool_calls_count:
-        responseData.assistant_message.metadata?.tool_calls?.length || 0,
-      tool_results_count:
-        responseData.assistant_message.metadata?.tool_results?.length || 0,
-    });
-    console.log("=== 響應發送完成 ===");
-
-    sendDebugInfo("complete", {
-      message: "聊天請求處理完成",
-      totalTime: Date.now() - debugSession.startTime,
-      messageId: assistantMessage.id,
-      success: true,
-    });
-
-    // 調試信息已移除以提升性能
-
     res.json(createSuccessResponse(responseData, "訊息發送成功"));
   } catch (aiError) {
-    sendDebugInfo("error", {
-      message: "AI 模型調用失敗",
-      error: aiError.message,
-      totalTime: Date.now() - debugSession.startTime,
-    });
-
     logger.error("AI模型調用失敗", {
       conversationId: conversationId,
       error: aiError.message,
@@ -898,18 +328,17 @@ ${fileContent}
 
 /**
  * 發送訊息（串流模式）
- * 支援 Server-Sent Events (SSE) 進行即時串流回應
  */
 export const handleSendMessageStream = catchAsync(async (req, res) => {
   const { user } = req;
-  const { conversationId } = req.params; // 從路由參數獲取
+  const { conversationId } = req.params;
   const {
     content,
     content_type = "text",
     attachments,
     metadata,
     model_id,
-    endpoint_url, // 前端傳遞的端點URL
+    endpoint_url,
     temperature = 0.7,
     max_tokens = 8192,
     system_prompt,
@@ -1034,335 +463,23 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     // 獲取對話上下文
     const contextMessages = await MessageModel.getContextMessages(
       conversationId,
-      20, // 最多20條訊息
-      max_tokens * 0.7 // 保留30%給回應
+      20,
+      max_tokens * 0.7
     );
 
-    // 準備AI調用參數
-    const aiOptions = {
-      provider: model.model_type,
-      model: model.model_id,
-      endpoint_url: model.endpoint_url, // 使用資料庫中的 endpoint URL
-      api_key: model.api_key_encrypted, // 使用資料庫中的 API key
-      messages: await Promise.all(
-        contextMessages.map(async (msg) => {
-          const formattedMessage = {
-            role: msg.role,
-            content: msg.content,
-          };
+    // 格式化消息（包含附件處理）
+    const formattedMessages = await MessageFormattingService.formatContextMessages(
+      contextMessages,
+      model.model_type
+    );
 
-          // 處理附件（特別是圖片）
-          if (msg.attachments && msg.attachments.length > 0) {
-            const attachmentContents = [];
-
-            console.log(`=== 處理消息附件 ===`);
-            console.log("消息ID:", msg.id);
-            console.log("附件數量:", msg.attachments.length);
-            console.log("當前模型類型:", model.model_type);
-
-            for (const attachment of msg.attachments) {
-              // 修復檔案名稱編碼
-              if (attachment.filename) {
-                attachment.filename = fixFilenameEncoding(attachment.filename);
-              }
-
-              console.log("處理附件:", {
-                id: attachment.id,
-                filename: attachment.filename,
-                mime_type: attachment.mime_type,
-                file_size: attachment.file_size,
-              });
-
-              // 檢查是否為圖片附件
-              if (
-                attachment.mime_type &&
-                attachment.mime_type.startsWith("image/")
-              ) {
-                try {
-                  // 獲取圖片文件信息
-                  const { rows: fileRows } = await query(
-                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
-                    [attachment.id]
-                  );
-
-                  console.log(`=== 處理圖片附件 ${attachment.id} ===`);
-                  console.log("檔案查詢結果:", fileRows);
-
-                  if (fileRows.length > 0) {
-                    const filePath = fileRows[0].file_path;
-                    console.log("圖片文件路徑:", filePath);
-
-                    // 讀取圖片文件並轉換為base64
-                    const fs = await import("fs/promises");
-
-                    try {
-                      const fileBuffer = await fs.readFile(filePath);
-                      const base64Image = fileBuffer.toString("base64");
-                      const mimeType = attachment.mime_type;
-
-                      console.log(
-                        "圖片讀取成功，base64長度:",
-                        base64Image.length
-                      );
-                      console.log("MIME類型:", mimeType);
-
-                      // 為多模態模型格式化圖片內容
-                      if (model.model_type === "gemini") {
-                        attachmentContents.push({
-                          type: "image",
-                          source: {
-                            type: "base64",
-                            media_type: mimeType,
-                            data: base64Image,
-                          },
-                        });
-                        console.log("已添加圖片到 Gemini 多模態內容");
-                      } else if (model.model_type === "ollama") {
-                        // Ollama 多模態格式（支援 llava, qwen2-vl 等視覺模型）
-                        attachmentContents.push({
-                          type: "image_url",
-                          image_url: `data:${mimeType};base64,${base64Image}`,
-                        });
-                        console.log("已添加圖片到 Ollama 多模態內容");
-                      }
-                    } catch (fileError) {
-                      console.error("讀取圖片文件失敗:", fileError);
-                      logger.warn("無法讀取圖片文件", {
-                        filePath,
-                        error: fileError.message,
-                        attachmentId: attachment.id,
-                      });
-                    }
-                  } else {
-                    console.warn("未找到檔案記錄:", attachment.id);
-                  }
-                } catch (dbError) {
-                  console.error("查詢檔案信息失敗:", dbError);
-                  logger.warn("無法獲取附件文件信息", {
-                    attachmentId: attachment.id,
-                    error: dbError.message,
-                  });
-                }
-              }
-              // 檢查是否為文本檔案（CSV、TXT、JSON 等）、PDF 或 WORD
-              else if (
-                attachment.mime_type &&
-                (attachment.mime_type.startsWith("text/") ||
-                  attachment.mime_type === "application/json" ||
-                  attachment.mime_type === "application/pdf" ||
-                  attachment.mime_type ===
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-                  attachment.mime_type === "application/msword" ||
-                  attachment.filename.toLowerCase().endsWith(".csv") ||
-                  attachment.filename.toLowerCase().endsWith(".txt") ||
-                  attachment.filename.toLowerCase().endsWith(".md") ||
-                  attachment.filename.toLowerCase().endsWith(".pdf") ||
-                  attachment.filename.toLowerCase().endsWith(".docx") ||
-                  attachment.filename.toLowerCase().endsWith(".doc"))
-              ) {
-                console.log("🔍 串流模式：文本檔案/PDF/WORD條件匹配成功!");
-                try {
-                  // 獲取文本檔案信息
-                  const { rows: fileRows } = await query(
-                    "SELECT file_path, stored_filename FROM files WHERE id = ?",
-                    [attachment.id]
-                  );
-
-                  console.log(
-                    `=== 串流模式：處理文本檔案附件 ${attachment.id} ===`
-                  );
-                  console.log("檔案查詢結果:", fileRows);
-                  console.log("檔案類型:", attachment.mime_type);
-                  console.log("檔案名稱:", attachment.filename);
-
-                  if (fileRows.length > 0) {
-                    const filePath = fileRows[0].file_path;
-                    console.log("文本檔案路徑:", filePath);
-
-                    // 根據檔案類型讀取內容
-                    const fs = await import("fs/promises");
-                    let fileContent = "";
-
-                    try {
-                      // 檢查檔案類型並使用相應的解析器
-                      if (
-                        attachment.mime_type === "application/pdf" ||
-                        attachment.filename.toLowerCase().endsWith(".pdf")
-                      ) {
-                        console.log(
-                          "🔍 串流模式：檢測到 PDF 檔案，使用 PDF 解析器"
-                        );
-                        const { extractPdfText } = await import(
-                          "../services/pdf.service.js"
-                        );
-                        fileContent = await extractPdfText(filePath);
-                      } else if (
-                        attachment.mime_type ===
-                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-                        attachment.mime_type === "application/msword" ||
-                        attachment.filename.toLowerCase().endsWith(".docx") ||
-                        attachment.filename.toLowerCase().endsWith(".doc")
-                      ) {
-                        console.log(
-                          "🔍 串流模式：檢測到 WORD 檔案，使用 WORD 解析器"
-                        );
-                        const { extractWordText, isSupportedWordFile } =
-                          await import("../services/word.service.js");
-
-                        // 檢查是否為支援的 WORD 格式
-                        if (
-                          isSupportedWordFile(filePath, attachment.mime_type)
-                        ) {
-                          fileContent = await extractWordText(filePath);
-                        } else {
-                          console.warn(
-                            "⚠️ 串流模式：不支援的 WORD 格式（.doc 格式需要 .docx）"
-                          );
-                          fileContent =
-                            "此 WORD 檔案格式不受支援。請使用 .docx 格式的檔案。";
-                        }
-                      } else {
-                        // 普通文本檔案
-                        fileContent = await fs.readFile(filePath, "utf8");
-                      }
-
-                      console.log(
-                        "串流模式：檔案內容讀取成功，內容長度:",
-                        fileContent.length
-                      );
-                      console.log(
-                        "內容預覽:",
-                        fileContent.substring(0, 200) + "..."
-                      );
-
-                      // 將檔案內容添加到消息中
-                      const fileInfo = `
-
---- 檔案：${attachment.filename} ---
-檔案類型：${attachment.mime_type}
-檔案大小：${attachment.file_size} 位元組
-
-檔案內容：
-\`\`\`
-${fileContent}
-\`\`\`
---- 檔案結束 ---
-
-`;
-
-                      // 將檔案內容追加到消息內容中
-                      if (typeof formattedMessage.content === "string") {
-                        console.log("串流模式：將檔案內容添加到文本消息中");
-                        formattedMessage.content =
-                          formattedMessage.content + fileInfo;
-                      } else {
-                        // 如果是多模態格式，添加到文本部分
-                        if (Array.isArray(formattedMessage.content)) {
-                          console.log("串流模式：將檔案內容添加到多模態消息中");
-                          const textPart = formattedMessage.content.find(
-                            (part) => part.type === "text"
-                          );
-                          if (textPart) {
-                            textPart.text = textPart.text + fileInfo;
-                          }
-                        }
-                      }
-
-                      console.log("✅ 串流模式：已將文本檔案內容添加到消息中");
-                      console.log(
-                        "更新後的消息內容長度:",
-                        typeof formattedMessage.content === "string"
-                          ? formattedMessage.content.length
-                          : formattedMessage.content[0]?.text?.length || 0
-                      );
-                    } catch (fileError) {
-                      console.error("串流模式：讀取文本檔案失敗:", fileError);
-                      logger.warn("無法讀取文本檔案", {
-                        filePath,
-                        error: fileError.message,
-                        attachmentId: attachment.id,
-                      });
-                    }
-                  } else {
-                    console.warn(
-                      "串流模式：未找到文本檔案記錄:",
-                      attachment.id
-                    );
-                  }
-                } catch (dbError) {
-                  console.error("串流模式：查詢文本檔案信息失敗:", dbError);
-                  logger.warn("無法獲取文本檔案附件信息", {
-                    attachmentId: attachment.id,
-                    error: dbError.message,
-                  });
-                }
-              }
-            }
-
-            // 如果有圖片內容，將消息轉換為多模態格式
-            if (attachmentContents.length > 0) {
-              console.log(`=== 轉換為多模態格式 (${model.model_type}) ===`);
-              console.log("圖片內容數量:", attachmentContents.length);
-
-              if (model.model_type === "gemini") {
-                // Gemini格式：content是數組
-                formattedMessage.content = [
-                  {
-                    type: "text",
-                    text: msg.content,
-                  },
-                  ...attachmentContents,
-                ];
-                console.log("Gemini 多模態格式設置完成");
-              } else if (model.model_type === "ollama") {
-                // Ollama格式：保持OpenAI兼容的格式
-                formattedMessage.content = [
-                  {
-                    type: "text",
-                    text: msg.content,
-                  },
-                  ...attachmentContents,
-                ];
-                console.log("Ollama 多模態格式設置完成");
-              }
-
-              console.log("最終消息格式:", {
-                role: formattedMessage.role,
-                contentType: Array.isArray(formattedMessage.content)
-                  ? "multimodal"
-                  : "text",
-                partCount: Array.isArray(formattedMessage.content)
-                  ? formattedMessage.content.length
-                  : 1,
-              });
-            } else {
-              console.log("沒有可處理的圖片附件");
-            }
-          }
-
-          return formattedMessage;
-        })
-      ),
-      temperature: temperature,
-      max_tokens: max_tokens,
-      stream: true, // 啟用串流模式
-    };
-
-    // 優先使用前端傳遞的 endpoint URL
-    if (endpoint_url) {
-      aiOptions.endpoint_url = endpoint_url;
-    }
-
-    // 添加系統提示詞（整合 MCP 工具資訊）
+    // 準備系統提示詞
     let baseSystemPrompt = system_prompt;
-
-    // 如果沒有自定義系統提示詞且有智能體，使用智能體的系統提示詞
     if (!baseSystemPrompt && conversation.agent_id) {
       const { rows: agentRows } = await query(
         "SELECT system_prompt FROM agents WHERE id = ?",
         [conversation.agent_id]
       );
-
       if (agentRows.length > 0) {
         baseSystemPrompt = agentRows[0].system_prompt;
       }
@@ -1378,18 +495,28 @@ ${fileContent}
       }
     );
 
-    // 如果有系統提示詞，添加到消息開頭
-    if (systemPromptContent) {
-      aiOptions.messages.unshift({
-        role: "system",
-        content: systemPromptContent,
-      });
-    }
+    // 組裝最終消息列表
+    const finalMessages = MessageFormattingService.assembleFinalMessages(
+      formattedMessages,
+      systemPromptContent
+    );
+
+    // 準備AI調用參數
+    const aiOptions = {
+      provider: model.model_type,
+      model: model.model_id,
+      endpoint_url: endpoint_url || model.endpoint_url,
+      api_key: model.api_key_encrypted,
+      messages: finalMessages,
+      temperature: temperature,
+      max_tokens: max_tokens,
+      stream: true,
+    };
 
     logger.info("開始調用AI模型串流", {
       provider: model.model_type,
       model: model.model_id,
-      messageCount: aiOptions.messages.length,
+      messageCount: finalMessages.length,
       conversationId: conversationId,
     });
 
@@ -1404,35 +531,18 @@ ${fileContent}
     let accumulatedThinkingContent = "";
 
     for await (const chunk of aiStreamGenerator) {
-      // 檢查客戶端是否仍然連接
       if (!isClientConnected) {
         logger.info("客戶端已斷開，停止串流處理", { conversationId });
         break;
       }
 
-      // 累積思考內容（如果有的話）
       if (chunk.thinking_content) {
         accumulatedThinkingContent = chunk.thinking_content;
-        /*
-        console.log(
-          "=== 串流接收到思考內容 ===",
-          accumulatedThinkingContent.substring(0, 100) + "..."
-        );*/
       }
 
       if (chunk.type === "thinking") {
-        // 🔧 新增：處理即時思考內容
         accumulatedThinkingContent = chunk.thinking_content;
-        /*
-        console.log(
-          "🧠 即時思考內容更新:",
-          chunk.thinking_delta?.substring(0, 50) + "...",
-          "累積長度:",
-          accumulatedThinkingContent.length
-        );
-        */
 
-        // 確保有 assistant 消息 ID
         if (!assistantMessageId) {
           const assistantMessage = await MessageModel.create({
             conversation_id: conversationId,
@@ -1445,19 +555,17 @@ ${fileContent}
           });
           assistantMessageId = assistantMessage.id;
 
-          // 發送 assistant_message_created 事件
           sendSSE("assistant_message_created", {
             assistant_message_id: assistantMessageId,
             conversation_id: conversationId,
           });
         }
 
-        // 🔧 立即發送思考內容更新
         const sent = sendSSE("stream_content", {
-          content: "", // 思考階段沒有正式內容
+          content: "",
           full_content: fullContent,
-          thinking_content: accumulatedThinkingContent, // 即時思考內容
-          thinking_delta: chunk.thinking_delta, // 新增的思考內容
+          thinking_content: accumulatedThinkingContent,
+          thinking_delta: chunk.thinking_delta,
           tokens_used: chunk.tokens_used,
           assistant_message_id: assistantMessageId,
         });
@@ -1469,7 +577,6 @@ ${fileContent}
       } else if (chunk.type === "content") {
         fullContent = chunk.full_content || fullContent + chunk.content;
 
-        // 🔧 修復：如果是第一個內容塊，先創建assistant訊息記錄
         if (!assistantMessageId) {
           const assistantMessage = await MessageModel.create({
             conversation_id: conversationId,
@@ -1478,33 +585,29 @@ ${fileContent}
             content_type: "text",
             tokens_used: chunk.tokens_used,
             model_info: { provider: chunk.provider, model: chunk.model },
-            processing_time: null, // 串流模式下會在最後更新
+            processing_time: null,
           });
           assistantMessageId = assistantMessage.id;
 
-          // 🔧 修復：先發送 assistant_message_created 事件
           sendSSE("assistant_message_created", {
             assistant_message_id: assistantMessageId,
             conversation_id: conversationId,
           });
         }
 
-        // 🔧 修復：然後發送串流內容（確保前端已有 assistant 消息）
         const sent = sendSSE("stream_content", {
           content: chunk.content,
           full_content: fullContent,
-          thinking_content: accumulatedThinkingContent, // 包含思考內容
+          thinking_content: accumulatedThinkingContent,
           tokens_used: chunk.tokens_used,
           assistant_message_id: assistantMessageId,
         });
 
-        // 如果發送失敗，說明客戶端已斷開
         if (!sent) {
           logger.info("SSE發送失敗，停止串流處理", { conversationId });
           break;
         }
 
-        // 更新 assistant 訊息
         if (assistantMessageId) {
           await MessageModel.update(assistantMessageId, {
             content: fullContent,
@@ -1514,24 +617,19 @@ ${fileContent}
       } else if (chunk.type === "done") {
         finalStats = chunk;
 
-        // 🔧 處理工具調用 - 在串流完成後檢測和執行工具調用
+        // 處理工具調用
         let finalContent = chunk.full_content;
-        let finalThinkingContent =
-          accumulatedThinkingContent || chunk.thinking_content;
+        let finalThinkingContent = accumulatedThinkingContent || chunk.thinking_content;
         let toolCallMetadata = {
           has_tool_calls: false,
           tool_calls: [],
           tool_results: [],
           used_secondary_ai: false,
           original_response: chunk.full_content,
-          thinking_content: finalThinkingContent, // 使用累積的思考內容
+          thinking_content: finalThinkingContent,
         };
 
         try {
-          console.log("=== 串流模式：開始處理工具調用 ===");
-          console.log("累積的思考內容長度:", finalThinkingContent?.length || 0);
-
-          // 🔧 新增：在開始工具處理前發送處理狀態
           if (isClientConnected) {
             sendSSE("tool_processing_start", {
               assistant_message_id: assistantMessageId,
@@ -1540,7 +638,6 @@ ${fileContent}
             });
           }
 
-          // 🔧 包裝工具調用處理，添加心跳機制
           const toolCallPromise = chatService.processChatMessage(
             chunk.full_content,
             {
@@ -1549,9 +646,8 @@ ${fileContent}
               model_id: model.id,
               model_config: model,
               endpoint_url: model.endpoint_url,
-              user_question: content, // 用戶的原始問題
+              user_question: content,
               original_question: content,
-              // 🚀 添加回調，通知前端二次調用開始
               onSecondaryAIStart: () => {
                 if (isClientConnected) {
                   sendSSE("secondary_ai_start", {
@@ -1564,7 +660,6 @@ ${fileContent}
             }
           );
 
-          // 🔧 添加心跳機制：每3秒發送一次心跳
           const heartbeatInterval = setInterval(() => {
             if (isClientConnected) {
               sendSSE("tool_processing_heartbeat", {
@@ -1578,29 +673,15 @@ ${fileContent}
             }
           }, 3000);
 
-          // 🔧 等待工具調用完成
           const chatResult = await toolCallPromise;
-
-          // 清除心跳
           clearInterval(heartbeatInterval);
 
-          console.log("串流模式工具調用結果:", {
-            has_tool_calls: chatResult.has_tool_calls,
-            tool_calls_count: chatResult.tool_calls?.length || 0,
-            tool_results_count: chatResult.tool_results?.length || 0,
-            has_thinking_content: !!chatResult.thinking_content,
-            stream_thinking_content: !!finalThinkingContent,
-          });
-
-          // 更新最終內容（無論是否有工具調用）
           finalContent = chatResult.final_response || chunk.full_content;
 
-          // 優先使用串流中的思考內容，如果沒有則使用chat service提取的
           if (!finalThinkingContent && chatResult.thinking_content) {
             finalThinkingContent = chatResult.thinking_content;
           }
 
-          // 如果有工具調用，使用處理後的回應
           if (chatResult.has_tool_calls) {
             toolCallMetadata = {
               has_tool_calls: chatResult.has_tool_calls,
@@ -1608,22 +689,20 @@ ${fileContent}
               tool_results: chatResult.tool_results || [],
               used_secondary_ai: chatResult.used_secondary_ai || false,
               original_response: chatResult.original_response,
-              thinking_content: finalThinkingContent, // 使用最終的思考內容
+              thinking_content: finalThinkingContent,
             };
 
-            // 發送工具調用信息
             if (isClientConnected) {
               sendSSE("tool_calls_processed", {
                 assistant_message_id: assistantMessageId,
                 tool_calls: toolCallMetadata.tool_calls,
                 tool_results: toolCallMetadata.tool_results,
                 has_tool_calls: toolCallMetadata.has_tool_calls,
-                thinking_content: finalThinkingContent, // 發送最終的思考內容
+                thinking_content: finalThinkingContent,
                 conversation_id: conversationId,
               });
             }
           } else if (finalThinkingContent) {
-            // 即使沒有工具調用，如果有思考內容也要發送
             if (isClientConnected) {
               sendSSE("thinking_content_processed", {
                 assistant_message_id: assistantMessageId,
@@ -1635,7 +714,6 @@ ${fileContent}
         } catch (toolError) {
           console.error("串流模式工具調用處理失敗:", toolError.message);
 
-          // 🔧 發送工具處理錯誤事件
           if (isClientConnected) {
             sendSSE("tool_processing_error", {
               assistant_message_id: assistantMessageId,
@@ -1644,11 +722,10 @@ ${fileContent}
             });
           }
 
-          // 工具調用失敗時，繼續使用原始回應，但保留思考內容
           toolCallMetadata.thinking_content = finalThinkingContent;
         }
 
-        // 最終更新assistant訊息（包含工具調用結果）
+        // 最終更新assistant訊息
         if (assistantMessageId) {
           await MessageModel.update(assistantMessageId, {
             content: finalContent,
@@ -1666,7 +743,7 @@ ${fileContent}
           });
         }
 
-        // 發送完成事件（包含工具調用信息）
+        // 發送完成事件
         sendSSE("stream_done", {
           assistant_message_id: assistantMessageId,
           full_content: finalContent,
@@ -1674,7 +751,6 @@ ${fileContent}
           cost: chunk.cost,
           processing_time: chunk.processing_time,
           conversation_id: conversationId,
-          // 🔧 添加工具調用信息
           tool_info: {
             has_tool_calls: toolCallMetadata.has_tool_calls,
             tool_calls_count: toolCallMetadata.tool_calls?.length || 0,
@@ -1694,17 +770,15 @@ ${fileContent}
       }
     }
 
-    // 如果對話沒有標題，根據第一條用戶消息自動生成標題
+    // 自動生成對話標題（如果需要）
     let updatedConversation = await ConversationModel.findById(conversationId);
     if (!updatedConversation.title) {
-      // 生成標題：取用戶消息的前30個字符，去除換行符
       const autoTitle = content.replace(/\n/g, " ").trim().substring(0, 30);
       if (autoTitle) {
         await query(
           "UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ?",
           [autoTitle, conversationId]
         );
-        // 重新獲取更新後的對話
         updatedConversation = await ConversationModel.findById(conversationId);
         logger.info("自動生成對話標題（串流模式）", {
           conversationId: conversationId,
@@ -1713,14 +787,13 @@ ${fileContent}
       }
     }
 
-    // 發送最終對話狀態（只有在客戶端仍連接時）
+    // 發送最終對話狀態
     if (isClientConnected) {
       sendSSE("conversation_updated", {
         conversation: updatedConversation,
       });
     }
 
-    // 結束SSE連接
     if (isClientConnected) {
       res.end();
     }
@@ -1731,13 +804,11 @@ ${fileContent}
       stack: error.stack,
     });
 
-    // 發送錯誤事件
     sendSSE("error", {
       error: `AI模型調用失敗: ${error.message}`,
       conversation_id: conversationId,
     });
 
-    // 創建錯誤訊息記錄
     try {
       await MessageModel.create({
         conversation_id: conversationId,

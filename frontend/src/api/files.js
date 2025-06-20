@@ -174,6 +174,15 @@ export const isDocumentFile = (mimeType) => {
     "text/plain",
     "text/csv",
     "text/markdown",
+    "text/x-markdown",
+    "application/json",
+    "text/javascript",
+    "text/css",
+    "text/html",
+    "application/xml",
+    "text/xml",
+    "application/x-yaml",
+    "text/yaml",
   ];
   return documentTypes.includes(mimeType);
 };
