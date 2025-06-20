@@ -18,9 +18,9 @@
           <a-col
             :xs="24"
             :sm="24"
-            :md="12"
-            :lg="14"
-            :xl="16">
+            :md="8"
+            :lg="10"
+            :xl="13">
             <a-input-search
               :value="searchText"
               placeholder="搜索命令文字或描述"
@@ -66,8 +66,8 @@
             </a-select>
           </a-col>
           <a-col
-            :xs="8"
-            :sm="8"
+            :xs="24"
+            :sm="24"
             :md="4"
             :lg="4"
             :xl="3">
@@ -291,6 +291,7 @@ const columns = [
     dataIndex: "created_at",
     key: "created_at",
     sorter: true,
+    width: 150,
     responsive: ["lg", "xl"],
     customRender: ({ text, record }) => {
       // 檢查多個可能的時間字段
@@ -314,7 +315,7 @@ const columns = [
     title: "操作",
     key: "action",
     slots: { customRender: "action" },
-    width: isSmallScreen.value ? 100 : 150,
+    width: isSmallScreen.value ? 220 : 300,
     fixed: "right",
   },
 ];

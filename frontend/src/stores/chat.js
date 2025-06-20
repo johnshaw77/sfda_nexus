@@ -202,17 +202,19 @@ export const useChatStore = defineStore("chat", () => {
 
       // 如果是第一頁，替換消息；否則追加到前面（歷史消息）
       if (messagePagination.value.current === 1) {
-        // 對載入的消息應用文字轉換
+        // 對載入的消息應用文字轉換（包括思考內容和主要內容）
         const convertedMessages =
           isTextConverterEnabled.value && textConverter.isAvailable()
-            ? textConverter.convertMessagesThinkingContent(
-                messageData,
-                textConversionMode.value
-              )
+            ? convertMessagesContent(messageData, textConversionMode.value)
             : messageData;
         messages.value = convertedMessages;
       } else {
-        messages.value = [...messageData, ...messages.value];
+        // 對歷史消息也應用文字轉換
+        const convertedHistoryMessages =
+          isTextConverterEnabled.value && textConverter.isAvailable()
+            ? convertMessagesContent(messageData, textConversionMode.value)
+            : messageData;
+        messages.value = [...convertedHistoryMessages, ...messages.value];
       }
 
       messagePagination.value = {
@@ -479,7 +481,6 @@ export const useChatStore = defineStore("chat", () => {
   const handleGetAvailableModels = async () => {
     try {
       const response = await api.get("/api/chat/models");
-      console.log("availableModels", response.data.data);
       availableModels.value = response.data.data;
       return availableModels.value;
     } catch (error) {
@@ -1010,7 +1011,17 @@ export const useChatStore = defineStore("chat", () => {
           // 處理主要內容的即時顯示（使用打字機效果）
           if (data.content !== undefined && messageIndex !== -1) {
             const currentContent = streamMessage.content || "";
-            const newContent = data.content;
+
+            // 🔧 新增：對 AI 回應內容也應用文字轉換
+            const convertedContent =
+              isTextConverterEnabled.value && textConverter.isAvailable()
+                ? textConverter.convertStreamThinkingContent(
+                    data.content,
+                    textConversionMode.value
+                  )
+                : data.content;
+
+            const newContent = convertedContent;
 
             console.log("📝 準備打字機動畫:", {
               messageId: streamMessage.id,
@@ -1034,7 +1045,16 @@ export const useChatStore = defineStore("chat", () => {
 
           // 更新完整內容（用於最終狀態）
           if (data.full_content !== undefined) {
-            streamMessage.full_content = data.full_content;
+            // 🔧 新增：對完整內容也應用文字轉換
+            const convertedFullContent =
+              isTextConverterEnabled.value && textConverter.isAvailable()
+                ? textConverter.convertStreamThinkingContent(
+                    data.full_content,
+                    textConversionMode.value
+                  )
+                : data.full_content;
+
+            streamMessage.full_content = convertedFullContent;
           }
 
           // 更新其他屬性
@@ -1088,8 +1108,16 @@ export const useChatStore = defineStore("chat", () => {
           const existingThinkingContent =
             messages.value[finalMessageIndex].thinking_content;
 
-          // 確保最終內容完整顯示
-          messages.value[finalMessageIndex].content = data.full_content;
+          // 確保最終內容完整顯示（應用文字轉換）
+          const finalConvertedContent =
+            isTextConverterEnabled.value && textConverter.isAvailable()
+              ? textConverter.convertStreamThinkingContent(
+                  data.full_content,
+                  textConversionMode.value
+                )
+              : data.full_content;
+
+          messages.value[finalMessageIndex].content = finalConvertedContent;
           messages.value[finalMessageIndex].tokens_used = data.tokens_used;
           messages.value[finalMessageIndex].cost = data.cost;
           messages.value[finalMessageIndex].processing_time =
@@ -1365,15 +1393,55 @@ export const useChatStore = defineStore("chat", () => {
     }
   }
 
+  // 🔧 新增：轉換消息的所有內容（包括主要內容和思考內容）
+  const convertMessagesContent = (messages, mode) => {
+    if (!Array.isArray(messages)) return messages;
+
+    return messages.map((message) => {
+      const convertedMessage = { ...message };
+
+      // 轉換主要內容
+      if (
+        convertedMessage.content &&
+        typeof convertedMessage.content === "string"
+      ) {
+        convertedMessage.content = textConverter.convertThinkingContent(
+          convertedMessage.content,
+          mode
+        );
+      }
+
+      // 轉換思考內容
+      if (convertedMessage.thinking_content) {
+        convertedMessage.thinking_content =
+          textConverter.convertThinkingContent(
+            convertedMessage.thinking_content,
+            mode
+          );
+      }
+
+      // 轉換 metadata 中的思考內容
+      if (convertedMessage.metadata?.thinking_content) {
+        if (!convertedMessage.metadata) {
+          convertedMessage.metadata = {};
+        }
+        convertedMessage.metadata.thinking_content =
+          textConverter.convertThinkingContent(
+            convertedMessage.metadata.thinking_content,
+            mode
+          );
+      }
+
+      return convertedMessage;
+    });
+  };
+
   // 文字轉換相關方法
   const setTextConversionMode = (mode) => {
     textConversionMode.value = mode;
     // 重新轉換當前載入的消息
     if (messages.value.length > 0 && isTextConverterEnabled.value) {
-      messages.value = textConverter.convertMessagesThinkingContent(
-        messages.value,
-        mode
-      );
+      messages.value = convertMessagesContent(messages.value, mode);
     }
   };
 

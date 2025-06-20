@@ -30,6 +30,11 @@ class McpClient {
 
       logger.info("初始化 MCP 服務連接", {
         service_count: activeServices.length,
+        services: activeServices.map(service => ({
+          id: service.id,
+          name: service.name,
+          endpoint_url: service.endpoint_url
+        }))
       });
 
       // 並行初始化所有服務（不等待全部成功）

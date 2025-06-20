@@ -387,8 +387,8 @@ export const handleGetAgents = catchAsync(async (req, res) => {
     category,
     is_active,
     search,
-    sortBy = "created_at",
-    sortOrder = "DESC",
+    sortBy = "sort_order",
+    sortOrder = "ASC",
   } = req.query;
 
   // 構建查詢條件

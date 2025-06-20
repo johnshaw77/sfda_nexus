@@ -227,6 +227,7 @@ class ChatService {
     sections.push("- 用戶要求查詢特定數據（如 MIL 清單、員工信息）");
     sections.push("- 用戶明確提到工具名稱（如 get-mil-list）");
     sections.push("- 用戶需要實時數據或資料庫查詢");
+    sections.push("- 用戶重複相同或類似的查詢（每次都重新調用工具）");
     sections.push("");
     sections.push("**正確的回應流程**：");
     sections.push("1. 理解用戶需求");
@@ -234,10 +235,20 @@ class ChatService {
     sections.push("3. 等待工具執行結果");
     sections.push("4. 基於結果回答用戶");
     sections.push("");
+    sections.push("**連續查詢處理原則**：");
+    sections.push("- 每次用戶查詢都視為獨立請求，必須重新調用工具");
+    sections.push("- 不要假設之前的查詢結果仍然有效");
+    sections.push("- 根據用戶的新需求調整參數，不要固定使用之前的參數");
+    sections.push("- 如果用戶沒有指定 limit，使用合理的預設值（建議 10-20）");
+    sections.push(
+      "- 如果用戶要求「所有」數據，可以使用較大的 limit 值（如 100）"
+    );
+    sections.push("");
     sections.push("**錯誤的回應方式**：");
     sections.push("❌ 只解釋如何使用工具而不實際調用");
     sections.push("❌ 提供假設性或示例性的回答");
     sections.push("❌ 要求用戶自己執行工具");
+    sections.push("❌ 基於記憶或假設提供數據而不調用工具");
     sections.push("");
 
     // 添加注意事項
@@ -387,7 +398,14 @@ class ChatService {
 
       // 檢查是否包含工具調用
       console.log("=== 檢查工具調用 ===");
-      const hasTools = mcpToolParser.hasToolCalls(cleanedAIResponse);
+      console.log("上下文信息:", {
+        hasAttachments: context.attachments && context.attachments.length > 0,
+        attachmentCount: context.attachments ? context.attachments.length : 0,
+        userQuestion: context.user_question || context.original_question || "",
+        responseLength: cleanedAIResponse.length,
+      });
+
+      const hasTools = mcpToolParser.hasToolCalls(cleanedAIResponse, context);
       console.log("包含工具調用:", hasTools);
 
       if (!hasTools) {
@@ -480,7 +498,10 @@ ${formattedResults}
 2. 用自然語言整理和呈現數據
 3. 如果是列表數據，用清晰的格式展示
 4. 不要解釋如何查詢，只提供最終答案
-5. 保持回應完整，不要中途停止`;
+5. 保持回應完整，不要中途停止
+6. 如果查詢結果為空或未找到數據，明確說明「目前沒有符合條件的數據」
+7. 不要根據之前的對話記憶編造或假設數據
+8. 基於實際的工具執行結果回答，不要添加不存在的資訊`;
 
           // 獲取用戶的原始問題
           const userQuestion =

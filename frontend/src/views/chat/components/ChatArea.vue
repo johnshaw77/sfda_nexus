@@ -444,7 +444,12 @@
             <span
               >回覆
               {{
-                quotedMessage.role === "user" ? "用戶" : agent?.name || "AI助手"
+                quotedMessage.role === "user"
+                  ? "用戶"
+                  : quotedMessage.agent_name ||
+                    agent?.display_name ||
+                    agent?.name ||
+                    "AI助手"
               }}</span
             >
           </div>
@@ -550,22 +555,56 @@
                     }"
                     @click="handlePreviewImage(file)">
                     <!-- 圖片檔案顯示預覽 -->
-                    <img
-                      v-if="file.preview"
-                      :src="file.preview"
-                      :alt="file.filename"
-                      class="thumbnail-image" />
+                    <div v-if="file.preview" class="image-preview-container">
+                      <img
+                        :src="file.preview"
+                        :alt="file.filename"
+                        class="thumbnail-image" />
+                      <!-- 放大鏡圖示（僅圖片顯示） -->
+                      <div
+                        v-if="file.preview && file.mimeType.startsWith('image/')"
+                        class="zoom-icon">
+                        <ZoomIn :size="8" />
+                      </div>
+                    </div>
                     <!-- 非圖片檔案顯示圖示 -->
                     <div
                       v-else
-                      class="thumbnail-icon">
-                      <FileImageOutlined />
-                    </div>
-                    <!-- 放大鏡圖示（僅圖片顯示） -->
-                    <div
-                      v-if="file.preview && file.mimeType.startsWith('image/')"
-                      class="zoom-icon">
-                      <ZoomIn :size="8" />
+                      class="file-icon-container">
+                      <div class="thumbnail-icon">
+                        <!-- PDF 檔案 -->
+                        <FilePDF
+                          v-if="file.filename.toLowerCase().endsWith('.pdf')" />
+                        <!-- Word 檔案 -->
+                        <FileWord
+                          v-else-if="
+                            file.filename.toLowerCase().endsWith('.docx') ||
+                            file.filename.toLowerCase().endsWith('.doc')
+                          " />
+                        <!-- CSV 檔案 -->
+                        <FileCSV
+                          v-else-if="
+                            file.filename.toLowerCase().endsWith('.csv')
+                          " />
+                        <!-- Excel 檔案 -->
+                        <FileExcel
+                          v-else-if="
+                            file.filename.toLowerCase().endsWith('.xlsx') ||
+                            file.filename.toLowerCase().endsWith('.xls')
+                          " />
+                        <!-- PowerPoint 檔案 -->
+                        <FilePowerpoint
+                          v-else-if="
+                            file.filename.toLowerCase().endsWith('.pptx') ||
+                            file.filename.toLowerCase().endsWith('.ppt')
+                          " />
+                        <!-- 預設檔案圖示 -->
+                        <FileOutlined v-else />
+                      </div>
+                      <!-- 檔案名稱 -->
+                      <div class="file-name-label">
+                        {{ file.filename }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -585,22 +624,85 @@
 
                   <!-- 文檔檔案的快速命令 -->
                   <template v-else-if="isDocumentFile(file)">
-                    <a-button
-                      type="text"
-                      size="small"
-                      @click="handleSummarizeFile(file)"
-                      class="action-btn">
-                      <FileTextOutlined />
-                      關鍵要點
-                    </a-button>
-                    <a-button
-                      type="text"
-                      size="small"
-                      @click="handleGenerateDocument(file)"
-                      class="action-btn">
-                      <EditOutlined />
-                      生成文件
-                    </a-button>
+                    <!-- PDF 檔案專用建議詞 -->
+                    <template v-if="isPdfFile(file)">
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleExtractPdfText(file)"
+                        class="action-btn">
+                        <FileTextOutlined />
+                        提取文字
+                      </a-button>
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleSummarizePdf(file)"
+                        class="action-btn">
+                        <ReadOutlined />
+                        文件摘要
+                      </a-button>
+                    </template>
+
+                    <!-- Word 檔案專用建議詞 -->
+                    <template v-else-if="isWordFile(file)">
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleAnalyzeDocument(file)"
+                        class="action-btn">
+                        <EditOutlined />
+                        文檔分析
+                      </a-button>
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleFormatDocument(file)"
+                        class="action-btn">
+                        <AlignLeftOutlined />
+                        格式整理
+                      </a-button>
+                    </template>
+
+                    <!-- CSV 檔案專用建議詞 -->
+                    <template v-else-if="isCsvFile(file)">
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleAnalyzeCsvData(file)"
+                        class="action-btn">
+                        <BarChartOutlined />
+                        數據分析
+                      </a-button>
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleGenerateChart(file)"
+                        class="action-btn">
+                        <LineChartOutlined />
+                        生成圖表
+                      </a-button>
+                    </template>
+
+                    <!-- 通用文檔建議詞 -->
+                    <template v-else>
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleSummarizeFile(file)"
+                        class="action-btn">
+                        <FileTextOutlined />
+                        關鍵要點
+                      </a-button>
+                      <a-button
+                        type="text"
+                        size="small"
+                        @click="handleGenerateDocument(file)"
+                        class="action-btn">
+                        <EditOutlined />
+                        生成文件
+                      </a-button>
+                    </template>
                   </template>
                 </div>
               </div>
@@ -930,9 +1032,14 @@ import {
   incrementCommandUsage,
 } from "@/api/quickCommands";
 import { ArrowDownToLine, Maximize, Minimize, ZoomIn } from "lucide-vue-next";
+import FileWord from "@/assets/icons/FileWord.vue";
+import FileCSV from "@/assets/icons/FileCSV.vue";
+import FileExcel from "@/assets/icons/FileExcel.vue";
+import FilePowerpoint from "@/assets/icons/FilePowerpoint.vue";
+import FilePDF from "@/assets/icons/FilePDF.vue";
+
 import { useInfiniteScroll, useLocalStorage } from "@vueuse/core";
 import { chatWithQwenAgent } from "@/api/qwenAgent";
-import api from "@/api";
 
 // Store
 const chatStore = useChatStore();
@@ -981,7 +1088,17 @@ const isLoadingMoreMessages = ref(false);
 const hasMoreMessages = computed(() => {
   if (!chatStore.messagePagination.total) return false;
   const loaded = chatStore.messages.length;
-  return loaded < chatStore.messagePagination.total;
+  const hasMore = loaded < chatStore.messagePagination.total;
+
+  console.log("📊 hasMoreMessages 計算:", {
+    loaded,
+    total: chatStore.messagePagination.total,
+    hasMore,
+    current: chatStore.messagePagination.current,
+    pageSize: chatStore.messagePagination.pageSize,
+  });
+
+  return hasMore;
 });
 
 // 方案1: 使用 VueUse 的無限滾動 (需要先安裝 @vueuse/core)
@@ -992,12 +1109,18 @@ const {
 } = useInfiniteScroll(
   messagesContainer,
   async () => {
+    /*
     console.log("🔄 VueUse 無限滾動觸發", {
       hasMoreMessages: hasMoreMessages.value,
       isLoadingMoreMessages: isLoadingMoreMessages.value,
       currentMessages: chatStore.messages.length,
       totalMessages: chatStore.messagePagination.total,
+      containerRef: !!messagesContainer.value,
+      scrollTop: messagesContainer.value?.scrollTop,
+      scrollHeight: messagesContainer.value?.scrollHeight,
+      clientHeight: messagesContainer.value?.clientHeight,
     });
+    */
 
     if (hasMoreMessages.value && !isLoadingMoreMessages.value) {
       await handleLoadMoreMessages();
@@ -1005,8 +1128,8 @@ const {
   },
   {
     direction: "top", // 向上滾動載入歷史消息
-    distance: 50, // 減少距離，更容易觸發
-    interval: 16, // 增加檢查頻率 (60fps)
+    distance: 100, // 距離頂部100px時觸發
+    interval: 100, // 檢查間隔100ms，避免過於頻繁
   }
 );
 
@@ -1535,7 +1658,6 @@ const loadAgentQuickCommands = async () => {
   try {
     loadingQuickCommands.value = true;
     const commands = await getAgentQuickCommands(props.agent.id);
-    console.log("commands", commands);
     agentQuickCommands.value = commands || [];
   } catch (error) {
     console.warn("載入智能體快速命令失敗:", error);
@@ -1850,6 +1972,53 @@ const isDocumentFile = (file) => {
   return documentTypes.includes(file.mimeType);
 };
 
+// 判斷是否為 PDF 檔案
+const isPdfFile = (file) => {
+  return (
+    file.mimeType === "application/pdf" ||
+    file.filename.toLowerCase().endsWith(".pdf")
+  );
+};
+
+// 判斷是否為 Word 檔案
+const isWordFile = (file) => {
+  return (
+    file.mimeType?.includes("word") ||
+    file.mimeType?.includes("document") ||
+    file.filename.toLowerCase().endsWith(".doc") ||
+    file.filename.toLowerCase().endsWith(".docx")
+  );
+};
+
+// 判斷是否為 CSV 檔案
+const isCsvFile = (file) => {
+  return (
+    file.mimeType === "text/csv" ||
+    file.filename.toLowerCase().endsWith(".csv")
+  );
+};
+
+// 判斷是否為 Excel 檔案
+const isExcelFile = (file) => {
+  return (
+    file.mimeType?.includes("excel") ||
+    file.mimeType?.includes("sheet") ||
+    file.filename.toLowerCase().endsWith(".xls") ||
+    file.filename.toLowerCase().endsWith(".xlsx")
+  );
+};
+
+// 判斷是否為 PowerPoint 檔案
+const isPowerpointFile = (file) => {
+  return (
+    file.mimeType?.includes("powerpoint") ||
+    file.mimeType?.includes("presentation") ||
+    file.filename.toLowerCase().endsWith(".ppt") ||
+    file.filename.toLowerCase().endsWith(".pptx")
+  );
+};
+
+
 // 處理檔案關鍵要點
 const handleSummarizeFile = (file) => {
   const summarizeText = `請分析這個檔案的關鍵要點`;
@@ -1887,6 +2056,94 @@ const handleGenerateDocument = (file) => {
   }
 
   // 將焦點設置到輸入框
+  nextTick(() => {
+    if (messageInput.value) {
+      const textareaEl =
+        messageInput.value.$el?.querySelector("textarea") ||
+        messageInput.value.$el;
+      if (textareaEl) {
+        textareaEl.focus();
+        // 將游標移到文字末尾
+        textareaEl.setSelectionRange(
+          textareaEl.value.length,
+          textareaEl.value.length
+        );
+      }
+    }
+  });
+};
+
+// PDF 專用處理函數
+const handleExtractPdfText = (file) => {
+  const extractText = `請提取這個 PDF 檔案中的所有文字內容：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + extractText;
+  } else {
+    messageText.value = extractText;
+  }
+
+  setFocusToInput();
+};
+
+const handleSummarizePdf = (file) => {
+  const summarizeText = `請分析並總結這個 PDF 文件的主要內容和重點：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + summarizeText;
+  } else {
+    messageText.value = summarizeText;
+  }
+
+  setFocusToInput();
+};
+
+// Word 專用處理函數
+const handleAnalyzeDocument = (file) => {
+  const analyzeText = `請深度分析這個 Word 文檔的結構、內容和重點：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + analyzeText;
+  } else {
+    messageText.value = analyzeText;
+  }
+
+  setFocusToInput();
+};
+
+const handleFormatDocument = (file) => {
+  const formatText = `請整理這個 Word 文檔的格式，提供標準化的排版建議：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + formatText;
+  } else {
+    messageText.value = formatText;
+  }
+
+  setFocusToInput();
+};
+
+// CSV 專用處理函數
+const handleAnalyzeCsvData = (file) => {
+  const analyzeText = `請分析這個 CSV 檔案中的數據，提供統計摘要和洞察：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + analyzeText;
+  } else {
+    messageText.value = analyzeText;
+  }
+
+  setFocusToInput();
+};
+
+const handleGenerateChart = (file) => {
+  const chartText = `請分析這個 CSV 數據並建議適合的圖表類型，提供數據視覺化方案：${file.filename}`;
+  if (messageText.value.trim()) {
+    messageText.value += "\n\n" + chartText;
+  } else {
+    messageText.value = chartText;
+  }
+
+  setFocusToInput();
+};
+
+// 共用的設置焦點函數
+const setFocusToInput = () => {
   nextTick(() => {
     if (messageInput.value) {
       const textareaEl =
@@ -2546,8 +2803,6 @@ const getSelectedModelInfo = () => {
   if (!model) {
     return `模型 ID: ${selectedModelId.value} (詳情未知)`;
   }
-
-  console.log("model====>", model);
 
   return `${model.display_name || model.name} (${model.provider})`;
 };
@@ -3428,10 +3683,10 @@ const getModelEndpoint = () => {
 
 .file-thumbnail {
   position: relative;
-  width: 60px; /* 增加寬度以便更好地顯示移除按鈕 */
-  height: 60px; /* 增加高度 */
+  width: 80px; /* 增加寬度以容納檔案名稱 */
+  min-height: 60px; /* 使用 min-height 以容納檔案名稱 */
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible; /* 改為 visible 以顯示檔案名稱 */
   background: var(--custom-bg-tertiary);
   display: flex;
   align-items: center;
@@ -3449,15 +3704,41 @@ const getModelEndpoint = () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+.image-preview-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .thumbnail-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.file-icon-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+}
+
 .thumbnail-icon {
   color: var(--custom-text-secondary);
   font-size: 24px;
+}
+
+.file-name-label {
+  font-size: 10px;
+  color: var(--custom-text-secondary);
+  text-align: center;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+  margin-top: 2px;
 }
 
 /* 卡片右上角的移除按鈕 */

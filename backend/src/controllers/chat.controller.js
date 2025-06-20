@@ -488,18 +488,23 @@ export const handleSendMessage = catchAsync(async (req, res) => {
                   });
                 }
               }
-              // 檢查是否為文本檔案（CSV、TXT、JSON 等）或 PDF
+              // 檢查是否為文本檔案（CSV、TXT、JSON 等）、PDF 或 WORD
               else if (
                 attachment.mime_type &&
                 (attachment.mime_type.startsWith("text/") ||
                   attachment.mime_type === "application/json" ||
                   attachment.mime_type === "application/pdf" ||
+                  attachment.mime_type ===
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+                  attachment.mime_type === "application/msword" ||
                   attachment.filename.toLowerCase().endsWith(".csv") ||
                   attachment.filename.toLowerCase().endsWith(".txt") ||
                   attachment.filename.toLowerCase().endsWith(".md") ||
-                  attachment.filename.toLowerCase().endsWith(".pdf"))
+                  attachment.filename.toLowerCase().endsWith(".pdf") ||
+                  attachment.filename.toLowerCase().endsWith(".docx") ||
+                  attachment.filename.toLowerCase().endsWith(".doc"))
               ) {
-                console.log("🔍 文本檔案/PDF條件匹配成功!");
+                console.log("🔍 文本檔案/PDF/WORD條件匹配成功!");
                 try {
                   // 獲取文本檔案信息
                   const { rows: fileRows } = await query(
@@ -521,7 +526,7 @@ export const handleSendMessage = catchAsync(async (req, res) => {
                     let fileContent = "";
 
                     try {
-                      // 檢查是否為 PDF 檔案
+                      // 檢查檔案類型並使用相應的解析器
                       if (
                         attachment.mime_type === "application/pdf" ||
                         attachment.filename.toLowerCase().endsWith(".pdf")
@@ -532,6 +537,30 @@ export const handleSendMessage = catchAsync(async (req, res) => {
                         );
                         console.log("filePath:", filePath);
                         fileContent = await extractPdfText(filePath);
+                      } else if (
+                        attachment.mime_type ===
+                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+                        attachment.mime_type === "application/msword" ||
+                        attachment.filename.toLowerCase().endsWith(".docx") ||
+                        attachment.filename.toLowerCase().endsWith(".doc")
+                      ) {
+                        console.log("🔍 檢測到 WORD 檔案，使用 WORD 解析器");
+                        const { extractWordText, isSupportedWordFile } =
+                          await import("../services/word.service.js");
+
+                        // 檢查是否為支援的 WORD 格式
+                        if (
+                          isSupportedWordFile(filePath, attachment.mime_type)
+                        ) {
+                          console.log("filePath:", filePath);
+                          fileContent = await extractWordText(filePath);
+                        } else {
+                          console.warn(
+                            "⚠️ 不支援的 WORD 格式（.doc 格式需要 .docx）"
+                          );
+                          fileContent =
+                            "此 WORD 檔案格式不受支援。請使用 .docx 格式的檔案。";
+                        }
                       } else {
                         // 普通文本檔案
                         fileContent = await fs.readFile(filePath, "utf8");
@@ -1115,18 +1144,23 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   });
                 }
               }
-              // 檢查是否為文本檔案（CSV、TXT、JSON 等）或 PDF
+              // 檢查是否為文本檔案（CSV、TXT、JSON 等）、PDF 或 WORD
               else if (
                 attachment.mime_type &&
                 (attachment.mime_type.startsWith("text/") ||
                   attachment.mime_type === "application/json" ||
                   attachment.mime_type === "application/pdf" ||
+                  attachment.mime_type ===
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+                  attachment.mime_type === "application/msword" ||
                   attachment.filename.toLowerCase().endsWith(".csv") ||
                   attachment.filename.toLowerCase().endsWith(".txt") ||
                   attachment.filename.toLowerCase().endsWith(".md") ||
-                  attachment.filename.toLowerCase().endsWith(".pdf"))
+                  attachment.filename.toLowerCase().endsWith(".pdf") ||
+                  attachment.filename.toLowerCase().endsWith(".docx") ||
+                  attachment.filename.toLowerCase().endsWith(".doc"))
               ) {
-                console.log("🔍 串流模式：文本檔案/PDF條件匹配成功!");
+                console.log("🔍 串流模式：文本檔案/PDF/WORD條件匹配成功!");
                 try {
                   // 獲取文本檔案信息
                   const { rows: fileRows } = await query(
@@ -1150,7 +1184,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                     let fileContent = "";
 
                     try {
-                      // 檢查是否為 PDF 檔案
+                      // 檢查檔案類型並使用相應的解析器
                       if (
                         attachment.mime_type === "application/pdf" ||
                         attachment.filename.toLowerCase().endsWith(".pdf")
@@ -1162,6 +1196,31 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                           "../services/pdf.service.js"
                         );
                         fileContent = await extractPdfText(filePath);
+                      } else if (
+                        attachment.mime_type ===
+                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+                        attachment.mime_type === "application/msword" ||
+                        attachment.filename.toLowerCase().endsWith(".docx") ||
+                        attachment.filename.toLowerCase().endsWith(".doc")
+                      ) {
+                        console.log(
+                          "🔍 串流模式：檢測到 WORD 檔案，使用 WORD 解析器"
+                        );
+                        const { extractWordText, isSupportedWordFile } =
+                          await import("../services/word.service.js");
+
+                        // 檢查是否為支援的 WORD 格式
+                        if (
+                          isSupportedWordFile(filePath, attachment.mime_type)
+                        ) {
+                          fileContent = await extractWordText(filePath);
+                        } else {
+                          console.warn(
+                            "⚠️ 串流模式：不支援的 WORD 格式（.doc 格式需要 .docx）"
+                          );
+                          fileContent =
+                            "此 WORD 檔案格式不受支援。請使用 .docx 格式的檔案。";
+                        }
                       } else {
                         // 普通文本檔案
                         fileContent = await fs.readFile(filePath, "utf8");

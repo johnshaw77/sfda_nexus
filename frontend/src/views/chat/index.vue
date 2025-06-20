@@ -240,13 +240,6 @@ watch(
 );
 
 onMounted(async () => {
-  console.log("🚀 Chat 頁面載入開始");
-  console.log("📊 初始 sidebarCollapsed 狀態:", sidebarCollapsed.value);
-  console.log(
-    "📊 localStorage 中的值:",
-    localStorage.getItem("chat-sidebar-collapsed")
-  );
-
   // 確保認證狀態已初始化
   if (!authStore.isInitialized) {
     console.log("📡 等待 authStore 初始化...");
@@ -264,18 +257,14 @@ onMounted(async () => {
   try {
     // 初始化智能體數據
     await agentsStore.initialize();
-    console.log("✅ 智能體數據初始化完成");
 
     // 初始化聊天數據
     await chatStore.handleInitializeChat();
-    console.log("✅ 聊天數據初始化完成");
 
     // 檢查路由參數或 query 參數中是否有對話 ID
     const conversationId =
       props.conversationId || route.params.conversationId || route.query.id;
     if (conversationId) {
-      console.log("🔗 檢測到路由中的對話 ID:", conversationId);
-
       try {
         // 先查找對話是否在已載入的列表中
         let conversation = chatStore.conversations.find(

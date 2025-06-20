@@ -98,7 +98,12 @@
           <UserOutlined v-if="message.quoted_message.role === 'user'" />
           <RobotOutlined v-else />
           <span>{{
-            message.quoted_message.role === "user" ? "用戶" : "AI助手"
+            message.quoted_message.role === "user"
+              ? "用戶"
+              : message.quoted_message.agent_name ||
+                agentsStore.getCurrentAgent?.display_name ||
+                agentsStore.getCurrentAgent?.name ||
+                "AI助手"
           }}</span>
         </div>
         <div class="quote-content">
@@ -179,7 +184,7 @@
         <div class="tool-processing-header">
           <ToolOutlined />
           <span>{{
-            message.toolProcessingMessage || "正在處理工具調用..."
+            message.toolProcessingMessage || "正在檢查並處理工具調用..."
           }}</span>
           <LoadingOutlined
             spin
@@ -308,21 +313,18 @@
           class="attachment-item"
           @click="handleViewAttachment(attachment)">
           <div class="attachment-card">
+            <div class="attachment-icon-container">
             <div class="attachment-icon">
               <component
                 :is="getFileIcon(attachment)"
                 :style="{ color: getFileTypeColor(attachment) }" />
             </div>
-            <div class="attachment-info">
-              <div class="attachment-name">
+              <div class="attachment-filename">
                 {{ attachment.filename || attachment.name }}
               </div>
+            </div>
+            <div class="attachment-info">
               <div class="attachment-meta">
-                <!-- <span
-                  class="file-type-label"
-                  :style="{ color: getFileTypeColor(attachment) }">
-                  {{ getFileTypeLabel(attachment) }}
-                </span> -->
                 <span class="attachment-size">
                   {{ getFileTypeLabel(attachment) }}
                   {{ formatFileSize(attachment.file_size || attachment.size) }}
@@ -332,12 +334,64 @@
           </div>
 
           <!-- 檔案操作按鈕 -->
-          <!-- <div class="attachment-actions">
+          <div
+            v-if="message.role === 'user'"
+            class="attachment-actions">
+            <!-- PDF 檔案專用建議詞 -->
+            <template v-if="getFileType(attachment) === 'pdf'">
+              <a-button
+                class="action-button"
+                @click.stop="handleExtractPdfText(attachment)">
+                <FileTextOutlined />
+                提取文字
+              </a-button>
+              <a-button
+                class="action-button"
+                @click.stop="handleSummarizePdf(attachment)">
+                <ReadOutlined />
+                文件摘要
+              </a-button>
+            </template>
+
+            <!-- Word 檔案專用建議詞 -->
+            <template v-else-if="getFileType(attachment) === 'word'">
+              <a-button
+                class="action-button"
+                @click.stop="handleAnalyzeDocument(attachment)">
+                <EditOutlined />
+                文檔分析
+              </a-button>
+              <a-button
+                class="action-button"
+                @click.stop="handleFormatDocument(attachment)">
+                <AlignLeftOutlined />
+                格式整理
+              </a-button>
+            </template>
+
+            <!-- CSV 檔案專用建議詞 -->
+            <template v-else-if="getFileType(attachment) === 'csv'">
+              <a-button
+                class="action-button"
+                @click.stop="handleAnalyzeCsvData(attachment)">
+                <BarChartOutlined />
+                數據分析
+              </a-button>
+              <a-button
+                class="action-button"
+                @click.stop="handleGenerateChart(attachment)">
+                <LineChartOutlined />
+                生成圖表
+              </a-button>
+            </template>
+
+            <!-- 通用文檔建議詞 -->
+            <template v-else>
             <a-button
               class="action-button"
               @click.stop="handleSummarizeFile(attachment)">
               <FileTextOutlined />
-              總結關鍵要點
+                關鍵要點
             </a-button>
             <a-button
               class="action-button"
@@ -345,13 +399,15 @@
               <FileAddOutlined />
               生成文件
             </a-button>
-          </div> -->
+            </template>
+          </div>
         </div>
       </div>
 
-      <!-- AI 模型信息 -->
+      <!-- AI 模型信息 - 統一顯示 -->
       <div
-        v-if="message.role === 'assistant' && message.model_info"
+        v-if="message.role === 'assistant'"
+        v-show="!message.isStreaming && message.status !== 'sending'"
         class="model-info">
         <!-- 工具欄放在模型信息右側 -->
         <div
@@ -403,46 +459,11 @@
             v-if="message.cost && parseFloat(message.cost) > 0">
             Cost: ${{ parseFloat(message.cost).toFixed(6) }}
           </span> -->
-          <a-tag :color="getModelColor('gemini')">
-            {{ message.model_info.model || "Unknown Model" }}
+          <a-tag :color="getModelColor(message.model_info?.model || 'default')">
+            {{ message.model_info?.model || message.model || "qwen3:8b" }}
           </a-tag>
         </div>
       </div>
-
-      <!-- AI回應工具欄 -->
-      <!-- <div
-        v-if="message.role === 'assistant'"
-        class="ai-message-toolbar">
-        <a-button
-          type="text"
-          size="small"
-          @click="handleCopyMessage"
-          class="toolbar-btn">
-          <template #icon>
-            <CopyOutlined />
-          </template>
-        </a-button>
-
-        <a-button
-          type="text"
-          size="small"
-          @click="handleRegenerateResponse"
-          class="toolbar-btn">
-          <template #icon>
-            <ReloadOutlined />
-          </template>
-        </a-button>
-
-        <a-button
-          type="text"
-          size="small"
-          @click="handleQuoteMessage"
-          class="toolbar-btn">
-          <template #icon>
-            <MessageOutlined />
-          </template>
-        </a-button>
-      </div> -->
     </div>
 
     <!-- 用戶消息和系統消息的工具欄（AI消息工具欄已集成到模型信息中） -->
@@ -527,7 +548,33 @@ import {
   LoadingOutlined,
   ToolOutlined,
   ExclamationCircleOutlined,
+  CheckOutlined,
+  MessageOutlined,
+  // 檔案類型圖標
+  TableOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
+  FilePptOutlined,
+  PictureOutlined,
+  VideoCameraOutlined,
+  AudioOutlined,
+  FileOutlined,
+  // 添加快速建議詞需要的圖示
+  ReadOutlined,
+  AlignLeftOutlined,
+  BarChartOutlined,
+  LineChartOutlined,
+  FileAddOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons-vue";
+
+// 導入自定義檔案圖示組件
+import FileWord from "@/assets/icons/FileWord.vue";
+import FileCSV from "@/assets/icons/FileCSV.vue";
+import FileExcel from "@/assets/icons/FileExcel.vue";
+import FilePowerpoint from "@/assets/icons/FilePowerpoint.vue";
+import FilePDF from "@/assets/icons/FilePDF.vue";
 
 // Props
 const props = defineProps({
@@ -866,7 +913,26 @@ const getSenderName = () => {
         "用戶"
       );
     case "assistant":
-      return props.message.agent_name || "AI助手";
+      // 優先從消息中獲取智能體名稱，然後從當前智能體獲取
+      if (props.message.agent_name) {
+        return props.message.agent_name;
+      }
+
+      // 嘗試從智能體 ID 獲取名稱
+      if (props.message.agent_id) {
+        const agent = agentsStore.getAgentById(props.message.agent_id);
+        if (agent) {
+          return agent.display_name || agent.name;
+        }
+      }
+
+      // 從當前智能體獲取
+      const currentAgent = agentsStore.getCurrentAgent;
+      if (currentAgent) {
+        return currentAgent.display_name || currentAgent.name;
+      }
+
+      return "AI助手";
     case "system":
       return "系統";
     default:
@@ -1229,15 +1295,15 @@ const getFileIcon = (attachment) => {
 
   switch (fileType) {
     case "csv":
-      return TableOutlined;
+      return FileCSV;
     case "excel":
-      return FileExcelOutlined;
+      return FileExcel;
     case "pdf":
-      return FilePdfOutlined;
+      return FilePDF;
     case "word":
-      return FileWordOutlined;
+      return FileWord;
     case "powerpoint":
-      return FilePptOutlined;
+      return FilePowerpoint;
     case "image":
       return PictureOutlined;
     case "video":
@@ -1286,6 +1352,41 @@ const getFileTypeColor = (attachment) => {
 
   return colors[fileType] || "#8c8c8c";
 };
+
+// 檔案處理函數 - PDF
+const handleExtractPdfText = (attachment) => {
+  const text = `請提取這個 PDF 檔案中的所有文字內容：${attachment.filename}`;
+  emit("send-message", text);
+};
+
+const handleSummarizePdf = (attachment) => {
+  const text = `請分析並總結這個 PDF 檔案的主要內容和重點：${attachment.filename}`;
+  emit("send-message", text);
+};
+
+// 檔案處理函數 - Word
+const handleAnalyzeWord = (attachment) => {
+  const text = `請深度分析這個 Word 文檔的結構、內容和重點：${attachment.filename}`;
+  emit("send-message", text);
+};
+
+const handleFormatWord = (attachment) => {
+  const text = `請整理這個 Word 文檔的格式，提供標準化排版建議：${attachment.filename}`;
+  emit("send-message", text);
+};
+
+// 檔案處理函數 - CSV
+const handleAnalyzeCsv = (attachment) => {
+  const text = `請分析這個 CSV 數據檔案，提供統計摘要和洞察：${attachment.filename}`;
+  emit("send-message", text);
+};
+
+const handleGenerateChart = (attachment) => {
+  const text = `請分析這個 CSV 數據並建議適合的圖表類型，提供視覺化方案：${attachment.filename}`;
+  emit("send-message", text);
+};
+
+// 檔案處理函數 - 通用檔案分析 (已有原始函數，這裡不重複)
 </script>
 
 <style scoped>
@@ -1606,7 +1707,16 @@ const getFileTypeColor = (attachment) => {
 .attachment-card {
   display: flex;
   padding: 12px;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.attachment-icon-container {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .attachment-icon {
@@ -1616,11 +1726,21 @@ const getFileTypeColor = (attachment) => {
   width: 48px;
   height: 48px;
   font-size: 24px;
-  margin-right: 12px;
   background-color: var(--color-bg-elevated);
   border-radius: 8px;
   position: relative;
   transition: all 0.3s ease;
+}
+
+.attachment-filename {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .attachment-icon::before {
@@ -2016,44 +2136,31 @@ const getFileTypeColor = (attachment) => {
 .model-info-actions {
   flex: 1;
   opacity: 1;
-  transition: opacity 0.3s ease;
   display: flex;
   gap: 4px;
-  /* background: var(--custom-bg-secondary);
-  border: 1px solid var(--custom-border-primary);
-  border-radius: 6px; */
   padding: 6px;
-  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
 }
 
-.message-bubble:hover .model-info-actions {
-  opacity: 1;
-}
+/* 移除 hover 效果，工具欄直接顯示 */
 
 .token-usage {
   opacity: 0.7;
 }
-/* 
+
 .ai-message-toolbar {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
+  margin-top: 8px;
+  padding: 6px 0;
   display: flex;
   gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 6px;
-  padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(4px);
+  opacity: 1;
+  background: transparent;
+  border: none;
+  justify-content: flex-start;
 }
 
-.ai-message:hover .ai-message-toolbar {
-  opacity: 1;
-} */
+/* 移除 hover 效果，工具欄直接顯示 */
 
-/* .toolbar-btn {
+.toolbar-btn {
   width: 28px !important;
   height: 28px !important;
   padding: 0 !important;
@@ -2063,6 +2170,8 @@ const getFileTypeColor = (attachment) => {
   justify-content: center !important;
   color: var(--custom-text-secondary) !important;
   transition: all 0.2s ease !important;
+  background: transparent !important;
+  border: none !important;
 }
 
 .toolbar-btn:hover {
@@ -2073,7 +2182,7 @@ const getFileTypeColor = (attachment) => {
 
 .toolbar-btn:active {
   transform: scale(0.95);
-} */
+}
 
 .message-status {
   position: absolute;

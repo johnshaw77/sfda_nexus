@@ -1,0 +1,36 @@
+
+WORD 文件處理功能測試說明
+==========================
+
+由於無法程式化創建真實的 DOCX 檔案，請按照以下步驟手動測試：
+
+1. 準備測試檔案：
+   - 建立一個簡單的 DOCX 檔案，包含一些中文內容
+   - 檔案名稱建議：test_sample.docx
+   - 將檔案放在：/Users/johnshaw77/Desktop/@Projects/sfda_nexus/backend/database/scripts/test_sample.docx
+
+2. 測試內容建議：
+   標題：測試文檔
+   
+   這是一個測試 WORD 文檔，用於驗證 SFDA Nexus 系統的文檔處理功能。
+   
+   功能特色：
+   • 支援中文內容提取
+   • 保持文檔結構
+   • 提供詳細統計信息
+   
+   測試段落：
+   本系統使用 mammoth.js 來處理 DOCX 格式的檔案，可以提取純文本和 HTML 格式的內容。
+
+3. 執行測試：
+   node backend/database/scripts/test_word_processing.js
+
+4. 預期結果：
+   - 成功提取文檔內容
+   - 顯示文檔統計信息
+   - 驗證檔案類型檢測功能
+
+注意事項：
+- 只支援 .docx 格式（不支援舊版 .doc 格式）
+- 檔案需要是有效的 WORD 格式
+- 受密碼保護的檔案無法處理

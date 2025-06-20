@@ -928,6 +928,9 @@ onUnmounted(() => {
   min-height: var(--header-height);
 }
 
+.flexium-logo {
+  height:25px;
+}
 .logo-section {
   display: flex;
   align-items: center;

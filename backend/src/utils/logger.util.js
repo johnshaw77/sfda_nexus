@@ -28,7 +28,15 @@ const logFormat = winston.format.combine(
   winston.format.errors({ stack: true }),
   winston.format.json(),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+    // 提取調用來源資訊
+    const { service, version, caller, ...customMeta } = meta;
+    
     let logMessage = `${timestamp} [${level.toUpperCase()}]`;
+    
+    // 如果有調用來源資訊，顯示檔案和函數
+    if (caller) {
+      logMessage += ` [${caller}]`;
+    }
     
     // 如果有堆疊信息（錯誤）
     if (stack) {
@@ -38,8 +46,8 @@ const logFormat = winston.format.combine(
     }
     
     // 如果有額外的元數據
-    if (Object.keys(meta).length > 0) {
-      logMessage += `\nMeta: ${JSON.stringify(meta, null, 2)}`;
+    if (Object.keys(customMeta).length > 0) {
+      logMessage += `\nMeta: ${JSON.stringify(customMeta, null, 2)}`;
     }
     
     return logMessage;
@@ -52,11 +60,29 @@ const consoleFormat = winston.format.combine(
   winston.format.timestamp({
     format: 'HH:mm:ss'
   }),
-  winston.format.printf(({ timestamp, level, message, stack }) => {
-    if (stack) {
-      return `${timestamp} ${level}: ${message}\n${stack}`;
+  winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+    // 提取調用來源資訊
+    const { service, version, caller, ...customMeta } = meta;
+    
+    let logMessage = `${timestamp} ${level}:`;
+    
+    // 如果有調用來源資訊，顯示檔案和函數
+    if (caller) {
+      logMessage += ` [${caller}]`;
     }
-    return `${timestamp} ${level}: ${message}`;
+    
+    logMessage += ` ${message}`;
+    
+    if (stack) {
+      logMessage += `\n${stack}`;
+    }
+    
+    // 如果還有其他 meta 資訊則顯示
+    if (Object.keys(customMeta).length > 0) {
+      logMessage += `\nMeta: ${JSON.stringify(customMeta, null, 2)}`;
+    }
+    
+    return logMessage;
   })
 );
 
@@ -136,6 +162,60 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// 獲取調用來源資訊的輔助函數
+function getCallerInfo() {
+  const stack = new Error().stack;
+  const stackLines = stack.split('\n');
+  
+  // 跳過前3行：Error, getCallerInfo, 和實際調用的 logger 方法
+  for (let i = 3; i < stackLines.length; i++) {
+    const line = stackLines[i];
+    
+    // 尋找第一個不是 node_modules 的調用
+    if (line.includes('file://') && !line.includes('node_modules')) {
+      const match = line.match(/at\s+(.+?)\s+\((.+?):(\d+):\d+\)/);
+      if (match) {
+        const [, functionName, filePath, lineNumber] = match;
+        const fileName = filePath.split('/').pop().replace('file://', '');
+        return `${fileName}:${lineNumber}:${functionName}`;
+      }
+      
+      // 如果沒有函數名（匿名函數或頂層調用）
+      const simpleMatch = line.match(/\((.+?):(\d+):\d+\)/);
+      if (simpleMatch) {
+        const [, filePath, lineNumber] = simpleMatch;
+        const fileName = filePath.split('/').pop().replace('file://', '');
+        return `${fileName}:${lineNumber}`;
+      }
+    }
+  }
+  
+  return 'unknown';
+}
+
+// 創建增強的 logger 方法
+const enhancedLogger = {
+  error: (message, meta = {}) => {
+    logger.error(message, { ...meta, caller: getCallerInfo() });
+  },
+  warn: (message, meta = {}) => {
+    logger.warn(message, { ...meta, caller: getCallerInfo() });
+  },
+  info: (message, meta = {}) => {
+    logger.info(message, { ...meta, caller: getCallerInfo() });
+  },
+  debug: (message, meta = {}) => {
+    logger.debug(message, { ...meta, caller: getCallerInfo() });
+  }
+};
+
+// 複製其他方法
+Object.keys(logger).forEach(key => {
+  if (!enhancedLogger[key] && typeof logger[key] === 'function') {
+    enhancedLogger[key] = logger[key].bind(logger);
+  }
+});
+
 // 擴展日誌方法
 
 /**
@@ -144,7 +224,7 @@ if (process.env.NODE_ENV !== 'production') {
  * @param {Object} res - Express響應對象
  * @param {number} responseTime - 響應時間(ms)
  */
-logger.logRequest = (req, res, responseTime) => {
+enhancedLogger.logRequest = (req, res, responseTime) => {
   const logData = {
     method: req.method,
     url: req.originalUrl,
@@ -157,11 +237,11 @@ logger.logRequest = (req, res, responseTime) => {
   
   // 根據狀態碼選擇日誌級別
   if (res.statusCode >= 500) {
-    logger.error('API請求 - 服務器錯誤', logData);
+    enhancedLogger.error('API請求 - 服務器錯誤', logData);
   } else if (res.statusCode >= 400) {
-    logger.warn('API請求 - 客戶端錯誤', logData);
+    enhancedLogger.warn('API請求 - 客戶端錯誤', logData);
   } else {
-    logger.info('API請求', logData);
+    enhancedLogger.info('API請求', logData);
   }
 };
 
@@ -172,8 +252,8 @@ logger.logRequest = (req, res, responseTime) => {
  * @param {Object} details - 操作詳情
  * @param {string} ip - IP地址
  */
-logger.audit = (userId, action, details = {}, ip = '') => {
-  logger.info('用戶操作審計', {
+enhancedLogger.audit = (userId, action, details = {}, ip = '') => {
+  enhancedLogger.info('用戶操作審計', {
     userId,
     action,
     details,
@@ -189,10 +269,10 @@ logger.audit = (userId, action, details = {}, ip = '') => {
  * @param {Object} details - 事件詳情
  * @param {string} severity - 嚴重程度 (low, medium, high, critical)
  */
-logger.security = (event, details = {}, severity = 'medium') => {
+enhancedLogger.security = (event, details = {}, severity = 'medium') => {
   const logLevel = severity === 'critical' || severity === 'high' ? 'error' : 'warn';
   
-  logger[logLevel]('安全事件', {
+  enhancedLogger[logLevel]('安全事件', {
     event,
     severity,
     details,
@@ -208,8 +288,8 @@ logger.security = (event, details = {}, severity = 'medium') => {
  * @param {Object} usage - 使用統計
  * @param {number} responseTime - 響應時間
  */
-logger.aiUsage = (modelType, modelName, usage = {}, responseTime = 0) => {
-  logger.info('AI模型調用', {
+enhancedLogger.aiUsage = (modelType, modelName, usage = {}, responseTime = 0) => {
+  enhancedLogger.info('AI模型調用', {
     modelType,
     modelName,
     usage,
@@ -226,8 +306,8 @@ logger.aiUsage = (modelType, modelName, usage = {}, responseTime = 0) => {
  * @param {Object} details - 操作詳情
  * @param {number} executionTime - 執行時間
  */
-logger.database = (operation, table, details = {}, executionTime = 0) => {
-  logger.debug('資料庫操作', {
+enhancedLogger.database = (operation, table, details = {}, executionTime = 0) => {
+  enhancedLogger.debug('資料庫操作', {
     operation,
     table,
     details,
@@ -237,4 +317,4 @@ logger.database = (operation, table, details = {}, executionTime = 0) => {
   });
 };
 
-export default logger; 
+export default enhancedLogger; 

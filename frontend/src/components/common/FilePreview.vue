@@ -28,7 +28,9 @@
         <div class="file-name">{{ file.filename }}</div>
         <div class="file-meta">
           <span class="file-size">{{ formatFileSize(file.file_size) }}</span>
-          <span class="file-type">{{ getFileTypeText(file.mime_type) }}</span>
+          <span class="file-type">{{
+            getFileTypeText(file.mime_type, file.filename)
+          }}</span>
         </div>
       </div>
       <div class="file-actions">
@@ -68,6 +70,12 @@ import {
   formatFileSize,
   isImageFile,
 } from "@/api/files.js";
+// 引入自定義圖示組件
+import FileCSV from "@/assets/icons/FileCSV.vue";
+import FilePDF from "@/assets/icons/FilePDF.vue";
+import FileWord from "@/assets/icons/FileWord.vue";
+import FileExcel from "@/assets/icons/FileExcel.vue";
+import FilePowerpoint from "@/assets/icons/FilePowerpoint.vue";
 
 const props = defineProps({
   file: {
@@ -92,63 +100,102 @@ const previewUrl = computed(() => {
   return null;
 });
 
+// 判斷檔案類型的函數
+const isPdfFile = (filename, mimeType) => {
+  return (
+    mimeType === "application/pdf" || filename?.toLowerCase().endsWith(".pdf")
+  );
+};
+
+const isWordFile = (filename, mimeType) => {
+  if (mimeType?.includes("word") || mimeType?.includes("document")) return true;
+  if (!filename) return false;
+  const lowerName = filename.toLowerCase();
+  return lowerName.endsWith(".doc") || lowerName.endsWith(".docx");
+};
+
+const isCsvFile = (filename, mimeType) => {
+  return mimeType === "text/csv" || filename?.toLowerCase().endsWith(".csv");
+};
+
+const isExcelFile = (filename, mimeType) => {
+  if (mimeType?.includes("excel") || mimeType?.includes("sheet")) return true;
+  if (!filename) return false;
+  const lowerName = filename.toLowerCase();
+  return lowerName.endsWith(".xls") || lowerName.endsWith(".xlsx");
+};
+
+const isPowerpointFile = (filename, mimeType) => {
+  if (mimeType?.includes("powerpoint") || mimeType?.includes("presentation")) return true;
+  if (!filename) return false;
+  const lowerName = filename.toLowerCase();
+  return lowerName.endsWith(".ppt") || lowerName.endsWith(".pptx");
+};
+
 const fileIconComponent = computed(() => {
   const mimeType = props.file.mime_type;
+  const filename = props.file.filename;
 
   if (isImageFile(mimeType)) {
-    return FileImageOutlined;
+    return "FileImageOutlined";
   }
 
-  if (mimeType === "application/pdf") {
-    return FilePdfOutlined;
+  // 使用自定義圖示組件
+  if (isPdfFile(filename, mimeType)) {
+    return FilePDF;
   }
 
-  if (mimeType.includes("word") || mimeType.includes("document")) {
-    return FileWordOutlined;
+  if (isWordFile(filename, mimeType)) {
+    return FileWord;
   }
 
-  if (mimeType.includes("excel") || mimeType.includes("sheet")) {
-    return FileExcelOutlined;
+  if (isCsvFile(filename, mimeType)) {
+    return FileCSV;
   }
 
-  if (mimeType.includes("powerpoint") || mimeType.includes("presentation")) {
-    return FilePptOutlined;
+  if (isExcelFile(filename, mimeType)) {
+    return FileExcel;
   }
 
-  if (mimeType.startsWith("text/")) {
-    return FileTextOutlined;
+  if (isPowerpointFile(filename, mimeType)) {
+    return FilePowerpoint;
   }
 
-  if (mimeType.startsWith("audio/")) {
-    return SoundOutlined;
+  if (mimeType?.startsWith("text/")) {
+    return "FileTextOutlined";
   }
 
-  if (mimeType.startsWith("video/")) {
-    return VideoCameraOutlined;
+  if (mimeType?.startsWith("audio/")) {
+    return "SoundOutlined";
+  }
+
+  if (mimeType?.startsWith("video/")) {
+    return "VideoCameraOutlined";
   }
 
   if (
-    mimeType.includes("zip") ||
-    mimeType.includes("rar") ||
-    mimeType.includes("7z")
+    mimeType?.includes("zip") ||
+    mimeType?.includes("rar") ||
+    mimeType?.includes("7z")
   ) {
-    return FileZipOutlined;
+    return "FileZipOutlined";
   }
 
-  return FileOutlined;
+  return "FileOutlined";
 });
 
 // 方法
-const getFileTypeText = (mimeType) => {
-  if (mimeType === "application/pdf") return "PDF";
-  if (mimeType.includes("word")) return "Word";
-  if (mimeType.includes("excel")) return "Excel";
-  if (mimeType.includes("powerpoint")) return "PowerPoint";
-  if (mimeType.startsWith("image/")) return "圖片";
-  if (mimeType.startsWith("text/")) return "文本";
-  if (mimeType.startsWith("audio/")) return "音頻";
-  if (mimeType.startsWith("video/")) return "視頻";
-  if (mimeType.includes("zip")) return "壓縮檔";
+const getFileTypeText = (mimeType, filename) => {
+  if (isPdfFile(filename, mimeType)) return "PDF";
+  if (isWordFile(filename, mimeType)) return "Word";
+  if (isCsvFile(filename, mimeType)) return "CSV";
+  if (isExcelFile(filename, mimeType)) return "Excel";
+  if (isPowerpointFile(filename, mimeType)) return "PowerPoint";
+  if (mimeType?.startsWith("image/")) return "圖片";
+  if (mimeType?.startsWith("text/")) return "文本";
+  if (mimeType?.startsWith("audio/")) return "音頻";
+  if (mimeType?.startsWith("video/")) return "視頻";
+  if (mimeType?.includes("zip")) return "壓縮檔";
   return "檔案";
 };
 

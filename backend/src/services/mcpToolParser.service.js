@@ -567,10 +567,125 @@ class McpToolParser {
   /**
    * 檢查文本是否包含工具調用
    * @param {string} text - 要檢查的文本
+   * @param {Object} context - 額外的上下文信息，如附件
    * @returns {boolean} 是否包含工具調用
    */
-  hasToolCalls(text) {
-    return this.toolCallPatterns.some((pattern) => pattern.test(text));
+  hasToolCalls(text, context = {}) {
+    // 🔧 修復：如果用戶上傳了任何文件，優先檢查是否為純文件分享
+    const hasAttachments =
+      context.attachments && context.attachments.length > 0;
+
+    // 如果有附件，首先假設是文件分享，除非有明確的工具調用意圖
+    if (hasAttachments) {
+      console.log("🔍 檢測到文件上傳，檢查是否為工具調用意圖", {
+        attachmentCount: context.attachments.length,
+        textContent: text.substring(0, 100),
+        textLength: text.length,
+      });
+
+      // 檢查是否有明確的工具調用語法 (get-xxx, list-xxx 等)
+      const hasExplicitToolCall = this.toolCallPatterns.some((pattern) =>
+        pattern.test(text)
+      );
+
+      if (hasExplicitToolCall) {
+        console.log("🔧 檢測到明確的工具調用語法，允許工具調用");
+        return true;
+      }
+
+      // 檢查是否有非常明確的數據查詢意圖
+      const strongQueryPatterns = [
+        /get-mil-list/i,
+        /get-employee/i,
+        /list.*延遲/i,
+        /查詢.*延遲.*天/i,
+        /找出.*超過.*天/i,
+        /延遲天數.*超過/i,
+        /DelayDay.*超過/i,
+        /專案.*延遲.*超過/i,
+      ];
+
+      const hasStrongQueryIntent = strongQueryPatterns.some((pattern) =>
+        pattern.test(text)
+      );
+
+      if (hasStrongQueryIntent) {
+        console.log("🔧 檢測到強烈的數據查詢意圖，允許工具調用");
+        return true;
+      }
+
+      // 檢查是否為純文件分享或分析請求
+      const fileAnalysisPatterns = [
+        /^這是/i,
+        /^上傳/i,
+        /^附件/i,
+        /^文件$/i,
+        /^檔案$/i,
+        /^請看/i,
+        /^請參考/i,
+        /^分享/i,
+        /^給你/i,
+        /請分析.*檔案/i,
+        /請幫我分析/i,
+        /請總結.*檔案/i,
+        /請處理.*檔案/i,
+        /幫我看看/i,
+        /檔案.*內容/i,
+        /文件.*分析/i,
+        /^分析$/i,
+        /^總結$/i,
+        /^處理$/i,
+        // 空白或很短的文本也視為純文件分享
+        /^.{0,10}$/,
+      ];
+
+      const isFileAnalysisRequest = fileAnalysisPatterns.some((pattern) =>
+        pattern.test(text.trim())
+      );
+
+      if (isFileAnalysisRequest) {
+        console.log("🔧 檢測到純文件分析請求，跳過工具調用檢查");
+        return false;
+      }
+
+      // 如果文本很短且沒有明確的查詢關鍵詞，視為文件分享
+      if (text.trim().length < 20) {
+        console.log("🔧 檢測到短文本 + 文件上傳，視為純文件分享");
+        return false;
+      }
+
+      // 最後檢查是否有一般的查詢意圖
+      const generalQueryKeywords = [
+        "查詢",
+        "搜尋",
+        "找出",
+        "列出",
+        "顯示",
+        "統計",
+        "數量",
+        "多少",
+        "有哪些",
+      ];
+
+      const hasGeneralQueryIntent = generalQueryKeywords.some((keyword) =>
+        text.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      if (!hasGeneralQueryIntent) {
+        console.log("🔧 沒有檢測到查詢意圖，跳過工具調用檢查");
+        return false;
+      }
+
+      console.log("🔧 檢測到一般查詢意圖，允許工具調用");
+      return true;
+    }
+
+    // 沒有附件時，檢查是否有明確的工具調用語法
+    const hasExplicitToolCall = this.toolCallPatterns.some((pattern) =>
+      pattern.test(text)
+    );
+
+    return hasExplicitToolCall;
   }
 }
 

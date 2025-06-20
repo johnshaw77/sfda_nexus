@@ -243,6 +243,10 @@ onMounted(async () => {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15) !important;
 }
 
+:deep(.ant-card-body) {
+  height: 150px !important;
+}
+
 /* 卡片封面區域 */
 .card-cover {
   padding: 24px 24px 16px;
