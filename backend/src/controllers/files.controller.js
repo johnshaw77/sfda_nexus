@@ -136,168 +136,57 @@ const upload = multer({
  * @route POST /api/files/upload
  * @access Private
  */
-export const handleUploadFile = catchAsync(async (req, res) => {
+export const handleUploadFile = (req, res, next) => {
   const uploadSingle = upload.single("file");
 
   uploadSingle(req, res, async (err) => {
-    if (err) {
-      if (err instanceof multer.MulterError) {
-        switch (err.code) {
-          case "LIMIT_FILE_SIZE":
-            throw new ValidationError("檔案大小超過限制 (10MB)");
-          case "LIMIT_FILE_COUNT":
-            throw new ValidationError("檔案數量超過限制");
-          case "LIMIT_UNEXPECTED_FILE":
-            throw new ValidationError("不允許的檔案字段");
-          default:
-            throw new ValidationError("檔案上傳失敗");
-        }
-      }
-      throw err;
-    }
-
-    if (!req.file) {
-      throw new ValidationError("請選擇要上傳的檔案");
-    }
-
     try {
-      // 讀取檔案內容計算雜湊值
-      const fileBuffer = await fs.readFile(req.file.path);
-      const fileHash = FileModel.generateFileHash(fileBuffer);
-
-      // 檢查是否已存在相同檔案（去重）
-      const existingFile = await FileModel.getFileByHash(fileHash);
-      if (existingFile) {
-        // 檢查檔案實體是否真的存在
-        try {
-          await fs.access(existingFile.file_path);
-          // 檔案存在，進行去重
-          await fs.unlink(req.file.path);
-
-          logger.info("檔案去重", {
-            user_id: req.user.id,
-            existing_file_id: existingFile.id,
-            duplicate_filename: req.file.originalname,
-          });
-
-          return res.json(
-            createSuccessResponse(existingFile, "檔案已存在，返回現有檔案")
-          );
-        } catch (accessError) {
-          // 檔案記錄存在但實體檔案不存在，刪除孤立記錄
-          logger.warn("發現孤立檔案記錄，將清理", {
-            file_id: existingFile.id,
-            file_path: existingFile.file_path,
-          });
-
-          await FileModel.deleteFile(existingFile.id);
-          // 繼續處理新檔案上傳
+      // 處理 multer 錯誤
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          switch (err.code) {
+            case "LIMIT_FILE_SIZE":
+              return next(new ValidationError("檔案大小超過限制 (10MB)"));
+            case "LIMIT_FILE_COUNT":
+              return next(new ValidationError("檔案數量超過限制"));
+            case "LIMIT_UNEXPECTED_FILE":
+              return next(new ValidationError("不允許的檔案字段"));
+            default:
+              return next(new ValidationError("檔案上傳失敗"));
+          }
         }
+        return next(err);
       }
 
-      // 確定檔案類型
-      let fileType = "attachment";
-      if (req.file.mimetype.startsWith("image/")) {
-        fileType = "image";
-      } else if (
-        req.file.mimetype === "application/pdf" ||
-        req.file.mimetype.includes("document") ||
-        req.file.mimetype.includes("sheet") ||
-        req.file.mimetype.includes("presentation") ||
-        req.file.mimetype.includes("text/") ||
-        req.file.originalname.toLowerCase().endsWith(".pdf")
-      ) {
-        fileType = "document";
+      // 檢查是否有檔案
+      if (!req.file) {
+        return next(new ValidationError("請選擇要上傳的檔案"));
       }
 
-      // 創建檔案記錄
-      const fileData = {
-        user_id: req.user.id,
-        filename: req.file.originalname,
-        stored_filename: req.file.filename,
-        file_path: req.file.path,
-        file_size: req.file.size,
-        mime_type: req.file.mimetype,
-        file_hash: fileHash,
-        file_type: fileType,
-        metadata: {
-          upload_ip: req.ip,
-          user_agent: req.get("User-Agent"),
-        },
-        is_public: req.body.is_public === "true" || false,
-      };
-
-      const newFile = await FileModel.createFile(fileData);
-
-      logger.info("檔案上傳成功", {
-        user_id: req.user.id,
-        file_id: newFile.id,
-        filename: newFile.filename,
-        file_size: newFile.file_size,
-        file_type: newFile.file_type,
-      });
-
-      res.json(createSuccessResponse(newFile, "檔案上傳成功"));
-    } catch (error) {
-      // 如果處理失敗，清理已上傳的檔案
-      if (req.file && req.file.path) {
-        try {
-          await fs.unlink(req.file.path);
-        } catch (unlinkError) {
-          logger.error("清理失敗的上傳檔案時出錯", unlinkError);
-        }
-      }
-      throw error;
-    }
-  });
-});
-
-/**
- * 上傳多個檔案
- * @route POST /api/files/upload-multiple
- * @access Private
- */
-export const handleUploadMultipleFiles = catchAsync(async (req, res) => {
-  const uploadMultiple = upload.array("files", appConfig.upload.maxFiles || 5);
-
-  uploadMultiple(req, res, async (err) => {
-    if (err) {
-      if (err instanceof multer.MulterError) {
-        switch (err.code) {
-          case "LIMIT_FILE_SIZE":
-            throw new ValidationError("檔案大小超過限制 (10MB)");
-          case "LIMIT_FILE_COUNT":
-            throw new ValidationError("檔案數量超過限制");
-          default:
-            throw new ValidationError("檔案上傳失敗");
-        }
-      }
-      throw err;
-    }
-
-    if (!req.files || req.files.length === 0) {
-      throw new ValidationError("請選擇要上傳的檔案");
-    }
-
-    const uploadedFiles = [];
-    const errors = [];
-
-    for (const file of req.files) {
+      // 檔案處理邏輯
       try {
         // 讀取檔案內容計算雜湊值
-        const fileBuffer = await fs.readFile(file.path);
+        const fileBuffer = await fs.readFile(req.file.path);
         const fileHash = FileModel.generateFileHash(fileBuffer);
 
-        // 檢查是否已存在相同檔案
+        // 檢查是否已存在相同檔案（去重）
         const existingFile = await FileModel.getFileByHash(fileHash);
         if (existingFile) {
           // 檢查檔案實體是否真的存在
           try {
             await fs.access(existingFile.file_path);
             // 檔案存在，進行去重
-            await fs.unlink(file.path);
-            uploadedFiles.push(existingFile);
-            continue;
+            await fs.unlink(req.file.path);
+
+            logger.info("檔案去重", {
+              user_id: req.user.id,
+              existing_file_id: existingFile.id,
+              duplicate_filename: req.file.originalname,
+            });
+
+            return res.json(
+              createSuccessResponse(existingFile, "檔案已存在，返回現有檔案")
+            );
           } catch (accessError) {
             // 檔案記錄存在但實體檔案不存在，刪除孤立記錄
             logger.warn("發現孤立檔案記錄，將清理", {
@@ -312,14 +201,15 @@ export const handleUploadMultipleFiles = catchAsync(async (req, res) => {
 
         // 確定檔案類型
         let fileType = "attachment";
-        if (file.mimetype.startsWith("image/")) {
+        if (req.file.mimetype.startsWith("image/")) {
           fileType = "image";
         } else if (
-          file.mimetype.includes("pdf") ||
-          file.mimetype.includes("document") ||
-          file.mimetype.includes("sheet") ||
-          file.mimetype.includes("presentation") ||
-          file.mimetype.includes("text/")
+          req.file.mimetype === "application/pdf" ||
+          req.file.mimetype.includes("document") ||
+          req.file.mimetype.includes("sheet") ||
+          req.file.mimetype.includes("presentation") ||
+          req.file.mimetype.includes("text/") ||
+          req.file.originalname.toLowerCase().endsWith(".pdf")
         ) {
           fileType = "document";
         }
@@ -327,11 +217,11 @@ export const handleUploadMultipleFiles = catchAsync(async (req, res) => {
         // 創建檔案記錄
         const fileData = {
           user_id: req.user.id,
-          filename: file.originalname,
-          stored_filename: file.filename,
-          file_path: file.path,
-          file_size: file.size,
-          mime_type: file.mimetype,
+          filename: req.file.originalname,
+          stored_filename: req.file.filename,
+          file_path: req.file.path,
+          file_size: req.file.size,
+          mime_type: req.file.mimetype,
           file_hash: fileHash,
           file_type: fileType,
           metadata: {
@@ -342,39 +232,190 @@ export const handleUploadMultipleFiles = catchAsync(async (req, res) => {
         };
 
         const newFile = await FileModel.createFile(fileData);
-        uploadedFiles.push(newFile);
-      } catch (error) {
-        errors.push({
-          filename: file.originalname,
-          error: error.message,
+
+        logger.info("檔案上傳成功", {
+          user_id: req.user.id,
+          file_id: newFile.id,
+          filename: newFile.filename,
+          file_size: newFile.file_size,
+          file_type: newFile.file_type,
         });
 
-        // 清理失敗的檔案
+        res.json(createSuccessResponse(newFile, "檔案上傳成功"));
+      } catch (error) {
+        // 如果處理失敗，清理已上傳的檔案
+        if (req.file && req.file.path) {
+          try {
+            await fs.unlink(req.file.path);
+          } catch (unlinkError) {
+            logger.error("清理失敗的上傳檔案時出錯", unlinkError);
+          }
+        }
+        next(error);
+      }
+    } catch (error) {
+      // 捕獲所有意外錯誤
+      logger.error("檔案上傳處理出現意外錯誤", error);
+      next(error);
+    }
+  });
+};
+
+/**
+ * 上傳多個檔案
+ * @route POST /api/files/upload-multiple
+ * @access Private
+ */
+export const handleUploadMultipleFiles = (req, res, next) => {
+  const uploadMultiple = upload.array("files", appConfig.upload.maxFiles || 5);
+
+  uploadMultiple(req, res, async (err) => {
+    try {
+      // 處理 multer 錯誤
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          switch (err.code) {
+            case "LIMIT_FILE_SIZE":
+              return next(new ValidationError("檔案大小超過限制 (10MB)"));
+            case "LIMIT_FILE_COUNT":
+              return next(new ValidationError("檔案數量超過限制"));
+            default:
+              return next(new ValidationError("檔案上傳失敗"));
+          }
+        }
+        return next(err);
+      }
+
+      if (!req.files || req.files.length === 0) {
+        return next(new ValidationError("請選擇要上傳的檔案"));
+      }
+
+      const uploadedFiles = [];
+      const errors = [];
+
+      for (const file of req.files) {
         try {
-          await fs.unlink(file.path);
-        } catch (unlinkError) {
-          logger.error("清理失敗的上傳檔案時出錯", unlinkError);
+          // 讀取檔案內容計算雜湊值
+          const fileBuffer = await fs.readFile(file.path);
+          const fileHash = FileModel.generateFileHash(fileBuffer);
+
+          // 檢查是否已存在相同檔案
+          const existingFile = await FileModel.getFileByHash(fileHash);
+          if (existingFile) {
+            // 檢查檔案實體是否真的存在
+            try {
+              await fs.access(existingFile.file_path);
+              // 檔案存在，進行去重
+              await fs.unlink(file.path);
+              uploadedFiles.push(existingFile);
+              continue;
+            } catch (accessError) {
+              // 檔案記錄存在但實體檔案不存在，刪除孤立記錄
+              logger.warn("發現孤立檔案記錄，將清理", {
+                file_id: existingFile.id,
+                file_path: existingFile.file_path,
+              });
+
+              await FileModel.deleteFile(existingFile.id);
+              // 繼續處理新檔案上傳
+            }
+          }
+
+          // 確定檔案類型
+          let fileType = "attachment";
+          if (file.mimetype.startsWith("image/")) {
+            fileType = "image";
+          } else if (
+            file.mimetype.includes("pdf") ||
+            file.mimetype.includes("document") ||
+            file.mimetype.includes("sheet") ||
+            file.mimetype.includes("presentation") ||
+            file.mimetype.includes("text/")
+          ) {
+            fileType = "document";
+          }
+
+          // 創建檔案記錄
+          const fileData = {
+            user_id: req.user.id,
+            filename: file.originalname,
+            stored_filename: file.filename,
+            file_path: file.path,
+            file_size: file.size,
+            mime_type: file.mimetype,
+            file_hash: fileHash,
+            file_type: fileType,
+            metadata: {
+              upload_ip: req.ip,
+              user_agent: req.get("User-Agent"),
+            },
+            is_public: req.body.is_public === "true" || false,
+          };
+
+          const newFile = await FileModel.createFile(fileData);
+          uploadedFiles.push(newFile);
+
+          logger.info("檔案上傳成功", {
+            user_id: req.user.id,
+            file_id: newFile.id,
+            filename: newFile.filename,
+            file_size: newFile.file_size,
+            file_type: newFile.file_type,
+          });
+        } catch (fileError) {
+          // 記錄個別檔案錯誤，但不中斷整個批次
+          logger.error("處理檔案時出錯", {
+            filename: file.originalname,
+            error: fileError.message,
+          });
+
+          errors.push({
+            filename: file.originalname,
+            error: fileError.message,
+          });
+
+          // 清理失敗的檔案
+          try {
+            await fs.unlink(file.path);
+          } catch (unlinkError) {
+            logger.error("清理失敗的上傳檔案時出錯", unlinkError);
+          }
         }
       }
+
+      // 如果有成功上傳的檔案，返回成功響應，同時包含錯誤信息
+      if (uploadedFiles.length > 0) {
+        const message = errors.length > 0 
+          ? `${uploadedFiles.length} 個檔案上傳成功，${errors.length} 個檔案失敗`
+          : "所有檔案上傳成功";
+
+        res.json(createSuccessResponse(
+          { files: uploadedFiles, errors },
+          message
+        ));
+      } else {
+        // 所有檔案都失敗了
+        return next(new ValidationError("所有檔案上傳失敗", errors));
+      }
+    } catch (error) {
+      // 捕獲所有意外錯誤
+      logger.error("多檔案上傳處理出現意外錯誤", error);
+      
+      // 清理所有已上傳的檔案
+      if (req.files) {
+        for (const file of req.files) {
+          try {
+            await fs.unlink(file.path);
+          } catch (unlinkError) {
+            logger.error("清理失敗的上傳檔案時出錯", unlinkError);
+          }
+        }
+      }
+      
+      next(error);
     }
-
-    logger.info("批量檔案上傳完成", {
-      user_id: req.user.id,
-      success_count: uploadedFiles.length,
-      error_count: errors.length,
-    });
-
-    res.json(
-      createSuccessResponse(
-        {
-          files: uploadedFiles,
-          errors: errors,
-        },
-        `成功上傳 ${uploadedFiles.length} 個檔案`
-      )
-    );
   });
-});
+};
 
 /**
  * 下載檔案
