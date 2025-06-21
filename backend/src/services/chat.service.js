@@ -464,6 +464,7 @@ class ChatService {
       // 檢查是否有成功的工具執行，如果有，需要進行二次 AI 調用
       const hasSuccessfulTools = toolResults.some((result) => result.success);
       let finalResponse;
+      let secondaryAIGenerator = null; // 🔧 新增：二次 AI 調用的流式生成器
       // thinkingContent 已在上面定義，不需要重新宣告
 
       console.log("=== 工具結果檢查 ===");
@@ -487,21 +488,27 @@ class ChatService {
         }
 
         try {
-          // 🔧 修復二次調用提示詞：嚴格禁止技術回應，確保用戶友好
-          const systemPrompt = `你是一個專業的助理，基於工具查詢結果，直接回答用戶的問題。
+          // 🔧 修復二次調用提示詞：專門針對統計分析結果優化
+          const systemPrompt = `你是一個專業的數據分析助理，基於工具執行結果，用自然語言回答用戶的問題。
 
-工具查詢結果：
+工具執行結果：
 ${formattedResults}
 
 重要規則：
-1. 直接回答用戶問題，不要提供SQL語法或技術實現
-2. 用自然語言整理和呈現數據
-3. 如果是列表數據，用清晰的格式展示
-4. 不要解釋如何查詢，只提供最終答案
-5. 保持回應完整，不要中途停止
-6. 如果查詢結果為空或未找到數據，明確說明「目前沒有符合條件的數據」
-7. 不要根據之前的對話記憶編造或假設數據
-8. 基於實際的工具執行結果回答，不要添加不存在的資訊`;
+1. 🔍 **基於實際結果**：上述工具執行結果包含了真實的數據分析，請基於這些結果回答
+2. 📊 **統計結果解讀**：如果是統計分析，請用通俗易懂的語言解釋統計意義
+3. 💡 **實用建議**：提供基於分析結果的實際建議和結論
+4. 🚫 **禁止內容**：
+   - 不要使用 <think>...</think> 標籤
+   - 不要顯示思考過程
+   - 不要提供 SQL 語法或技術實現
+   - 不要說「沒有數據」（除非工具真的失敗了）
+   - 不要編造不存在的資訊
+5. ✅ **正確做法**：
+   - 直接基於工具結果回答
+   - 用自然語言整理和呈現數據
+   - 保持回應完整和專業
+   - 重點解釋統計顯著性的實際意義`;
 
           // 獲取用戶的原始問題
           const userQuestion =
@@ -525,52 +532,92 @@ ${formattedResults}
               role: "user",
               content: `用戶問題：${userQuestion}
 
-請基於上述工具查詢結果，用自然語言直接回答這個問題。記住：不要提供SQL語法或技術實現，只提供用戶需要的最終答案。`,
+請基於上述工具執行結果，用自然語言直接回答這個問題。
+
+🔧 重要提醒：
+- 工具已經成功執行並返回了分析結果
+- 請直接基於這些結果提供回答
+- 不要使用 <think>...</think> 標籤
+- 不要顯示思考過程
+- 直接提供清晰的最終答案`,
             },
           ];
 
           // 獲取模型配置
           const modelConfig = context.model_config || {};
 
-          // 🚀 優化二次 AI 調用：使用更快的設置
-          const secondaryAIResponse = await AIService.callModel({
-            provider: modelConfig.model_type || "ollama",
-            model: modelConfig.model_id || context.model || "qwen3:32b",
-            endpoint_url: context.endpoint_url || modelConfig.endpoint_url,
-            api_key: modelConfig.api_key_encrypted,
-            messages: followUpMessages,
-            temperature: 0.3, // 🚀 降低隨機性，加快生成速度
-            max_tokens: 800, // 🔧 調整為適中數值，確保回應完整
-          });
+          // 🚀 新功能：檢查是否需要流式二次調用
+          const useStreamingSecondaryAI = context.stream === true || context.enableSecondaryStream === true;
 
-          // 處理二次 AI 調用的回應，提取 <think> 標籤內容
-          let cleanedResponse = secondaryAIResponse.content || formattedResults;
+          if (useStreamingSecondaryAI) {
+            console.log("=== 啟用流式二次 AI 調用 ===");
+            
+            // 🔧 使用流式模式進行二次 AI 調用
+            secondaryAIGenerator = await AIService.callModel({
+              provider: modelConfig.model_type || "ollama",
+              model: modelConfig.model_id || context.model || "qwen3:32b",
+              endpoint_url: context.endpoint_url || modelConfig.endpoint_url,
+              api_key: modelConfig.api_key_encrypted,
+              messages: followUpMessages,
+              temperature: 0.3, // 降低隨機性，加快生成速度
+              max_tokens: 800, // 調整為適中數值，確保回應完整
+              stream: true, // 🔧 啟用流式模式
+            });
 
-          // 提取 <think>...</think> 標籤內容（如果二次調用中也有思考內容）
-          const secondaryThinkMatch = cleanedResponse.match(
-            /<think>([\s\S]*?)<\/think>/
-          );
-          if (secondaryThinkMatch) {
-            // 如果二次調用中也有思考內容，合併或替換
-            const secondaryThinking = secondaryThinkMatch[1].trim();
-            thinkingContent = thinkingContent
-              ? `${thinkingContent}\n\n--- 二次思考 ---\n${secondaryThinking}`
-              : secondaryThinking;
-            // 移除 <think>...</think> 標籤及其內容
-            cleanedResponse = cleanedResponse
-              .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
-              .trim();
+            // 返回包含流式生成器的結果
+            return {
+              original_response: aiResponse,
+              has_tool_calls: true,
+              tool_calls: toolCalls,
+              tool_results: toolResults,
+              formatted_results: formattedResults,
+              final_response: null, // 流式模式下不直接提供 final_response
+              secondary_ai_generator: secondaryAIGenerator, // 🔧 提供流式生成器
+              used_secondary_ai: true,
+              thinking_content: thinkingContent,
+              is_streaming_secondary: true, // 🔧 標記為流式二次調用
+            };
+          } else {
+            // 🚀 原有的非流式二次 AI 調用邏輯
+            const secondaryAIResponse = await AIService.callModel({
+              provider: modelConfig.model_type || "ollama",
+              model: modelConfig.model_id || context.model || "qwen3:32b",
+              endpoint_url: context.endpoint_url || modelConfig.endpoint_url,
+              api_key: modelConfig.api_key_encrypted,
+              messages: followUpMessages,
+              temperature: 0.3, // 🚀 降低隨機性，加快生成速度
+              max_tokens: 800, // 🔧 調整為適中數值，確保回應完整
+            });
+
+            // 處理二次 AI 調用的回應，提取 <think> 標籤內容
+            let cleanedResponse = secondaryAIResponse.content || formattedResults;
+
+            // 提取 <think>...</think> 標籤內容（如果二次調用中也有思考內容）
+            const secondaryThinkMatch = cleanedResponse.match(
+              /<think>([\s\S]*?)<\/think>/
+            );
+            if (secondaryThinkMatch) {
+              // 如果二次調用中也有思考內容，合併或替換
+              const secondaryThinking = secondaryThinkMatch[1].trim();
+              thinkingContent = thinkingContent
+                ? `${thinkingContent}\n\n--- 二次思考 ---\n${secondaryThinking}`
+                : secondaryThinking;
+              // 移除 <think>...</think> 標籤及其內容
+              cleanedResponse = cleanedResponse
+                .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+                .trim();
+            }
+
+            finalResponse = cleanedResponse || formattedResults;
+            console.log("=== 二次 AI 調用成功 ===");
+            console.log("原始 AI 回應內容:", secondaryAIResponse.content);
+            console.log("清理後回應內容:", cleanedResponse);
+            console.log(
+              "二次 AI 回應長度:",
+              secondaryAIResponse.content?.length || 0
+            );
+            console.log("最終回應:", finalResponse.substring(0, 200) + "...");
           }
-
-          finalResponse = cleanedResponse || formattedResults;
-          console.log("=== 二次 AI 調用成功 ===");
-          console.log("原始 AI 回應內容:", secondaryAIResponse.content);
-          console.log("清理後回應內容:", cleanedResponse);
-          console.log(
-            "二次 AI 回應長度:",
-            secondaryAIResponse.content?.length || 0
-          );
-          console.log("最終回應:", finalResponse.substring(0, 200) + "...");
         } catch (secondaryError) {
           console.error("二次 AI 調用失敗:", secondaryError.message);
           // 如果二次調用失敗，使用組合回應作為後備
@@ -599,6 +646,8 @@ ${formattedResults}
         final_response: finalResponse,
         used_secondary_ai: hasSuccessfulTools,
         thinking_content: thinkingContent, // 添加思考內容
+        secondary_ai_generator: secondaryAIGenerator, // 🔧 添加流式生成器（如果有）
+        is_streaming_secondary: !!secondaryAIGenerator, // 🔧 標記是否為流式二次調用
       };
       console.log("最終結果:", {
         has_tool_calls: result.has_tool_calls,
@@ -606,6 +655,7 @@ ${formattedResults}
         tool_results_count: result.tool_results?.length || 0,
         final_response_length: result.final_response?.length || 0,
         used_secondary_ai: result.used_secondary_ai,
+        is_streaming_secondary: result.is_streaming_secondary,
       });
 
       return result;

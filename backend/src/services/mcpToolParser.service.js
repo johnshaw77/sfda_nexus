@@ -478,7 +478,12 @@ class McpToolParser {
 
         // 🔧 修復：如果沒有特定格式，嘗試智能格式化
         if (!formattedData) {
-          formattedData = this.formatGeneralData(result.data);
+          // 🆕 檢查是否為統計分析工具
+          if (this.isStatisticalTool(result.tool_name)) {
+            formattedData = this.formatStatisticalData(result.data, result.tool_name);
+          } else {
+            formattedData = this.formatGeneralData(result.data);
+          }
         }
 
         sections.push(
@@ -496,6 +501,209 @@ class McpToolParser {
     }
 
     return sections.join("\n---\n\n");
+  }
+
+  /**
+   * 🆕 檢查是否為統計分析工具
+   * @param {string} toolName - 工具名稱
+   * @returns {boolean} 是否為統計工具
+   */
+  isStatisticalTool(toolName) {
+    const statisticalTools = [
+      'perform_ttest',
+      'perform_anova', 
+      'perform_chisquare',
+      'perform_correlation',
+      'analyze_data',
+      'descriptive_stats'
+    ];
+    return statisticalTools.includes(toolName);
+  }
+
+  /**
+   * 🆕 格式化統計分析結果
+   * @param {any} data - 統計結果數據
+   * @param {string} toolName - 工具名稱
+   * @returns {string} 格式化後的統計報告
+   */
+  formatStatisticalData(data, toolName) {
+    if (!data) return "無統計結果";
+
+    let formatted = "";
+
+    try {
+      // 嘗試從不同路徑提取統計結果
+      let result = data;
+      if (data.data && data.data.result) {
+        result = data.data.result;
+      } else if (data.result) {
+        result = data.result;
+      }
+
+      switch (toolName) {
+        case 'perform_ttest':
+          formatted = this.formatTTestResult(result, data);
+          break;
+        case 'perform_anova':
+          formatted = this.formatANOVAResult(result, data);
+          break;
+        case 'perform_chisquare':
+          formatted = this.formatChiSquareResult(result, data);
+          break;
+        case 'perform_correlation':
+          formatted = this.formatCorrelationResult(result, data);
+          break;
+        default:
+          formatted = this.formatGeneralStatisticalResult(result, data);
+      }
+
+      // 如果格式化失敗，回退到通用格式
+      if (!formatted || formatted === "無統計結果") {
+        formatted = this.formatGeneralData(data);
+      }
+
+    } catch (error) {
+      console.error(`格式化統計結果時發生錯誤 (${toolName}):`, error);
+      formatted = this.formatGeneralData(data);
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化 t 檢定結果
+   * @param {Object} result - t 檢定結果
+   * @param {Object} originalData - 原始數據
+   * @returns {string} 格式化的 t 檢定報告
+   */
+  formatTTestResult(result, originalData) {
+    if (!result) return "無 t 檢定結果";
+
+    let formatted = "## 📊 配對 t 檢定分析結果\n\n";
+
+    // 基本統計量
+    formatted += "### 🔍 統計量\n";
+    if (result.t_statistic !== undefined) {
+      formatted += `- **t 統計量**: ${Number(result.t_statistic).toFixed(4)}\n`;
+    }
+    if (result.degrees_of_freedom !== undefined) {
+      formatted += `- **自由度**: ${result.degrees_of_freedom}\n`;
+    }
+    if (result.p_value !== undefined) {
+      const pValue = Number(result.p_value);
+      formatted += `- **p 值**: ${pValue < 0.001 ? 'p < 0.001' : `p = ${pValue.toFixed(4)}`}\n`;
+    }
+    if (result.alpha !== undefined) {
+      formatted += `- **顯著水準**: α = ${result.alpha}\n`;
+    }
+
+    formatted += "\n";
+
+    // 置信區間
+    if (result.confidence_interval) {
+      formatted += "### 📈 95% 置信區間\n";
+      const ci = result.confidence_interval;
+      formatted += `- **置信區間**: [${Number(ci[0]).toFixed(2)}, ${Number(ci[1]).toFixed(2)}]\n\n`;
+    }
+
+    // 統計決策
+    const isSignificant = result.p_value < (result.alpha || 0.05);
+    formatted += "### 🎯 統計決策\n";
+    formatted += `- **結果**: ${isSignificant ? '**統計顯著** ✅' : '**統計不顯著** ❌'}\n`;
+    if (isSignificant) {
+      formatted += `- **解釋**: 在 α = ${result.alpha || 0.05} 的顯著水準下，拒絕虛無假設\n`;
+      formatted += `- **結論**: 治療前後的血壓存在顯著差異\n`;
+    } else {
+      formatted += `- **解釋**: 在 α = ${result.alpha || 0.05} 的顯著水準下，無法拒絕虛無假設\n`;
+      formatted += `- **結論**: 治療前後的血壓沒有顯著差異\n`;
+    }
+
+    formatted += "\n";
+
+    // 效果量
+    if (result.effect_size !== undefined) {
+      formatted += "### 📏 效果量\n";
+      formatted += `- **Cohen's d**: ${Number(result.effect_size).toFixed(3)}\n\n`;
+    }
+
+    // 樣本信息
+    if (result.sample_size !== undefined) {
+      formatted += "### 👥 樣本信息\n";
+      formatted += `- **樣本數量**: ${result.sample_size} 對\n`;
+    }
+
+    // 原始數據摘要（如果有）
+    if (originalData.user_friendly_report) {
+      formatted += "\n### 💡 詳細報告\n";
+      formatted += originalData.user_friendly_report + "\n";
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化通用統計結果
+   * @param {Object} result - 統計結果
+   * @param {Object} originalData - 原始數據
+   * @returns {string} 格式化的統計報告
+   */
+  formatGeneralStatisticalResult(result, originalData) {
+    if (!result) return "無統計結果";
+
+    let formatted = "## 📊 統計分析結果\n\n";
+
+    // 檢查常見的統計量
+    const commonStats = [
+      { key: 'statistic', label: '統計量' },
+      { key: 't_statistic', label: 't 統計量' },
+      { key: 'f_statistic', label: 'F 統計量' },
+      { key: 'chi2_statistic', label: 'χ² 統計量' },
+      { key: 'p_value', label: 'p 值' },
+      { key: 'degrees_of_freedom', label: '自由度' },
+      { key: 'df', label: '自由度' },
+      { key: 'alpha', label: '顯著水準' },
+      { key: 'confidence_interval', label: '置信區間' },
+      { key: 'effect_size', label: '效果量' },
+      { key: 'sample_size', label: '樣本數量' }
+    ];
+
+    let hasStats = false;
+    for (const stat of commonStats) {
+      if (result[stat.key] !== undefined) {
+        if (!hasStats) {
+          formatted += "### 🔍 主要統計量\n";
+          hasStats = true;
+        }
+        
+        let value = result[stat.key];
+        if (stat.key === 'p_value' && typeof value === 'number') {
+          value = value < 0.001 ? 'p < 0.001' : `p = ${value.toFixed(4)}`;
+        } else if (typeof value === 'number') {
+          value = value.toFixed(4);
+        } else if (Array.isArray(value)) {
+          value = `[${value.map(v => Number(v).toFixed(2)).join(', ')}]`;
+        }
+        
+        formatted += `- **${stat.label}**: ${value}\n`;
+      }
+    }
+
+    if (hasStats) {
+      formatted += "\n";
+    }
+
+    // 添加用戶友好報告（如果有）
+    if (originalData.user_friendly_report) {
+      formatted += "### 💡 分析報告\n";
+      formatted += originalData.user_friendly_report + "\n\n";
+    }
+
+    // 如果沒有找到統計量，使用通用格式
+    if (!hasStats && !originalData.user_friendly_report) {
+      return this.formatGeneralData(result);
+    }
+
+    return formatted;
   }
 
   /**

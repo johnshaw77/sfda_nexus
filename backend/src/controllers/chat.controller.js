@@ -7,7 +7,6 @@ import ConversationModel from "../models/Conversation.model.js";
 import MessageModel from "../models/Message.model.js";
 import AIService from "../services/ai.service.js";
 import chatService from "../services/chat.service.js";
-import AttachmentService from "../services/attachment.service.js";
 import MessageFormattingService from "../services/messageFormatting.service.js";
 import { query } from "../config/database.config.js";
 import {
@@ -415,11 +414,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     }
 
     // 獲取模型配置
-    const modelQuery = model_id
-      ? "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE"
-      : "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE";
-
-    const modelParams = model_id ? [model_id] : [conversation.model_id];
+    const modelQuery = "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE";
+    const modelParams = [model_id || conversation.model_id];
     const { rows: modelRows } = await query(modelQuery, modelParams);
 
     if (modelRows.length === 0) {
@@ -648,6 +644,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               endpoint_url: model.endpoint_url,
               user_question: content,
               original_question: content,
+              stream: true, // 🔧 啟用流式二次 AI 調用
+              enableSecondaryStream: true, // 🔧 明確啟用二次流式調用
               onSecondaryAIStart: () => {
                 if (isClientConnected) {
                   sendSSE("secondary_ai_start", {
@@ -676,7 +674,96 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           const chatResult = await toolCallPromise;
           clearInterval(heartbeatInterval);
 
-          finalContent = chatResult.final_response || chunk.full_content;
+          // 🔧 檢查是否有流式二次 AI 調用
+          if (chatResult.is_streaming_secondary && chatResult.secondary_ai_generator) {
+            console.log("=== 開始處理流式二次 AI 調用 ===");
+            
+            if (isClientConnected) {
+              sendSSE("secondary_ai_stream_start", {
+                assistant_message_id: assistantMessageId,
+                message: "開始流式生成回應...",
+                conversation_id: conversationId,
+              });
+            }
+
+            let secondaryContent = "";
+            let secondaryFullContent = "";
+
+            try {
+              // 處理二次 AI 調用的流式輸出
+              for await (const secondaryChunk of chatResult.secondary_ai_generator) {
+                if (!isClientConnected) {
+                  console.log("客戶端已斷開，停止二次 AI 流式處理");
+                  break;
+                }
+
+                // 🔧 修復：二次 AI 調用期間不處理思考內容，只處理主要回答內容
+                // 移除思考內容處理邏輯，避免重複顯示
+
+                // 處理主要內容
+                if (secondaryChunk.type === "content" || secondaryChunk.content) {
+                  secondaryContent = secondaryChunk.content || secondaryChunk.full_content || secondaryContent;
+                  secondaryFullContent = secondaryChunk.full_content || secondaryContent;
+
+                  const sent = sendSSE("stream_content", {
+                    content: secondaryContent,
+                    full_content: secondaryFullContent,
+                    thinking_content: finalThinkingContent, // 🔧 使用已有的思考內容，不更新
+                    tokens_used: secondaryChunk.tokens_used,
+                    assistant_message_id: assistantMessageId,
+                  });
+
+                  if (!sent) {
+                    console.log("二次 AI 內容 SSE 發送失敗，停止處理");
+                    break;
+                  }
+
+                  // 實時更新資料庫中的消息內容
+                  if (assistantMessageId) {
+                    await MessageModel.update(assistantMessageId, {
+                      content: secondaryFullContent,
+                      tokens_used: secondaryChunk.tokens_used,
+                    });
+                  }
+                }
+
+                // 處理完成事件
+                if (secondaryChunk.type === "done") {
+                  finalContent = secondaryChunk.full_content || secondaryFullContent;
+                  
+                  if (isClientConnected) {
+                    sendSSE("secondary_ai_stream_done", {
+                      assistant_message_id: assistantMessageId,
+                      full_content: finalContent,
+                      tokens_used: secondaryChunk.tokens_used,
+                      conversation_id: conversationId,
+                    });
+                  }
+                  break;
+                }
+              }
+
+              // 使用流式生成的內容作為最終內容
+              finalContent = secondaryFullContent || chatResult.final_response || chunk.full_content;
+
+            } catch (secondaryStreamError) {
+              console.error("二次 AI 流式調用失敗:", secondaryStreamError.message);
+              
+              if (isClientConnected) {
+                sendSSE("secondary_ai_stream_error", {
+                  assistant_message_id: assistantMessageId,
+                  error: `二次 AI 流式調用失敗: ${secondaryStreamError.message}`,
+                  conversation_id: conversationId,
+                });
+              }
+
+              // 回退到非流式結果
+              finalContent = chatResult.final_response || chunk.full_content;
+            }
+          } else {
+            // 原有的非流式邏輯
+            finalContent = chatResult.final_response || chunk.full_content;
+          }
 
           if (!finalThinkingContent && chatResult.thinking_content) {
             finalThinkingContent = chatResult.thinking_content;
@@ -690,6 +777,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               used_secondary_ai: chatResult.used_secondary_ai || false,
               original_response: chatResult.original_response,
               thinking_content: finalThinkingContent,
+              is_streaming_secondary: chatResult.is_streaming_secondary || false, // 🔧 添加流式標記
             };
 
             if (isClientConnected) {
@@ -699,6 +787,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 tool_results: toolCallMetadata.tool_results,
                 has_tool_calls: toolCallMetadata.has_tool_calls,
                 thinking_content: finalThinkingContent,
+                is_streaming_secondary: toolCallMetadata.is_streaming_secondary, // 🔧 傳遞流式標記
                 conversation_id: conversationId,
               });
             }

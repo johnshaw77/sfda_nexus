@@ -1285,19 +1285,91 @@ export const useChatStore = defineStore("chat", () => {
         break;
 
       case "secondary_ai_start":
-        // 🚀 新增：二次 AI 調用開始事件
+        // 二次 AI 調用開始
         console.log("二次 AI 調用開始:", data);
 
-        // 更新對應消息的狀態，顯示正在優化回應
-        const secondaryStartMessageIndex = messages.value.findIndex(
+        // 查找對應的消息並設置優化狀態
+        const optimizingMessageIndex = messages.value.findIndex(
           (msg) => msg.id === data.assistant_message_id
         );
 
-        if (secondaryStartMessageIndex !== -1) {
-          messages.value[secondaryStartMessageIndex].isOptimizing = true;
-          messages.value[secondaryStartMessageIndex].optimizingMessage =
-            data.message;
+        if (optimizingMessageIndex !== -1) {
+          messages.value[optimizingMessageIndex].isOptimizing = true;
+          messages.value[optimizingMessageIndex].optimizingMessage =
+            data.message || "正在優化回應內容...";
         }
+        break;
+
+      case "secondary_ai_stream_start":
+        // 🔧 新增：二次 AI 流式調用開始
+        console.log("二次 AI 流式調用開始:", data);
+
+        const streamStartMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (streamStartMessageIndex !== -1) {
+          messages.value[streamStartMessageIndex].isOptimizing = true;
+          messages.value[streamStartMessageIndex].optimizingMessage =
+            data.message || "開始流式生成回應...";
+          messages.value[streamStartMessageIndex].isStreamingSecondary = true; // 🔧 標記為流式二次調用
+        }
+        break;
+
+      case "secondary_ai_stream_done":
+        // 🔧 新增：二次 AI 流式調用完成
+        console.log("二次 AI 流式調用完成:", data);
+
+        const streamDoneMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (streamDoneMessageIndex !== -1) {
+          // 清除優化和流式狀態
+          messages.value[streamDoneMessageIndex].isOptimizing = false;
+          messages.value[streamDoneMessageIndex].optimizingMessage = null;
+          messages.value[streamDoneMessageIndex].isStreamingSecondary = false;
+          
+          // 確保最終內容完整顯示
+          if (data.full_content) {
+            const finalConvertedContent =
+              isTextConverterEnabled.value && textConverter.isAvailable()
+                ? textConverter.convertStreamThinkingContent(
+                    data.full_content,
+                    textConversionMode.value
+                  )
+                : data.full_content;
+
+            messages.value[streamDoneMessageIndex].content = finalConvertedContent;
+          }
+
+          // 更新 tokens
+          if (data.tokens_used) {
+            messages.value[streamDoneMessageIndex].tokens_used = data.tokens_used;
+          }
+        }
+        break;
+
+      case "secondary_ai_stream_error":
+        // 🔧 新增：二次 AI 流式調用錯誤
+        console.error("二次 AI 流式調用錯誤:", data);
+
+        const streamErrorMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (streamErrorMessageIndex !== -1) {
+          // 清除優化和流式狀態
+          messages.value[streamErrorMessageIndex].isOptimizing = false;
+          messages.value[streamErrorMessageIndex].optimizingMessage = null;
+          messages.value[streamErrorMessageIndex].isStreamingSecondary = false;
+          
+          // 顯示錯誤信息
+          messages.value[streamErrorMessageIndex].streamError = data.error;
+        }
+
+        // 顯示錯誤提示
+        message.error(`二次 AI 調用失敗: ${data.error}`);
         break;
 
       case "conversation_updated":

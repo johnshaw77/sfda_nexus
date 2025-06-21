@@ -213,6 +213,73 @@
         <span>{{ message.toolProcessingError }}</span>
       </div>
 
+      <!-- 🔧 附件顯示移到內容上方 -->
+      <!-- 圖片縮圖顯示（僅用戶訊息） -->
+      <div
+        v-if="message.role === 'user' && imageAttachments.length > 0"
+        class="message-image-thumbnails">
+        <div
+          v-for="attachment in imageAttachments"
+          :key="attachment.id"
+          class="image-thumbnail-item"
+          @click="handleViewAttachment(attachment)">
+          <img
+            :src="getImageSrc(attachment.id)"
+            :alt="attachment.filename || attachment.name"
+            class="thumbnail-image"
+            @error="handleImageError" />
+          <div class="image-overlay">
+            <div class="image-filename">
+              {{ attachment.filename || attachment.name }}
+            </div>
+            <div class="zoom-icon">
+              <EyeOutlined />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 非圖片附件列表或AI消息的所有附件 -->
+      <div
+        v-if="
+          message.attachments &&
+          (message.role === 'assistant' || nonImageAttachments.length > 0)
+        "
+        class="message-attachments">
+        <div
+          v-for="attachment in message.role === 'assistant'
+            ? message.attachments
+            : nonImageAttachments"
+          :key="attachment.id"
+          class="attachment-item">
+          <div class="attachment-card">
+            <div class="attachment-icon-container">
+            <div class="attachment-icon">
+              <component
+                :is="getFileIcon(attachment)"
+                :style="{ color: getFileTypeColor(attachment) }" />
+            </div>
+             
+            </div>
+            <div class="attachment-info">
+             <div class="attachment-filename">
+                {{ attachment.filename || attachment.name }}
+              </div>
+              <div class="attachment-meta">
+              
+                <span class="attachment-size">
+                  {{ getFileTypeLabel(attachment) }}
+                  {{ formatFileSize(attachment.file_size || attachment.size) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 🔧 移除用戶訊息的快速命令按鈕，減少視覺干擾 -->
+          <!-- 檔案操作按鈕已隱藏，不再顯示快速命令 -->
+        </div>
+      </div>
+
       <!-- 主要內容 -->
       <div class="message-text">
         <!-- AI 消息 - 錯誤訊息使用純文本顯示 -->
@@ -270,137 +337,6 @@
             </template>
             {{ isUserMessageCollapsed ? "展開" : "收起" }}
           </a-button>
-        </div>
-      </div>
-
-      <!-- 圖片縮圖顯示（僅用戶訊息） -->
-      <div
-        v-if="message.role === 'user' && imageAttachments.length > 0"
-        class="message-image-thumbnails">
-        <div
-          v-for="attachment in imageAttachments"
-          :key="attachment.id"
-          class="image-thumbnail-item"
-          @click="handleViewAttachment(attachment)">
-          <img
-            :src="getImageSrc(attachment.id)"
-            :alt="attachment.filename || attachment.name"
-            class="thumbnail-image"
-            @error="handleImageError" />
-          <div class="image-overlay">
-            <div class="image-filename">
-              {{ attachment.filename || attachment.name }}
-            </div>
-            <div class="zoom-icon">
-              <EyeOutlined />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 非圖片附件列表或AI消息的所有附件 -->
-      <div
-        v-if="
-          message.attachments &&
-          (message.role === 'assistant' || nonImageAttachments.length > 0)
-        "
-        class="message-attachments">
-        <div
-          v-for="attachment in message.role === 'assistant'
-            ? message.attachments
-            : nonImageAttachments"
-          :key="attachment.id"
-          class="attachment-item"
-          @click="handleViewAttachment(attachment)">
-          <div class="attachment-card">
-            <div class="attachment-icon-container">
-            <div class="attachment-icon">
-              <component
-                :is="getFileIcon(attachment)"
-                :style="{ color: getFileTypeColor(attachment) }" />
-            </div>
-              <div class="attachment-filename">
-                {{ attachment.filename || attachment.name }}
-              </div>
-            </div>
-            <div class="attachment-info">
-              <div class="attachment-meta">
-                <span class="attachment-size">
-                  {{ getFileTypeLabel(attachment) }}
-                  {{ formatFileSize(attachment.file_size || attachment.size) }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 檔案操作按鈕 -->
-          <div
-            v-if="message.role === 'user'"
-            class="attachment-actions">
-            <!-- PDF 檔案專用建議詞 -->
-            <template v-if="getFileType(attachment) === 'pdf'">
-              <a-button
-                class="action-button"
-                @click.stop="handleExtractPdfText(attachment)">
-                <FileTextOutlined />
-                提取文字
-              </a-button>
-              <a-button
-                class="action-button"
-                @click.stop="handleSummarizePdf(attachment)">
-                <ReadOutlined />
-                文件摘要
-              </a-button>
-            </template>
-
-            <!-- Word 檔案專用建議詞 -->
-            <template v-else-if="getFileType(attachment) === 'word'">
-              <a-button
-                class="action-button"
-                @click.stop="handleAnalyzeDocument(attachment)">
-                <EditOutlined />
-                文檔分析
-              </a-button>
-              <a-button
-                class="action-button"
-                @click.stop="handleFormatDocument(attachment)">
-                <AlignLeftOutlined />
-                格式整理
-              </a-button>
-            </template>
-
-            <!-- CSV 檔案專用建議詞 -->
-            <template v-else-if="getFileType(attachment) === 'csv'">
-              <a-button
-                class="action-button"
-                @click.stop="handleAnalyzeCsvData(attachment)">
-                <BarChartOutlined />
-                數據分析
-              </a-button>
-              <a-button
-                class="action-button"
-                @click.stop="handleGenerateChart(attachment)">
-                <LineChartOutlined />
-                生成圖表
-              </a-button>
-            </template>
-
-            <!-- 通用文檔建議詞 -->
-            <template v-else>
-            <a-button
-              class="action-button"
-              @click.stop="handleSummarizeFile(attachment)">
-              <FileTextOutlined />
-                關鍵要點
-            </a-button>
-            <a-button
-              class="action-button"
-              @click.stop="handleGenerateDocument(attachment)">
-              <FileAddOutlined />
-              生成文件
-            </a-button>
-            </template>
-          </div>
         </div>
       </div>
 
@@ -1702,6 +1638,7 @@ const handleGenerateChart = (attachment) => {
   border: 1px solid var(--color-border);
   width: 100%;
   max-width: 320px;
+  margin-bottom: 10px;
 }
 
 .attachment-card {
@@ -1733,14 +1670,15 @@ const handleGenerateChart = (attachment) => {
 }
 
 .attachment-filename {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--color-text-secondary);
-  text-align: center;
-  max-width: 80px;
+  text-align: left;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.2;
+  margin-bottom: 10px;
 }
 
 .attachment-icon::before {
@@ -1796,34 +1734,7 @@ const handleGenerateChart = (attachment) => {
   flex-shrink: 0;
 }
 
-.attachment-actions {
-  display: flex;
-  border-top: 1px solid var(--color-border);
-}
-
-.action-button {
-  flex: 1;
-  border: none;
-  border-radius: 0;
-  background-color: transparent;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-}
-
-.action-button:first-child {
-  border-right: 1px solid var(--color-border);
-}
-
-.action-button:hover {
-  background-color: var(--color-bg-elevated);
-}
-
-.action-button .anticon {
-  margin-right: 4px;
-}
+/* 🔧 移除快速命令相關樣式，簡化附件顯示 */
 
 /* 暗色模式調整 */
 :root[data-theme="dark"] .attachment-item {
@@ -1835,9 +1746,7 @@ const handleGenerateChart = (attachment) => {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-:root[data-theme="dark"] .action-button:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
+/* 🔧 移除快速命令暗色模式樣式 */
 
 /* 圖片縮圖樣式 */
 .message-image-thumbnails {
