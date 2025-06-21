@@ -779,27 +779,92 @@ class McpToolParser {
    * @returns {boolean} 是否包含工具調用
    */
   hasToolCalls(text, context = {}) {
-    // 🔧 修復：如果用戶上傳了任何文件，優先檢查是否為純文件分享
-    const hasAttachments =
-      context.attachments && context.attachments.length > 0;
-
-    // 如果有附件，首先假設是文件分享，除非有明確的工具調用意圖
+    // 🚨 新增：如果有文件上傳，強制阻止工具調用檢測
+    const hasAttachments = context.attachments && context.attachments.length > 0;
+    
     if (hasAttachments) {
-      console.log("🔍 檢測到文件上傳，檢查是否為工具調用意圖", {
-        attachmentCount: context.attachments.length,
-        textContent: text.substring(0, 100),
-        textLength: text.length,
-      });
-
-      // 檢查是否有明確的工具調用語法 (get-xxx, list-xxx 等)
-      const hasExplicitToolCall = this.toolCallPatterns.some((pattern) =>
+      // 檢查是否為CSV/Excel等數據分析請求
+      const dataAnalysisPatterns = [
+        /分析.*csv/i,
+        /分析.*excel/i,
+        /分析.*數據/i,
+        /分析.*檔案/i,
+        /統計.*摘要/i,
+        /數據.*洞察/i,
+        /請分析/i,
+        /幫我分析/i,
+        /分析這個/i,
+        /提供.*統計/i,
+        /統計.*分析/i,
+      ];
+      
+      const isDataAnalysisRequest = dataAnalysisPatterns.some(pattern => 
         pattern.test(text)
       );
-
-      if (hasExplicitToolCall) {
-        console.log("🔧 檢測到明確的工具調用語法，允許工具調用");
-        return true;
+      
+      if (isDataAnalysisRequest) {
+        console.log("🚨 檢測到文件上傳 + 數據分析請求，強制阻止工具調用");
+        return false;
       }
+    }
+
+    // 🔧 快速檢查：如果文本包含明確的工具調用語法，直接返回 true
+    const hasExplicitToolCall = this.toolCallPatterns.some((pattern) =>
+      pattern.test(text)
+    );
+
+    if (hasExplicitToolCall) {
+      // 🚨 即使有明確語法，如果是文件分析請求也要阻止
+      if (hasAttachments) {
+        console.log("🚨 雖然有工具調用語法，但檢測到文件上傳，阻止工具調用");
+        return false;
+      }
+      console.log("🔧 檢測到明確的工具調用語法");
+      return true;
+    }
+
+    // 🔧 快速檢查：如果是純理論問題或一般性問題，直接返回 false
+    const theoreticalPatterns = [
+      /什麼是/i,
+      /如何.*管理/i,
+      /專案管理.*方法/i,
+      /.*的優點/i,
+      /.*的缺點/i,
+      /.*的特點/i,
+      /.*的原則/i,
+      /.*的流程/i,
+      /.*的步驟/i,
+      /建議.*做法/i,
+      /推薦.*方式/i,
+      /.*最佳實踐/i,
+      /.*best practice/i,
+      /如何提升/i,
+      /如何改善/i,
+      /如何優化/i,
+      /請解釋/i,
+      /請說明/i,
+      /請介紹/i,
+      /告訴我.*關於/i,
+      /.*的定義/i,
+      /.*的概念/i,
+      /.*的理論/i,
+      /.*的框架/i,
+      /.*的模型/i,
+    ];
+
+    const isTheoreticalQuestion = theoreticalPatterns.some((pattern) =>
+      pattern.test(text)
+    );
+
+    if (isTheoreticalQuestion) {
+      console.log("🔧 檢測到理論性問題，無需工具調用");
+      return false;
+    }
+
+    // 🔧 檢查是否有文件上傳（已在上面宣告過）
+
+    if (hasAttachments) {
+      console.log("🔍 檢測到文件上傳，檢查是否為工具調用意圖");
 
       // 檢查是否有非常明確的數據查詢意圖
       const strongQueryPatterns = [
@@ -862,7 +927,7 @@ class McpToolParser {
         return false;
       }
 
-      // 最後檢查是否有一般的查詢意圖
+      // 檢查是否有一般的查詢意圖
       const generalQueryKeywords = [
         "查詢",
         "搜尋",
@@ -888,12 +953,34 @@ class McpToolParser {
       return true;
     }
 
-    // 沒有附件時，檢查是否有明確的工具調用語法
-    const hasExplicitToolCall = this.toolCallPatterns.some((pattern) =>
-      pattern.test(text)
+    // 🔧 無附件時，快速檢查是否有數據查詢意圖
+    const dataQueryKeywords = [
+      "查詢",
+      "搜尋",
+      "找出",
+      "列出",
+      "顯示",
+      "統計",
+      "數量",
+      "多少",
+      "有哪些",
+      "get-",
+      "list-",
+      "show-",
+      "find-",
+    ];
+
+    const hasDataQueryIntent = dataQueryKeywords.some((keyword) =>
+      text.toLowerCase().includes(keyword.toLowerCase())
     );
 
-    return hasExplicitToolCall;
+    if (!hasDataQueryIntent) {
+      console.log("🔧 無數據查詢意圖，跳過工具調用檢查");
+      return false;
+    }
+
+    console.log("🔧 檢測到可能的數據查詢意圖");
+    return false; // 🔧 保守策略：除非有明確的工具調用語法，否則不調用工具
   }
 }
 

@@ -214,12 +214,19 @@ watch(
 // 監聽智能體變化
 watch(
   () => props.agentId,
-  (newAgentId) => {
+  (newAgentId, oldAgentId) => {
     if (newAgentId && selectedAgent.value) {
       console.log(
         "切換到智能體:",
         selectedAgent.value.display_name || selectedAgent.value.name
       );
+      
+      // 如果是切換到不同的智能體，清除當前對話狀態，準備新對話
+      if (oldAgentId && oldAgentId !== newAgentId) {
+        console.log("🔄 切換智能體，清除當前對話狀態");
+        chatStore.handleClearCurrentConversation();
+      }
+      
       // 設置當前智能體到 store
       agentsStore.setCurrentAgent(selectedAgent.value);
     }

@@ -146,15 +146,20 @@ import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { useAgentsStore } from "@/stores/agents";
+import { useChatStore } from "@/stores/chat";
 
 const router = useRouter();
 const agentsStore = useAgentsStore();
+const chatStore = useChatStore();
 
 // 計算屬性
 const agents = computed(() => agentsStore.availableAgents);
 
 // 方法
 const handleSelectAgent = (agent) => {
+  // 先清除當前對話狀態，確保開始新對話
+  chatStore.handleClearCurrentConversation();
+  
   agentsStore.setCurrentAgent(agent);
   router.push({
     name: "ChatWithAgent",

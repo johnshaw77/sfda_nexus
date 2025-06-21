@@ -18,6 +18,7 @@ import {
 import logger from "../utils/logger.util.js";
 import Joi from "joi";
 import { sendToUser } from "../websocket/index.js";
+import mcpToolParser from "../services/mcpToolParser.service.js";
 
 // 輸入驗證模式
 const schemas = {
@@ -626,7 +627,16 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
         };
 
         try {
-          if (isClientConnected) {
+          // 🔧 先進行快速工具調用檢測，避免不必要的處理提示
+          const hasToolCallsQuickCheck = mcpToolParser.hasToolCalls(chunk.full_content, {
+            user_id: user.id,
+            conversation_id: conversationId,
+            user_question: content,
+            original_question: content,
+          });
+
+          // 🔧 只有真正需要工具調用時才顯示處理訊息
+          if (hasToolCallsQuickCheck && isClientConnected) {
             sendSSE("tool_processing_start", {
               assistant_message_id: assistantMessageId,
               message: "正在檢查並處理工具調用...",
@@ -658,21 +668,29 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
             }
           );
 
-          const heartbeatInterval = setInterval(() => {
-            if (isClientConnected) {
-              sendSSE("tool_processing_heartbeat", {
-                assistant_message_id: assistantMessageId,
-                message: "工具處理中，請稍候...",
-                timestamp: Date.now(),
-                conversation_id: conversationId,
-              });
-            } else {
-              clearInterval(heartbeatInterval);
-            }
-          }, 3000);
+          // 🔧 只有真正有工具調用時才設置心跳
+          let heartbeatInterval = null;
+          if (hasToolCallsQuickCheck) {
+            heartbeatInterval = setInterval(() => {
+              if (isClientConnected) {
+                sendSSE("tool_processing_heartbeat", {
+                  assistant_message_id: assistantMessageId,
+                  message: "工具處理中，請稍候...",
+                  timestamp: Date.now(),
+                  conversation_id: conversationId,
+                });
+              } else {
+                clearInterval(heartbeatInterval);
+              }
+            }, 3000);
+          }
 
           const chatResult = await toolCallPromise;
-          clearInterval(heartbeatInterval);
+          
+          // 🔧 清理心跳間隔
+          if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+          }
 
           // 🔧 檢查是否有流式二次 AI 調用
           if (chatResult.is_streaming_secondary && chatResult.secondary_ai_generator) {

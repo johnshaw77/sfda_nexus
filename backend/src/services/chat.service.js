@@ -50,7 +50,7 @@ class ChatService {
       const toolsByService = this.groupToolsByService(enabledTools);
 
       // 生成工具相關的系統提示詞
-      const toolPrompt = this.generateToolPrompt(toolsByService);
+      const toolPrompt = await this.generateToolPrompt(toolsByService);
 
       // 更新快取
       this.systemPromptCache = toolPrompt;
@@ -118,9 +118,9 @@ class ChatService {
   /**
    * 生成工具相關的系統提示詞
    * @param {Object} toolsByService - 按服務分組的工具
-   * @returns {string} 工具提示詞
+   * @returns {Promise<string>} 工具提示詞
    */
-  generateToolPrompt(toolsByService) {
+  async generateToolPrompt(toolsByService) {
     const sections = [];
 
     sections.push("## 🛠️ 可用工具系統");
@@ -167,113 +167,33 @@ class ChatService {
       }
     }
 
-    // 添加使用說明
-    sections.push("## 📝 工具調用格式");
-    sections.push("");
-    sections.push(
-      "**重要**: 當用戶需要特定功能時，您必須直接調用相應的工具，不要只是解釋如何使用。"
-    );
-    sections.push("");
-    sections.push("**工具調用的正確方式**：");
-    sections.push("");
-    sections.push("### 1. JSON 格式（推薦）");
-    sections.push("```json");
-    sections.push(`{`);
-    sections.push(`  "tool": "工具名稱",`);
-    sections.push(`  "parameters": {`);
-    sections.push(`    "參數1": "值1",`);
-    sections.push(`    "參數2": "值2"`);
-    sections.push(`  }`);
-    sections.push(`}`);
-    sections.push("```");
-    sections.push("");
-
-    sections.push("**MIL 工具調用範例**：");
-    sections.push("```json");
-    sections.push(`{`);
-    sections.push(`  "tool": "get-mil-list",`);
-    sections.push(`  "parameters": {`);
-    sections.push(`    "delayDayMax": 10,`);
-    sections.push(`    "limit": 5`);
-    sections.push(`  }`);
-    sections.push(`}`);
-    sections.push("```");
-    sections.push("");
-
-    sections.push("**HR 工具調用範例**：");
-    sections.push("```json");
-    sections.push(`{`);
-    sections.push(`  "tool": "get_employee_info",`);
-    sections.push(`  "parameters": {`);
-    sections.push(`    "employeeId": "A123456"`);
-    sections.push(`  }`);
-    sections.push(`}`);
-    sections.push("```");
-    sections.push("");
-
-    sections.push("### 2. XML 格式");
-    sections.push("<tool_call>");
-    sections.push("  <n>工具名稱</n>");
-    sections.push(
-      '  <parameters>{"參數1": "值1", "參數2": "值2"}</parameters>'
-    );
-    sections.push("</tool_call>");
-    sections.push("");
-
-    // 添加明確的執行指示
-    sections.push("## 🎯 工具執行規則");
-    sections.push("");
-    sections.push("**必須執行工具的情況**：");
-    sections.push("- 用戶要求查詢特定數據（如 MIL 清單、員工信息）");
-    sections.push("- 用戶明確提到工具名稱（如 get-mil-list）");
-    sections.push("- 用戶需要實時數據或資料庫查詢");
-    sections.push("- 用戶重複相同或類似的查詢（每次都重新調用工具）");
-    sections.push("");
-    sections.push("**正確的回應流程**：");
-    sections.push("1. 理解用戶需求");
-    sections.push("2. 直接調用適當的工具（使用 JSON 格式）");
-    sections.push("3. 等待工具執行結果");
-    sections.push("4. 基於結果回答用戶");
-    sections.push("");
-    sections.push("**連續查詢處理原則**：");
-    sections.push("- 每次用戶查詢都視為獨立請求，必須重新調用工具");
-    sections.push("- 不要假設之前的查詢結果仍然有效");
-    sections.push("- 根據用戶的新需求調整參數，不要固定使用之前的參數");
-    sections.push("- 如果用戶沒有指定 limit，使用合理的預設值（建議 10-20）");
-    sections.push(
-      "- 如果用戶要求「所有」數據，可以使用較大的 limit 值（如 100）"
-    );
-    sections.push("");
-    sections.push("**錯誤的回應方式**：");
-    sections.push("❌ 只解釋如何使用工具而不實際調用");
-    sections.push("❌ 提供假設性或示例性的回答");
-    sections.push("❌ 要求用戶自己執行工具");
-    sections.push("❌ 基於記憶或假設提供數據而不調用工具");
-    sections.push("");
-
-    // 添加注意事項
-    sections.push("## ⚠️ 重要提醒");
-    sections.push("");
-    sections.push("1. **立即執行**: 不要解釋工具使用方法，直接調用工具");
-    sections.push("2. **參數名稱**: 務必使用精確的參數名稱，嚴格按照工具定義");
-    sections.push("   - 員工查詢: 使用 `employeeId` (不是 employee_id)");
-    sections.push(
-      "   - 時間參數: 使用 `startDate`、`endDate` (不是 start_date、end_date)"
-    );
-    sections.push(
-      "   - 範圍參數: 使用 `sortBy`、`sortOrder` (不是 sort_by、sort_order)"
-    );
-    sections.push("3. **參數格式**: 務必嚴格遵守參數格式要求");
-    sections.push("   - 員工編號: 必須是 A123456 格式（1個大寫字母+6位數字）");
-    sections.push("   - 日期格式: 必須是 YYYY-MM-DD 格式，如 2024-12-31");
-    sections.push("   - 部門代碼: 必須是 HR001 格式（2-3個大寫字母+3位數字）");
-    sections.push("4. **參數驗證**: 確保提供的參數符合工具要求的格式");
-    sections.push(
-      "5. **錯誤處理**: 如果工具調用失敗，請向用戶解釋並提供替代方案"
-    );
-    sections.push("6. **結果說明**: 工具執行後，請向用戶清楚說明結果");
-    sections.push("7. **隱私保護**: 不要在工具調用中包含敏感或個人資訊");
-    sections.push("");
+    // 從資料庫讀取 MCP 工具調用指導
+    try {
+      const { query } = await import("../config/database.config.js");
+      const { rows } = await query(
+        "SELECT config_value FROM system_configs WHERE config_key = 'mcp_tool_guidance'"
+      );
+      
+      if (rows && rows.length > 0) {
+        sections.push("");
+        sections.push(rows[0].config_value);
+        sections.push("");
+      } else {
+        logger.warn("資料庫中未找到 MCP 工具調用指導，使用預設規則");
+        sections.push("");
+        sections.push("## 📝 工具調用格式");
+        sections.push("使用 JSON 格式調用工具：");
+        sections.push('```json\n{"tool": "工具名稱", "parameters": {"參數": "值"}}\n```');
+        sections.push("");
+      }
+    } catch (error) {
+      logger.error("載入 MCP 工具調用指導失敗", { error: error.message });
+      sections.push("");
+      sections.push("## 📝 工具調用格式");
+      sections.push("使用 JSON 格式調用工具：");
+      sections.push('```json\n{"tool": "工具名稱", "parameters": {"參數": "值"}}\n```');
+      sections.push("");
+    }
 
     return sections.join("\n");
   }

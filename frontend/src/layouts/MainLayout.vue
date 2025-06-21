@@ -581,6 +581,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useWebSocketStore } from "@/stores/websocket";
 import { useAgentsStore } from "@/stores/agents";
 import { useConfigStore } from "@/stores/config";
+import { useChatStore } from "@/stores/chat";
 import { formatRelativeTime } from "@/utils/datetimeFormat";
 import Logo from "@/components/common/Logo.vue";
 // Store
@@ -588,6 +589,7 @@ const authStore = useAuthStore();
 const wsStore = useWebSocketStore();
 const agentsStore = useAgentsStore();
 const configStore = useConfigStore();
+const chatStore = useChatStore();
 
 // Router
 const router = useRouter();
@@ -774,6 +776,9 @@ const handleMenuClick = (item) => {
 
 // 選擇智能體
 const handleSelectAgent = (agent) => {
+  // 先清除當前對話狀態，確保開始新對話
+  chatStore.handleClearCurrentConversation();
+  
   agentsStore.setCurrentAgent(agent);
   closeAgentsSidebar();
 
