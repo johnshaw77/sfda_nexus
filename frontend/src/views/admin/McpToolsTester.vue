@@ -334,6 +334,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { message } from "ant-design-vue";
 import JsonViewer from "@/components/common/JsonViewer.vue";
 import mcpApi from "@/api/mcp.js";
+import { processToolParameters } from "@/utils/parameterTransformer.js";
 
 // 響應式數據
 const loading = ref(false);
@@ -500,12 +501,24 @@ const handleCallTool = async () => {
       }
     });
 
+    // 🔧 使用通用參數轉換器處理參數格式
+    const finalParams = processToolParameters(processedParams, selectedTool.value.name);
+    
+    // 如果參數發生了轉換，記錄日誌
+    if (JSON.stringify(finalParams) !== JSON.stringify(processedParams)) {
+      console.log('🔧 參數格式已轉換:', {
+        工具名稱: selectedTool.value.name,
+        原始參數: processedParams,
+        轉換後參數: finalParams
+      });
+    }
+
     // 調用工具
     const response = await mcpApi.callTool({
       serviceId: selectedServiceId.value,
       toolId: selectedToolId.value,
       toolName: selectedTool.value.name,
-      parameters: processedParams,
+      parameters: finalParams,
     });
 
     const endTime = Date.now();
@@ -519,7 +532,7 @@ const handleCallTool = async () => {
       fromCache: response.data.from_cache,
       executionId: response.data.execution_id,
       version: response.data.version,
-      parameters: processedParams,
+      parameters: finalParams,
       success: response.data.success,
       result: response.data.data, // 直接使用後端提取的業務數據
       error: response.data.success ? null : response.data.message,

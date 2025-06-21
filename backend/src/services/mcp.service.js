@@ -337,11 +337,13 @@ class McpClient {
       "Finance 服務": "finance",
       "Tasks 服務": "tasks",
       "Mil 服務": "mil",
+      "Stat 服務": "stat",
       // 支援多種命名格式和可能的編碼問題
       hr: "hr",
       finance: "finance",
       tasks: "tasks",
       mil: "mil",
+      stat: "stat",
       "Mil ??": "mil", // 處理可能的字符編碼問題
     };
 

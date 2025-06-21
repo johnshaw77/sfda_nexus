@@ -43,12 +43,14 @@
     "mysql2": "^3.6.5",
     "node-fetch": "^3.3.2",
     "pdf-parse": "^1.1.1",
+    "pizzip": "^3.2.0",
     "rate-limit-redis": "^4.2.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
     "winston": "^3.11.0",
     "ws": "^8.14.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "eslint": "^8.55.0",

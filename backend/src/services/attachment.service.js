@@ -103,11 +103,13 @@ class AttachmentService {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/msword",
       "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     ];
 
     const documentExtensions = [
-      ".csv", ".txt", ".md", ".pdf", ".docx", ".doc", ".xls", ".xlsx"
+      ".csv", ".txt", ".md", ".pdf", ".docx", ".doc", ".xls", ".xlsx", ".ppt", ".pptx"
     ];
 
     return documentMimes.some(mime => attachment.mime_type?.startsWith(mime)) ||
@@ -171,6 +173,8 @@ class AttachmentService {
       fileContent = await this.processWordFile(filePath, attachment.mime_type);
     } else if (this.isExcelFile(attachment)) {
       fileContent = await this.processExcelFile(filePath);
+    } else if (this.isPowerpointFile(attachment)) {
+      fileContent = await this.processPowerpointFile(filePath, attachment.mime_type);
     } else {
       // 普通文本檔案
       const fs = await import("fs/promises");
@@ -222,6 +226,13 @@ ${fileContent}
            attachment.mime_type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
            attachment.filename?.toLowerCase().endsWith(".xls") ||
            attachment.filename?.toLowerCase().endsWith(".xlsx");
+  }
+
+  isPowerpointFile(attachment) {
+    return attachment.mime_type === "application/vnd.ms-powerpoint" ||
+           attachment.mime_type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+           attachment.filename?.toLowerCase().endsWith(".ppt") ||
+           attachment.filename?.toLowerCase().endsWith(".pptx");
   }
 
   /**
@@ -290,6 +301,19 @@ ${fileContent}
     });
 
     return formattedContent;
+  }
+
+  /**
+   * 處理 PowerPoint 檔案
+   */
+  async processPowerpointFile(filePath, mimeType) {
+    const { extractPowerpointText, isSupportedPowerpointFile } = await import("./powerpoint.service.js");
+    
+    if (isSupportedPowerpointFile(filePath, mimeType)) {
+      return await extractPowerpointText(filePath);
+    } else {
+      return "此 PowerPoint 檔案格式不受支援。請使用 .pptx 格式的檔案。";
+    }
   }
 
   /**
