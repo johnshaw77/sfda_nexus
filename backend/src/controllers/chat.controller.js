@@ -1396,8 +1396,8 @@ export const handleOptimizePrompt = catchAsync(async (req, res) => {
 
     const model = modelRows[0];
 
-    // 構建優化提示詞的系統提示
-    const systemPrompt = `你是一個專業的提示詞優化專家。你的任務是幫助用戶優化他們的提示詞，使其更加清晰、具體和有效。
+    // 構建優化提示詞的系統提示（禁用思考模式，使用繁體中文）
+    const systemPrompt = `/no_think 你是一個專業的提示詞優化專家。你的任務是幫助用戶優化他們的提示詞，使其更加清晰、具體和有效。請使用繁體中文回應。
 
 優化原則：
 1. 保持原意不變，但讓表達更準確
@@ -1405,22 +1405,24 @@ export const handleOptimizePrompt = catchAsync(async (req, res) => {
 3. 使用更專業和精確的語言
 4. 確保指令清晰易懂
 5. 添加適當的格式要求或輸出結構
+6. 所有優化內容都使用繁體中文
 
 請以 JSON 格式回應，包含以下字段：
 {
-  "optimized_prompt": "優化後的提示詞",
+  "optimized_prompt": "優化後的提示詞（繁體中文）",
   "improvements": ["改進要點1", "改進要點2", "改進要點3"],
   "confidence": 0.95
 }
 
 注意：
-- optimized_prompt 應該是完整的、可直接使用的提示詞
-- improvements 應該列出具體的改進點（最多5個）
+- optimized_prompt 應該是完整的、可直接使用的提示詞，使用繁體中文
+- improvements 應該列出具體的改進點（最多5個），使用繁體中文
 - confidence 是你對優化結果的信心度（0-1之間的數值）
-- 請確保回應是有效的 JSON 格式`;
+- 請確保回應是有效的 JSON 格式
+- 所有內容都必須使用繁體中文`;
 
-    // 構建用戶消息
-    let userMessage = `請優化以下提示詞：
+    // 構建用戶消息（禁用思考模式）
+    let userMessage = `/no_think 請優化以下提示詞，並使用繁體中文回應：
 
 原始提示詞：
 ${prompt}`;
