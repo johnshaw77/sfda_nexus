@@ -57,6 +57,19 @@
           <OpenCCTab />
         </a-tab-pane>
 
+        <!-- 智能圖表測試 Tab -->
+        <a-tab-pane
+          key="chart"
+          tab="📊 智能圖表測試">
+          <template #tab>
+            <span>
+              <BarChartOutlined />
+              智能圖表
+            </span>
+          </template>
+          <ChartTab />
+        </a-tab-pane>
+
         <!-- AI Stream 測試 Tab (預留) -->
         <a-tab-pane
           key="aistream"
@@ -189,6 +202,10 @@
           </li>
           <li><strong>OpenCC 簡繁轉換</strong>：測試中文簡繁體雙向轉換功能</li>
           <li>
+            <strong>智能圖表測試</strong>：測試 SmartChart
+            組件的各種圖表功能和數據格式支援
+          </li>
+          <li>
             <strong>AI Stream 測試</strong>：(開發中) AI 聊天和流式響應測試
           </li>
           <li><strong>系統狀態監控</strong>：(開發中) 系統健康狀態檢查</li>
@@ -221,6 +238,7 @@ import {
   QuestionCircleOutlined,
   FileMarkdownOutlined,
   TranslationOutlined,
+  BarChartOutlined,
   RobotOutlined,
   SettingOutlined,
   PlusOutlined,
@@ -229,6 +247,7 @@ import {
 } from "@ant-design/icons-vue";
 import MarkdownTab from "./components/MarkdownTab.vue";
 import OpenCCTab from "./components/OpenCCTab.vue";
+import ChartTab from "./components/ChartTab.vue";
 
 // 響應式數據
 const activeTab = ref("markdown");
@@ -243,6 +262,7 @@ const playgroundStatus = ref({
 const tabNames = {
   markdown: "Markdown & Shiki 測試",
   opencc: "OpenCC 簡繁轉換",
+  chart: "智能圖表測試",
   aistream: "AI Stream 測試",
   system: "系統狀態監控",
   more: "更多功能",

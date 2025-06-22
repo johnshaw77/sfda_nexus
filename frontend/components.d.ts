@@ -87,6 +87,7 @@ declare module 'vue' {
     QuickCommands: typeof import('./src/components/chat/QuickCommands.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SmartChart: typeof import('./src/components/common/SmartChart.vue')['default']
     StatusTag: typeof import('./src/components/common/StatusTag.vue')['default']
     StreamingResultViewer: typeof import('./src/components/common/StreamingResultViewer.vue')['default']
     StructuredDataDisplay: typeof import('./src/components/common/StructuredDataDisplay.vue')['default']

@@ -80,6 +80,15 @@ const routes = [
           icon: "ExperimentOutlined",
         },
       },
+      {
+        path: "chart-test",
+        name: "ChartTest",
+        component: () => import("@/views/ChartTest.vue"),
+        meta: {
+          title: "圖表測試",
+          icon: "BarChartOutlined",
+        },
+      },
     ],
   },
 
