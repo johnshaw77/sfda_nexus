@@ -254,19 +254,17 @@
           class="attachment-item">
           <div class="attachment-card">
             <div class="attachment-icon-container">
-            <div class="attachment-icon">
-              <component
-                :is="getFileIcon(attachment)"
-                :style="{ color: getFileTypeColor(attachment) }" />
-            </div>
-             
+              <div class="attachment-icon">
+                <component
+                  :is="getFileIcon(attachment)"
+                  :style="{ color: getFileTypeColor(attachment) }" />
+              </div>
             </div>
             <div class="attachment-info">
-             <div class="attachment-filename">
+              <div class="attachment-filename">
                 {{ attachment.filename || attachment.name }}
               </div>
               <div class="attachment-meta">
-              
                 <span class="attachment-size">
                   {{ getFileTypeLabel(attachment) }}
                   {{ formatFileSize(attachment.file_size || attachment.size) }}
@@ -290,7 +288,7 @@
         </div>
         <!-- AI 消息 - 使用 CodeHighlight 組件 -->
         <CodeHighlight
-          v-else-if="message.role === 'assistant'"
+          v-else-if="message.role === 'assistant' && !isChartMessage"
           :content="message.content"
           :is-streaming="message.isStreaming"
           :enable-keyword-highlight="true"
@@ -340,6 +338,24 @@
         </div>
       </div>
 
+      <!-- 🎯 智能圖表展示 -->
+      <div
+        v-if="isChartMessage && chartData"
+        class="chart-message-container">
+        <SmartChart
+          :data="chartData.data || {}"
+          :prebuilt-chart="chartData"
+          :chart-type="chartData.type || chartData.chartType"
+          :title="chartData.title"
+          :description="chartData.description"
+          :width="'100%'"
+          :height="400"
+          :enable-download="true"
+          :enable-fullscreen="true"
+          :enable-data-view="true"
+          :enable-type-switch="true" />
+      </div>
+
       <!-- AI 模型信息 - 統一顯示 -->
       <div
         v-if="message.role === 'assistant'"
@@ -385,6 +401,17 @@
               <DeleteOutlined />
             </a-button>
           </a-tooltip>
+
+          <!-- 🎯 測試圖表檢測按鈕 -->
+          <a-tooltip title="測試圖表檢測">
+            <a-button
+              type="text"
+              size="small"
+              @click="detectChartsInMessage"
+              style="color: #1890ff">
+              <BarChartOutlined />
+            </a-button>
+          </a-tooltip>
         </div>
         <div class="model-info-right">
           <span class="token-usage">
@@ -399,6 +426,69 @@
             {{ message.model_info?.model || message.model || "qwen3:8b" }}
           </a-tag>
         </div>
+      </div>
+
+      <!-- 🎯 智能圖表建議 -->
+      <div
+        v-if="showChartSuggestion && detectedCharts.length > 0"
+        class="chart-suggestion-section">
+        <div class="chart-suggestion-header">
+          <BarChartOutlined />
+          <span>檢測到可視化數據</span>
+          <a-button
+            type="text"
+            size="small"
+            @click="handleDismissChartSuggestion"
+            class="dismiss-button">
+            <span style="font-size: 12px">×</span>
+          </a-button>
+        </div>
+        <div class="chart-suggestions">
+          <div
+            v-for="(chart, index) in detectedCharts.slice(0, 3)"
+            :key="index"
+            class="chart-suggestion-item"
+            @click="handleGenerateChart(chart)">
+            <div class="chart-icon">
+              <BarChartOutlined v-if="chart.type === 'bar'" />
+              <LineChartOutlined v-else-if="chart.type === 'line'" />
+              <svg
+                v-else-if="chart.type === 'pie'"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="currentColor">
+                <path
+                  d="M12 2C13.1 2 14 2.9 14 4V12H22C22 17.5 17.5 22 12 22S2 17.5 2 12S6.5 2 12 2Z" />
+              </svg>
+              <TableOutlined v-else />
+            </div>
+            <div class="chart-info">
+              <div class="chart-title">
+                {{ chart.title || `${chart.type} 圖表` }}
+              </div>
+              <div class="chart-confidence">
+                可信度: {{ Math.round(chart.confidence * 100) }}%
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🎯 檢測狀態指示器 -->
+      <div
+        v-if="isDetectingCharts"
+        class="chart-detection-status">
+        <LoadingOutlined spin />
+        <span>分析數據中...</span>
+      </div>
+
+      <!-- 🎯 檢測錯誤 -->
+      <div
+        v-if="chartDetectionError"
+        class="chart-detection-error">
+        <ExclamationCircleOutlined />
+        <span>{{ chartDetectionError }}</span>
       </div>
     </div>
 
@@ -467,6 +557,9 @@ import {
 } from "@/api/files";
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
 import ToolCallDisplay from "@/components/common/ToolCallDisplay.vue";
+import SmartChart from "@/components/common/SmartChart.vue";
+import { chartIntegrationService } from "@/services/chartIntegrationService";
+import { mcpStatisticalAdapter } from "@/utils/mcpStatisticalAdapter";
 import {
   UserOutlined,
   RobotOutlined,
@@ -525,7 +618,11 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(["quote-message", "regenerate-response"]);
+const emit = defineEmits([
+  "quote-message",
+  "regenerate-response",
+  "generate-chart",
+]);
 
 // Store
 const chatStore = useChatStore();
@@ -546,6 +643,12 @@ const displayedThinkingContent = ref("");
 const isThinkingAnimating = ref(false);
 const thinkingAnimationTimer = ref(null);
 
+// 🎯 智能圖表相關狀態
+const detectedCharts = ref([]);
+const isDetectingCharts = ref(false);
+const chartDetectionError = ref(null);
+const showChartSuggestion = ref(false);
+
 // 計算屬性：判斷消息是否正在串流
 const isMessageStreaming = computed(() => {
   // 檢查消息是否正在串流
@@ -559,6 +662,18 @@ const isMessageStreaming = computed(() => {
 // 計算屬性：判斷是否有思考內容
 const hasThinkingContent = computed(() => {
   return !!getThinkingContent();
+});
+
+// 🎯 計算屬性：判斷是否為圖表消息
+const isChartMessage = computed(() => {
+  return !!(
+    props.message.metadata?.isChartMessage && props.message.metadata?.chartData
+  );
+});
+
+// 🎯 計算屬性：獲取圖表數據
+const chartData = computed(() => {
+  return props.message.metadata?.chartData || null;
 });
 
 // 用戶消息的最大高度（行數）
@@ -712,6 +827,14 @@ const loadImageBlob = async (fileId) => {
 
 // 生命週期
 onMounted(() => {
+  console.log("🎯 [MessageBubble] 組件掛載:", {
+    messageId: props.message.id,
+    role: props.message.role,
+    isStreaming: isMessageStreaming.value,
+    hasContent: !!props.message.content,
+    streamingMessageId: chatStore.streamingMessageId,
+  });
+
   if (props.message.role === "user") {
     checkUserMessageHeight();
   }
@@ -720,6 +843,19 @@ onMounted(() => {
   imageAttachments.value.forEach((attachment) => {
     loadImageBlob(attachment.id);
   });
+
+  // 🎯 對於已完成的消息，立即檢測
+  if (!isMessageStreaming.value && props.message.role === "assistant") {
+    console.log("🎯 [MessageBubble] onMounted 觸發圖表檢測");
+    nextTick(() => {
+      detectChartsInMessage();
+    });
+  } else {
+    console.log("🎯 [MessageBubble] onMounted 跳過圖表檢測:", {
+      isStreaming: isMessageStreaming.value,
+      role: props.message.role,
+    });
+  }
 });
 
 // 清理 blob URLs 和計時器
@@ -1317,12 +1453,300 @@ const handleAnalyzeCsv = (attachment) => {
   emit("send-message", text);
 };
 
-const handleGenerateChart = (attachment) => {
+const handleGenerateChartFromFile = (attachment) => {
   const text = `請分析這個 CSV 數據並建議適合的圖表類型，提供視覺化方案：${attachment.filename}`;
   emit("send-message", text);
 };
 
 // 檔案處理函數 - 通用檔案分析 (已有原始函數，這裡不重複)
+
+// 🎯 圖表檢測和生成功能
+const detectChartsInMessage = async () => {
+  console.log("🎯 [MessageBubble] 開始圖表檢測:", {
+    messageId: props.message.id,
+    role: props.message.role,
+    hasContent: !!props.message.content,
+    hasToolCalls: effectiveToolCalls.value.length > 0,
+    isStreaming: isMessageStreaming.value,
+    content: props.message.content?.substring(0, 100) + "...",
+  });
+
+  if (props.message.role !== "assistant" || !props.message.content) {
+    console.log("🎯 [MessageBubble] 跳過檢測 - 不符合條件:", {
+      role: props.message.role,
+      hasContent: !!props.message.content,
+    });
+    return;
+  }
+
+  // 跳過圖表消息的檢測
+  if (props.message.metadata?.isChartMessage) {
+    console.log("🎯 [MessageBubble] 跳過圖表消息的檢測");
+    return;
+  }
+
+  // 🔍 直接測試 conversationDataExtractor
+  console.log("🔍 [MessageBubble] 直接測試 conversationDataExtractor:");
+  try {
+    const { conversationDataExtractor } = await import(
+      "@/utils/conversationDataExtractor.js"
+    );
+    const directResult = conversationDataExtractor.extractData(
+      props.message.content
+    );
+    console.log(
+      "🔍 [MessageBubble] conversationDataExtractor 直接結果:",
+      directResult
+    );
+  } catch (directError) {
+    console.error(
+      "🔍 [MessageBubble] conversationDataExtractor 直接錯誤:",
+      directError
+    );
+  }
+
+  isDetectingCharts.value = true;
+  chartDetectionError.value = null;
+
+  try {
+    console.log("🎯 [MessageBubble] 開始檢測統計工具結果...");
+    // 檢測統計工具結果
+    const statisticalCharts = await detectStatisticalCharts();
+    console.log("🎯 [MessageBubble] 統計工具檢測結果:", statisticalCharts);
+
+    console.log("🎯 [MessageBubble] 開始檢測對話數據...");
+    // 檢測對話內容中的數據
+    const conversationCharts = await detectConversationCharts();
+    console.log("🎯 [MessageBubble] 對話數據檢測結果:", conversationCharts);
+
+    // 合併所有檢測結果
+    const allCharts = [...statisticalCharts, ...conversationCharts];
+    console.log("🎯 [MessageBubble] 所有檢測結果:", allCharts);
+
+    if (allCharts.length > 0) {
+      detectedCharts.value = allCharts;
+      showChartSuggestion.value = true;
+      console.log("🎯 [MessageBubble] ✅ 檢測到圖表機會，顯示建議");
+    } else {
+      showChartSuggestion.value = false;
+      console.log("🎯 [MessageBubble] ❌ 未檢測到圖表機會");
+    }
+  } catch (error) {
+    console.error("🎯 [MessageBubble] 圖表檢測錯誤:", error);
+    chartDetectionError.value = error.message;
+    showChartSuggestion.value = false;
+  } finally {
+    isDetectingCharts.value = false;
+  }
+};
+
+// 檢測統計工具調用結果
+const detectStatisticalCharts = async () => {
+  const charts = [];
+
+  for (const toolCall of effectiveToolCalls.value) {
+    if (toolCall.success && toolCall.result) {
+      try {
+        const chartData = await mcpStatisticalAdapter.convertToChartData(
+          toolCall.result,
+          toolCall.name
+        );
+
+        if (chartData) {
+          charts.push({
+            source: "mcp-statistical",
+            type: chartData.recommendedType,
+            data: chartData.data,
+            title: chartData.title,
+            description: chartData.description,
+            confidence: 0.9,
+            toolCall: toolCall,
+          });
+        }
+      } catch (error) {
+        console.warn("🎯 [MessageBubble] 統計工具轉換失敗:", error);
+      }
+    }
+  }
+
+  return charts;
+};
+
+// 檢測對話內容中的數據
+const detectConversationCharts = async () => {
+  try {
+    console.log(
+      "🎯 [MessageBubble] 調用 chartIntegrationService.processData:",
+      {
+        content: props.message.content?.substring(0, 200) + "...",
+        contentLength: props.message.content?.length,
+      }
+    );
+
+    const result = await chartIntegrationService.processData({
+      source: "conversation",
+      data: props.message.content,
+      options: {},
+    });
+
+    console.log("🎯 [MessageBubble] chartIntegrationService 返回結果:", {
+      success: result.success,
+      hasCharts: !!result.charts,
+      chartsLength: result.charts?.length,
+      errors: result.errors,
+      errorDetails: result.errors?.map((e) => ({
+        type: e.type,
+        message: e.message,
+      })),
+      metadata: result.metadata,
+    });
+
+    // 🔍 詳細錯誤信息
+    if (result.errors?.length > 0) {
+      console.error("🎯 [MessageBubble] 詳細錯誤信息:");
+      console.error("🎯 [MessageBubble] 原始錯誤數組:", result.errors);
+      result.errors.forEach((error, index) => {
+        console.error(`  錯誤 ${index + 1}:`, error);
+        console.error(`  錯誤詳情 ${index + 1}:`, {
+          type: error?.type,
+          message: error?.message,
+          details: error?.details,
+          stack: error?.stack,
+          fullError: error,
+        });
+      });
+    }
+
+    if (result.success && result.charts?.length > 0) {
+      // 導入 chartService 來生成完整的 ECharts 配置
+      const { default: chartService } = await import(
+        "@/services/chartService.js"
+      );
+
+      const charts = await Promise.all(
+        result.charts.map(async (chart) => {
+          try {
+            // 使用 chartService 生成完整的 ECharts 配置
+            const chartConfig = await chartService.generateChart({
+              data: chart.data,
+              chartType: chart.type || chart.chartType || "pie",
+              config: {
+                title: chart.title,
+                description: chart.description,
+              },
+            });
+
+            console.log("🎯 [MessageBubble] 生成完整圖表配置:", {
+              hasOption: !!chartConfig.option,
+              hasData: !!chart.data,
+              dataKeys: chart.data ? Object.keys(chart.data) : null,
+            });
+
+            return {
+              source: "conversation",
+              type: chart.type || chart.chartType,
+              data: chart.data,
+              title: chart.title,
+              description: chart.description,
+              confidence: result.metadata?.confidence || 0.7,
+              // 添加 ECharts 配置
+              option: chartConfig.option,
+              chartType: chart.type || chart.chartType,
+              suggestions: chartConfig.suggestions || [],
+              tableData: chartConfig.tableData || [],
+              tableColumns: chartConfig.tableColumns || [],
+            };
+          } catch (error) {
+            console.error("🎯 [MessageBubble] 生成圖表配置失敗:", error);
+            return {
+              source: "conversation",
+              type: chart.type || chart.chartType,
+              data: chart.data,
+              title: chart.title,
+              description: chart.description,
+              confidence: result.metadata?.confidence || 0.7,
+            };
+          }
+        })
+      );
+
+      console.log("🎯 [MessageBubble] 構建對話圖表數據:", charts);
+      return charts;
+    } else {
+      console.log("🎯 [MessageBubble] 無法構建圖表:", {
+        success: result.success,
+        hasCharts: !!result.charts,
+        chartsLength: result.charts?.length,
+        errors: result.errors,
+      });
+    }
+  } catch (error) {
+    console.warn("🎯 [MessageBubble] 對話數據檢測失敗:", error);
+  }
+
+  return [];
+};
+
+// 生成圖表
+const handleGenerateChart = async (chartData) => {
+  try {
+    console.log("🎯 [MessageBubble] 生成圖表:", {
+      chartData,
+      hasTitle: !!chartData.title,
+      hasType: !!chartData.type,
+      hasData: !!chartData.data,
+      keys: Object.keys(chartData || {}),
+    });
+
+    // 這裡可以觸發圖表生成事件，或者直接在當前消息中嵌入圖表
+    // 暫時先隱藏建議
+    showChartSuggestion.value = false;
+
+    // 觸發事件給父組件處理
+    emit("generate-chart", {
+      messageId: props.message.id,
+      chartData: chartData,
+    });
+  } catch (error) {
+    console.error("🎯 [MessageBubble] 圖表生成失敗:", error);
+    chartDetectionError.value = error.message;
+  }
+};
+
+// 忽略圖表建議
+const handleDismissChartSuggestion = () => {
+  showChartSuggestion.value = false;
+  detectedCharts.value = [];
+};
+
+// 監聽消息變化，自動檢測圖表機會
+watch(
+  () => [props.message.content, effectiveToolCalls.value.length],
+  async ([newContent, newToolCallCount], [oldContent, oldToolCallCount]) => {
+    // 只在內容穩定且非流式狀態時檢測
+    if (newContent !== oldContent || newToolCallCount !== oldToolCallCount) {
+      if (!isMessageStreaming.value && props.message.role === "assistant") {
+        // 延遲檢測，確保內容已經完全載入
+        setTimeout(() => {
+          if (!isMessageStreaming.value) {
+            detectChartsInMessage();
+          }
+        }, 1000);
+      }
+    }
+  },
+  { immediate: false }
+);
+
+// 組件掛載時檢測
+onMounted(() => {
+  // 對於已完成的消息，立即檢測
+  if (!isMessageStreaming.value && props.message.role === "assistant") {
+    nextTick(() => {
+      detectChartsInMessage();
+    });
+  }
+});
 </script>
 
 <style scoped>
@@ -2211,5 +2635,189 @@ const handleGenerateChart = (attachment) => {
 
 [data-theme="dark"] .optimizing-header {
   color: #95de64;
+}
+
+/* 🎯 智能圖表建議樣式 */
+.chart-suggestion-section {
+  margin-top: 12px;
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 8px;
+  background: var(--custom-bg-secondary);
+  overflow: hidden;
+  border-left: 3px solid #1890ff;
+}
+
+.chart-suggestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--custom-bg-tertiary);
+  border-bottom: 1px solid var(--custom-border-primary);
+  font-size: 13px;
+  font-weight: 500;
+  color: #1890ff;
+  gap: 6px;
+}
+
+.dismiss-button {
+  color: var(--custom-text-tertiary) !important;
+  padding: 0 4px !important;
+  height: auto !important;
+  min-width: auto !important;
+}
+
+.dismiss-button:hover {
+  color: var(--custom-text-secondary) !important;
+  background: transparent !important;
+}
+
+.chart-suggestions {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chart-suggestion-item:hover {
+  background: var(--custom-bg-tertiary);
+  border-color: #1890ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.chart-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.chart-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--custom-text-primary);
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-confidence {
+  font-size: 11px;
+  color: var(--custom-text-tertiary);
+}
+
+/* 檢測狀態指示器 */
+.chart-detection-status {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(24, 144, 255, 0.05);
+  border: 1px solid rgba(24, 144, 255, 0.2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #1890ff;
+}
+
+/* 檢測錯誤 */
+.chart-detection-error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 77, 79, 0.05);
+  border: 1px solid rgba(255, 77, 79, 0.2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #ff4d4f;
+}
+
+/* 暗黑模式下的圖表建議樣式 */
+:root[data-theme="dark"] .chart-suggestion-section {
+  border-color: var(--custom-border-secondary);
+  background: var(--custom-bg-primary);
+}
+
+:root[data-theme="dark"] .chart-suggestion-header {
+  background: var(--custom-bg-secondary);
+  border-bottom-color: var(--custom-border-secondary);
+  color: #69c0ff;
+}
+
+:root[data-theme="dark"] .chart-suggestion-item {
+  background: var(--custom-bg-secondary);
+  border-color: var(--custom-border-primary);
+}
+
+:root[data-theme="dark"] .chart-suggestion-item:hover {
+  background: var(--custom-bg-tertiary);
+  border-color: #69c0ff;
+  box-shadow: 0 2px 8px rgba(105, 192, 255, 0.15);
+}
+
+:root[data-theme="dark"] .chart-icon {
+  color: #69c0ff;
+  background: rgba(105, 192, 255, 0.1);
+}
+
+:root[data-theme="dark"] .chart-detection-status {
+  background: rgba(105, 192, 255, 0.1);
+  border-color: rgba(105, 192, 255, 0.3);
+  color: #69c0ff;
+}
+
+:root[data-theme="dark"] .chart-detection-error {
+  background: rgba(255, 120, 117, 0.1);
+  border-color: rgba(255, 120, 117, 0.3);
+  color: #ff7875;
+}
+
+/* 🎯 圖表消息樣式 */
+.chart-message-container {
+  margin-top: 12px;
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 8px;
+  background: var(--custom-bg-secondary);
+  overflow: hidden;
+  border-left: 3px solid #52c41a;
+}
+
+/* 暗黑模式下的圖表消息樣式 */
+:root[data-theme="dark"] .chart-message-container {
+  border-color: var(--custom-border-secondary);
+  background: var(--custom-bg-primary);
+  border-left-color: #95de64;
+}
+
+/* 確保圖表消息中的SmartChart組件樣式正確 */
+.chart-message-container :deep(.smart-chart-container) {
+  border: none;
+  background: transparent;
 }
 </style>

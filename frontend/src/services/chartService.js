@@ -337,11 +337,14 @@ class ChartService {
         specificOption = this.generateBarOption(data, analysis);
     }
 
+    // 過濾掉非 ECharts 配置的屬性
+    const { title, description, ...echartsConfig } = config || {};
+
     // 合併配置
     return {
       ...baseOption,
       ...specificOption,
-      ...config, // 用戶自定義配置覆蓋
+      ...echartsConfig, // 只合併有效的 ECharts 配置
     };
   }
 

@@ -298,7 +298,7 @@
       :style="{
         height: `calc(100% - ${inputCollapsed ? 60 : inputAreaHeight}px)`,
       }">
-      <div class="background-video">
+      <!-- <div class="background-video">
         <video
           src="/images/ssss.mp4"
           style="
@@ -311,7 +311,7 @@
           autoplay
           loop
           muted></video>
-      </div>
+      </div> -->
       <a-spin
         :spinning="loading"
         tip="載入消息中...">
@@ -397,7 +397,8 @@
             :message="message"
             :show-status="message.id === lastSentMessageId"
             @quote-message="handleQuoteMessage"
-            @regenerate-response="handleRegenerateResponse" />
+            @regenerate-response="handleRegenerateResponse"
+            @generate-chart="handleGenerateChart" />
 
           <!-- AI 輸入狀態指示器 -->
           <div
@@ -702,7 +703,7 @@
                       <a-button
                         type="text"
                         size="small"
-                        @click="handleGenerateChart(file)"
+                        @click="handleGenerateChartFromCSV(file)"
                         class="action-btn">
                         <LineChartOutlined />
                         生成圖表
@@ -918,6 +919,91 @@
             class="collapsed-input-hint"
             @click="handleToggleInputCollapse">
             <span class="hint-text">點擊這裡或展開按鈕開始對話...</span>
+          </div>
+
+          <!-- 🤖 智能建議區域 -->
+          <div
+            v-if="shouldShowSuggestions && !inputCollapsed"
+            class="smart-suggestions-area">
+            <!-- 圖表建議 -->
+            <div
+              v-if="chartSuggestions.length > 0"
+              class="suggestion-group">
+              <div class="suggestion-header">
+                <BarChartOutlined />
+                <span>智能圖表建議</span>
+                <a-button
+                  type="text"
+                  size="small"
+                  @click="clearSuggestions"
+                  class="clear-btn">
+                  <CloseOutlined />
+                </a-button>
+              </div>
+              <div class="suggestion-list">
+                <div
+                  v-for="suggestion in chartSuggestions.slice(0, 2)"
+                  :key="suggestion.id"
+                  class="suggestion-item"
+                  @click="handleApplySuggestion(suggestion)">
+                  <div class="suggestion-icon">
+                    <component
+                      :is="
+                        suggestion.chartType === 'pie'
+                          ? 'PieChartOutlined'
+                          : 'BarChartOutlined'
+                      " />
+                  </div>
+                  <div class="suggestion-content">
+                    <div class="suggestion-title">{{ suggestion.title }}</div>
+                    <div class="suggestion-desc">
+                      {{ suggestion.description }}
+                    </div>
+                  </div>
+                  <div class="suggestion-confidence">
+                    {{ Math.round(suggestion.confidence * 100) }}%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 分析建議 -->
+            <div
+              v-if="analysisSuggestions.length > 0"
+              class="suggestion-group">
+              <div class="suggestion-header">
+                <EyeOutlined />
+                <span>智能分析建議</span>
+              </div>
+              <div class="suggestion-list">
+                <div
+                  v-for="suggestion in analysisSuggestions.slice(0, 2)"
+                  :key="suggestion.id"
+                  class="suggestion-item"
+                  @click="handleApplySuggestion(suggestion)">
+                  <div class="suggestion-icon">
+                    <EyeOutlined />
+                  </div>
+                  <div class="suggestion-content">
+                    <div class="suggestion-title">{{ suggestion.title }}</div>
+                    <div class="suggestion-desc">
+                      {{ suggestion.description }}
+                    </div>
+                  </div>
+                  <div class="suggestion-confidence">
+                    {{ Math.round(suggestion.confidence * 100) }}%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 分析中指示器 -->
+            <div
+              v-if="isSuggestionAnalyzing"
+              class="analyzing-indicator">
+              <LoadingOutlined spin />
+              <span>AI正在分析輸入內容...</span>
+            </div>
           </div>
 
           <!-- 輸入工具欄 -->
@@ -1215,6 +1301,7 @@ import { useLocalStorage, useSpeechRecognition } from "@vueuse/core";
 import { chatWithQwenAgent } from "@/api/qwenAgent";
 import { optimizePrompt } from "@/api/chat";
 import { useFileType } from "@/composables/useFileType";
+import { useSmartSuggestions } from "@/composables/useSmartSuggestions";
 
 // Store
 const chatStore = useChatStore();
@@ -1236,6 +1323,20 @@ const {
   isImageFile,
   isSupportedFile,
 } = useFileType();
+
+// 🤖 智能建議功能
+const {
+  currentInput,
+  suggestions,
+  isAnalyzing: isSuggestionAnalyzing,
+  shouldShowSuggestions,
+  chartSuggestions,
+  analysisSuggestions,
+  setInput,
+  clearSuggestions,
+  generateChart,
+  performAnalysis,
+} = useSmartSuggestions();
 
 // 響應式狀態
 const loading = ref(false);
@@ -1993,6 +2094,105 @@ const handleRegenerateResponse = async (message) => {
   }
 };
 
+// 🎯 處理圖表生成請求
+const handleGenerateChart = async (event) => {
+  try {
+    console.log("🎯 [ChatArea] 收到圖表生成請求:", {
+      event,
+      messageId: event?.messageId,
+      chartData: event?.chartData,
+      chartDataKeys: Object.keys(event?.chartData || {}),
+      hasTitle: !!event?.chartData?.title,
+      hasType: !!event?.chartData?.type,
+    });
+
+    const { messageId, chartData } = event;
+
+    // 創建圖表消息
+    const chartTitle = chartData.title || `${chartData.type || "智能"} 圖表`;
+    const chartMessage = {
+      id: Date.now(),
+      role: "assistant",
+      content: `根據數據分析，為您生成了 ${chartTitle}：`,
+      created_at: new Date().toISOString(),
+      metadata: {
+        chartData: chartData,
+        isChartMessage: true,
+        sourceMessageId: messageId,
+      },
+      model_info: {
+        model: "智能圖表生成器",
+      },
+    };
+
+    // 添加到聊天記錄
+    chatStore.messages.push(chartMessage);
+
+    // 滾動到底部
+    await nextTick();
+    await scrollToBottomWithDelay(200);
+
+    message.success("圖表已生成");
+  } catch (error) {
+    console.error("🎯 [ChatArea] 圖表生成失敗:", error);
+    message.error("圖表生成失敗: " + error.message);
+  }
+};
+
+// 🤖 處理智能建議應用
+const handleApplySuggestion = async (suggestion) => {
+  try {
+    console.log("🤖 [ChatArea] 應用智能建議:", suggestion);
+
+    if (suggestion.type === "chart") {
+      // 生成圖表
+      const result = await suggestion.handler();
+      if (result.success) {
+        // 創建圖表消息
+        const chartMessage = {
+          id: Date.now(),
+          role: "assistant",
+          content: `基於您的輸入，為您生成了 ${result.chartData.title}：`,
+          created_at: new Date().toISOString(),
+          metadata: {
+            chartData: result.chartData,
+            isChartMessage: true,
+            sourceType: "smart-suggestion",
+          },
+          model_info: {
+            model: "智能建議系統",
+          },
+        };
+
+        chatStore.messages.push(chartMessage);
+        await nextTick();
+        await scrollToBottomWithDelay(200);
+
+        message.success("智能圖表已生成");
+        clearSuggestions();
+      } else {
+        message.error(result.error || "圖表生成失敗");
+      }
+    } else if (suggestion.type === "analysis") {
+      // 執行分析
+      const result = await suggestion.handler();
+      if (result.success) {
+        // 在輸入框中添加分析結果提示
+        const analysisText = `\n\n## 📊 ${suggestion.title}\n${result.result}`;
+        messageText.value += analysisText;
+
+        message.success("分析完成，結果已添加到輸入框");
+        clearSuggestions();
+      } else {
+        message.error(result.error || "分析失敗");
+      }
+    }
+  } catch (error) {
+    console.error("🤖 [ChatArea] 智能建議應用失敗:", error);
+    message.error("建議應用失敗: " + error.message);
+  }
+};
+
 //TODO 檔案上傳功能，已沒有使用，改成先預覽，再上傳
 const handleFileUpload = async (file) => {
   try {
@@ -2300,7 +2500,7 @@ const handleAnalyzeCsvData = (file) => {
   setFocusToInput();
 };
 
-const handleGenerateChart = (file) => {
+const handleGenerateChartFromCSV = (file) => {
   const chartText = `請分析這個 CSV 數據並建議適合的圖表類型，提供數據視覺化方案`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + chartText;
@@ -2969,6 +3169,15 @@ watch(isFinal, (final) => {
     }, 1500); // 延遲1.5秒停止，確保完整識別
   }
 });
+
+// 🤖 同步輸入到智能建議系統
+watch(
+  messageText,
+  (newText) => {
+    setInput(newText);
+  },
+  { immediate: true }
+);
 
 // 生命週期
 onMounted(async () => {
@@ -4444,5 +4653,165 @@ const getModelEndpoint = () => {
 .input-toolbar .ant-upload.ant-upload-disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 🤖 智能建議區域樣式 */
+.smart-suggestions-area {
+  margin: 8px 0;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.suggestion-group {
+  margin-bottom: 8px;
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 8px;
+  background: var(--custom-bg-secondary);
+  overflow: hidden;
+}
+
+.suggestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--custom-bg-tertiary);
+  border-bottom: 1px solid var(--custom-border-primary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--custom-text-primary);
+  gap: 6px;
+}
+
+.clear-btn {
+  color: var(--custom-text-tertiary) !important;
+  padding: 0 4px !important;
+  height: auto !important;
+  min-width: auto !important;
+  margin-left: auto;
+}
+
+.clear-btn:hover {
+  color: var(--custom-text-secondary) !important;
+  background: transparent !important;
+}
+
+.suggestion-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.suggestion-item:hover {
+  background: var(--custom-bg-tertiary);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.suggestion-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(24, 144, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.suggestion-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--custom-text-primary);
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-desc {
+  font-size: 11px;
+  color: var(--custom-text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-confidence {
+  font-size: 11px;
+  color: var(--custom-text-tertiary);
+  background: var(--custom-bg-secondary);
+  padding: 2px 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.analyzing-indicator {
+  padding: 12px;
+  text-align: center;
+  color: var(--custom-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--custom-bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--custom-border-primary);
+  font-size: 12px;
+}
+
+/* 暗黑模式下的智能建議樣式 */
+:root[data-theme="dark"] .suggestion-group {
+  border-color: var(--custom-border-secondary);
+  background: var(--custom-bg-primary);
+}
+
+:root[data-theme="dark"] .suggestion-header {
+  background: var(--custom-bg-secondary);
+  border-bottom-color: var(--custom-border-secondary);
+}
+
+:root[data-theme="dark"] .suggestion-item {
+  background: var(--custom-bg-secondary);
+  border-color: var(--custom-border-primary);
+}
+
+:root[data-theme="dark"] .suggestion-item:hover {
+  background: var(--custom-bg-tertiary);
+  border-color: #69c0ff;
+  box-shadow: 0 2px 8px rgba(105, 192, 255, 0.15);
+}
+
+:root[data-theme="dark"] .suggestion-icon {
+  color: #69c0ff;
+  background: rgba(105, 192, 255, 0.1);
+}
+
+:root[data-theme="dark"] .analyzing-indicator {
+  background: var(--custom-bg-primary);
+  border-color: var(--custom-border-secondary);
 }
 </style>

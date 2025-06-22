@@ -77,10 +77,7 @@
                   @input="handleDataInput"
                   :rows="8"
                   placeholder="輸入JSON數據、CSV格式或自然語言數據..."
-                  style="
-                    font-family: &quot;Courier New&quot;, monospace;
-                    font-size: 12px;
-                  " />
+                  style="font-family: monospace; font-size: 12px" />
 
                 <div
                   class="input-actions"
@@ -260,6 +257,15 @@ import { ref, computed, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import SmartChart from "@/components/common/SmartChart.vue";
 import { dataProcessor } from "@/utils/dataProcessor";
+import { FileDataParser } from "@/utils/fileDataParser";
+import { ConversationDataExtractor } from "@/utils/conversationDataExtractor";
+import { ApiDataAdapter } from "@/utils/apiDataAdapter";
+import { mcpStatisticalAdapter } from "@/utils/mcpStatisticalAdapter";
+
+// 創建工具實例
+const fileParser = new FileDataParser();
+const conversationExtractor = new ConversationDataExtractor();
+const apiAdapter = new ApiDataAdapter();
 
 // 響應式數據
 const currentDataInput = ref("");
@@ -267,6 +273,8 @@ const parsedData = ref(null);
 const showChart = ref(false);
 const currentTestCase = ref(-1);
 const testResults = ref([]);
+const uploadingFile = ref(false);
+const processingApi = ref(false);
 
 // 當前測試配置
 const currentTest = ref({
@@ -332,6 +340,27 @@ HUAWEI,100,25`,
     description: "從文字提取數據",
     chartType: "auto",
     data: "蘋果佔比40%，安卓佔比60%",
+  },
+  {
+    name: "MCP統計結果",
+    description: "T檢定統計分析",
+    chartType: "statistical",
+    data: {
+      tool: "perform_ttest",
+      t_statistic: 2.856,
+      p_value: 0.0043,
+      confidence_interval: [1.2, 4.8],
+      group1_mean: 15.2,
+      group2_mean: 18.5,
+      group1_name: "控制組",
+      group2_name: "實驗組",
+    },
+  },
+  {
+    name: "對話提取",
+    description: "從自然語言對話提取數據",
+    chartType: "auto",
+    data: "根據最新統計，iPhone銷量達到200萬台，Samsung為150萬台，HUAWEI為100萬台。同時，第一季度營收為120萬，第二季度150萬，第三季度100萬，第四季度180萬。",
   },
 ]);
 
@@ -403,36 +432,82 @@ const parseAndGenerate = async () => {
 
   try {
     let result;
+    let dataSource = "unknown";
 
-    // 檢測並處理不同數據格式
-    if (
-      currentDataInput.value.trim().startsWith("{") ||
-      currentDataInput.value.trim().startsWith("[")
-    ) {
-      // JSON 格式
-      result = JSON.parse(currentDataInput.value);
-    } else if (
-      currentDataInput.value.includes(",") &&
-      currentDataInput.value.includes("\n")
-    ) {
-      // CSV 格式
-      result = await dataProcessor.processCsvString(currentDataInput.value);
-    } else {
-      // 自然語言格式
-      result = dataProcessor.extractFromNaturalLanguage(currentDataInput.value);
+    // 檢測並處理不同數據格式和來源
+    const inputData = currentDataInput.value.trim();
+
+    // 1. 檢測是否為 MCP 統計結果
+    if (inputData.startsWith("{") && inputData.includes("statistic")) {
+      try {
+        const jsonData = JSON.parse(inputData);
+        if (mcpStatisticalAdapter.isStatisticalData(jsonData)) {
+          const adaptedResult = mcpStatisticalAdapter.adaptMcpResult(jsonData);
+          if (adaptedResult.success) {
+            result = adaptedResult;
+            dataSource = "mcp_statistical";
+            currentTest.value.type = "statistical";
+          }
+        }
+      } catch (e) {
+        // 不是有效的統計JSON，繼續其他檢測
+      }
     }
 
-    parsedData.value = result;
+    // 2. 如果不是統計數據，使用原有邏輯
+    if (!result) {
+      if (inputData.startsWith("{") || inputData.startsWith("[")) {
+        // JSON 格式
+        result = JSON.parse(inputData);
+        dataSource = "json";
+      } else if (inputData.includes(",") && inputData.includes("\n")) {
+        // CSV 格式
+        result = await dataProcessor.processCsvString(inputData);
+        dataSource = "csv";
+      } else if (
+        inputData.length > 50 &&
+        (inputData.includes("萬台") ||
+          inputData.includes("營收") ||
+          inputData.includes("季度"))
+      ) {
+        // 複雜自然語言對話數據
+        result = conversationExtractor.extractMultipleDataSets(inputData);
+        dataSource = "conversation";
+
+        // 如果提取到多個數據集，選擇第一個用於展示
+        if (result && result.datasets && result.datasets.length > 0) {
+          result = result.datasets[0].data;
+        }
+      } else {
+        // 簡單自然語言格式
+        result = dataProcessor.extractFromNaturalLanguage(inputData);
+        dataSource = "natural_language";
+      }
+    }
+
+    // 3. 處理統計結果的特殊展示
+    if (dataSource === "mcp_statistical" && result.charts) {
+      // 對於統計結果，我們展示第一個圖表
+      if (result.charts.length > 0) {
+        parsedData.value = result.charts[0].data;
+        currentTest.value.type = result.charts[0].type;
+        currentTest.value.title = result.charts[0].title;
+      }
+    } else {
+      parsedData.value = result;
+    }
+
     showChart.value = true;
 
     addTestResult({
       title: "數據解析和圖表生成",
-      description: `成功解析並生成 ${currentTest.value.type} 圖表`,
+      description: `成功解析 ${dataSource} 數據並生成 ${currentTest.value.type} 圖表`,
       success: true,
       chartType: currentTest.value.type,
+      dataSource: dataSource,
     });
 
-    message.success("圖表生成成功");
+    message.success(`圖表生成成功 (數據來源: ${dataSource})`);
   } catch (error) {
     console.error("解析失敗:", error);
     message.error(`數據解析失敗: ${error.message}`);

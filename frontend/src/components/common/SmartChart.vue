@@ -190,7 +190,13 @@ const props = defineProps({
   },
   chartType: {
     type: String,
-    default: "auto", // auto, bar, line, pie, scatter, radar, gauge, funnel
+    default: "auto", // auto, bar, line, pie, scatter, radar, gauge, funnel, heatmap, statistical
+  },
+
+  // 預處理的圖表配置（來自智能建議等場景）
+  prebuiltChart: {
+    type: Object,
+    default: null,
   },
 
   // 外觀設置
@@ -275,6 +281,27 @@ const processChartData = async () => {
   try {
     loading.value = true;
     error.value = "";
+
+    // 如果有預構建的圖表配置，直接使用
+    if (props.prebuiltChart) {
+      console.log("🎯 [SmartChart] 使用預構建的圖表配置:", props.prebuiltChart);
+
+      chartOption.value = props.prebuiltChart.option;
+      chartSuggestions.value = props.prebuiltChart.suggestions || [];
+      tableData.value = props.prebuiltChart.tableData || [];
+      tableColumns.value = props.prebuiltChart.tableColumns || [];
+
+      // 使用預構建的圖表類型
+      if (props.prebuiltChart.chartType) {
+        currentChartType.value = props.prebuiltChart.chartType;
+      }
+
+      emit("chart-ready", {
+        option: chartOption.value,
+        suggestions: chartSuggestions.value,
+      });
+      return;
+    }
 
     // 使用 chartService 處理數據和生成配置
     const result = await chartService.generateChart({
@@ -361,6 +388,16 @@ const handleRetry = () => {
 watch(
   () => props.data,
   () => {
+    if (!props.prebuiltChart) {
+      processChartData();
+    }
+  },
+  { deep: true }
+);
+
+watch(
+  () => props.prebuiltChart,
+  () => {
     processChartData();
   },
   { deep: true }
@@ -371,7 +408,9 @@ watch(
   (newType) => {
     if (newType !== currentChartType.value) {
       currentChartType.value = newType;
-      processChartData();
+      if (!props.prebuiltChart) {
+        processChartData();
+      }
     }
   }
 );
@@ -379,7 +418,9 @@ watch(
 watch(
   () => chartTheme.value,
   () => {
-    processChartData();
+    if (!props.prebuiltChart) {
+      processChartData();
+    }
   }
 );
 

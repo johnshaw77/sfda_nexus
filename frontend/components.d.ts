@@ -80,6 +80,7 @@ declare module 'vue' {
     FilePreview: typeof import('./src/components/chat/FilePreview.vue')['default']
     GlobalPromptManager: typeof import('./src/components/admin/GlobalPromptManager.vue')['default']
     IconButton: typeof import('./src/components/common/IconButton.vue')['default']
+    IntelligentAnalyzer: typeof import('./src/components/common/IntelligentAnalyzer.vue')['default']
     JsonHighlight: typeof import('./src/components/common/JsonHighlight.vue')['default']
     JsonViewer: typeof import('./src/components/common/JsonViewer.vue')['default']
     Logo: typeof import('./src/components/common/Logo.vue')['default']

@@ -1,0 +1,48 @@
+{
+  "sales_data": {
+    "2024": {
+      "Q1": {
+        "revenue": 5000000,
+        "orders": 1250,
+        "customers": 890
+      },
+      "Q2": {
+        "revenue": 7200000,
+        "orders": 1680,
+        "customers": 1150
+      },
+      "Q3": {
+        "revenue": 6500000,
+        "orders": 1520,
+        "customers": 1050
+      },
+      "Q4": {
+        "revenue": 8900000,
+        "orders": 2100,
+        "customers": 1420
+      }
+    }
+  },
+  "product_categories": [
+    {
+      "category": "電子產品",
+      "sales": 4500000,
+      "margin": 0.25
+    },
+    {
+      "category": "服裝配件",
+      "sales": 2800000,
+      "margin": 0.35
+    },
+    {
+      "category": "家居用品",
+      "sales": 1900000,
+      "margin": 0.30
+    },
+    {
+      "category": "運動用品",
+      "sales": 1600000,
+      "margin": 0.28
+    }
+  ]
+}
