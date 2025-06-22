@@ -1013,4 +1013,71 @@ router.post(
   chatController.handleClearPromptCache
 );
 
+/**
+ * @swagger
+ * /api/chat/optimize-prompt:
+ *   post:
+ *     tags: [Chat]
+ *     summary: 優化提示詞
+ *     description: 使用 AI 優化用戶輸入的提示詞，使其更清晰、具體和有效
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prompt
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 description: 原始提示詞
+ *                 example: "幫我寫個報告"
+ *               context:
+ *                 type: string
+ *                 description: 額外的上下文信息
+ *                 example: "關於公司Q3財務狀況"
+ *     responses:
+ *       200:
+ *         description: 提示詞優化成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         original_prompt:
+ *                           type: string
+ *                           description: 原始提示詞
+ *                         optimized_prompt:
+ *                           type: string
+ *                           description: 優化後的提示詞
+ *                         improvements:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: 改進要點列表
+ *                         confidence:
+ *                           type: number
+ *                           description: 優化信心度 (0-1)
+ *       400:
+ *         description: 請求參數錯誤
+ *       401:
+ *         description: 未認證
+ *       429:
+ *         description: 請求過於頻繁
+ */
+router.post(
+  "/optimize-prompt",
+  authenticateToken,
+  chatLimiter,
+  chatController.handleOptimizePrompt
+);
+
 export default router;

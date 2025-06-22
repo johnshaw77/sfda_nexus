@@ -182,7 +182,8 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
   try {
     // 獲取對話上下文
-    const maxContextTokens = max_tokens && !isNaN(max_tokens) ? max_tokens * 0.7 : 2800;
+    const maxContextTokens =
+      max_tokens && !isNaN(max_tokens) ? max_tokens * 0.7 : 2800;
     const contextMessages = await MessageModel.getContextMessages(
       conversationId,
       20,
@@ -190,10 +191,11 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     );
 
     // 格式化消息（包含附件處理）
-    const formattedMessages = await MessageFormattingService.formatContextMessages(
-      contextMessages,
-      model.model_type
-    );
+    const formattedMessages =
+      await MessageFormattingService.formatContextMessages(
+        contextMessages,
+        model.model_type
+      );
 
     // 準備系統提示詞
     let baseSystemPrompt = system_prompt;
@@ -269,7 +271,8 @@ export const handleSendMessage = catchAsync(async (req, res) => {
         tool_calls: chatResult.tool_calls || [],
         tool_results: chatResult.tool_results || [],
         original_response: chatResult.original_response,
-        thinking_content: chatResult.thinking_content || aiResponse.thinking_content || null,
+        thinking_content:
+          chatResult.thinking_content || aiResponse.thinking_content || null,
       },
     });
 
@@ -415,7 +418,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     }
 
     // 獲取模型配置
-    const modelQuery = "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE";
+    const modelQuery =
+      "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE";
     const modelParams = [model_id || conversation.model_id];
     const { rows: modelRows } = await query(modelQuery, modelParams);
 
@@ -465,10 +469,11 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
     );
 
     // 格式化消息（包含附件處理）
-    const formattedMessages = await MessageFormattingService.formatContextMessages(
-      contextMessages,
-      model.model_type
-    );
+    const formattedMessages =
+      await MessageFormattingService.formatContextMessages(
+        contextMessages,
+        model.model_type
+      );
 
     // 準備系統提示詞
     let baseSystemPrompt = system_prompt;
@@ -616,7 +621,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
 
         // 處理工具調用
         let finalContent = chunk.full_content;
-        let finalThinkingContent = accumulatedThinkingContent || chunk.thinking_content;
+        let finalThinkingContent =
+          accumulatedThinkingContent || chunk.thinking_content;
         let toolCallMetadata = {
           has_tool_calls: false,
           tool_calls: [],
@@ -628,12 +634,15 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
 
         try {
           // 🔧 先進行快速工具調用檢測，避免不必要的處理提示
-          const hasToolCallsQuickCheck = mcpToolParser.hasToolCalls(chunk.full_content, {
-            user_id: user.id,
-            conversation_id: conversationId,
-            user_question: content,
-            original_question: content,
-          });
+          const hasToolCallsQuickCheck = mcpToolParser.hasToolCalls(
+            chunk.full_content,
+            {
+              user_id: user.id,
+              conversation_id: conversationId,
+              user_question: content,
+              original_question: content,
+            }
+          );
 
           // 🔧 只有真正需要工具調用時才顯示處理訊息
           if (hasToolCallsQuickCheck && isClientConnected) {
@@ -686,16 +695,19 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           }
 
           const chatResult = await toolCallPromise;
-          
+
           // 🔧 清理心跳間隔
           if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
           }
 
           // 🔧 檢查是否有流式二次 AI 調用
-          if (chatResult.is_streaming_secondary && chatResult.secondary_ai_generator) {
+          if (
+            chatResult.is_streaming_secondary &&
+            chatResult.secondary_ai_generator
+          ) {
             console.log("=== 開始處理流式二次 AI 調用 ===");
-            
+
             if (isClientConnected) {
               sendSSE("secondary_ai_stream_start", {
                 assistant_message_id: assistantMessageId,
@@ -719,9 +731,16 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 // 移除思考內容處理邏輯，避免重複顯示
 
                 // 處理主要內容
-                if (secondaryChunk.type === "content" || secondaryChunk.content) {
-                  secondaryContent = secondaryChunk.content || secondaryChunk.full_content || secondaryContent;
-                  secondaryFullContent = secondaryChunk.full_content || secondaryContent;
+                if (
+                  secondaryChunk.type === "content" ||
+                  secondaryChunk.content
+                ) {
+                  secondaryContent =
+                    secondaryChunk.content ||
+                    secondaryChunk.full_content ||
+                    secondaryContent;
+                  secondaryFullContent =
+                    secondaryChunk.full_content || secondaryContent;
 
                   const sent = sendSSE("stream_content", {
                     content: secondaryContent,
@@ -747,8 +766,9 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
 
                 // 處理完成事件
                 if (secondaryChunk.type === "done") {
-                  finalContent = secondaryChunk.full_content || secondaryFullContent;
-                  
+                  finalContent =
+                    secondaryChunk.full_content || secondaryFullContent;
+
                   if (isClientConnected) {
                     sendSSE("secondary_ai_stream_done", {
                       assistant_message_id: assistantMessageId,
@@ -762,11 +782,16 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               }
 
               // 使用流式生成的內容作為最終內容
-              finalContent = secondaryFullContent || chatResult.final_response || chunk.full_content;
-
+              finalContent =
+                secondaryFullContent ||
+                chatResult.final_response ||
+                chunk.full_content;
             } catch (secondaryStreamError) {
-              console.error("二次 AI 流式調用失敗:", secondaryStreamError.message);
-              
+              console.error(
+                "二次 AI 流式調用失敗:",
+                secondaryStreamError.message
+              );
+
               if (isClientConnected) {
                 sendSSE("secondary_ai_stream_error", {
                   assistant_message_id: assistantMessageId,
@@ -795,7 +820,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               used_secondary_ai: chatResult.used_secondary_ai || false,
               original_response: chatResult.original_response,
               thinking_content: finalThinkingContent,
-              is_streaming_secondary: chatResult.is_streaming_secondary || false, // 🔧 添加流式標記
+              is_streaming_secondary:
+                chatResult.is_streaming_secondary || false, // 🔧 添加流式標記
             };
 
             if (isClientConnected) {
@@ -1328,6 +1354,195 @@ export const handleClearPromptCache = catchAsync(async (req, res) => {
   }
 });
 
+/**
+ * 優化提示詞
+ */
+export const handleOptimizePrompt = catchAsync(async (req, res) => {
+  // 輸入驗證
+  const schema = Joi.object({
+    prompt: Joi.string().required().min(1).max(2000).messages({
+      "string.empty": "提示詞不能為空",
+      "any.required": "提示詞是必填項",
+      "string.max": "提示詞長度不能超過2000個字符",
+    }),
+    context: Joi.string().max(500).optional(),
+  });
+
+  const { error, value } = schema.validate(req.body);
+  if (error) {
+    throw new ValidationError("輸入驗證失敗", error.details);
+  }
+
+  const { prompt, context } = value;
+  const { user } = req;
+
+  logger.info("開始優化提示詞", {
+    userId: user.id,
+    promptLength: prompt.length,
+    hasContext: !!context,
+  });
+
+  try {
+    // 固定使用 qwen3:8b 模型（ID: 42）
+    const targetModelId = 42;
+    const { rows: modelRows } = await query(
+      "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE",
+      [targetModelId]
+    );
+
+    if (modelRows.length === 0) {
+      throw new BusinessError("優化提示詞專用模型不可用，請聯繫管理員");
+    }
+
+    const model = modelRows[0];
+
+    // 構建優化提示詞的系統提示
+    const systemPrompt = `你是一個專業的提示詞優化專家。你的任務是幫助用戶優化他們的提示詞，使其更加清晰、具體和有效。
+
+優化原則：
+1. 保持原意不變，但讓表達更準確
+2. 增加必要的細節和具體要求
+3. 使用更專業和精確的語言
+4. 確保指令清晰易懂
+5. 添加適當的格式要求或輸出結構
+
+請以 JSON 格式回應，包含以下字段：
+{
+  "optimized_prompt": "優化後的提示詞",
+  "improvements": ["改進要點1", "改進要點2", "改進要點3"],
+  "confidence": 0.95
+}
+
+注意：
+- optimized_prompt 應該是完整的、可直接使用的提示詞
+- improvements 應該列出具體的改進點（最多5個）
+- confidence 是你對優化結果的信心度（0-1之間的數值）
+- 請確保回應是有效的 JSON 格式`;
+
+    // 構建用戶消息
+    let userMessage = `請優化以下提示詞：
+
+原始提示詞：
+${prompt}`;
+
+    if (context) {
+      userMessage += `
+
+額外上下文：
+${context}`;
+    }
+
+    // 準備AI調用參數
+    const aiOptions = {
+      provider: model.model_type,
+      model: model.model_id,
+      endpoint_url: model.endpoint_url,
+      api_key: model.api_key_encrypted,
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: userMessage,
+        },
+      ],
+      temperature: 0.3, // 使用較低的溫度確保穩定性
+      max_tokens: 1500,
+    };
+
+    logger.info("調用AI進行提示詞優化", {
+      userId: user.id,
+      model: model.model_id,
+      provider: model.model_type,
+    });
+
+    // 調用AI模型
+    const aiResponse = await AIService.callModel(aiOptions);
+
+    if (!aiResponse.success) {
+      throw new BusinessError(`AI模型調用失敗: ${aiResponse.error}`);
+    }
+
+    // 解析AI回應
+    let optimizationResult;
+    try {
+      // 嘗試解析JSON回應
+      const responseContent = aiResponse.data.content.trim();
+
+      // 如果回應被包裹在代碼塊中，提取出來
+      const jsonMatch = responseContent.match(
+        /```(?:json)?\s*(\{[\s\S]*\})\s*```/
+      );
+      const jsonContent = jsonMatch ? jsonMatch[1] : responseContent;
+
+      optimizationResult = JSON.parse(jsonContent);
+
+      // 驗證必要字段
+      if (!optimizationResult.optimized_prompt) {
+        throw new Error("AI回應缺少優化後的提示詞");
+      }
+
+      // 設置默認值
+      optimizationResult.improvements = optimizationResult.improvements || [];
+      optimizationResult.confidence = optimizationResult.confidence || 0.8;
+    } catch (parseError) {
+      logger.warn("AI回應解析失敗，使用備用格式", {
+        userId: user.id,
+        parseError: parseError.message,
+        aiResponse: aiResponse.data.content.substring(0, 200),
+      });
+
+      // 備用方案：直接使用AI回應作為優化結果
+      optimizationResult = {
+        optimized_prompt: aiResponse.data.content.trim(),
+        improvements: ["AI提供了改進建議"],
+        confidence: 0.7,
+      };
+    }
+
+    // 記錄優化結果
+    logger.info("提示詞優化完成", {
+      userId: user.id,
+      originalLength: prompt.length,
+      optimizedLength: optimizationResult.optimized_prompt.length,
+      confidence: optimizationResult.confidence,
+      improvementsCount: optimizationResult.improvements.length,
+    });
+
+    // 返回結果
+    res.json(
+      createSuccessResponse(
+        {
+          original_prompt: prompt,
+          optimized_prompt: optimizationResult.optimized_prompt,
+          improvements: optimizationResult.improvements,
+          confidence: optimizationResult.confidence,
+          model_used: {
+            id: model.id,
+            name: model.display_name || model.model_id,
+            provider: model.model_type,
+          },
+        },
+        "提示詞優化成功"
+      )
+    );
+  } catch (error) {
+    logger.error("提示詞優化失敗", {
+      userId: user.id,
+      error: error.message,
+      stack: error.stack,
+    });
+
+    if (error instanceof BusinessError || error instanceof ValidationError) {
+      throw error;
+    }
+
+    throw new BusinessError("提示詞優化失敗，請稍後重試");
+  }
+});
+
 export default {
   handleCreateConversation,
   handleSendMessage,
@@ -1345,4 +1560,5 @@ export default {
   handleGetToolStats,
   handlePreviewSystemPrompt,
   handleClearPromptCache,
+  handleOptimizePrompt,
 };

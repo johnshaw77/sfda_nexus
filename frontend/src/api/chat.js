@@ -62,3 +62,9 @@ export const getAgents = async (params = {}) => {
   const response = await api.get("/api/chat/agents", { params });
   return response.data;
 };
+
+// 優化提示詞
+export const optimizePrompt = async (promptData) => {
+  const response = await api.post("/api/chat/optimize-prompt", promptData);
+  return response.data;
+};

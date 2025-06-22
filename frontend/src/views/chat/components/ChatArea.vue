@@ -202,6 +202,49 @@
             class="stream-toggle" />
         </a-tooltip>
 
+        <a-tooltip
+          :title="
+            configStore.chatSettings.useRealtimeRender
+              ? '當前：即時渲染模式 - 串流過程中即時顯示內容'
+              : '當前：等待渲染模式 - 串流結束後一次性渲染'
+          "
+          placement="bottom"
+          :arrow="false">
+          <a-tag
+            @click="handleToggleRealtimeRender"
+            :color="
+              thinkingMode
+                ? 'var(--primary-color)'
+                : 'var(--text-color-secondary)'
+            ">
+            <span v-show="!inputCollapsed">{{
+              configStore.chatSettings.useRealtimeRender ? "即時" : "等待"
+            }}</span>
+          </a-tag>
+        </a-tooltip>
+
+        <!-- 思考模式切換 -->
+        <a-tooltip
+          :title="
+            thinkingMode
+              ? '當前：思考模式開啟 - AI 會顯示思考過程'
+              : '當前：思考模式關閉 - AI 直接輸出結果'
+          "
+          placement="bottom"
+          :arrow="false">
+          <a-tag
+            :color="
+              thinkingMode
+                ? 'var(--primary-color)'
+                : 'var(--text-color-secondary)'
+            "
+            @click="handleToggleThinkingMode">
+            <span v-show="!inputCollapsed">{{
+              thinkingMode ? "思考" : "直出"
+            }}</span>
+          </a-tag>
+        </a-tooltip>
+
         <!-- 調試面板切換 -->
         <a-tooltip
           title="開發調試面板"
@@ -256,8 +299,6 @@
       <a-spin
         :spinning="loading"
         tip="載入消息中...">
-
-
         <!-- 空狀態 -->
         <div
           v-if="chatStore.messages.length === 0"
@@ -528,12 +569,13 @@
                   <div
                     class="file-thumbnail"
                     :class="{
-                      clickable:
-                        file.preview && isImageFile(file),
+                      clickable: file.preview && isImageFile(file),
                     }"
                     @click="handlePreviewImage(file)">
                     <!-- 圖片檔案顯示預覽 -->
-                    <div v-if="file.preview" class="image-preview-container">
+                    <div
+                      v-if="file.preview"
+                      class="image-preview-container">
                       <img
                         :src="file.preview"
                         :alt="file.filename"
@@ -860,80 +902,35 @@
               <ModelSelector
                 v-model:modelValue="selectedModel"
                 @change="handleModelChange" />
-
-              <!-- 新對話按鈕 -->
-              <a-button
-                type="text"
-                size="small"
-                @click="handleCreateNewConversation"
-                :loading="creatingNewConversation">
-                <PlusOutlined />
-                <span v-show="!inputCollapsed">新對話</span>
-              </a-button>
-
-              <!-- 即時渲染切換 -->
+              <!-- 優化提示詞 -->
               <a-tooltip
-                :title="
-                  configStore.chatSettings.useRealtimeRender
-                    ? '當前：即時渲染模式 - 串流過程中即時顯示內容'
-                    : '當前：等待渲染模式 - 串流結束後一次性渲染'
-                "
-                placement="top">
+                placement="top"
+                :arrow="false">
+                <template #title>
+                  <span>優化提示詞</span>
+                </template>
                 <a-button
                   type="text"
                   size="small"
-                  @click="handleToggleRealtimeRender"
-                  :class="{
-                    'active-toggle': configStore.chatSettings.useRealtimeRender,
-                  }">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    fill="currentColor">
-                    <path
-                      v-if="configStore.chatSettings.useRealtimeRender"
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    <path
-                      v-else
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z M12 15.4l-3.76 2-0.7-4.2-3-2.9 4.2-0.6L12 6.1l1.9 3.8 4.2 0.6-3 2.9-0.7 4.2L12 15.4z" />
-                  </svg>
-                  <span v-show="!inputCollapsed">{{
-                    configStore.chatSettings.useRealtimeRender ? "即時" : "等待"
-                  }}</span>
+                  :loading="optimizingPrompt"
+                  :disabled="!messageText.trim() || optimizingPrompt"
+                  @click="handleOptimizePrompt">
+                  <Sparkles :size="14" />
                 </a-button>
               </a-tooltip>
 
-              <!-- 思考模式切換 -->
+              <!-- 語言輸入 -->
               <a-tooltip
-                :title="
-                  thinkingMode
-                    ? '當前：思考模式開啟 - AI 會顯示思考過程'
-                    : '當前：思考模式關閉 - AI 直接輸出結果'
-                "
-                placement="top">
+                placement="top"
+                :arrow="false">
+                <template #title>
+                  <span>語音輸入</span>
+                </template>
                 <a-button
                   type="text"
                   size="small"
-                  @click="handleToggleThinkingMode"
-                  :class="{
-                    'active-toggle': thinkingMode,
-                  }">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    fill="currentColor">
-                    <path
-                      v-if="thinkingMode"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    <path
-                      v-else
-                      d="M8 12.5c0 .41.34.75.75.75h2.5v2.5c0 .41.34.75.75.75s.75-.34.75-.75v-2.5h2.5c.41 0 .75-.34.75-.75s-.34-.75-.75-.75h-2.5v-2.5c0-.41-.34-.75-.75-.75s-.75.34-.75.75v2.5h-2.5c-.41 0-.75.34-.75.75zm-6 0c0 5.52 4.48 10 10 10s10-4.48 10-10S17.52 2.5 12 2.5 2 6.98 2 12.5z" />
-                  </svg>
-                  <span v-show="!inputCollapsed">{{
-                    thinkingMode ? "思考" : "直出"
-                  }}</span>
+                  :loading="creatingNewConversation">
+                  <Mic :size="14" />
                 </a-button>
               </a-tooltip>
 
@@ -954,19 +951,42 @@
                 </a-upload>
               </a-tooltip>
 
+              <!-- 即時渲染切換 -->
+
               <!-- 表情符號 -->
-              <a-button
+              <!-- <a-button
                 type="text"
                 size="small"
                 @click="handleShowEmoji">
                 <SmileOutlined />
-              </a-button>
+              </a-button> -->
             </div>
 
             <div class="toolbar-right">
               <!-- 字數統計 -->
               <!-- <span class="char-count">{{ messageText.length }}</span> -->
-
+              <!-- 新對話按鈕 -->
+              <a-tooltip
+                placement="top"
+                :arrow="false">
+                <template #title>
+                  <span>開啟新的對話</span>
+                </template>
+                <a-button
+                  type="text"
+                  size="small"
+                  @click="handleCreateNewConversation"
+                  :loading="creatingNewConversation">
+                  <MessageCirclePlus
+                    :size="14"
+                    :color="
+                      configStore.chatSettings.useRealtimeRender
+                        ? 'var(--primary-color)'
+                        : 'var(--text-color-secondary)'
+                    " />
+                  <span v-show="!inputCollapsed">新對話</span>
+                </a-button>
+              </a-tooltip>
               <!-- 發送按鈕 -->
               <a-button
                 type="primary"
@@ -1119,6 +1139,85 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 優化提示詞結果模態框 -->
+    <a-modal
+      v-model:open="showOptimizedPrompt"
+      title="提示詞優化結果"
+      width="800px"
+      :footer="null"
+      centered>
+      <div
+        v-if="optimizedPromptResult"
+        class="optimized-prompt-content">
+        <!-- 原始提示詞 -->
+        <div class="prompt-section">
+          <h4 class="section-title">原始提示詞</h4>
+          <div class="prompt-text original">
+            {{ optimizedPromptResult.original_prompt }}
+          </div>
+        </div>
+
+        <!-- 優化後提示詞 -->
+        <div class="prompt-section">
+          <h4 class="section-title">優化後提示詞</h4>
+          <div class="prompt-text optimized">
+            {{ optimizedPromptResult.optimized_prompt }}
+          </div>
+        </div>
+
+        <!-- 改進要點 -->
+        <div
+          v-if="optimizedPromptResult.improvements?.length"
+          class="prompt-section">
+          <h4 class="section-title">改進要點</h4>
+          <ul class="improvements-list">
+            <li
+              v-for="(improvement, index) in optimizedPromptResult.improvements"
+              :key="index">
+              {{ improvement }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- 信心度 -->
+        <div
+          v-if="optimizedPromptResult.confidence"
+          class="prompt-section">
+          <h4 class="section-title">優化信心度</h4>
+          <a-progress
+            :percent="optimizedPromptResult.confidence"
+            :stroke-color="{
+              '0%': '#87d068',
+              '100%': '#108ee9',
+            }"
+            :show-info="true"
+            :format="(percent) => `${percent}%`" />
+        </div>
+
+        <!-- 使用的模型信息 -->
+        <div
+          v-if="optimizedPromptResult.model_info"
+          class="prompt-section">
+          <h4 class="section-title">優化模型</h4>
+          <div class="model-info">
+            {{ optimizedPromptResult.model_info.display_name }} ({{
+              optimizedPromptResult.model_info.provider
+            }})
+          </div>
+        </div>
+
+        <!-- 操作按鈕 -->
+        <div class="action-buttons">
+          <a-button @click="showOptimizedPrompt = false"> 關閉 </a-button>
+          <a-button
+            type="primary"
+            @click="handleApplyOptimizedPrompt">
+            應用優化結果
+          </a-button>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -1138,7 +1237,15 @@ import {
   getAgentQuickCommands,
   incrementCommandUsage,
 } from "@/api/quickCommands";
-import { ArrowDownToLine, Maximize, Minimize, ZoomIn } from "lucide-vue-next";
+import {
+  ArrowDownToLine,
+  Maximize,
+  Minimize,
+  ZoomIn,
+  MessageCirclePlus,
+  Mic,
+  Sparkles,
+} from "lucide-vue-next";
 import FileWord from "@/assets/icons/FileWord.vue";
 import FileCSV from "@/assets/icons/FileCSV.vue";
 import FileExcel from "@/assets/icons/FileExcel.vue";
@@ -1147,6 +1254,7 @@ import FilePDF from "@/assets/icons/FilePDF.vue";
 
 import { useLocalStorage } from "@vueuse/core";
 import { chatWithQwenAgent } from "@/api/qwenAgent";
+import { optimizePrompt } from "@/api/chat";
 import { useFileType } from "@/composables/useFileType";
 
 // Store
@@ -1167,7 +1275,7 @@ const {
   isXmlFile,
   isCodeFile,
   isImageFile,
-  isSupportedFile
+  isSupportedFile,
 } = useFileType();
 
 // 響應式狀態
@@ -1196,7 +1304,7 @@ const loadingQuickCommands = ref(false);
 const thinkingMode = ref(true); // 默認開啟思考模式
 const uploadDescription = `<li>» 文件數量:同時最多 5 個</li>
   <li>» 文件大小: 單個文件大小不超過 20 MB</li>
-  <li>» 文件類型: pdf,txt,docs,xlsx,圖片和各類代碼文件格式等</li>`;
+  <li>» 文件類型: csv,pdf,txt,docs,xlsx,圖片和各類代碼文件格式等</li>`;
 // 預覽檔案相關狀態
 const previewFiles = ref([]);
 const maxPreviewFiles = 5;
@@ -1207,12 +1315,10 @@ const isDragOver = ref(false);
 // 輸入框折疊狀態
 const inputCollapsed = useLocalStorage("chat-input-collapsed", false);
 
-
-
-
-
-
-
+// 優化提示詞相關狀態
+const optimizingPrompt = ref(false);
+const optimizedPromptResult = ref(null);
+const showOptimizedPrompt = ref(false);
 
 // 計算 textarea 的高度
 const textareaHeight = computed(() => {
@@ -1314,12 +1420,7 @@ const useStreamMode = ref(true); // 默認啟用串流模式
 const isStreaming = ref(false); // 是否正在串流中
 
 // 快速提示
-const quickPrompts = ref([
-  // { id: 1, text: "你好，請介紹一下自己" },
-  // { id: 2, text: "幫我分析這個問題" },
-  // { id: 3, text: "請提供一些建議" },
-  // { id: 4, text: "解釋一下這個概念" },
-]);
+const quickPrompts = ref([]);
 
 // 從 store 中獲取可用智能體
 const availableAgents = computed(() => chatStore.availableAgents || []);
@@ -1356,7 +1457,7 @@ const getQuotePreview = (content) => {
   return content.length > 100 ? content.substring(0, 100) + "..." : content;
 };
 
-// 檢測是否是 Qwen Agent
+// 檢測是否是 Qwen Agent (TODO: qwen agent framework 還需測試驗証，不然就棄用)
 const isQwenAgent = (agent) => {
   if (!agent) return false;
   // 檢查 agent 名稱或工具配置來判斷是否是 Qwen Agent
@@ -1643,6 +1744,7 @@ const calculateMenuPosition = (textarea) => {
   };
 };
 
+// TODO: @ 的功能還需要測試驗証，未來想法是多個智能體可以同時被提及，但目前只允許一個智能體被提及
 const handleSelectAgent = (agent) => {
   // 檢查是否已經有 @ 提及，如果有則不允許添加
   const existingMentions = (messageText.value.match(/@\w+/g) || []).length;
@@ -1725,6 +1827,57 @@ const handleQuickPrompt = async (prompt) => {
   });
 };
 
+// 優化提示詞處理函數
+const handleOptimizePrompt = async () => {
+  if (!messageText.value.trim()) {
+    message.warning("請先輸入提示詞");
+    return;
+  }
+
+  if (messageText.value.length > 2000) {
+    message.warning("提示詞長度不能超過 2000 字符");
+    return;
+  }
+
+  try {
+    optimizingPrompt.value = true;
+
+    // 調用優化 API
+    const response = await optimizePrompt({
+      prompt: messageText.value.trim(),
+      context: props.agent?.description || "",
+    });
+
+    if (response.success) {
+      optimizedPromptResult.value = response.data;
+      showOptimizedPrompt.value = true;
+      message.success("提示詞優化完成");
+    } else {
+      message.error(response.message || "優化失敗");
+    }
+  } catch (error) {
+    console.error("優化提示詞失敗:", error);
+    message.error("優化失敗，請稍後重試");
+  } finally {
+    optimizingPrompt.value = false;
+  }
+};
+
+// 應用優化結果
+const handleApplyOptimizedPrompt = () => {
+  if (optimizedPromptResult.value?.optimized_prompt) {
+    messageText.value = optimizedPromptResult.value.optimized_prompt;
+    showOptimizedPrompt.value = false;
+
+    // Focus 到輸入框
+    nextTick(() => {
+      if (messageInput.value) {
+        messageInput.value.focus();
+      }
+    });
+  }
+};
+
 const handleQuoteMessage = (message) => {
   quotedMessage.value = message;
 };
@@ -1743,6 +1896,7 @@ const handleRegenerateResponse = async (message) => {
   }
 };
 
+//TODO 檔案上傳功能，已沒有使用，改成先預覽，再上傳
 const handleFileUpload = async (file) => {
   try {
     // 檢查檔案大小 (10MB 限制)
@@ -1755,14 +1909,14 @@ const handleFileUpload = async (file) => {
     // 檢查檔案類型 - 使用 composable 中的判斷函數
     const fileForCheck = {
       mimeType: file.type,
-      filename: file.name
+      filename: file.name,
     };
 
     console.log("file.type", file.type);
     console.log("file.name", file.name);
 
     if (!isSupportedFile(fileForCheck)) {
-      const fileExtension = "." + file.name.split('.').pop().toLowerCase();
+      const fileExtension = "." + file.name.split(".").pop().toLowerCase();
       message.error(`不支援的檔案類型: ${file.type || fileExtension}`);
       return false;
     }
@@ -1848,11 +2002,11 @@ const handleFilePreview = async (file) => {
     // 檢查檔案類型 - 使用 composable 中的判斷函數
     const fileForCheck = {
       mimeType: file.type,
-      filename: file.name
+      filename: file.name,
     };
 
     if (!isSupportedFile(fileForCheck)) {
-      const fileExtension = "." + file.name.split('.').pop().toLowerCase();
+      const fileExtension = "." + file.name.split(".").pop().toLowerCase();
       message.error(`不支援的檔案類型: ${file.type || fileExtension}`);
       return false;
     }
@@ -1937,9 +2091,6 @@ const handleExplainImage = (file) => {
   });
 };
 
-
-
-
 // 處理檔案關鍵要點
 const handleSummarizeFile = (file) => {
   const summarizeText = `請分析這個檔案的關鍵要點`;
@@ -1969,7 +2120,7 @@ const handleSummarizeFile = (file) => {
 
 // 處理生成文件
 const handleGenerateDocument = (file) => {
-  const generateText = `基於這個檔案內容，請生成一份完整的文件：${file.filename}`;
+  const generateText = `基於這個檔案內容，請生成一份完整的文件`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + generateText;
   } else {
@@ -1996,7 +2147,7 @@ const handleGenerateDocument = (file) => {
 
 // PDF 專用處理函數
 const handleExtractPdfText = (file) => {
-  const extractText = `請提取這個 PDF 檔案中的所有文字內容：${file.filename}`;
+  const extractText = `請提取這個 PDF 檔案中的所有文字內容`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + extractText;
   } else {
@@ -2007,7 +2158,7 @@ const handleExtractPdfText = (file) => {
 };
 
 const handleSummarizePdf = (file) => {
-  const summarizeText = `請分析並總結這個 PDF 文件的主要內容和重點：${file.filename}`;
+  const summarizeText = `請分析並總結這個 PDF 文件的主要內容和重點`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + summarizeText;
   } else {
@@ -2019,7 +2170,7 @@ const handleSummarizePdf = (file) => {
 
 // Word 專用處理函數
 const handleAnalyzeDocument = (file) => {
-  const analyzeText = `請深度分析這個 Word 文檔的結構、內容和重點：${file.filename}`;
+  const analyzeText = `請深度分析這個 Word 文檔的結構、內容和重點`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + analyzeText;
   } else {
@@ -2030,7 +2181,7 @@ const handleAnalyzeDocument = (file) => {
 };
 
 const handleFormatDocument = (file) => {
-  const formatText = `請整理這個 Word 文檔的格式，提供標準化的排版建議：${file.filename}`;
+  const formatText = `請整理這個 Word 文檔的格式，提供標準化的排版建議`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + formatText;
   } else {
@@ -2042,7 +2193,7 @@ const handleFormatDocument = (file) => {
 
 // CSV 專用處理函數
 const handleAnalyzeCsvData = (file) => {
-  const analyzeText = `請分析這個 CSV 檔案中的數據，提供統計摘要和洞察：${file.filename}`;
+  const analyzeText = `請分析這個 CSV 檔案中的數據，提供統計摘要和洞察`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + analyzeText;
   } else {
@@ -2053,7 +2204,7 @@ const handleAnalyzeCsvData = (file) => {
 };
 
 const handleGenerateChart = (file) => {
-  const chartText = `請分析這個 CSV 數據並建議適合的圖表類型，提供數據視覺化方案：${file.filename}`;
+  const chartText = `請分析這個 CSV 數據並建議適合的圖表類型，提供數據視覺化方案`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + chartText;
   } else {
@@ -2065,7 +2216,7 @@ const handleGenerateChart = (file) => {
 
 // Excel 專用處理函數
 const handleAnalyzeExcelData = (file) => {
-  const analyzeText = `請深度分析這個 Excel 檔案中的所有工作表數據，提供統計摘要、數據品質評估和業務洞察：${file.filename}`;
+  const analyzeText = `請深度分析這個 Excel 檔案中的所有工作表數據，提供統計摘要、數據品質評估和業務洞察`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + analyzeText;
   } else {
@@ -2076,7 +2227,7 @@ const handleAnalyzeExcelData = (file) => {
 };
 
 const handleGenerateExcelChart = (file) => {
-  const chartText = `請分析這個 Excel 檔案的數據結構，建議適合的圖表類型和數據視覺化方案，考慮多個工作表之間的關係：${file.filename}`;
+  const chartText = `請分析這個 Excel 檔案的數據結構，建議適合的圖表類型和數據視覺化方案，考慮多個工作表之間的關係`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + chartText;
   } else {
@@ -2087,7 +2238,7 @@ const handleGenerateExcelChart = (file) => {
 };
 
 const handleSummarizeExcelSheets = (file) => {
-  const summaryText = `請分析這個 Excel 檔案中所有工作表的結構和用途，提供每個工作表的摘要和整體檔案的功能說明：${file.filename}`;
+  const summaryText = `請分析這個 Excel 檔案中所有工作表的結構和用途，提供每個工作表的摘要和整體檔案的功能說明`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + summaryText;
   } else {
@@ -2099,7 +2250,7 @@ const handleSummarizeExcelSheets = (file) => {
 
 // PowerPoint 專用處理函數
 const handleAnalyzePowerpoint = (file) => {
-  const analyzeText = `請分析這個 PowerPoint 簡報檔案的結構和內容，提供每張投影片的摘要和整體簡報的主題分析：${file.filename}`;
+  const analyzeText = `請分析這個 PowerPoint 簡報檔案的結構和內容，提供每張投影片的摘要和整體簡報的主題分析`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + analyzeText;
   } else {
@@ -2110,7 +2261,7 @@ const handleAnalyzePowerpoint = (file) => {
 };
 
 const handleExtractSlideContent = (file) => {
-  const extractText = `請提取這個 PowerPoint 簡報中所有投影片的文字內容、圖表說明和重要元素，整理成結構化的文字格式：${file.filename}`;
+  const extractText = `請提取這個 PowerPoint 簡報中所有投影片的文字內容、圖表說明和重要元素，整理成結構化的文字格式`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + extractText;
   } else {
@@ -2121,7 +2272,7 @@ const handleExtractSlideContent = (file) => {
 };
 
 const handleOptimizePresentation = (file) => {
-  const optimizeText = `請分析這個 PowerPoint 簡報並提供優化建議，包括內容結構、視覺設計、邏輯流程和演講技巧方面的改善方案：${file.filename}`;
+  const optimizeText = `請分析這個 PowerPoint 簡報並提供優化建議，包括內容結構、視覺設計、邏輯流程和演講技巧方面的改善方案`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + optimizeText;
   } else {
@@ -2133,7 +2284,7 @@ const handleOptimizePresentation = (file) => {
 
 // 文字檔案專用處理函數
 const handleAnalyzeText = (file) => {
-  const analyzeText = `請分析這個文字檔案的內容結構、主題和重點，提供詳細的文本分析報告：${file.filename}`;
+  const analyzeText = `請分析這個文字檔案的內容結構、主題和重點，提供詳細的文本分析報告`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + analyzeText;
   } else {
@@ -2144,7 +2295,7 @@ const handleAnalyzeText = (file) => {
 };
 
 const handleSummarizeText = (file) => {
-  const summarizeText = `請為這個文字檔案提供簡潔的內容摘要，突出關鍵信息和要點：${file.filename}`;
+  const summarizeText = `請為這個文字檔案提供簡潔的內容摘要，突出關鍵信息和要點`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + summarizeText;
   } else {
@@ -2156,7 +2307,7 @@ const handleSummarizeText = (file) => {
 
 // JSON 檔案專用處理函數
 const handleParseJson = (file) => {
-  const parseText = `請解析這個 JSON 檔案的結構，說明各個欄位的用途和數據類型：${file.filename}`;
+  const parseText = `請解析這個 JSON 檔案的結構，說明各個欄位的用途和數據類型`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + parseText;
   } else {
@@ -2167,7 +2318,7 @@ const handleParseJson = (file) => {
 };
 
 const handleValidateJson = (file) => {
-  const validateText = `請驗證這個 JSON 檔案的格式是否正確，並檢查是否有語法錯誤或結構問題：${file.filename}`;
+  const validateText = `請驗證這個 JSON 檔案的格式是否正確，並檢查是否有語法錯誤或結構問題`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + validateText;
   } else {
@@ -2179,7 +2330,7 @@ const handleValidateJson = (file) => {
 
 // XML 檔案專用處理函數
 const handleParseXml = (file) => {
-  const parseText = `請解析這個 XML 檔案的結構，說明元素層次和屬性配置：${file.filename}`;
+  const parseText = `請解析這個 XML 檔案的結構，說明元素層次和屬性配置`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + parseText;
   } else {
@@ -2190,7 +2341,7 @@ const handleParseXml = (file) => {
 };
 
 const handleTransformXml = (file) => {
-  const transformText = `請分析這個 XML 檔案並提供格式轉換建議，例如轉為 JSON 或其他結構化格式：${file.filename}`;
+  const transformText = `請分析這個 XML 檔案並提供格式轉換建議，例如轉為 JSON 或其他結構化格式`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + transformText;
   } else {
@@ -2202,7 +2353,7 @@ const handleTransformXml = (file) => {
 
 // 程式碼檔案專用處理函數
 const handleReviewCode = (file) => {
-  const reviewText = `請對這個程式碼檔案進行詳細的代碼審查，包括代碼品質、潛在問題、安全性和最佳實踐建議：${file.filename}`;
+  const reviewText = `請對這個程式碼檔案進行詳細的代碼審查，包括代碼品質、潛在問題、安全性和最佳實踐建議`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + reviewText;
   } else {
@@ -2213,7 +2364,7 @@ const handleReviewCode = (file) => {
 };
 
 const handleExplainCode = (file) => {
-  const explainText = `請詳細解釋這個程式碼檔案的功能、邏輯流程和關鍵算法，適合初學者理解：${file.filename}`;
+  const explainText = `請詳細解釋這個程式碼檔案的功能、邏輯流程和關鍵算法，適合初學者理解`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + explainText;
   } else {
@@ -2224,7 +2375,7 @@ const handleExplainCode = (file) => {
 };
 
 const handleOptimizeCode = (file) => {
-  const optimizeText = `請分析這個程式碼檔案並提供性能優化建議，包括代碼重構、效率改進和可維護性提升方案：${file.filename}`;
+  const optimizeText = `請分析這個程式碼檔案並提供性能優化建議，包括代碼重構、效率改進和可維護性提升方案`; //：${file.filename}`;
   if (messageText.value.trim()) {
     messageText.value += "\n\n" + optimizeText;
   } else {
@@ -2315,9 +2466,9 @@ const handlePaste = async (e) => {
   }
 };
 
-const handleShowEmoji = () => {
-  message.info("表情符號功能開發中");
-};
+// const handleShowEmoji = () => {
+//   message.info("表情符號功能開發中");
+// };
 
 const handleShowSettings = () => {
   // 載入智能體特定的系統提示詞
@@ -2441,7 +2592,7 @@ const handleDynamicQuickCommand = ({ key }) => {
     return;
   }
 
-  // 如果是靜態的回退命令，使用原來的邏輯
+  // 如果是靜態的回退命令，使用原來的邏輯 //TODO: 保留，但已經不使用
   handleQuickCommand({ key });
 };
 
@@ -2961,7 +3112,7 @@ const getModelEndpoint = () => {
 .chat-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
 }
 
 .stream-toggle {
@@ -3297,7 +3448,8 @@ const getModelEndpoint = () => {
   border-color: var(--primary-color) !important;
 }
 
-.toolbar-left .ant-btn {
+.toolbar-left .ant-btn,
+.toolbar-right .ant-btn {
   transition: all 0.2s ease;
   border-radius: 6px;
   height: 32px;
@@ -4006,5 +4158,94 @@ const getModelEndpoint = () => {
   opacity: 0.8;
 }
 
+/* 優化提示詞模態框樣式 */
+.optimized-prompt-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
 
+.prompt-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--custom-text-primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prompt-text {
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.prompt-text.original {
+  background: var(--custom-bg-tertiary);
+  border: 1px solid var(--custom-border-secondary);
+  color: var(--custom-text-secondary);
+}
+
+.prompt-text.optimized {
+  background: linear-gradient(
+    135deg,
+    rgba(24, 144, 255, 0.05) 0%,
+    rgba(82, 196, 26, 0.05) 100%
+  );
+  border: 1px solid var(--primary-color);
+  color: var(--custom-text-primary);
+  font-weight: 500;
+}
+
+.improvements-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.improvements-list li {
+  margin-bottom: 8px;
+  color: var(--custom-text-primary);
+  line-height: 1.5;
+}
+
+.model-info {
+  font-size: 14px;
+  color: var(--custom-text-secondary);
+  padding: 8px 12px;
+  background: var(--custom-bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--custom-border-primary);
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--custom-border-primary);
+}
+
+/* 優化提示詞按鈕特殊樣式 */
+.toolbar-left .ant-btn:has(.lucide-sparkles) {
+  color: var(--primary-color) !important;
+  transition: all 0.2s ease;
+}
+
+.toolbar-left .ant-btn:has(.lucide-sparkles):hover {
+  background: rgba(24, 144, 255, 0.1) !important;
+  transform: scale(1.05);
+}
+
+.toolbar-left .ant-btn:has(.lucide-sparkles):disabled {
+  color: var(--custom-text-disabled) !important;
+  transform: none;
+}
 </style>
