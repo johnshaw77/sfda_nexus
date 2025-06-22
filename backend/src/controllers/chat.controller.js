@@ -1461,15 +1461,16 @@ ${context}`;
     // 調用AI模型
     const aiResponse = await AIService.callModel(aiOptions);
 
-    if (!aiResponse.success) {
-      throw new BusinessError(`AI模型調用失敗: ${aiResponse.error}`);
+    // AIService.callModel 直接返回結果對象，不是包裝在 success/error 中
+    if (!aiResponse || !aiResponse.content) {
+      throw new BusinessError(`AI模型調用失敗: 無效的回應`);
     }
 
     // 解析AI回應
     let optimizationResult;
     try {
       // 嘗試解析JSON回應
-      const responseContent = aiResponse.data.content.trim();
+      const responseContent = aiResponse.content.trim();
 
       // 如果回應被包裹在代碼塊中，提取出來
       const jsonMatch = responseContent.match(
@@ -1491,12 +1492,12 @@ ${context}`;
       logger.warn("AI回應解析失敗，使用備用格式", {
         userId: user.id,
         parseError: parseError.message,
-        aiResponse: aiResponse.data.content.substring(0, 200),
+        aiResponse: aiResponse.content.substring(0, 200),
       });
 
       // 備用方案：直接使用AI回應作為優化結果
       optimizationResult = {
-        optimized_prompt: aiResponse.data.content.trim(),
+        optimized_prompt: aiResponse.content.trim(),
         improvements: ["AI提供了改進建議"],
         confidence: 0.7,
       };
@@ -1519,9 +1520,10 @@ ${context}`;
           optimized_prompt: optimizationResult.optimized_prompt,
           improvements: optimizationResult.improvements,
           confidence: optimizationResult.confidence,
-          model_used: {
+          model_info: {
             id: model.id,
             name: model.display_name || model.model_id,
+            display_name: model.display_name || model.model_id,
             provider: model.model_type,
           },
         },
