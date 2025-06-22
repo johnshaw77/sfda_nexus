@@ -1,5 +1,7 @@
 <template>
   <div class="chat-area">
+    <!-- 放一個 div 在背景, 並且放在最下一層 -->
+
     <!-- 聊天頭部 -->
     <div class="chat-area-header">
       <div class="conversation-info">
@@ -296,6 +298,20 @@
       :style="{
         height: `calc(100% - ${inputCollapsed ? 60 : inputAreaHeight}px)`,
       }">
+      <div class="background-video">
+        <video
+          src="/images/ssss.mp4"
+          style="
+            position: absolute;
+            opacity: 0.2;
+            width: 100%;
+            height: 100%;
+            border-radius: 0px;
+          "
+          autoplay
+          loop
+          muted></video>
+      </div>
       <a-spin
         :spinning="loading"
         tip="載入消息中...">

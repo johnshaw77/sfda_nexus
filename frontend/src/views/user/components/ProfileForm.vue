@@ -25,8 +25,10 @@
     class="profile-form"
     @finish="handleSubmit">
     <!-- 頭像上傳 -->
-    <a-form-item label=" ">
-      <div class="avatar-upload-container">
+    <a-form-item label="">
+      <div
+        class="avatar-upload-container"
+        style="margin-left: 50%; width: 250px; text-align: center">
         <div
           class="avatar-wrapper"
           @paste="handlePaste"
@@ -224,11 +226,34 @@ const formRules = {
   ],
   phone: [
     {
-      pattern: /^1[3-9]\d{9}$/,
-      message: "請輸入正確的手機號碼",
+      validator: (rule, value) => {
+        if (!value) return Promise.resolve(); // 手機號碼不是必填的
+
+        // 移除所有空格、破折號、括號等常見分隔符
+        const cleanPhone = value.replace(/[\s\-\(\)\+]/g, "");
+
+        // 支援多種手機號碼格式
+        const patterns = [
+          /^09\d{8}$/, // 台灣手機 (09開頭，共10位)
+          /^1[3-9]\d{9}$/, // 11位數字，中國大陸
+          /^[6-9]\d{7}$/, // 香港手機 (8位數字)
+          /^(\+886|886)?9\d{8}$/, // 台灣國際格式 (+886912345678)
+          /^(\+86|86)?1[3-9]\d{9}$/, // 中國國際格式
+          /^(\+1|1)?[2-9]\d{9}$/, // 美國手機號碼 (不以0或1開頭的10位數字)
+        ];
+
+        const isValid = patterns.some((pattern) => pattern.test(cleanPhone));
+
+        if (!isValid) {
+          return Promise.reject(new Error("請輸入正確的手機號碼格式"));
+        }
+
+        return Promise.resolve();
+      },
       trigger: "blur",
     },
   ],
+  bio: [{ max: 500, message: "個人簡介不能超過500個字符", trigger: "blur" }],
 };
 
 // 初始化表單數據

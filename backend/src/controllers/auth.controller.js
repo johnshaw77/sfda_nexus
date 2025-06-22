@@ -359,6 +359,7 @@ export const handleUpdateProfile = catchAsync(async (req, res) => {
     "department",
     "position",
     "phone",
+    "bio",
     "preferences",
   ];
   const filteredData = {};
