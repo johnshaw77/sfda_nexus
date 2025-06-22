@@ -276,6 +276,7 @@ onMounted(async () => {
 
 <style scoped>
 .model-selector {
+  min-width: 250px;
   width: 100%;
 }
 

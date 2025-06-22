@@ -1383,8 +1383,8 @@ export const handleOptimizePrompt = catchAsync(async (req, res) => {
   });
 
   try {
-    // 固定使用 qwen3:8b 模型（ID: 42）
-    const targetModelId = 42;
+    // 固定使用 qwen2.5:1.5b 模型（ID: 46）- 更快的輕量級模型
+    const targetModelId = 46;
     const { rows: modelRows } = await query(
       "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE",
       [targetModelId]

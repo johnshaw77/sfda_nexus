@@ -57,8 +57,9 @@ export function useFileType() {
   const isWordFile = (file) => {
     const { mimeType, filename } = getFileInfo(file);
     return (
+      mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      mimeType === "application/msword" ||
       mimeType?.includes("word") ||
-      mimeType?.includes("document") ||
       filename.toLowerCase().endsWith(".doc") ||
       filename.toLowerCase().endsWith(".docx")
     );
@@ -192,9 +193,10 @@ export function useFileType() {
     if (isVideoFile(file)) return 'video';
     if (isArchiveFile(file)) return 'archive';
     if (isPdfFile(file)) return 'pdf';
+    // PowerPoint 檔案檢查要在 Word 檔案之前，避免誤識別
+    if (isPowerpointFile(file)) return 'powerpoint';
     if (isWordFile(file)) return 'word';
     if (isExcelFile(file)) return 'excel';
-    if (isPowerpointFile(file)) return 'powerpoint';
     if (isCsvFile(file)) return 'csv';
     if (isJsonFile(file)) return 'json';
     if (isXmlFile(file)) return 'xml';

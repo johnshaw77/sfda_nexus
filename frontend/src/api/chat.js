@@ -65,6 +65,8 @@ export const getAgents = async (params = {}) => {
 
 // 優化提示詞
 export const optimizePrompt = async (promptData) => {
-  const response = await api.post("/api/chat/optimize-prompt", promptData);
+  const response = await api.post("/api/chat/optimize-prompt", promptData, {
+    timeout: 60000, // 60秒超時，因為 AI 模型調用可能需要較長時間
+  });
   return response.data;
 };

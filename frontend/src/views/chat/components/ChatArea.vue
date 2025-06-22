@@ -490,7 +490,11 @@
         :class="{ collapsed: inputCollapsed }">
         <div
           class="input-wrapper"
-          :class="{ 'drag-over': isDragOver, collapsed: inputCollapsed }"
+          :class="{
+            'drag-over': isDragOver,
+            collapsed: inputCollapsed,
+            'input-disabled': optimizingPrompt,
+          }"
           @dragover="handleDragOver"
           @dragleave="handleDragLeave"
           @drop="handleDrop">
@@ -880,12 +884,17 @@
               }
             "
             @paste="handlePaste"
-            :placeholder="`向 ${agent?.display_name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送，支援拖拉或貼上檔案)`"
+            :placeholder="
+              isListening
+                ? '🎤 正在監聽語音輸入...'
+                : `向 ${agent?.display_name || 'AI助手'} 發送消息... (Shift+Enter 換行，Enter 發送，Tab 優化提示詞，支援拖拉或貼上檔案)`
+            "
             :auto-size="false"
-            :disabled="sending"
+            :disabled="sending || optimizingPrompt"
             @keydown="handleKeyDown"
             :style="{ height: `${textareaHeight}px` }"
-            class="message-input" />
+            class="message-input"
+            :class="{ 'voice-listening': isListening }" />
 
           <!-- 折疊狀態的簡化提示 -->
           <div
@@ -901,51 +910,60 @@
               <!-- 模型選擇器 -->
               <ModelSelector
                 v-model:modelValue="selectedModel"
+                :disabled="sending || optimizingPrompt"
                 @change="handleModelChange" />
               <!-- 優化提示詞 -->
               <a-tooltip
                 placement="top"
                 :arrow="false">
                 <template #title>
-                  <span>優化提示詞</span>
+                  <span>優化提示詞 (Tab 鍵快捷鍵)</span>
                 </template>
                 <a-button
                   type="text"
                   size="small"
                   :loading="optimizingPrompt"
-                  :disabled="!messageText.trim() || optimizingPrompt"
+                  :disabled="!messageText.trim() || optimizingPrompt || sending"
                   @click="handleOptimizePrompt">
                   <Sparkles :size="14" />
                 </a-button>
               </a-tooltip>
 
-              <!-- 語言輸入 -->
+              <!-- 語音輸入 -->
               <a-tooltip
                 placement="top"
                 :arrow="false">
                 <template #title>
-                  <span>語音輸入</span>
+                  <span v-if="!speechSupported">您的瀏覽器不支援語音識別</span>
+                  <span v-else-if="isListening">點擊停止語音輸入</span>
+                  <span v-else>點擊開始語音輸入</span>
                 </template>
                 <a-button
                   type="text"
                   size="small"
-                  :loading="creatingNewConversation">
+                  :disabled="!speechSupported || sending || optimizingPrompt"
+                  :class="{ 'voice-active': isListening }"
+                  @click="handleVoiceInput">
                   <Mic :size="14" />
                 </a-button>
               </a-tooltip>
 
               <!-- 預覽後上傳 -->
-              <a-tooltip placement="top">
+              <a-tooltip
+                placement="top"
+                :arrow="false">
                 <template #title>
                   <span v-html="uploadDescription"></span>
                 </template>
                 <a-upload
                   :show-upload-list="false"
                   :before-upload="handleFilePreview"
+                  :disabled="sending || optimizingPrompt"
                   accept="*/*">
                   <a-button
                     type="text"
-                    size="small">
+                    size="small"
+                    :disabled="sending || optimizingPrompt">
                     <PaperClipOutlined />
                   </a-button>
                 </a-upload>
@@ -976,6 +994,7 @@
                   type="text"
                   size="small"
                   @click="handleCreateNewConversation"
+                  :disabled="sending || optimizingPrompt"
                   :loading="creatingNewConversation">
                   <MessageCirclePlus
                     :size="14"
@@ -991,7 +1010,10 @@
               <a-button
                 type="primary"
                 :loading="sending"
-                :disabled="!messageText.trim() && previewFiles.length === 0"
+                :disabled="
+                  (!messageText.trim() && previewFiles.length === 0) ||
+                  optimizingPrompt
+                "
                 @click="handleSendMessage"
                 class="send-button">
                 <SendOutlined />
@@ -1139,90 +1161,11 @@
         </a-form-item>
       </a-form>
     </a-modal>
-
-    <!-- 優化提示詞結果模態框 -->
-    <a-modal
-      v-model:open="showOptimizedPrompt"
-      title="提示詞優化結果"
-      width="800px"
-      :footer="null"
-      centered>
-      <div
-        v-if="optimizedPromptResult"
-        class="optimized-prompt-content">
-        <!-- 原始提示詞 -->
-        <div class="prompt-section">
-          <h4 class="section-title">原始提示詞</h4>
-          <div class="prompt-text original">
-            {{ optimizedPromptResult.original_prompt }}
-          </div>
-        </div>
-
-        <!-- 優化後提示詞 -->
-        <div class="prompt-section">
-          <h4 class="section-title">優化後提示詞</h4>
-          <div class="prompt-text optimized">
-            {{ optimizedPromptResult.optimized_prompt }}
-          </div>
-        </div>
-
-        <!-- 改進要點 -->
-        <div
-          v-if="optimizedPromptResult.improvements?.length"
-          class="prompt-section">
-          <h4 class="section-title">改進要點</h4>
-          <ul class="improvements-list">
-            <li
-              v-for="(improvement, index) in optimizedPromptResult.improvements"
-              :key="index">
-              {{ improvement }}
-            </li>
-          </ul>
-        </div>
-
-        <!-- 信心度 -->
-        <div
-          v-if="optimizedPromptResult.confidence"
-          class="prompt-section">
-          <h4 class="section-title">優化信心度</h4>
-          <a-progress
-            :percent="optimizedPromptResult.confidence"
-            :stroke-color="{
-              '0%': '#87d068',
-              '100%': '#108ee9',
-            }"
-            :show-info="true"
-            :format="(percent) => `${percent}%`" />
-        </div>
-
-        <!-- 使用的模型信息 -->
-        <div
-          v-if="optimizedPromptResult.model_info"
-          class="prompt-section">
-          <h4 class="section-title">優化模型</h4>
-          <div class="model-info">
-            {{ optimizedPromptResult.model_info.display_name }} ({{
-              optimizedPromptResult.model_info.provider
-            }})
-          </div>
-        </div>
-
-        <!-- 操作按鈕 -->
-        <div class="action-buttons">
-          <a-button @click="showOptimizedPrompt = false"> 關閉 </a-button>
-          <a-button
-            type="primary"
-            @click="handleApplyOptimizedPrompt">
-            應用優化結果
-          </a-button>
-        </div>
-      </div>
-    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, h } from "vue";
 import { message } from "ant-design-vue";
 // Icons are globally registered in main.js
 import { useChatStore } from "@/stores/chat";
@@ -1252,7 +1195,7 @@ import FileExcel from "@/assets/icons/FileExcel.vue";
 import FilePowerpoint from "@/assets/icons/FilePowerpoint.vue";
 import FilePDF from "@/assets/icons/FilePDF.vue";
 
-import { useLocalStorage } from "@vueuse/core";
+import { useLocalStorage, useSpeechRecognition } from "@vueuse/core";
 import { chatWithQwenAgent } from "@/api/qwenAgent";
 import { optimizePrompt } from "@/api/chat";
 import { useFileType } from "@/composables/useFileType";
@@ -1317,8 +1260,21 @@ const inputCollapsed = useLocalStorage("chat-input-collapsed", false);
 
 // 優化提示詞相關狀態
 const optimizingPrompt = ref(false);
-const optimizedPromptResult = ref(null);
-const showOptimizedPrompt = ref(false);
+const promptHistory = ref([]); // 用於存儲提示詞歷史，支援 undo 功能
+
+// 語音識別功能
+const {
+  isSupported: speechSupported,
+  isListening,
+  isFinal,
+  result: speechResult,
+  start: startSpeechRecognition,
+  stop: stopSpeechRecognition,
+} = useSpeechRecognition({
+  lang: "zh-TW", // 設置為繁體中文
+  interimResults: true, // 顯示即時結果
+  continuous: true, // 持續監聽
+});
 
 // 計算 textarea 的高度
 const textareaHeight = computed(() => {
@@ -1692,6 +1648,30 @@ const handleKeyDown = (event) => {
     event.preventDefault();
     handleSendMessage();
   }
+
+  // 處理 Ctrl+Z (Windows) 或 Cmd+Z (Mac) 復原功能
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    event.key === "z" &&
+    !event.shiftKey
+  ) {
+    event.preventDefault();
+    undoPrompt();
+  }
+
+  // 處理 Tab 鍵觸發優化提示詞功能
+  if (
+    event.key === "Tab" &&
+    !event.shiftKey &&
+    !event.ctrlKey &&
+    !event.metaKey
+  ) {
+    // 只有在有輸入內容且不在優化中時才觸發
+    if (messageText.value.trim() && !optimizingPrompt.value) {
+      event.preventDefault();
+      handleOptimizePrompt();
+    }
+  }
 };
 
 const handleInputChange = (event) => {
@@ -1827,6 +1807,47 @@ const handleQuickPrompt = async (prompt) => {
   });
 };
 
+// 保存提示詞到歷史記錄
+const saveToHistory = (prompt) => {
+  if (
+    prompt.trim() &&
+    prompt !== promptHistory.value[promptHistory.value.length - 1]
+  ) {
+    promptHistory.value.push(prompt.trim());
+    // 限制歷史記錄數量
+    if (promptHistory.value.length > 10) {
+      promptHistory.value.shift();
+    }
+  }
+};
+
+// 復原到上一個提示詞
+const undoPrompt = () => {
+  if (promptHistory.value.length > 0) {
+    const lastPrompt = promptHistory.value.pop();
+    messageText.value = lastPrompt;
+    message.info("已復原到上一個提示詞");
+
+    // Focus 到輸入框
+    nextTick(() => {
+      if (messageInput.value) {
+        const textareaEl =
+          messageInput.value.$el?.querySelector("textarea") ||
+          messageInput.value.$el;
+        if (textareaEl) {
+          textareaEl.focus();
+          textareaEl.setSelectionRange(
+            textareaEl.value.length,
+            textareaEl.value.length
+          );
+        }
+      }
+    });
+  } else {
+    message.warning("沒有可復原的提示詞");
+  }
+};
+
 // 優化提示詞處理函數
 const handleOptimizePrompt = async () => {
   if (!messageText.value.trim()) {
@@ -1839,40 +1860,100 @@ const handleOptimizePrompt = async () => {
     return;
   }
 
+  // 如果已在優化中，防止重複調用
+  if (optimizingPrompt.value) {
+    return;
+  }
+
+  // 保存原始提示詞到歷史記錄
+  const originalPrompt = messageText.value.trim();
+  saveToHistory(originalPrompt);
+
   try {
     optimizingPrompt.value = true;
 
+    // 顯示優化中的提示
+    const loadingMessage = message.loading("正在優化提示詞，請稍候...", 0);
+
     // 調用優化 API
     const response = await optimizePrompt({
-      prompt: messageText.value.trim(),
+      prompt: originalPrompt,
       context: props.agent?.description || "",
     });
 
+    // 關閉載入提示
+    loadingMessage();
+
     if (response.success) {
-      optimizedPromptResult.value = response.data;
-      showOptimizedPrompt.value = true;
-      message.success("提示詞優化完成");
+      // 直接將優化結果套入輸入框
+      messageText.value = response.data.optimized_prompt;
+
+      // 顯示成功提示，包含復原選項
+      const messageKey = `optimize_${Date.now()}`;
+      message.success({
+        content: `提示詞已優化完成！信心度: ${Math.round(response.data.confidence || 0)}% (Ctrl+Z 或 Tab 可復原)`,
+        duration: 6, // 縮短顯示時間
+        key: messageKey,
+        btn: h(
+          "a-button",
+          {
+            type: "text",
+            size: "small",
+            onClick: () => {
+              undoPrompt();
+              message.destroy(messageKey);
+            },
+          },
+          "復原"
+        ),
+      });
+
+      // Focus 到輸入框
+      nextTick(() => {
+        if (messageInput.value) {
+          const textareaEl =
+            messageInput.value.$el?.querySelector("textarea") ||
+            messageInput.value.$el;
+          if (textareaEl) {
+            textareaEl.focus();
+            // 將游標移到文字末尾
+            textareaEl.setSelectionRange(
+              textareaEl.value.length,
+              textareaEl.value.length
+            );
+          }
+        }
+      });
     } else {
-      message.error(response.message || "優化失敗");
+      // 優化失敗，恢復原始內容
+      messageText.value = originalPrompt;
+      message.error(response.message || "優化失敗，已恢復原始內容");
     }
   } catch (error) {
+    // 發生錯誤，恢復原始內容
+    messageText.value = originalPrompt;
     console.error("優化提示詞失敗:", error);
-    message.error("優化失敗，請稍後重試");
+
+    // 根據錯誤類型顯示不同的錯誤信息
+    if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+      message.error("優化請求超時，已恢復原始內容");
+    } else if (error.response?.status >= 500) {
+      message.error("服務器錯誤，已恢復原始內容");
+    } else {
+      message.error("優化失敗，已恢復原始內容");
+    }
   } finally {
     optimizingPrompt.value = false;
-  }
-};
 
-// 應用優化結果
-const handleApplyOptimizedPrompt = () => {
-  if (optimizedPromptResult.value?.optimized_prompt) {
-    messageText.value = optimizedPromptResult.value.optimized_prompt;
-    showOptimizedPrompt.value = false;
-
-    // Focus 到輸入框
+    // 確保輸入框重新獲得焦點
     nextTick(() => {
       if (messageInput.value) {
-        messageInput.value.focus();
+        const textareaEl =
+          messageInput.value.$el?.querySelector("textarea") ||
+          messageInput.value.$el;
+        if (textareaEl) {
+          textareaEl.focus();
+        }
       }
     });
   }
@@ -2713,6 +2794,31 @@ const handleToggleThinkingMode = () => {
   message.success(`已切換為${thinkingMode.value ? "思考模式" : "直出模式"}`);
 };
 
+// 語音輸入處理函數
+const handleVoiceInput = () => {
+  if (!speechSupported.value) {
+    message.error(
+      "您的瀏覽器不支援語音識別功能，請使用 Chrome、Edge 或 Safari 瀏覽器"
+    );
+    return;
+  }
+
+  if (isListening.value) {
+    // 如果正在監聽，停止語音識別
+    stopSpeechRecognition();
+    message.success("語音輸入已停止");
+  } else {
+    try {
+      // 開始語音識別
+      startSpeechRecognition();
+      message.success("開始語音輸入，請說話...", 3);
+    } catch (error) {
+      console.error("語音識別啟動失敗:", error);
+      message.error("語音識別啟動失敗，請檢查麥克風權限");
+    }
+  }
+};
+
 // 根據智能體獲取快速提示
 const getQuickPrompts = () => {
   if (!props.agent) {
@@ -2794,6 +2900,60 @@ watch(
   { immediate: true }
 );
 
+// 存儲上次的語音識別結果，避免重複添加
+const lastSpeechResult = ref("");
+
+// 監聽語音識別結果
+watch(speechResult, (newResult) => {
+  if (newResult && newResult !== lastSpeechResult.value) {
+    // 如果是最終結果，替換整個輸入框內容
+    if (isFinal.value) {
+      messageText.value = newResult;
+      lastSpeechResult.value = newResult;
+    } else {
+      // 如果是即時結果，只顯示當前識別的內容
+      const baseText = messageText.value
+        .replace(lastSpeechResult.value, "")
+        .trim();
+      messageText.value = baseText ? `${baseText} ${newResult}` : newResult;
+      lastSpeechResult.value = newResult;
+    }
+  }
+});
+
+// 監聽語音識別完成狀態
+watch(isFinal, (final) => {
+  if (final && isListening.value && speechResult.value) {
+    // 當語音識別完成時，重置狀態
+    lastSpeechResult.value = "";
+
+    // 延遲停止監聽，確保完整識別
+    setTimeout(() => {
+      if (isListening.value) {
+        stopSpeechRecognition();
+        message.success("語音輸入完成");
+
+        // 將焦點設置到輸入框
+        nextTick(() => {
+          if (messageInput.value) {
+            const textareaEl =
+              messageInput.value.$el?.querySelector("textarea") ||
+              messageInput.value.$el;
+            if (textareaEl) {
+              textareaEl.focus();
+              // 將游標移到文字末尾
+              textareaEl.setSelectionRange(
+                textareaEl.value.length,
+                textareaEl.value.length
+              );
+            }
+          }
+        });
+      }
+    }, 1500); // 延遲1.5秒停止，確保完整識別
+  }
+});
+
 // 生命週期
 onMounted(async () => {
   try {
@@ -2861,6 +3021,11 @@ onUnmounted(() => {
   // 清理輸入狀態
   if (wsStore.isConnected) {
     wsStore.handleSendTypingStatus(chatStore.currentConversation?.id, false);
+  }
+
+  // 停止語音識別
+  if (isListening.value) {
+    stopSpeechRecognition();
   }
 });
 
@@ -4158,81 +4323,6 @@ const getModelEndpoint = () => {
   opacity: 0.8;
 }
 
-/* 優化提示詞模態框樣式 */
-.optimized-prompt-content {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.prompt-section {
-  margin-bottom: 24px;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--custom-text-primary);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.prompt-text {
-  padding: 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.prompt-text.original {
-  background: var(--custom-bg-tertiary);
-  border: 1px solid var(--custom-border-secondary);
-  color: var(--custom-text-secondary);
-}
-
-.prompt-text.optimized {
-  background: linear-gradient(
-    135deg,
-    rgba(24, 144, 255, 0.05) 0%,
-    rgba(82, 196, 26, 0.05) 100%
-  );
-  border: 1px solid var(--primary-color);
-  color: var(--custom-text-primary);
-  font-weight: 500;
-}
-
-.improvements-list {
-  margin: 0;
-  padding-left: 20px;
-}
-
-.improvements-list li {
-  margin-bottom: 8px;
-  color: var(--custom-text-primary);
-  line-height: 1.5;
-}
-
-.model-info {
-  font-size: 14px;
-  color: var(--custom-text-secondary);
-  padding: 8px 12px;
-  background: var(--custom-bg-secondary);
-  border-radius: 6px;
-  border: 1px solid var(--custom-border-primary);
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--custom-border-primary);
-}
-
 /* 優化提示詞按鈕特殊樣式 */
 .toolbar-left .ant-btn:has(.lucide-sparkles) {
   color: var(--primary-color) !important;
@@ -4247,5 +4337,96 @@ const getModelEndpoint = () => {
 .toolbar-left .ant-btn:has(.lucide-sparkles):disabled {
   color: var(--custom-text-disabled) !important;
   transform: none;
+}
+
+/* 輸入區域禁用狀態樣式 */
+.input-wrapper.input-disabled {
+  position: relative;
+}
+
+/* 只禁用 textarea 和按鈕，保留拖拉檔案功能 */
+.input-wrapper.input-disabled .message-input {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.input-wrapper.input-disabled .input-toolbar {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.input-wrapper.input-disabled::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.02);
+  z-index: 5;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+/* 語音輸入按鈕樣式 */
+.voice-active {
+  background: rgba(255, 77, 79, 0.1) !important;
+  color: #ff4d4f !important;
+  border-color: rgba(255, 77, 79, 0.3) !important;
+  animation: voice-pulse 1.5s infinite;
+}
+
+@keyframes voice-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 77, 79, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+  }
+}
+
+.voice-active:hover {
+  background: rgba(255, 77, 79, 0.15) !important;
+  transform: scale(1.05);
+}
+
+/* 語音監聽時的輸入框樣式 */
+.voice-listening {
+  background: rgba(255, 77, 79, 0.05) !important;
+  border-color: rgba(255, 77, 79, 0.3) !important;
+  animation: voice-input-glow 2s infinite;
+}
+
+@keyframes voice-input-glow {
+  0%,
+  100% {
+    border-color: rgba(255, 77, 79, 0.3);
+    box-shadow: 0 0 5px rgba(255, 77, 79, 0.2);
+  }
+  50% {
+    border-color: rgba(255, 77, 79, 0.6);
+    box-shadow: 0 0 15px rgba(255, 77, 79, 0.4);
+  }
+}
+
+/* 優化中時的輸入框樣式 */
+.message-input:disabled {
+  background: var(--custom-bg-disabled) !important;
+  color: var(--custom-text-disabled) !important;
+  cursor: not-allowed;
+}
+
+/* 工具欄按鈕禁用狀態 */
+.input-toolbar .ant-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-toolbar .ant-upload.ant-upload-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

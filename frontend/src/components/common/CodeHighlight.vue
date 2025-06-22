@@ -457,8 +457,8 @@ defineExpose({
 /* 串流指示器 */
 .streaming-indicator {
   padding: 12px 16px;
-  background: var(--bg-color-secondary, #f5f5f5);
-  border-top: 1px solid var(--border-color, #e8e8e8);
+  /* background: var(--bg-color-secondary, #f5f5f5);
+  border-top: 1px solid var(--border-color, #e8e8e8); */
   display: flex;
   align-items: flex-start;
 }
@@ -683,6 +683,75 @@ defineExpose({
     "Fira Code", "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
 }
 
+/* 表格樣式 */
+.markdown-content :deep(table) {
+  width: 100%;
+  margin: 16px 0;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color, #e8e8e8);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-color, #ffffff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.markdown-content :deep(thead) {
+  background: var(--bg-color-tertiary, #f5f5f5);
+}
+
+.markdown-content :deep(th) {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-color, #333);
+  border-bottom: 2px solid var(--border-color, #e8e8e8);
+  border-right: 1px solid var(--border-color, #e8e8e8);
+  background: var(--bg-color-tertiary, #f5f5f5);
+}
+
+.markdown-content :deep(th:last-child) {
+  border-right: none;
+}
+
+.markdown-content :deep(td) {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color, #e8e8e8);
+  border-right: 1px solid var(--border-color, #e8e8e8);
+  color: var(--text-color, #333);
+  vertical-align: top;
+}
+
+.markdown-content :deep(td:last-child) {
+  border-right: none;
+}
+
+.markdown-content :deep(tbody tr:nth-child(even)) {
+  background: var(--bg-color-secondary, #fafafa);
+}
+
+.markdown-content :deep(tbody tr:hover) {
+  background: var(--bg-color-tertiary, #f0f0f0);
+}
+
+.markdown-content :deep(tbody tr:last-child td) {
+  border-bottom: none;
+}
+
+/* 表格響應式設計 */
+@media (max-width: 768px) {
+  .markdown-content :deep(table) {
+    font-size: calc(var(--chat-font-size, 16px) - 2px);
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
+  }
+  
+  .markdown-content :deep(th),
+  .markdown-content :deep(td) {
+    padding: 8px 12px;
+  }
+}
+
 /* 亮色主題（默認） */
 .code-highlight-container {
   --text-color: #262626;
@@ -712,6 +781,20 @@ defineExpose({
   --warning-color: #faad14;
   --error-color: #ff4d4f;
   --error-bg: #2a1818;
+}
+
+/* 深色主題表格樣式調整 */
+[data-theme="dark"] .markdown-content :deep(table) {
+  background: var(--bg-color, #1f1f1f);
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .markdown-content :deep(tbody tr:nth-child(even)) {
+  background: var(--bg-color-secondary, #2a2a2a);
+}
+
+[data-theme="dark"] .markdown-content :deep(tbody tr:hover) {
+  background: var(--bg-color-tertiary, #3a3a3a);
 }
 
 /* 響應式設計 */

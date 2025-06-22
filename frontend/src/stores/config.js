@@ -4,7 +4,7 @@ import { ref } from "vue";
 
 export const useConfigStore = defineStore("config", () => {
   // 配置狀態
-  const apiBaseUrl = ref("http://localhost:3000/api"); // 預設值
+  const apiBaseUrl = ref("http://localhost:3000"); // 預設值
   const appName = ref("SFDA_Nexus");
   const version = ref("1.0.0");
   const environment = ref("development");
