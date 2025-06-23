@@ -428,9 +428,64 @@
         </div>
       </div>
 
-      <!-- 🎯 智能圖表建議 -->
+      <!-- 🎯 智能檢測狀態提示（開發模式） -->
       <div
-        v-if="showChartSuggestion && detectedCharts.length > 0"
+        v-if="
+          message.role === 'assistant' &&
+          backendChartDetection &&
+          !hasBackendDetectedChart
+        "
+        style="
+          background: #fff7e6;
+          padding: 6px 8px;
+          margin: 8px 0;
+          font-size: 11px;
+          border: 1px solid #ffd591;
+          border-radius: 4px;
+          color: #d48806;
+        ">
+        🔍 AI檢測到圖表意圖，但數據不足或可信度較低 ({{
+          Math.round(backendChartDetection.confidence * 100)
+        }}%)
+      </div>
+
+      <!-- 🎯 後端智能檢測到的圖表（自動顯示） -->
+      <div
+        v-if="hasBackendDetectedChart"
+        class="smart-chart-section">
+        <div class="smart-chart-header">
+          <BarChartOutlined />
+          <span>🧠 AI智能圖表分析</span>
+          <div class="confidence-badge">
+            可信度: {{ Math.round(backendChartDetection.confidence * 100) }}%
+          </div>
+        </div>
+        <div class="smart-chart-content">
+          <SmartChart
+            :data="backendChartDetection.data"
+            :chart-type="backendChartDetection.chartType"
+            :title="backendChartDetection.title"
+            :config="{
+              height: 300,
+              showActions: true,
+              enableExport: true,
+            }"
+            class="auto-generated-chart" />
+        </div>
+        <div class="smart-chart-reasoning">
+          <div class="reasoning-text">
+            {{ backendChartDetection.reasoning }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 🎯 智能圖表建議（手動檢測） -->
+      <div
+        v-if="
+          showChartSuggestion &&
+          detectedCharts.length > 0 &&
+          !hasBackendDetectedChart
+        "
         class="chart-suggestion-section">
         <div class="chart-suggestion-header">
           <BarChartOutlined />
@@ -648,6 +703,51 @@ const detectedCharts = ref([]);
 const isDetectingCharts = ref(false);
 const chartDetectionError = ref(null);
 const showChartSuggestion = ref(false);
+
+// 🎯 計算屬性：檢查後端智能檢測結果
+const backendChartDetection = computed(() => {
+  const detection = props.message.metadata?.chart_detection || null;
+
+  // 🎯 調試：記錄後端檢測結果
+  if (detection) {
+    console.log("🎯 [MessageBubble] 後端檢測到圖表數據:", {
+      messageId: props.message.id,
+      hasChartData: detection.hasChartData,
+      confidence: detection.confidence,
+      chartType: detection.chartType,
+      dataCount: detection.data?.length || 0,
+    });
+  }
+
+  return detection;
+});
+
+// 🎯 計算屬性：判斷是否有後端檢測到的圖表
+const hasBackendDetectedChart = computed(() => {
+  const detection = backendChartDetection.value;
+
+  // 🎯 更寬鬆的檢測條件
+  const hasChart =
+    detection &&
+    detection.hasChartData === true &&
+    detection.confidence >= 0.5 &&
+    detection.data &&
+    Array.isArray(detection.data) &&
+    detection.data.length > 0;
+
+  // 🎯 調試：記錄是否應該顯示圖表
+  if (detection) {
+    console.log("🎯 [MessageBubble] 圖表顯示判斷:", {
+      messageId: props.message.id,
+      hasChartData: detection.hasChartData,
+      confidence: detection.confidence,
+      dataLength: detection.data?.length || 0,
+      shouldShow: hasChart,
+    });
+  }
+
+  return hasChart;
+});
 
 // 計算屬性：判斷消息是否正在串流
 const isMessageStreaming = computed(() => {
@@ -1485,6 +1585,15 @@ const detectChartsInMessage = async () => {
     return;
   }
 
+  // 🎯 優先檢查後端智能檢測結果
+  if (hasBackendDetectedChart.value) {
+    console.log("🎯 [MessageBubble] ✅ 後端智能檢測已生成圖表，跳過前端檢測");
+    showChartSuggestion.value = false; // 後端已顯示圖表，不需要建議
+    return;
+  }
+
+  console.log("🎯 [MessageBubble] 後端未檢測到圖表，啟用前端檢測作為備用...");
+
   // 🔍 直接測試 conversationDataExtractor
   console.log("🔍 [MessageBubble] 直接測試 conversationDataExtractor:");
   try {
@@ -1526,10 +1635,19 @@ const detectChartsInMessage = async () => {
     if (allCharts.length > 0) {
       detectedCharts.value = allCharts;
       showChartSuggestion.value = true;
-      console.log("🎯 [MessageBubble] ✅ 檢測到圖表機會，顯示建議");
+      console.log("🎯 [MessageBubble] ✅ 前端檢測到圖表機會，顯示建議");
     } else {
       showChartSuggestion.value = false;
-      console.log("🎯 [MessageBubble] ❌ 未檢測到圖表機會");
+      // 🎯 區分情況：如果後端已經有圖表，就不顯示錯誤
+      if (hasBackendDetectedChart.value) {
+        console.log(
+          "🎯 [MessageBubble] ℹ️ 前端未檢測到圖表，但後端已提供智能檢測結果"
+        );
+      } else {
+        console.log(
+          "🎯 [MessageBubble] ❌ 前端檢測未找到圖表機會，後端也無檢測結果"
+        );
+      }
     }
   } catch (error) {
     console.error("🎯 [MessageBubble] 圖表檢測錯誤:", error);
@@ -2796,6 +2914,97 @@ onMounted(() => {
   background: rgba(255, 120, 117, 0.1);
   border-color: rgba(255, 120, 117, 0.3);
   color: #ff7875;
+}
+
+/* 🎯 智能圖表分析樣式 */
+.smart-chart-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(24, 144, 255, 0.05),
+    rgba(82, 196, 26, 0.05)
+  );
+  border: 1px solid rgba(24, 144, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.smart-chart-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.confidence-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: rgba(24, 144, 255, 0.1);
+  border: 1px solid rgba(24, 144, 255, 0.3);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #1890ff;
+}
+
+.smart-chart-content {
+  margin: 12px 0;
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.auto-generated-chart {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.smart-chart-reasoning {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(24, 144, 255, 0.05);
+  border-left: 3px solid #1890ff;
+  border-radius: 0 6px 6px 0;
+}
+
+.reasoning-text {
+  font-size: 13px;
+  color: var(--custom-text-secondary);
+  line-height: 1.4;
+}
+
+/* 暗黑模式下的智能圖表樣式 */
+:root[data-theme="dark"] .smart-chart-section {
+  background: linear-gradient(
+    135deg,
+    rgba(69, 192, 255, 0.08),
+    rgba(82, 196, 26, 0.08)
+  );
+  border-color: rgba(69, 192, 255, 0.3);
+}
+
+:root[data-theme="dark"] .smart-chart-header {
+  color: #69c0ff;
+}
+
+:root[data-theme="dark"] .confidence-badge {
+  background: rgba(69, 192, 255, 0.15);
+  border-color: rgba(69, 192, 255, 0.4);
+  color: #69c0ff;
+}
+
+:root[data-theme="dark"] .smart-chart-content {
+  background: var(--custom-bg-secondary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="dark"] .smart-chart-reasoning {
+  background: rgba(69, 192, 255, 0.08);
+  border-left-color: #69c0ff;
 }
 
 /* 🎯 圖表消息樣式 */

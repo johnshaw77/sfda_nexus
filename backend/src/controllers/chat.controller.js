@@ -8,6 +8,7 @@ import MessageModel from "../models/Message.model.js";
 import AIService from "../services/ai.service.js";
 import chatService from "../services/chat.service.js";
 import MessageFormattingService from "../services/messageFormatting.service.js";
+import smartChartDetectionService from "../services/smartChartDetection.service.js";
 import { query } from "../config/database.config.js";
 import {
   catchAsync,
@@ -256,6 +257,47 @@ export const handleSendMessage = catchAsync(async (req, res) => {
     // 使用處理後的回應內容
     const finalContent = chatResult.final_response || aiResponse.content;
 
+    // 🎯 智能圖表檢測
+    let chartDetectionResult = null;
+    try {
+      console.log("🎯 [智能圖表檢測] 開始檢測...", {
+        conversationId,
+        userInput: content,
+        aiResponse: finalContent.substring(0, 200) + "...",
+      });
+
+      chartDetectionResult = await smartChartDetectionService.detectChartIntent(
+        content, // 用戶輸入
+        finalContent // AI回應
+      );
+
+      console.log("🎯 [智能圖表檢測] 檢測完成", {
+        conversationId,
+        hasChartData: chartDetectionResult?.hasChartData,
+        confidence: chartDetectionResult?.confidence,
+        chartType: chartDetectionResult?.chartType,
+        dataLength: chartDetectionResult?.data?.length,
+      });
+
+      logger.info("智能圖表檢測結果", {
+        conversationId,
+        hasChartData: chartDetectionResult.hasChartData,
+        confidence: chartDetectionResult.confidence,
+        chartType: chartDetectionResult.chartType,
+      });
+    } catch (chartError) {
+      console.error("🎯 [智能圖表檢測] 檢測失敗", {
+        conversationId,
+        error: chartError.message,
+        stack: chartError.stack,
+      });
+
+      logger.error("智能圖表檢測失敗", {
+        conversationId,
+        error: chartError.message,
+      });
+    }
+
     // 創建AI回應訊息
     const assistantMessage = await MessageModel.create({
       conversation_id: conversationId,
@@ -273,6 +315,8 @@ export const handleSendMessage = catchAsync(async (req, res) => {
         original_response: chatResult.original_response,
         thinking_content:
           chatResult.thinking_content || aiResponse.thinking_content || null,
+        // 🎯 添加圖表檢測結果
+        chart_detection: chartDetectionResult,
       },
     });
 
