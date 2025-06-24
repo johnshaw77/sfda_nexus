@@ -699,7 +699,8 @@ export const useChatStore = defineStore("chat", () => {
       const timeoutId = setTimeout(() => {
         controller.abort();
         console.log("=== 串流請求超時，已中止連接 ===");
-      }, 300000); // 5分鐘超時（原來可能更短）
+        antMessage.warning("請求超時，可能是網絡問題或工具調用時間過長");
+      }, 600000); // 10分鐘超時，為工具調用預留更多時間
 
       // 注意：瀏覽器的 EventSource 只支援 GET 請求
       // 我們需要使用 fetch + ReadableStream 來實現 POST + SSE
@@ -1104,6 +1105,13 @@ export const useChatStore = defineStore("chat", () => {
             delete messages.value[finalMessageIndex].typingTimer;
           }
 
+          // 🔧 確保清除工具處理狀態（防止卡在處理中）
+          messages.value[finalMessageIndex].isProcessingTools = false;
+          messages.value[finalMessageIndex].toolProcessingMessage = null;
+          messages.value[finalMessageIndex].toolProcessingError = null;
+          messages.value[finalMessageIndex].isOptimizing = false;
+          messages.value[finalMessageIndex].optimizingMessage = null;
+
           // 保存現有的思考內容（如果有的話）
           const existingThinkingContent =
             messages.value[finalMessageIndex].thinking_content;
@@ -1194,6 +1202,13 @@ export const useChatStore = defineStore("chat", () => {
           // 🚀 清除二次調用優化狀態
           messages.value[toolMessageIndex].isOptimizing = false;
           messages.value[toolMessageIndex].optimizingMessage = null;
+
+          console.log("🔧 [Chat Store] 工具調用處理完成，已清除工具處理狀態:", {
+            messageId: data.assistant_message_id,
+            isProcessingTools:
+              messages.value[toolMessageIndex].isProcessingTools,
+            isOptimizing: messages.value[toolMessageIndex].isOptimizing,
+          });
 
           // 添加思考內容（優先使用新的，如果沒有則保留現有的）
           if (data.thinking_content) {

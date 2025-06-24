@@ -449,9 +449,39 @@
         }}%)
       </div>
 
-      <!-- 🎯 後端智能檢測到的圖表（自動顯示） -->
+      <!-- 🎯 MCP 工具創建的圖表（最高優先級） -->
       <div
-        v-if="hasBackendDetectedChart"
+        v-if="hasMcpDetectedChart"
+        class="smart-chart-section mcp-chart">
+        <div class="smart-chart-header">
+          <BarChartOutlined />
+          <span>🛠️ AI工具圖表創建</span>
+          <div class="confidence-badge">
+            可信度: {{ Math.round(mcpChartDetection.confidence * 100) }}%
+          </div>
+        </div>
+        <div class="smart-chart-content">
+          <SmartChart
+            :data="mcpChartDetection.data"
+            :chart-type="mcpChartDetection.chartType"
+            :title="mcpChartDetection.title"
+            :config="{
+              height: 300,
+              showActions: true,
+              enableExport: true,
+            }"
+            class="mcp-generated-chart" />
+        </div>
+        <div class="smart-chart-reasoning">
+          <div class="reasoning-text">
+            {{ mcpChartDetection.reasoning }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 🎯 後端智能檢測到的圖表（自動顯示，當沒有 MCP 圖表時） -->
+      <div
+        v-if="hasBackendDetectedChart && !hasMcpDetectedChart"
         class="smart-chart-section">
         <div class="smart-chart-header">
           <BarChartOutlined />
@@ -479,12 +509,13 @@
         </div>
       </div>
 
-      <!-- 🎯 智能圖表建議（手動檢測） -->
+      <!-- 🎯 智能圖表建議（手動檢測） - 🔧 保留但降低優先級 -->
       <div
         v-if="
           showChartSuggestion &&
           detectedCharts.length > 0 &&
-          !hasBackendDetectedChart
+          !hasBackendDetectedChart &&
+          !hasMcpDetectedChart
         "
         class="chart-suggestion-section">
         <div class="chart-suggestion-header">
@@ -722,6 +753,41 @@ const backendChartDetection = computed(() => {
   return detection;
 });
 
+// 🎯 計算屬性：檢查 MCP 工具調用中的圖表數據
+const mcpChartDetection = computed(() => {
+  const toolResults = props.message.metadata?.tool_results || [];
+
+  // 查找圖表創建工具的結果
+  for (const result of toolResults) {
+    if (
+      result?.data?._meta?.tool_type === "chart_creation" &&
+      result?.data?._meta?.chart_data
+    ) {
+      const chartData = result.data._meta.chart_data;
+
+      // 🎯 調試：記錄 MCP 圖表檢測結果
+      console.log("🎯 [MessageBubble] MCP 工具檢測到圖表數據:", {
+        messageId: props.message.id,
+        chartType: chartData.chart_type,
+        dataLength: chartData.data?.length || 0,
+        confidence: chartData.confidence,
+      });
+
+      return {
+        hasChartData: true, // 🔧 修復：如果能檢測到 chart_data，就表示有圖表數據
+        chartType: chartData.chart_type,
+        data: chartData.data,
+        title: chartData.title,
+        confidence: chartData.confidence || 1.0,
+        reasoning: chartData.reasoning,
+        source: "mcp_tool",
+      };
+    }
+  }
+
+  return null;
+});
+
 // 🎯 計算屬性：判斷是否有後端檢測到的圖表
 const hasBackendDetectedChart = computed(() => {
   const detection = backendChartDetection.value;
@@ -738,6 +804,32 @@ const hasBackendDetectedChart = computed(() => {
   // 🎯 調試：記錄是否應該顯示圖表
   if (detection) {
     console.log("🎯 [MessageBubble] 圖表顯示判斷:", {
+      messageId: props.message.id,
+      hasChartData: detection.hasChartData,
+      confidence: detection.confidence,
+      dataLength: detection.data?.length || 0,
+      shouldShow: hasChart,
+    });
+  }
+
+  return hasChart;
+});
+
+// 🎯 計算屬性：判斷是否有 MCP 工具檢測到的圖表
+const hasMcpDetectedChart = computed(() => {
+  const detection = mcpChartDetection.value;
+
+  const hasChart =
+    detection &&
+    detection.hasChartData === true &&
+    detection.confidence >= 0.5 &&
+    detection.data &&
+    Array.isArray(detection.data) &&
+    detection.data.length > 0;
+
+  // 🎯 調試：記錄 MCP 圖表顯示判斷
+  if (detection) {
+    console.log("🎯 [MessageBubble] MCP 圖表顯示判斷:", {
       messageId: props.message.id,
       hasChartData: detection.hasChartData,
       confidence: detection.confidence,
@@ -1585,7 +1677,14 @@ const detectChartsInMessage = async () => {
     return;
   }
 
-  // 🎯 優先檢查後端智能檢測結果
+  // 🎯 優先檢查 MCP 工具圖表
+  if (hasMcpDetectedChart.value) {
+    console.log("🎯 [MessageBubble] ✅ MCP 工具已創建圖表，跳過所有檢測");
+    showChartSuggestion.value = false; // MCP 工具已創建圖表，不需要建議
+    return;
+  }
+
+  // 🎯 檢查後端智能檢測結果
   if (hasBackendDetectedChart.value) {
     console.log("🎯 [MessageBubble] ✅ 後端智能檢測已生成圖表，跳過前端檢測");
     showChartSuggestion.value = false; // 後端已顯示圖表，不需要建議

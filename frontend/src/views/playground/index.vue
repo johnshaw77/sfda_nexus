@@ -70,6 +70,19 @@
           <ChartTab />
         </a-tab-pane>
 
+        <!-- MCP 圖表創建測試 Tab -->
+        <a-tab-pane
+          key="chart-creation"
+          tab="🛠️ MCP 圖表創建">
+          <template #tab>
+            <span>
+              <ExperimentOutlined />
+              MCP 圖表創建
+            </span>
+          </template>
+          <ChartCreationTest />
+        </a-tab-pane>
+
         <!-- AI Stream 測試 Tab (預留) -->
         <a-tab-pane
           key="aistream"
@@ -206,6 +219,10 @@
             組件的各種圖表功能和數據格式支援
           </li>
           <li>
+            <strong>MCP 圖表創建測試</strong>：測試 AI 通過 MCP
+            工具自動創建圖表的完整流程
+          </li>
+          <li>
             <strong>AI Stream 測試</strong>：(開發中) AI 聊天和流式響應測試
           </li>
           <li><strong>系統狀態監控</strong>：(開發中) 系統健康狀態檢查</li>
@@ -244,10 +261,12 @@ import {
   PlusOutlined,
   CodeOutlined,
   BugOutlined,
+  ExperimentOutlined,
 } from "@ant-design/icons-vue";
 import MarkdownTab from "./components/MarkdownTab.vue";
 import OpenCCTab from "./components/OpenCCTab.vue";
 import ChartTab from "./components/ChartTab.vue";
+import ChartCreationTest from "./components/ChartCreationTest.vue";
 
 // 響應式數據
 const activeTab = ref("markdown");
@@ -263,6 +282,7 @@ const tabNames = {
   markdown: "Markdown & Shiki 測試",
   opencc: "OpenCC 簡繁轉換",
   chart: "智能圖表測試",
+  "chart-creation": "MCP 圖表創建測試",
   aistream: "AI Stream 測試",
   system: "系統狀態監控",
   more: "更多功能",
@@ -365,6 +385,12 @@ onUnmounted(() => {
 .playground-card {
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
+}
+
+[data-theme="dark"] .playground-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .playground-tabs {
@@ -373,28 +399,32 @@ onUnmounted(() => {
 
 .playground-tabs :deep(.ant-tabs-card .ant-tabs-tab) {
   border-radius: 8px 8px 0 0;
-  border: 1px solid #e8e8e8;
-  background: #fafafa;
+  border: 1px solid var(--custom-border-primary);
+  background: var(--custom-bg-secondary);
+  color: var(--custom-text-secondary);
   transition: all 0.3s ease;
 }
 
 .playground-tabs :deep(.ant-tabs-card .ant-tabs-tab-active) {
-  background: white;
-  border-bottom-color: white;
+  background: var(--custom-bg-primary);
+  border-bottom-color: var(--custom-bg-primary);
+  color: var(--custom-text-primary);
 }
 
 .playground-tabs :deep(.ant-tabs-card .ant-tabs-tab:hover) {
-  background: #f0f8ff;
+  background: var(--custom-bg-tertiary);
+  color: var(--custom-text-primary);
 }
 
 .playground-tabs :deep(.ant-tabs-card .ant-tabs-tab-disabled) {
-  background: #f5f5f5;
-  color: #bbb;
+  background: var(--custom-bg-quaternary);
+  color: var(--custom-text-tertiary);
+  opacity: 0.6;
 }
 
 .playground-tabs :deep(.ant-tabs-content-holder) {
-  background: var(--custom-bg-color);
-  border: 1px solid var(--custom-border-color);
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-primary);
   border-top: none;
   border-radius: 0 0 8px 8px;
   padding: 24px;
@@ -407,24 +437,24 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 400px;
-  color: #666;
+  color: var(--custom-text-secondary);
 }
 
 .playground-footer {
   margin-top: 20px;
   padding: 12px 16px;
-  background: #fafafa;
+  background: var(--custom-bg-secondary);
   border-radius: 8px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--custom-border-primary);
 }
 
 .status-item {
   font-size: 12px;
-  color: #666;
+  color: var(--custom-text-secondary);
 }
 
 .help-content h4 {
-  color: #1890ff;
+  color: var(--primary-color);
   margin-top: 16px;
   margin-bottom: 8px;
 }
@@ -462,27 +492,5 @@ onUnmounted(() => {
   }
 }
 
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .playground-card {
-    background: #1f1f1f;
-    border-color: #333;
-  }
-
-  .playground-tabs :deep(.ant-tabs-card .ant-tabs-tab) {
-    background: #2a2a2a;
-    border-color: #333;
-    color: #ccc;
-  }
-
-  .playground-tabs :deep(.ant-tabs-card .ant-tabs-tab-active) {
-    background: #1f1f1f;
-    color: #fff;
-  }
-
-  .playground-footer {
-    background: #2a2a2a;
-    border-color: #333;
-  }
-}
+/* 主題相關樣式已整合到統一變量系統 */
 </style>
