@@ -1124,6 +1124,27 @@ export const useChatStore = defineStore("chat", () => {
             data.processing_time;
           messages.value[finalMessageIndex].isStreaming = false; // 串流結束
 
+          // 🎯 更新 metadata（包含圖表檢測結果）
+          if (data.metadata || data.updated_message?.metadata) {
+            messages.value[finalMessageIndex].metadata = {
+              ...messages.value[finalMessageIndex].metadata,
+              ...(data.metadata || data.updated_message?.metadata),
+            };
+
+            // 🎯 調試：記錄圖表檢測結果
+            if (
+              data.metadata?.chart_detection ||
+              data.updated_message?.metadata?.chart_detection
+            ) {
+              console.log("🎯 [Chat Store] stream_done 收到圖表檢測結果:", {
+                messageId: data.assistant_message_id,
+                chart_detection:
+                  data.metadata?.chart_detection ||
+                  data.updated_message?.metadata?.chart_detection,
+              });
+            }
+          }
+
           // 保留思考內容（優先使用現有的，如果沒有則使用新的）
           if (existingThinkingContent) {
             messages.value[finalMessageIndex].thinking_content =
@@ -1329,7 +1350,7 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[streamDoneMessageIndex].isOptimizing = false;
           messages.value[streamDoneMessageIndex].optimizingMessage = null;
           messages.value[streamDoneMessageIndex].isStreamingSecondary = false;
-          
+
           // 確保最終內容完整顯示
           if (data.full_content) {
             const finalConvertedContent =
@@ -1340,12 +1361,14 @@ export const useChatStore = defineStore("chat", () => {
                   )
                 : data.full_content;
 
-            messages.value[streamDoneMessageIndex].content = finalConvertedContent;
+            messages.value[streamDoneMessageIndex].content =
+              finalConvertedContent;
           }
 
           // 更新 tokens
           if (data.tokens_used) {
-            messages.value[streamDoneMessageIndex].tokens_used = data.tokens_used;
+            messages.value[streamDoneMessageIndex].tokens_used =
+              data.tokens_used;
           }
         }
         break;
@@ -1363,7 +1386,7 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[streamErrorMessageIndex].isOptimizing = false;
           messages.value[streamErrorMessageIndex].optimizingMessage = null;
           messages.value[streamErrorMessageIndex].isStreamingSecondary = false;
-          
+
           // 顯示錯誤信息
           messages.value[streamErrorMessageIndex].streamError = data.error;
         }

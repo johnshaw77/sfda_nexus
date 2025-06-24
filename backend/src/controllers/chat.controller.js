@@ -902,6 +902,62 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           toolCallMetadata.thinking_content = finalThinkingContent;
         }
 
+        // 🎯 智能圖表檢測（串流模式）
+        let chartDetectionResult = null;
+        try {
+          console.log("🎯 [智能圖表檢測-串流] 開始檢測...", {
+            conversationId,
+            userInput: content,
+            aiResponse: finalContent.substring(0, 200) + "...",
+          });
+
+          chartDetectionResult =
+            await smartChartDetectionService.detectChartIntent(
+              content, // 用戶輸入
+              finalContent // AI回應
+            );
+
+          console.log("🎯 [智能圖表檢測-串流] 檢測完成", {
+            conversationId,
+            hasChartData: chartDetectionResult?.hasChartData,
+            confidence: chartDetectionResult?.confidence,
+            chartType: chartDetectionResult?.chartType,
+            dataLength: chartDetectionResult?.data?.length,
+          });
+
+          logger.info("智能圖表檢測結果（串流）", {
+            conversationId,
+            hasChartData: chartDetectionResult.hasChartData,
+            confidence: chartDetectionResult.confidence,
+            chartType: chartDetectionResult.chartType,
+          });
+        } catch (chartError) {
+          console.error("🎯 [智能圖表檢測-串流] 檢測失敗", {
+            conversationId,
+            error: chartError.message,
+            stack: chartError.stack,
+          });
+
+          logger.error("智能圖表檢測失敗（串流）", {
+            conversationId,
+            error: chartError.message,
+          });
+        }
+
+        // 🎯 將圖表檢測結果添加到metadata中
+        const finalMetadata = {
+          ...toolCallMetadata,
+          chart_detection: chartDetectionResult,
+        };
+
+        // 🎯 調試：記錄最終metadata
+        if (chartDetectionResult?.hasChartData) {
+          console.log("🎯 [智能圖表檢測-串流] 最終metadata:", {
+            conversationId,
+            chart_detection: finalMetadata.chart_detection,
+          });
+        }
+
         // 最終更新assistant訊息
         if (assistantMessageId) {
           await MessageModel.update(assistantMessageId, {
@@ -909,7 +965,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
             tokens_used: chunk.tokens_used,
             cost: chunk.cost,
             processing_time: chunk.processing_time,
-            metadata: toolCallMetadata,
+            metadata: finalMetadata,
             model_info: {
               provider: chunk.provider,
               model: chunk.model_info,
@@ -920,6 +976,9 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           });
         }
 
+        // 🎯 獲取更新後的完整消息（包含 metadata）
+        const updatedMessage = await MessageModel.findById(assistantMessageId);
+
         // 發送完成事件
         sendSSE("stream_done", {
           assistant_message_id: assistantMessageId,
@@ -928,6 +987,9 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           cost: chunk.cost,
           processing_time: chunk.processing_time,
           conversation_id: conversationId,
+          // 🎯 包含完整的更新後消息（包含 chart_detection metadata）
+          updated_message: updatedMessage,
+          metadata: finalMetadata,
           tool_info: {
             has_tool_calls: toolCallMetadata.has_tool_calls,
             tool_calls_count: toolCallMetadata.tool_calls?.length || 0,
