@@ -593,19 +593,25 @@
                       clickable: file.preview && isImageFile(file),
                     }"
                     @click="handlePreviewImage(file)">
-                    <!-- 圖片檔案顯示預覽 -->
+                    <!-- 圖片檔案顯示預覽 - 使用與其他檔案一致的樣式 -->
                     <div
                       v-if="file.preview"
-                      class="image-preview-container">
-                      <img
-                        :src="file.preview"
-                        :alt="file.filename"
-                        class="thumbnail-image" />
-                      <!-- 放大鏡圖示（僅圖片顯示） -->
-                      <div
-                        v-if="file.preview && isImageFile(file)"
-                        class="zoom-icon">
-                        <ZoomIn :size="8" />
+                      class="file-icon-container">
+                      <div class="thumbnail-icon image-thumbnail-icon">
+                        <img
+                          :src="file.preview"
+                          :alt="file.filename"
+                          class="image-thumbnail-preview" />
+                        <!-- 放大鏡圖示（僅圖片顯示） -->
+                        <div
+                          v-if="file.preview && isImageFile(file)"
+                          class="zoom-icon">
+                          <ZoomIn :size="8" />
+                        </div>
+                      </div>
+                      <!-- 檔案名稱 -->
+                      <div class="file-name-label">
+                        {{ file.filename }}
                       </div>
                     </div>
                     <!-- 非圖片檔案顯示圖示 -->
@@ -4363,6 +4369,27 @@ const getModelEndpoint = () => {
   font-size: 24px;
 }
 
+/* 圖片縮圖圖標樣式 - 與其他檔案圖標一致 */
+.image-thumbnail-icon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--custom-bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+
+.image-thumbnail-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
 .file-name-label {
   font-size: 10px;
   color: var(--custom-text-secondary);
@@ -4409,10 +4436,10 @@ const getModelEndpoint = () => {
 
 .zoom-icon {
   position: absolute;
-  bottom: -2px;
-  right: 1px;
-  width: 16px;
-  height: 16px;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
   background: rgba(0, 0, 0, 0.6);
   color: white;
   border-radius: 50%;
