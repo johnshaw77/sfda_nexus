@@ -4373,7 +4373,7 @@ const getModelEndpoint = () => {
   font-size: 24px;
 }
 
-/* 圖片縮圖圖標樣式 - 與其他檔案圖標一致 */
+/* 圖片縮圖圖標樣式 - 填滿整個卡片區域 */
 .image-thumbnail-icon {
   position: relative;
   width: 32px;
@@ -4384,14 +4384,14 @@ const getModelEndpoint = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
+  padding: 0; /* 移除padding讓圖片填滿整個區域 */
 }
 
 .image-thumbnail-preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 2px;
+  border-radius: 4px; /* 與容器圓角一致 */
 }
 
 .file-name-label {

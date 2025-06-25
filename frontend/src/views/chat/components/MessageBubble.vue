@@ -2596,7 +2596,7 @@ onMounted(() => {
 
 /* 🔧 移除快速命令暗色模式樣式 */
 
-/* 圖片預覽縮圖樣式 - 完全匹配標準 attachment-icon */
+/* 圖片預覽縮圖樣式 - 填滿整個卡片區域 */
 .image-preview-icon {
   /* 繼承標準圖標的所有樣式 */
   display: flex;
@@ -2609,8 +2609,8 @@ onMounted(() => {
   border-radius: 8px;
   position: relative;
   transition: all 0.3s ease;
-  /* 額外的圖片特定樣式 */
-  padding: 4px;
+  /* 圖片填滿整個區域 */
+  padding: 0; /* 移除padding讓圖片填滿整個區域 */
   overflow: hidden;
 }
 
@@ -2623,7 +2623,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 8px; /* 與容器圓角一致 */
   transition: transform 0.3s ease;
 }
 
@@ -2643,7 +2643,7 @@ onMounted(() => {
   justify-content: center;
   opacity: 0;
   transition: opacity 0.3s ease;
-  border-radius: 4px;
+  border-radius: 8px; /* 與容器圓角一致 */
 }
 
 .attachment-item:hover .image-preview-overlay {
