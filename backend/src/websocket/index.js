@@ -272,11 +272,11 @@ const handleMessage = async (clientId, message) => {
   if (!client) return;
 
   // 使用智能日誌記錄
-  smartLog("debug", "收到WebSocket消息", {
-    clientId,
-    type: message.type,
-    userId: client.userId,
-  });
+  // smartLog("debug", "收到WebSocket消息", {
+  //   clientId,
+  //   type: message.type,
+  //   userId: client.userId,
+  // });
 
   switch (message.type) {
     case "auth":

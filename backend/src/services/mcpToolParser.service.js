@@ -324,6 +324,7 @@ class McpToolParser {
    */
   async executeToolCalls(toolCalls, context = {}) {
     const results = [];
+    const totalTools = toolCalls.length;
 
     /*
     logger.info("開始執行工具調用", {
@@ -335,7 +336,14 @@ class McpToolParser {
 
     for (const [index, toolCall] of toolCalls.entries()) {
       try {
-        logger.debug(`執行工具調用 ${index + 1}/${toolCalls.length}`, {
+        const currentIndex = index + 1;
+
+        // 🚀 新增：調用進度回調
+        if (context.onToolCallStart) {
+          context.onToolCallStart(toolCall.name, totalTools, currentIndex);
+        }
+
+        logger.debug(`執行工具調用 ${currentIndex}/${totalTools}`, {
           toolName: toolCall.name,
           parameters: toolCall.parameters,
           userId: context.user_id,
@@ -393,6 +401,11 @@ class McpToolParser {
           service_name: tool.service_name,
           ...result,
         });
+
+        // 🚀 新增：工具完成回調
+        if (context.onToolCallComplete) {
+          context.onToolCallComplete(tool.name, result);
+        }
 
         logger.info("工具執行完成", {
           toolName: tool.name,
@@ -480,7 +493,10 @@ class McpToolParser {
         if (!formattedData) {
           // 🆕 檢查是否為統計分析工具
           if (this.isStatisticalTool(result.tool_name)) {
-            formattedData = this.formatStatisticalData(result.data, result.tool_name);
+            formattedData = this.formatStatisticalData(
+              result.data,
+              result.tool_name
+            );
           } else {
             formattedData = this.formatGeneralData(result.data);
           }
@@ -510,12 +526,12 @@ class McpToolParser {
    */
   isStatisticalTool(toolName) {
     const statisticalTools = [
-      'perform_ttest',
-      'perform_anova', 
-      'perform_chisquare',
-      'perform_correlation',
-      'analyze_data',
-      'descriptive_stats'
+      "perform_ttest",
+      "perform_anova",
+      "perform_chisquare",
+      "perform_correlation",
+      "analyze_data",
+      "descriptive_stats",
     ];
     return statisticalTools.includes(toolName);
   }
@@ -541,16 +557,16 @@ class McpToolParser {
       }
 
       switch (toolName) {
-        case 'perform_ttest':
+        case "perform_ttest":
           formatted = this.formatTTestResult(result, data);
           break;
-        case 'perform_anova':
+        case "perform_anova":
           formatted = this.formatANOVAResult(result, data);
           break;
-        case 'perform_chisquare':
+        case "perform_chisquare":
           formatted = this.formatChiSquareResult(result, data);
           break;
-        case 'perform_correlation':
+        case "perform_correlation":
           formatted = this.formatCorrelationResult(result, data);
           break;
         default:
@@ -561,7 +577,6 @@ class McpToolParser {
       if (!formatted || formatted === "無統計結果") {
         formatted = this.formatGeneralData(data);
       }
-
     } catch (error) {
       console.error(`格式化統計結果時發生錯誤 (${toolName}):`, error);
       formatted = this.formatGeneralData(data);
@@ -591,7 +606,7 @@ class McpToolParser {
     }
     if (result.p_value !== undefined) {
       const pValue = Number(result.p_value);
-      formatted += `- **p 值**: ${pValue < 0.001 ? 'p < 0.001' : `p = ${pValue.toFixed(4)}`}\n`;
+      formatted += `- **p 值**: ${pValue < 0.001 ? "p < 0.001" : `p = ${pValue.toFixed(4)}`}\n`;
     }
     if (result.alpha !== undefined) {
       formatted += `- **顯著水準**: α = ${result.alpha}\n`;
@@ -609,7 +624,7 @@ class McpToolParser {
     // 統計決策
     const isSignificant = result.p_value < (result.alpha || 0.05);
     formatted += "### 🎯 統計決策\n";
-    formatted += `- **結果**: ${isSignificant ? '**統計顯著** ✅' : '**統計不顯著** ❌'}\n`;
+    formatted += `- **結果**: ${isSignificant ? "**統計顯著** ✅" : "**統計不顯著** ❌"}\n`;
     if (isSignificant) {
       formatted += `- **解釋**: 在 α = ${result.alpha || 0.05} 的顯著水準下，拒絕虛無假設\n`;
       formatted += `- **結論**: 治療前後的血壓存在顯著差異\n`;
@@ -654,17 +669,17 @@ class McpToolParser {
 
     // 檢查常見的統計量
     const commonStats = [
-      { key: 'statistic', label: '統計量' },
-      { key: 't_statistic', label: 't 統計量' },
-      { key: 'f_statistic', label: 'F 統計量' },
-      { key: 'chi2_statistic', label: 'χ² 統計量' },
-      { key: 'p_value', label: 'p 值' },
-      { key: 'degrees_of_freedom', label: '自由度' },
-      { key: 'df', label: '自由度' },
-      { key: 'alpha', label: '顯著水準' },
-      { key: 'confidence_interval', label: '置信區間' },
-      { key: 'effect_size', label: '效果量' },
-      { key: 'sample_size', label: '樣本數量' }
+      { key: "statistic", label: "統計量" },
+      { key: "t_statistic", label: "t 統計量" },
+      { key: "f_statistic", label: "F 統計量" },
+      { key: "chi2_statistic", label: "χ² 統計量" },
+      { key: "p_value", label: "p 值" },
+      { key: "degrees_of_freedom", label: "自由度" },
+      { key: "df", label: "自由度" },
+      { key: "alpha", label: "顯著水準" },
+      { key: "confidence_interval", label: "置信區間" },
+      { key: "effect_size", label: "效果量" },
+      { key: "sample_size", label: "樣本數量" },
     ];
 
     let hasStats = false;
@@ -674,16 +689,16 @@ class McpToolParser {
           formatted += "### 🔍 主要統計量\n";
           hasStats = true;
         }
-        
+
         let value = result[stat.key];
-        if (stat.key === 'p_value' && typeof value === 'number') {
-          value = value < 0.001 ? 'p < 0.001' : `p = ${value.toFixed(4)}`;
-        } else if (typeof value === 'number') {
+        if (stat.key === "p_value" && typeof value === "number") {
+          value = value < 0.001 ? "p < 0.001" : `p = ${value.toFixed(4)}`;
+        } else if (typeof value === "number") {
           value = value.toFixed(4);
         } else if (Array.isArray(value)) {
-          value = `[${value.map(v => Number(v).toFixed(2)).join(', ')}]`;
+          value = `[${value.map((v) => Number(v).toFixed(2)).join(", ")}]`;
         }
-        
+
         formatted += `- **${stat.label}**: ${value}\n`;
       }
     }
@@ -780,8 +795,9 @@ class McpToolParser {
    */
   hasToolCalls(text, context = {}) {
     // 🚨 新增：如果有文件上傳，強制阻止工具調用檢測
-    const hasAttachments = context.attachments && context.attachments.length > 0;
-    
+    const hasAttachments =
+      context.attachments && context.attachments.length > 0;
+
     if (hasAttachments) {
       // 檢查是否為CSV/Excel等數據分析請求
       const dataAnalysisPatterns = [
@@ -797,11 +813,11 @@ class McpToolParser {
         /提供.*統計/i,
         /統計.*分析/i,
       ];
-      
-      const isDataAnalysisRequest = dataAnalysisPatterns.some(pattern => 
+
+      const isDataAnalysisRequest = dataAnalysisPatterns.some((pattern) =>
         pattern.test(text)
       );
-      
+
       if (isDataAnalysisRequest) {
         console.log("🚨 檢測到文件上傳 + 數據分析請求，強制阻止工具調用");
         return false;

@@ -268,7 +268,8 @@ export const handleSendMessage = catchAsync(async (req, res) => {
 
       chartDetectionResult = await smartChartDetectionService.detectChartIntent(
         content, // 用戶輸入
-        finalContent // AI回應
+        finalContent, // AI回應
+        model // 🔧 傳遞模型配置，使用與用戶選擇相同的模型
       );
 
       console.log("🎯 [智能圖表檢測] 檢測完成", {
@@ -306,8 +307,27 @@ export const handleSendMessage = catchAsync(async (req, res) => {
       content_type: "text",
       tokens_used: aiResponse.tokens_used,
       cost: aiResponse.cost,
-      model_info: aiResponse.model_info,
+      model_info: {
+        provider: model.model_type,
+        model: model.model_id,
+        display_name: model.display_name,
+        processing_time: aiResponse.processing_time,
+        tokens_used: aiResponse.tokens_used,
+        cost: aiResponse.cost,
+      },
       processing_time: aiResponse.processing_time,
+      agent_id: conversation.agent_id,
+      agent_name: conversation.agent_id
+        ? await (async () => {
+            const { rows: agentRows } = await query(
+              "SELECT display_name, name FROM agents WHERE id = ?",
+              [conversation.agent_id]
+            );
+            return agentRows.length > 0
+              ? agentRows[0].display_name || agentRows[0].name
+              : null;
+          })()
+        : null,
       metadata: {
         has_tool_calls: chatResult.has_tool_calls,
         tool_calls: chatResult.tool_calls || [],
@@ -315,7 +335,6 @@ export const handleSendMessage = catchAsync(async (req, res) => {
         original_response: chatResult.original_response,
         thinking_content:
           chatResult.thinking_content || aiResponse.thinking_content || null,
-        // 🎯 添加圖表檢測結果
         chart_detection: chartDetectionResult,
       },
     });
@@ -590,13 +609,35 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
         accumulatedThinkingContent = chunk.thinking_content;
 
         if (!assistantMessageId) {
+          // 獲取智能體信息（如果有）
+          let agentInfo = null;
+          if (conversation.agent_id) {
+            const { rows: agentRows } = await query(
+              "SELECT id, name, display_name FROM agents WHERE id = ?",
+              [conversation.agent_id]
+            );
+            if (agentRows.length > 0) {
+              agentInfo = agentRows[0];
+            }
+          }
+
           const assistantMessage = await MessageModel.create({
             conversation_id: conversationId,
             role: "assistant",
             content: "",
             content_type: "text",
             tokens_used: chunk.tokens_used,
-            model_info: { provider: chunk.provider, model: chunk.model },
+            // 🔧 修復：正確保存模型信息，使用用戶選擇的模型
+            model_info: {
+              provider: model.model_type,
+              model: model.model_id,
+              display_name: model.display_name,
+            },
+            // 🔧 修復：保存智能體信息
+            agent_id: conversation.agent_id,
+            agent_name: agentInfo
+              ? agentInfo.display_name || agentInfo.name
+              : null,
             processing_time: null,
           });
           assistantMessageId = assistantMessage.id;
@@ -624,13 +665,35 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
         fullContent = chunk.full_content || fullContent + chunk.content;
 
         if (!assistantMessageId) {
+          // 獲取智能體信息（如果有）
+          let agentInfo = null;
+          if (conversation.agent_id) {
+            const { rows: agentRows } = await query(
+              "SELECT id, name, display_name FROM agents WHERE id = ?",
+              [conversation.agent_id]
+            );
+            if (agentRows.length > 0) {
+              agentInfo = agentRows[0];
+            }
+          }
+
           const assistantMessage = await MessageModel.create({
             conversation_id: conversationId,
             role: "assistant",
             content: fullContent,
             content_type: "text",
             tokens_used: chunk.tokens_used,
-            model_info: { provider: chunk.provider, model: chunk.model },
+            // 🔧 修復：正確保存模型信息，使用用戶選擇的模型
+            model_info: {
+              provider: model.model_type,
+              model: model.model_id,
+              display_name: model.display_name,
+            },
+            // 🔧 修復：保存智能體信息
+            agent_id: conversation.agent_id,
+            agent_name: agentInfo
+              ? agentInfo.display_name || agentInfo.name
+              : null,
             processing_time: null,
           });
           assistantMessageId = assistantMessage.id;
@@ -692,7 +755,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           if (hasToolCallsQuickCheck && isClientConnected) {
             sendSSE("tool_processing_start", {
               assistant_message_id: assistantMessageId,
-              message: "正在檢查並處理工具調用...",
+              message: "🔍 正在分析回應內容，檢測是否需要調用工具...",
               conversation_id: conversationId,
             });
           }
@@ -713,7 +776,29 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 if (isClientConnected) {
                   sendSSE("secondary_ai_start", {
                     assistant_message_id: assistantMessageId,
-                    message: "正在優化回應內容...",
+                    message: "✨ 正在優化回應內容...",
+                    conversation_id: conversationId,
+                  });
+                }
+              },
+              // 🚀 新增：工具調用進度回調
+              onToolCallStart: (toolName, toolCount, currentIndex) => {
+                if (isClientConnected) {
+                  sendSSE("tool_processing_heartbeat", {
+                    assistant_message_id: assistantMessageId,
+                    message: `🔧 正在調用工具 ${currentIndex}/${toolCount}: ${toolName}`,
+                    progress: Math.round((currentIndex / toolCount) * 100),
+                    timestamp: Date.now(),
+                    conversation_id: conversationId,
+                  });
+                }
+              },
+              onToolCallComplete: (toolName, result) => {
+                if (isClientConnected) {
+                  sendSSE("tool_processing_heartbeat", {
+                    assistant_message_id: assistantMessageId,
+                    message: `✅ 工具 ${toolName} 調用完成`,
+                    timestamp: Date.now(),
                     conversation_id: conversationId,
                   });
                 }
@@ -721,21 +806,33 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
             }
           );
 
-          // 🔧 只有真正有工具調用時才設置心跳
+          // 🔧 優化心跳間隔，更頻繁的更新讓用戶感覺不會卡住
           let heartbeatInterval = null;
+          let heartbeatCount = 0;
+          const heartbeatMessages = [
+            "🔍 正在檢測工具調用需求...",
+            "⚙️ 正在準備工具參數...",
+            "🚀 正在執行工具調用...",
+            "📊 正在處理工具結果...",
+            "✨ 正在整合回應內容...",
+          ];
+
           if (hasToolCallsQuickCheck) {
             heartbeatInterval = setInterval(() => {
               if (isClientConnected) {
+                const message =
+                  heartbeatMessages[heartbeatCount % heartbeatMessages.length];
                 sendSSE("tool_processing_heartbeat", {
                   assistant_message_id: assistantMessageId,
-                  message: "工具處理中，請稍候...",
+                  message: message,
                   timestamp: Date.now(),
                   conversation_id: conversationId,
                 });
+                heartbeatCount++;
               } else {
                 clearInterval(heartbeatInterval);
               }
-            }, 3000);
+            }, 1500); // 🚀 縮短到1.5秒，讓用戶感覺更流暢
           }
 
           const chatResult = await toolCallPromise;
@@ -914,7 +1011,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           chartDetectionResult =
             await smartChartDetectionService.detectChartIntent(
               content, // 用戶輸入
-              finalContent // AI回應
+              finalContent, // AI回應
+              model // 🔧 傳遞模型配置，使用與用戶選擇相同的模型
             );
 
           console.log("🎯 [智能圖表檢測-串流] 檢測完成", {
@@ -960,15 +1058,34 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
 
         // 最終更新assistant訊息
         if (assistantMessageId) {
+          // 獲取智能體信息（如果有）
+          let agentInfo = null;
+          if (conversation.agent_id) {
+            const { rows: agentRows } = await query(
+              "SELECT id, name, display_name FROM agents WHERE id = ?",
+              [conversation.agent_id]
+            );
+            if (agentRows.length > 0) {
+              agentInfo = agentRows[0];
+            }
+          }
+
           await MessageModel.update(assistantMessageId, {
             content: finalContent,
             tokens_used: chunk.tokens_used,
             cost: chunk.cost,
             processing_time: chunk.processing_time,
             metadata: finalMetadata,
+            // 🔧 修復：正確保存智能體信息
+            agent_id: conversation.agent_id,
+            agent_name: agentInfo
+              ? agentInfo.display_name || agentInfo.name
+              : null,
+            // 🔧 修復：正確保存模型信息，使用用戶選擇的模型
             model_info: {
-              provider: chunk.provider,
-              model: chunk.model_info,
+              provider: model.model_type,
+              model: model.model_id,
+              display_name: model.display_name,
               processing_time: chunk.processing_time,
               tokens_used: chunk.tokens_used,
               cost: chunk.cost,

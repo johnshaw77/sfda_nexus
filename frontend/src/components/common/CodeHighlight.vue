@@ -14,6 +14,7 @@
     </div>
 
     <!-- 串流指示器 -->
+    isStreaming: {{ isStreaming }}
     <div
       v-if="isStreaming"
       class="streaming-indicator">
@@ -745,7 +746,7 @@ defineExpose({
     display: block;
     white-space: nowrap;
   }
-  
+
   .markdown-content :deep(th),
   .markdown-content :deep(td) {
     padding: 8px 12px;

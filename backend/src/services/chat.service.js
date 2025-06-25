@@ -173,7 +173,7 @@ class ChatService {
       const { rows } = await query(
         "SELECT config_value FROM system_configs WHERE config_key = 'mcp_tool_guidance'"
       );
-      
+
       if (rows && rows.length > 0) {
         sections.push("");
         sections.push(rows[0].config_value);
@@ -183,7 +183,9 @@ class ChatService {
         sections.push("");
         sections.push("## 📝 工具調用格式");
         sections.push("使用 JSON 格式調用工具：");
-        sections.push('```json\n{"tool": "工具名稱", "parameters": {"參數": "值"}}\n```');
+        sections.push(
+          '```json\n{"tool": "工具名稱", "parameters": {"參數": "值"}}\n```'
+        );
         sections.push("");
       }
     } catch (error) {
@@ -191,7 +193,9 @@ class ChatService {
       sections.push("");
       sections.push("## 📝 工具調用格式");
       sections.push("使用 JSON 格式調用工具：");
-      sections.push('```json\n{"tool": "工具名稱", "parameters": {"參數": "值"}}\n```');
+      sections.push(
+        '```json\n{"tool": "工具名稱", "parameters": {"參數": "值"}}\n```'
+      );
       sections.push("");
     }
 
@@ -400,7 +404,72 @@ class ChatService {
       console.log("hasSuccessfulTools:", hasSuccessfulTools);
 
       if (hasSuccessfulTools) {
-        console.log("=== 開始二次 AI 調用，基於工具結果生成回應 ===");
+        console.log("=== 開始二次 AI 調用 ===");
+
+        // 獲取模型配置
+        const modelConfig = context.model_config || {};
+
+        // 🎯 檢測是否為圖表創建場景，使用專門的輕量模型
+        const hasChartTools = toolCalls.some(
+          (call) =>
+            call.function?.name === "create_chart" ||
+            call.name === "create_chart"
+        );
+
+        let secondaryModelConfig = { ...modelConfig };
+
+        if (hasChartTools) {
+          console.log(
+            "🎨 [圖表場景優化] 檢測到圖表創建工具調用，使用專門的輕量模型"
+          );
+
+          // 🚀 從資料庫獲取專門的圖表回應模型 (qwen2.5vl:7b)
+          try {
+            const { query } = await import("../config/database.config.js");
+            const { rows: chartModelRows } = await query(
+              "SELECT * FROM ai_models WHERE model_id = ? AND is_active = 1",
+              ["qwen2.5:1.5b"]
+            );
+
+            if (chartModelRows.length > 0) {
+              const chartModel = chartModelRows[0];
+              secondaryModelConfig = {
+                model_type: chartModel.model_type,
+                model_id: chartModel.model_id,
+                endpoint_url: chartModel.endpoint_url,
+                api_key_encrypted: chartModel.api_key_encrypted,
+              };
+
+              console.log(
+                `🎨 [圖表場景優化] 使用專門模型: ${chartModel.model_id} (${chartModel.endpoint_url})`
+              );
+            } else {
+              console.log(
+                "⚠️ [圖表場景優化] 未找到 qwen2.5vl:7b 模型，使用 fallback 輕量模型"
+              );
+              // fallback 到任何可用的輕量模型
+              const { rows: lightModelRows } = await query(
+                "SELECT * FROM ai_models WHERE (model_id LIKE '%1.5b%' OR model_id LIKE '%3b%' OR model_id LIKE '%7b%') AND is_active = 1 LIMIT 1"
+              );
+
+              if (lightModelRows.length > 0) {
+                const lightModel = lightModelRows[0];
+                secondaryModelConfig = {
+                  model_type: lightModel.model_type,
+                  model_id: lightModel.model_id,
+                  endpoint_url: lightModel.endpoint_url,
+                  api_key_encrypted: lightModel.api_key_encrypted,
+                };
+                console.log(
+                  `🎨 [圖表場景優化] 使用 fallback 輕量模型: ${lightModel.model_id}`
+                );
+              }
+            }
+          } catch (dbError) {
+            console.error("🎨 [圖表場景優化] 資料庫查詢失敗:", dbError.message);
+            console.log("🎨 [圖表場景優化] 繼續使用原始模型配置");
+          }
+        }
 
         // 🚀 標記正在進行二次調用，供前端顯示加載狀態
         if (context.onSecondaryAIStart) {
@@ -463,21 +532,21 @@ ${formattedResults}
             },
           ];
 
-          // 獲取模型配置
-          const modelConfig = context.model_config || {};
-
           // 🚀 新功能：檢查是否需要流式二次調用
-          const useStreamingSecondaryAI = context.stream === true || context.enableSecondaryStream === true;
+          const useStreamingSecondaryAI =
+            context.stream === true || context.enableSecondaryStream === true;
 
           if (useStreamingSecondaryAI) {
             console.log("=== 啟用流式二次 AI 調用 ===");
-            
+
             // 🔧 使用流式模式進行二次 AI 調用
             secondaryAIGenerator = await AIService.callModel({
-              provider: modelConfig.model_type || "ollama",
-              model: modelConfig.model_id || context.model || "qwen3:32b",
-              endpoint_url: context.endpoint_url || modelConfig.endpoint_url,
-              api_key: modelConfig.api_key_encrypted,
+              provider: secondaryModelConfig.model_type || "ollama",
+              model:
+                secondaryModelConfig.model_id || context.model || "qwen3:32b",
+              endpoint_url:
+                context.endpoint_url || secondaryModelConfig.endpoint_url,
+              api_key: secondaryModelConfig.api_key_encrypted,
               messages: followUpMessages,
               temperature: 0.3, // 降低隨機性，加快生成速度
               max_tokens: 800, // 調整為適中數值，確保回應完整
@@ -500,17 +569,20 @@ ${formattedResults}
           } else {
             // 🚀 原有的非流式二次 AI 調用邏輯
             const secondaryAIResponse = await AIService.callModel({
-              provider: modelConfig.model_type || "ollama",
-              model: modelConfig.model_id || context.model || "qwen3:32b",
-              endpoint_url: context.endpoint_url || modelConfig.endpoint_url,
-              api_key: modelConfig.api_key_encrypted,
+              provider: secondaryModelConfig.model_type || "ollama",
+              model:
+                secondaryModelConfig.model_id || context.model || "qwen3:32b",
+              endpoint_url:
+                context.endpoint_url || secondaryModelConfig.endpoint_url,
+              api_key: secondaryModelConfig.api_key_encrypted,
               messages: followUpMessages,
               temperature: 0.3, // 🚀 降低隨機性，加快生成速度
               max_tokens: 800, // 🔧 調整為適中數值，確保回應完整
             });
 
             // 處理二次 AI 調用的回應，提取 <think> 標籤內容
-            let cleanedResponse = secondaryAIResponse.content || formattedResults;
+            let cleanedResponse =
+              secondaryAIResponse.content || formattedResults;
 
             // 提取 <think>...</think> 標籤內容（如果二次調用中也有思考內容）
             const secondaryThinkMatch = cleanedResponse.match(

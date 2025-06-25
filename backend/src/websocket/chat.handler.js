@@ -70,6 +70,10 @@ export const handleRealtimeChat = async (
   }
 
   try {
+    // 🕐 開始時間追蹤
+    const totalStartTime = Date.now();
+    console.log(`🕐 [${new Date().toISOString()}] 開始處理 WebSocket 聊天消息`);
+
     const {
       conversationId,
       content,
@@ -205,10 +209,23 @@ export const handleRealtimeChat = async (
       });
     }
 
+    const beforeAiTime = Date.now();
+    console.log(
+      `🕐 [${new Date().toISOString()}] 準備調用 AI，已耗時: ${beforeAiTime - totalStartTime}ms`
+    );
+
     // 調用AI模型
     const aiResponse = await AIService.callModel(aiOptions);
 
+    const afterAiTime = Date.now();
+    console.log(
+      `🕐 [${new Date().toISOString()}] AI 基礎調用完成，耗時: ${afterAiTime - beforeAiTime}ms`
+    );
+
     // 🔧 處理 AI 回應，包含 MCP 工具調用檢測和執行
+    const beforeToolTime = Date.now();
+    console.log(`🕐 [${new Date().toISOString()}] 開始工具檢測和處理`);
+
     const chatResult = await chatService.processChatMessage(
       aiResponse.content,
       {
@@ -216,7 +233,62 @@ export const handleRealtimeChat = async (
         conversation_id: conversationId,
         model_id: model.id,
         endpoint_url: model.endpoint_url,
+        // 🚀 新增：WebSocket 進度回調支持
+        onToolCallStart: (toolName, toolCount, currentIndex) => {
+          const toolStartTime = Date.now();
+          const progressMessage = `🔧 正在調用工具 ${currentIndex}/${toolCount}: ${toolName}`;
+          console.log(`🕐 [${new Date().toISOString()}] ${progressMessage}`);
+
+          sendToClient(clientId, {
+            type: "tool_processing_progress",
+            data: {
+              conversationId: conversationId,
+              message: progressMessage,
+              progress: Math.round((currentIndex / toolCount) * 100),
+              stage: "tool_execution",
+              timestamp: toolStartTime,
+            },
+          });
+        },
+        onToolCallComplete: (toolName, result) => {
+          const toolCompleteTime = Date.now();
+          const completeMessage = `✅ 工具 ${toolName} 調用完成`;
+          console.log(`🕐 [${new Date().toISOString()}] ${completeMessage}`, {
+            success: result.success,
+            executionTime: result.execution_time,
+          });
+
+          sendToClient(clientId, {
+            type: "tool_processing_progress",
+            data: {
+              conversationId: conversationId,
+              message: completeMessage,
+              stage: "tool_completed",
+              timestamp: toolCompleteTime,
+            },
+          });
+        },
+        onSecondaryAIStart: () => {
+          const secondaryStartTime = Date.now();
+          const secondaryMessage = "✨ 正在優化回應內容...";
+          console.log(`🕐 [${new Date().toISOString()}] ${secondaryMessage}`);
+
+          sendToClient(clientId, {
+            type: "tool_processing_progress",
+            data: {
+              conversationId: conversationId,
+              message: secondaryMessage,
+              stage: "secondary_ai",
+              timestamp: secondaryStartTime,
+            },
+          });
+        },
       }
+    );
+
+    const afterToolTime = Date.now();
+    console.log(
+      `🕐 [${new Date().toISOString()}] 工具處理完成，耗時: ${afterToolTime - beforeToolTime}ms`
     );
 
     // 使用處理後的回應內容
@@ -281,6 +353,11 @@ export const handleRealtimeChat = async (
       clientId
     );
 
+    const totalEndTime = Date.now();
+    console.log(
+      `🕐 [${new Date().toISOString()}] 整個處理流程完成，總耗時: ${totalEndTime - totalStartTime}ms`
+    );
+
     logger.info("實時聊天處理成功", {
       userId: client.userId,
       conversationId: conversationId,
@@ -289,6 +366,9 @@ export const handleRealtimeChat = async (
       tokens: aiResponse.tokens_used,
       hasToolCalls: chatResult.has_tool_calls,
       toolCallsCount: chatResult.tool_calls?.length || 0,
+      totalTime: totalEndTime - totalStartTime,
+      aiTime: afterAiTime - beforeAiTime,
+      toolTime: afterToolTime - beforeToolTime,
     });
   } catch (error) {
     logger.error("實時聊天處理失敗", {

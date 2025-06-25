@@ -25,6 +25,8 @@ export class MessageModel {
       model_info = null,
       processing_time = 0,
       parent_message_id = null,
+      agent_id = null,
+      agent_name = null,
     } = messageData;
 
     try {
@@ -33,8 +35,9 @@ export class MessageModel {
         const [messageResult] = await connection.execute(
           `INSERT INTO messages (
             conversation_id, role, content, content_type, attachments,
-            metadata, tokens_used, cost, model_info, processing_time, parent_message_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            metadata, tokens_used, cost, model_info, processing_time, parent_message_id,
+            agent_id, agent_name
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             conversation_id,
             role,
@@ -47,6 +50,8 @@ export class MessageModel {
             model_info ? JSON.stringify(model_info) : null,
             processing_time,
             parent_message_id,
+            agent_id,
+            agent_name,
           ]
         );
 
@@ -234,6 +239,8 @@ export class MessageModel {
       "cost",
       "processing_time",
       "model_info",
+      "agent_id",
+      "agent_name",
     ];
 
     const updateFields = [];

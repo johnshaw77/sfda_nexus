@@ -340,6 +340,26 @@ const setupWebSocketListeners = () => {
     chatStore.handleSetAITypingStatus(data.isTyping);
   });
 
+  // 🚀 新增：監聽工具處理進度
+  wsStore.addEventListener("tool_processing_progress", (data) => {
+    console.log("🔧 工具處理進度:", data);
+
+    // 更新進度提示到聊天 store
+    chatStore.handleUpdateToolProgress({
+      conversationId: data.conversationId,
+      message: data.message,
+      progress: data.progress,
+      stage: data.stage,
+      timestamp: data.timestamp,
+    });
+
+    // 可選：顯示全局提示
+    if (data.stage === "tool_execution" && data.progress !== undefined) {
+      // 顯示進度條提示（可以使用 ant-design-vue 的 notification）
+      console.log(`進度提示: ${data.message} (${data.progress}%)`);
+    }
+  });
+
   // 監聽用戶輸入狀態
   wsStore.addEventListener("user_typing", (data) => {
     console.log("用戶正在輸入:", data);

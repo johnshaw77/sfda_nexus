@@ -515,6 +515,48 @@ export const useChatStore = defineStore("chat", () => {
     aiTyping.value = typing;
   };
 
+  // 🚀 新增：處理工具處理進度
+  const handleUpdateToolProgress = (progressData) => {
+    console.log("🔧 [Chat Store] 處理工具進度:", progressData);
+
+    const { conversationId, message, progress, stage, timestamp } =
+      progressData;
+
+    // 如果不是當前對話，忽略
+    if (currentConversation.value?.id !== conversationId) {
+      return;
+    }
+
+    // 找到最後一個 assistant 消息
+    const lastAssistantMessageIndex = messages.value
+      .slice()
+      .reverse()
+      .findIndex((msg) => msg.role === "assistant");
+
+    if (lastAssistantMessageIndex === -1) {
+      console.warn("⚠️ 未找到 assistant 消息來更新工具進度");
+      return;
+    }
+
+    // 轉換為正向索引
+    const messageIndex = messages.value.length - 1 - lastAssistantMessageIndex;
+    const targetMessage = messages.value[messageIndex];
+
+    // 更新進度信息
+    targetMessage.isProcessingTools = true;
+    targetMessage.toolProcessingMessage = message;
+    targetMessage.progress = progress;
+    targetMessage.toolProcessingStage = stage;
+    targetMessage.lastProgressUpdate = timestamp;
+
+    console.log("🔧 [Chat Store] 工具進度已更新:", {
+      messageId: targetMessage.id,
+      message,
+      progress,
+      stage,
+    });
+  };
+
   // 載入更多歷史消息
   const handleLoadMoreMessages = async () => {
     if (!currentConversation.value || isLoadingMessages.value) return;
@@ -748,7 +790,19 @@ export const useChatStore = defineStore("chat", () => {
         const { done, value } = await reader.read();
 
         if (done) {
-          //console.log("=== SSE 串流結束 ===");
+          console.log("🏁 SSE 串流讀取結束");
+
+          // 🚀 確保串流狀態被清除（防止狀態殘留）
+          setTimeout(() => {
+            if (isStreaming.value) {
+              console.log("⚠️ 檢測到串流狀態未清除，強制清除");
+              isStreaming.value = false;
+              isSendingMessage.value = false;
+              aiTyping.value = false;
+              streamController.value = null;
+            }
+          }, 1000); // 1秒後檢查
+
           break;
         }
 
@@ -1086,7 +1140,13 @@ export const useChatStore = defineStore("chat", () => {
 
       case "stream_done":
         // 串流完成
-        //console.log("串流完成:", data);
+        console.log("🏁 串流完成事件:", data);
+
+        // 🚀 強制清除全局串流狀態
+        isStreaming.value = false;
+        isSendingMessage.value = false;
+        aiTyping.value = false;
+        streamController.value = null;
 
         // 清除當前串流的消息 ID
         if (streamingMessageId.value === data.assistant_message_id) {
@@ -1105,12 +1165,13 @@ export const useChatStore = defineStore("chat", () => {
             delete messages.value[finalMessageIndex].typingTimer;
           }
 
-          // 🔧 確保清除工具處理狀態（防止卡在處理中）
+          // 🔧 確保清除所有處理狀態（防止卡在處理中）
           messages.value[finalMessageIndex].isProcessingTools = false;
           messages.value[finalMessageIndex].toolProcessingMessage = null;
           messages.value[finalMessageIndex].toolProcessingError = null;
           messages.value[finalMessageIndex].isOptimizing = false;
           messages.value[finalMessageIndex].optimizingMessage = null;
+          messages.value[finalMessageIndex].isStreamingSecondary = false;
 
           // 保存現有的思考內容（如果有的話）
           const existingThinkingContent =
@@ -1125,31 +1186,51 @@ export const useChatStore = defineStore("chat", () => {
                 )
               : data.full_content;
 
-          messages.value[finalMessageIndex].content = finalConvertedContent;
-          messages.value[finalMessageIndex].tokens_used = data.tokens_used;
-          messages.value[finalMessageIndex].cost = data.cost;
-          messages.value[finalMessageIndex].processing_time =
-            data.processing_time;
-          messages.value[finalMessageIndex].isStreaming = false; // 串流結束
+          // 🔧 如果有updated_message，使用完整的更新後消息信息
+          if (data.updated_message) {
+            console.log("🔄 使用完整的updated_message更新消息:", {
+              messageId: data.assistant_message_id,
+              hasAgentId: !!data.updated_message.agent_id,
+              agentName: data.updated_message.agent_name,
+              modelInfo: data.updated_message.model_info,
+            });
 
-          // 🎯 更新 metadata（包含圖表檢測結果）
-          if (data.metadata || data.updated_message?.metadata) {
-            messages.value[finalMessageIndex].metadata = {
-              ...messages.value[finalMessageIndex].metadata,
-              ...(data.metadata || data.updated_message?.metadata),
+            // 保留當前的串流狀態相關字段，其他字段用updated_message覆蓋
+            const currentStreamingFields = {
+              isStreaming: messages.value[finalMessageIndex].isStreaming,
+              typingTimer: messages.value[finalMessageIndex].typingTimer,
             };
 
-            // 🎯 調試：記錄圖表檢測結果
-            if (
-              data.metadata?.chart_detection ||
-              data.updated_message?.metadata?.chart_detection
-            ) {
-              console.log("🎯 [Chat Store] stream_done 收到圖表檢測結果:", {
-                messageId: data.assistant_message_id,
-                chart_detection:
-                  data.metadata?.chart_detection ||
-                  data.updated_message?.metadata?.chart_detection,
-              });
+            // 用updated_message的數據覆蓋，但保留串流狀態
+            Object.assign(
+              messages.value[finalMessageIndex],
+              data.updated_message,
+              {
+                isStreaming: false, // 串流已結束
+                content: finalConvertedContent, // 使用轉換後的內容
+              }
+            );
+
+            // 清除typingTimer
+            if (currentStreamingFields.typingTimer) {
+              clearTimeout(currentStreamingFields.typingTimer);
+              delete messages.value[finalMessageIndex].typingTimer;
+            }
+          } else {
+            // 原有的更新邏輯
+            messages.value[finalMessageIndex].content = finalConvertedContent;
+            messages.value[finalMessageIndex].tokens_used = data.tokens_used;
+            messages.value[finalMessageIndex].cost = data.cost;
+            messages.value[finalMessageIndex].processing_time =
+              data.processing_time;
+            messages.value[finalMessageIndex].isStreaming = false; // 串流結束
+
+            // 🎯 更新 metadata（包含圖表檢測結果）
+            if (data.metadata) {
+              messages.value[finalMessageIndex].metadata = {
+                ...messages.value[finalMessageIndex].metadata,
+                ...data.metadata,
+              };
             }
           }
 
@@ -1158,6 +1239,27 @@ export const useChatStore = defineStore("chat", () => {
             messages.value[finalMessageIndex].thinking_content =
               existingThinkingContent;
             console.log("stream_done: 保留現有思考內容");
+          }
+
+          console.log("🏁 消息串流狀態已清除:", {
+            messageId: data.assistant_message_id,
+            isStreaming: messages.value[finalMessageIndex].isStreaming,
+            globalIsStreaming: isStreaming.value,
+            aiTyping: aiTyping.value,
+            hasAgentInfo: !!(
+              messages.value[finalMessageIndex].agent_id ||
+              messages.value[finalMessageIndex].agent_name
+            ),
+            modelInfo: messages.value[finalMessageIndex].model_info,
+          });
+
+          // 🎯 調試：記錄圖表檢測結果
+          if (messages.value[finalMessageIndex].metadata?.chart_detection) {
+            console.log("🎯 [Chat Store] stream_done 收到圖表檢測結果:", {
+              messageId: data.assistant_message_id,
+              chart_detection:
+                messages.value[finalMessageIndex].metadata.chart_detection,
+            });
           }
         }
         break;
@@ -1299,6 +1401,11 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[heartbeatMessageIndex].toolProcessingMessage =
             data.message;
           messages.value[heartbeatMessageIndex].lastHeartbeat = data.timestamp;
+
+          // 🚀 新增：更新進度信息
+          if (data.progress !== undefined) {
+            messages.value[heartbeatMessageIndex].progress = data.progress;
+          }
         }
         break;
 
@@ -1611,6 +1718,7 @@ export const useChatStore = defineStore("chat", () => {
     handleGetAvailableAgents,
     handleSetTypingStatus,
     handleSetAITypingStatus,
+    handleUpdateToolProgress,
     handleLoadMoreMessages,
     handleLoadMoreConversations,
     handleSearchConversations,
