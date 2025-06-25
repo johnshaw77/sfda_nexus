@@ -2570,21 +2570,32 @@ onMounted(() => {
   border-color: var(--color-border-secondary);
 }
 
-:root[data-theme="dark"] .attachment-icon {
+:root[data-theme="dark"] .attachment-icon,
+:root[data-theme="dark"] .image-preview-icon {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* 🔧 移除快速命令暗色模式樣式 */
 
-/* 圖片預覽縮圖樣式 - 在附件卡片中的圖標位置顯示 */
+/* 圖片預覽縮圖樣式 - 完全匹配標準 attachment-icon */
 .image-preview-icon {
-  padding: 0 !important;
-  background: transparent !important;
-  border: 2px solid var(--color-border);
-  overflow: hidden;
+  /* 繼承標準圖標的所有樣式 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  background-color: var(--color-bg-elevated);
+  border-radius: 8px;
   position: relative;
+  transition: all 0.3s ease;
+  /* 額外的圖片特定樣式 */
+  padding: 4px;
+  overflow: hidden;
 }
 
+/* 移除標準圖標的::before偽元素 */
 .image-preview-icon::before {
   display: none !important;
 }
@@ -2593,7 +2604,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 4px;
   transition: transform 0.3s ease;
 }
 
@@ -2613,7 +2624,7 @@ onMounted(() => {
   justify-content: center;
   opacity: 0;
   transition: opacity 0.3s ease;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .attachment-item:hover .image-preview-overlay {
