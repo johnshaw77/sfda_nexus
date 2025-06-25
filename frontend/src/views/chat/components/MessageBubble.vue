@@ -183,9 +183,25 @@
         class="tool-processing-section">
         <div class="tool-processing-header">
           <ToolOutlined />
-          <span>{{
-            message.toolProcessingMessage || "正在檢查並處理工具調用..."
-          }}</span>
+          <div class="tool-processing-content">
+            <div class="tool-processing-message">
+              {{ message.toolProcessingMessage || "正在檢查並處理工具調用..." }}
+            </div>
+            <!-- 🚀 新增：進度條 -->
+            <div
+              v-if="message.progress !== undefined"
+              class="tool-progress">
+              <a-progress
+                :percent="message.progress"
+                :show-info="false"
+                size="small"
+                :stroke-color="{
+                  '0%': '#108ee9',
+                  '100%': '#87d068',
+                }" />
+              <span class="progress-text">{{ message.progress }}%</span>
+            </div>
+          </div>
           <LoadingOutlined
             spin
             class="processing-spinner" />
@@ -214,26 +230,38 @@
       </div>
 
       <!-- 🔧 附件顯示移到內容上方 -->
-      <!-- 圖片縮圖顯示（僅用戶訊息） -->
+      <!-- 圖片附件顯示（僅用戶訊息） - 使用與其他檔案一致的卡片樣式 -->
       <div
         v-if="message.role === 'user' && imageAttachments.length > 0"
-        class="message-image-thumbnails">
+        class="message-attachments">
         <div
           v-for="attachment in imageAttachments"
           :key="attachment.id"
-          class="image-thumbnail-item"
+          class="attachment-item"
           @click="handleViewAttachment(attachment)">
-          <img
-            :src="getImageSrc(attachment.id)"
-            :alt="attachment.filename || attachment.name"
-            class="thumbnail-image"
-            @error="handleImageError" />
-          <div class="image-overlay">
-            <div class="image-filename">
-              {{ attachment.filename || attachment.name }}
+          <div class="attachment-card">
+            <div class="attachment-icon-container">
+              <div class="attachment-icon image-preview-icon">
+                <img
+                  :src="getImageSrc(attachment.id)"
+                  :alt="attachment.filename || attachment.name"
+                  class="image-preview-thumbnail"
+                  @error="handleImageError" />
+                <div class="image-preview-overlay">
+                  <EyeOutlined class="preview-icon" />
+                </div>
+              </div>
             </div>
-            <div class="zoom-icon">
-              <EyeOutlined />
+            <div class="attachment-info">
+              <div class="attachment-filename">
+                {{ attachment.filename || attachment.name }}
+              </div>
+              <div class="attachment-meta">
+                <span class="attachment-size">
+                  {{ getFileTypeLabel(attachment) }}
+                  {{ formatFileSize(attachment.file_size || attachment.size) }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -415,16 +443,51 @@
         </div>
         <div class="model-info-right">
           <span class="token-usage">
-            Token: {{ message.tokens_used || 0 }}
+            Token: {{ (message.tokens_used || 0).toLocaleString() }}
           </span>
           <!-- <span
             class="cost-info"
             v-if="message.cost && parseFloat(message.cost) > 0">
             Cost: ${{ parseFloat(message.cost).toFixed(6) }}
           </span> -->
-          <a-tag :color="getModelColor(message.model_info?.model || 'default')">
-            {{ message.model_info?.model || message.model || "qwen3:8b" }}
+          <a-tag
+            :color="getModelColor(message.model_info?.provider || 'default')">
+            {{
+              message.model_info?.model ||
+              message.model ||
+              message.model_info?.display_name ||
+              "未知模型"
+            }}
           </a-tag>
+        </div>
+      </div>
+
+      <!-- 🎯 智能詢問：確認是否需要製作圖表 -->
+      <div
+        v-if="
+          message.role === 'assistant' &&
+          backendChartDetection &&
+          backendChartDetection.needsConfirmation
+        "
+        class="chart-confirmation-section">
+        <div class="chart-confirmation-header">
+          <QuestionCircleOutlined />
+          <span>{{ backendChartDetection.confirmationMessage }}</span>
+        </div>
+        <div class="chart-confirmation-actions">
+          <a-button
+            type="primary"
+            size="small"
+            @click="handleConfirmChart(true)"
+            :loading="isGeneratingChart">
+            <BarChartOutlined />
+            是的，製作圖表
+          </a-button>
+          <a-button
+            size="small"
+            @click="handleConfirmChart(false)">
+            不需要
+          </a-button>
         </div>
       </div>
 
@@ -433,6 +496,7 @@
         v-if="
           message.role === 'assistant' &&
           backendChartDetection &&
+          !backendChartDetection.needsConfirmation &&
           !hasBackendDetectedChart
         "
         style="
@@ -444,7 +508,7 @@
           border-radius: 4px;
           color: #d48806;
         ">
-        🔍 AI檢測到圖表意圖，但數據不足或可信度較低 ({{
+        🔍 開發測試-AI檢測到圖表意圖，但數據不足或可信度較低 ({{
           Math.round(backendChartDetection.confidence * 100)
         }}%)
       </div>
@@ -734,6 +798,7 @@ const detectedCharts = ref([]);
 const isDetectingCharts = ref(false);
 const chartDetectionError = ref(null);
 const showChartSuggestion = ref(false);
+const isGeneratingChart = ref(false);
 
 // 🎯 計算屬性：檢查後端智能檢測結果
 const backendChartDetection = computed(() => {
@@ -790,7 +855,14 @@ const mcpChartDetection = computed(() => {
 
 // 🎯 計算屬性：判斷是否有後端檢測到的圖表
 const hasBackendDetectedChart = computed(() => {
+  // 🔧 前端圖表禁用檢查：如果後端檢測被禁用，前端也不顯示
   const detection = backendChartDetection.value;
+
+  // 🔧 檢查是否被後端禁用
+  if (detection && detection.reason === "圖表檢測功能已禁用") {
+    console.log("🎯 [MessageBubble] 圖表檢測已被後端禁用，跳過顯示");
+    return false;
+  }
 
   // 🎯 更寬鬆的檢測條件
   const hasChart =
@@ -809,6 +881,7 @@ const hasBackendDetectedChart = computed(() => {
       confidence: detection.confidence,
       dataLength: detection.data?.length || 0,
       shouldShow: hasChart,
+      isDisabled: detection.reason === "圖表檢測功能已禁用",
     });
   }
 
@@ -1177,8 +1250,20 @@ const getSenderName = () => {
         "用戶"
       );
     case "assistant":
+      // 🔧 添加調試信息
+      console.log("🔍 [MessageBubble] getSenderName 調試信息:", {
+        messageId: props.message.id,
+        messageAgentName: props.message.agent_name,
+        messageAgentId: props.message.agent_id,
+        currentAgent: agentsStore.getCurrentAgent,
+      });
+
       // 優先從消息中獲取智能體名稱，然後從當前智能體獲取
       if (props.message.agent_name) {
+        console.log(
+          "🔍 [MessageBubble] 使用消息中的智能體名稱:",
+          props.message.agent_name
+        );
         return props.message.agent_name;
       }
 
@@ -1186,6 +1271,10 @@ const getSenderName = () => {
       if (props.message.agent_id) {
         const agent = agentsStore.getAgentById(props.message.agent_id);
         if (agent) {
+          console.log(
+            "🔍 [MessageBubble] 從智能體ID獲取名稱:",
+            agent.display_name || agent.name
+          );
           return agent.display_name || agent.name;
         }
       }
@@ -1193,9 +1282,14 @@ const getSenderName = () => {
       // 從當前智能體獲取
       const currentAgent = agentsStore.getCurrentAgent;
       if (currentAgent) {
+        console.log(
+          "🔍 [MessageBubble] 使用當前智能體名稱:",
+          currentAgent.display_name || currentAgent.name
+        );
         return currentAgent.display_name || currentAgent.name;
       }
 
+      console.log("🔍 [MessageBubble] 使用默認名稱: AI助手");
       return "AI助手";
     case "system":
       return "系統";
@@ -1378,9 +1472,10 @@ const getQuotePreview = (content) => {
 };
 
 const getModelColor = (provider) => {
+  console.log("🔍 [MessageBubble] getModelColor:", provider);
   const colors = {
-    ollama: "blue",
-    gemini: "green",
+    ollama: "green",
+    gemini: "blue",
     openai: "purple",
     claude: "orange",
   };
@@ -1936,6 +2031,78 @@ const handleDismissChartSuggestion = () => {
   detectedCharts.value = [];
 };
 
+// 🎯 處理圖表確認
+const handleConfirmChart = async (confirmed) => {
+  if (!confirmed) {
+    // 用戶拒絕，隱藏確認UI（通過更新message metadata）
+    if (props.message.metadata?.chart_detection) {
+      props.message.metadata.chart_detection.needsConfirmation = false;
+      props.message.metadata.chart_detection.userRejected = true;
+    }
+    antMessage.info("已取消圖表生成");
+    return;
+  }
+
+  try {
+    isGeneratingChart.value = true;
+
+    // 用戶確認，觸發圖表生成
+    const chartData = backendChartDetection.value;
+
+    // 準備請求參數
+    const requestData = {
+      conversationId: chatStore.currentConversationId,
+      messageId: props.message.id,
+      userInput: props.message.quoted_message?.content || "請製作圖表",
+      aiResponse: props.message.content,
+      chartData: {
+        data: chartData.data,
+        chartType: chartData.chartType,
+        title: chartData.title,
+        confidence: chartData.confidence,
+      },
+    };
+
+    console.log("🎯 [MessageBubble] 發送圖表生成請求:", requestData);
+
+    // 調用圖表生成API
+    const response = await fetch("/api/chat/generate-chart", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
+      },
+      body: JSON.stringify(requestData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API錯誤: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      // 更新消息，隱藏確認UI並顯示生成的圖表
+      if (props.message.metadata?.chart_detection) {
+        props.message.metadata.chart_detection.needsConfirmation = false;
+        props.message.metadata.chart_detection.userConfirmed = true;
+        // 更新為高信心度以觸發圖表顯示
+        props.message.metadata.chart_detection.confidence = 1.0;
+      }
+
+      antMessage.success("圖表生成成功！");
+      console.log("🎯 [MessageBubble] 圖表生成成功:", result);
+    } else {
+      throw new Error(result.message || "圖表生成失敗");
+    }
+  } catch (error) {
+    console.error("🎯 [MessageBubble] 圖表生成失敗:", error);
+    antMessage.error(`圖表生成失敗: ${error.message}`);
+  } finally {
+    isGeneratingChart.value = false;
+  }
+};
+
 // 監聽消息變化，自動檢測圖表機會
 watch(
   () => [props.message.content, effectiveToolCalls.value.length],
@@ -2389,91 +2556,63 @@ onMounted(() => {
 
 /* 🔧 移除快速命令暗色模式樣式 */
 
-/* 圖片縮圖樣式 */
-.message-image-thumbnails {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.image-thumbnail-item {
-  position: relative;
-  border-radius: 8px;
+/* 圖片預覽縮圖樣式 - 在附件卡片中的圖標位置顯示 */
+.image-preview-icon {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 2px solid var(--color-border);
   overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  max-width: 200px;
-  max-height: 150px;
+  position: relative;
 }
 
-.image-thumbnail-item:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+.image-preview-icon::before {
+  display: none !important;
 }
 
-.thumbnail-image {
+.image-preview-thumbnail {
   width: 100%;
-  height: auto;
-  min-width: 120px;
-  max-width: 200px;
-  max-height: 150px;
+  height: 100%;
   object-fit: cover;
-  display: block;
-  border-radius: 8px;
+  border-radius: 6px;
+  transition: transform 0.3s ease;
 }
 
-.image-overlay {
+.attachment-item:hover .image-preview-thumbnail {
+  transform: scale(1.1);
+}
+
+.image-preview-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0) 60%,
-    rgba(0, 0, 0, 0.8) 100%
-  );
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 8px;
-  border-radius: 8px;
-}
-
-.image-thumbnail-item:hover .image-overlay {
-  opacity: 1;
-}
-
-.image-filename {
-  font-size: 11px;
-  color: white;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: auto;
-}
-
-.zoom-icon {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 6px;
+}
+
+.attachment-item:hover .image-preview-overlay {
+  opacity: 1;
+}
+
+.preview-icon {
   color: white;
-  font-size: 12px;
-  backdrop-filter: blur(4px);
+  font-size: 16px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* 確保圖片附件卡片與其他檔案類型一致的樣式 */
+.attachment-item .attachment-card {
+  background: var(--color-bg-container);
+}
+
+.attachment-item:hover .attachment-card {
+  background: var(--color-bg-elevated);
 }
 
 /* 工具調用樣式 - 適配暗黑模式 */
@@ -2773,8 +2912,8 @@ onMounted(() => {
 .tool-processing-section {
   margin: 8px 0;
   padding: 12px;
-  background-color: #e6f7ff;
-  border: 1px solid #91d5ff;
+  background-color: #f0f9ff;
+  border: 1px solid #b3d8ff;
   border-radius: 6px;
   border-left: 3px solid #1890ff;
 }
@@ -2785,6 +2924,39 @@ onMounted(() => {
   gap: 8px;
   color: #1890ff;
   font-size: 14px;
+}
+
+.tool-processing-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-processing-message {
+  font-size: 14px;
+  color: #1890ff;
+}
+
+/* 🚀 新增：工具處理進度條樣式 */
+.tool-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tool-progress .ant-progress {
+  flex: 1;
+  margin: 0;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #1890ff;
+  font-weight: 500;
+  min-width: 35px;
+  text-align: right;
 }
 
 .processing-spinner {
@@ -3127,5 +3299,77 @@ onMounted(() => {
 .chart-message-container :deep(.smart-chart-container) {
   border: none;
   background: transparent;
+}
+
+/* 🎯 圖表確認樣式 */
+.chart-confirmation-section {
+  margin-top: 12px;
+  padding: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(250, 173, 20, 0.05),
+    rgba(255, 197, 61, 0.05)
+  );
+  border: 1px solid rgba(250, 173, 20, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(250, 173, 20, 0.1);
+}
+
+.chart-confirmation-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #d48806;
+  font-weight: 500;
+}
+
+.chart-confirmation-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chart-confirmation-actions .ant-btn {
+  border-radius: 6px;
+  font-size: 13px;
+  height: 32px;
+  padding: 0 12px;
+}
+
+.chart-confirmation-actions .ant-btn-primary {
+  background: #faad14;
+  border-color: #faad14;
+}
+
+.chart-confirmation-actions .ant-btn-primary:hover {
+  background: #ffc53d;
+  border-color: #ffc53d;
+}
+
+/* 暗黑模式下的圖表確認樣式 */
+:root[data-theme="dark"] .chart-confirmation-section {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 197, 61, 0.08),
+    rgba(250, 219, 20, 0.08)
+  );
+  border-color: rgba(255, 197, 61, 0.3);
+}
+
+:root[data-theme="dark"] .chart-confirmation-header {
+  color: #ffc53d;
+}
+
+:root[data-theme="dark"] .chart-confirmation-actions .ant-btn-primary {
+  background: #ffc53d;
+  border-color: #ffc53d;
+  color: #000;
+}
+
+:root[data-theme="dark"] .chart-confirmation-actions .ant-btn-primary:hover {
+  background: #ffec3d;
+  border-color: #ffec3d;
 }
 </style>
