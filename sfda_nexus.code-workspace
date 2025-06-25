@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../sfda_mcpserver"
+		},
+		{
+			"path": "../sfda_stat"
+		},
+		{
+			"path": "../sfda_kess"
+		}
+	],
+	"settings": {}
+}
