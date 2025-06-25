@@ -575,21 +575,24 @@
                       clickable: file.preview && isImageFile(file),
                     }"
                     @click="handlePreviewImage(file)">
-                    <!-- 圖片檔案顯示預覽 - 填滿整個卡片區域 -->
+                    <!-- 圖片檔案顯示預覽 - 與其他檔案相同尺寸但圖片填滿 -->
                     <a-tooltip
                       v-if="file.preview"
                       :title="file.filename"
-                      placement="bottom"
-                      class="image-full-preview">
-                      <img
-                        :src="file.preview"
-                        :alt="file.filename"
-                        class="image-full-thumbnail" />
-                      <!-- 放大鏡圖示（僅圖片顯示） -->
-                      <div
-                        v-if="file.preview && isImageFile(file)"
-                        class="zoom-icon">
-                        <ZoomIn :size="8" />
+                      placement="bottom">
+                      <div class="file-icon-container image-file-container">
+                        <div class="thumbnail-icon image-fill-icon">
+                          <img
+                            :src="file.preview"
+                            :alt="file.filename"
+                            class="image-fill-preview" />
+                          <!-- 放大鏡圖示（僅圖片顯示） -->
+                          <div
+                            v-if="file.preview && isImageFile(file)"
+                            class="zoom-icon">
+                            <ZoomIn :size="8" />
+                          </div>
+                        </div>
                       </div>
                     </a-tooltip>
                     <!-- 非圖片檔案顯示圖示 -->
@@ -4347,21 +4350,29 @@ const getModelEndpoint = () => {
   padding: 4px;
 }
 
-/* 圖片填滿整個卡片區域 - 直接替代file-icon-container結構 */
-.image-full-preview {
+/* 圖片檔案容器 - 移除padding但保持相同結構 */
+.image-file-container {
+  padding: 0 !important; /* 移除padding讓圖片填滿 */
+}
+
+/* 圖片圖標 - 填滿整個圖標區域 */
+.image-fill-icon {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 32px;
+  height: 32px;
+  padding: 0 !important; /* 移除所有padding */
+  border-radius: 4px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.image-full-thumbnail {
+.image-fill-preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px; /* 與.file-thumbnail的圓角一致 */
+  border-radius: 4px;
 }
 
 .thumbnail-icon {
