@@ -279,10 +279,30 @@
             ? message.attachments
             : nonImageAttachments"
           :key="attachment.id"
-          class="attachment-item">
+          class="attachment-item"
+          @click="handleViewAttachment(attachment)">
           <div class="attachment-card">
             <div class="attachment-icon-container">
-              <div class="attachment-icon">
+              <!-- 圖片附件顯示預覽縮圖 -->
+              <div
+                v-if="
+                  attachment.file_type === 'image' ||
+                  attachment.mime_type?.startsWith('image/')
+                "
+                class="attachment-icon image-preview-icon">
+                <img
+                  :src="getImageSrc(attachment.id)"
+                  :alt="attachment.filename || attachment.name"
+                  class="image-preview-thumbnail"
+                  @error="handleImageError" />
+                <div class="image-preview-overlay">
+                  <EyeOutlined class="preview-icon" />
+                </div>
+              </div>
+              <!-- 非圖片附件顯示檔案圖標 -->
+              <div
+                v-else
+                class="attachment-icon">
                 <component
                   :is="getFileIcon(attachment)"
                   :style="{ color: getFileTypeColor(attachment) }" />
