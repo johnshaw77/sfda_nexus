@@ -65,24 +65,6 @@
             <p class="agent-description">{{ agent.description }}</p>
           </div>
         </div>
-
-        <!-- 對話信息 -->
-        <div
-          v-else
-          class="conversation-title-section">
-          <h3 class="conversation-title">
-            {{ chatStore.currentConversation?.title || "新對話" }}
-          </h3>
-          <div class="conversation-meta">
-            <span class="message-count">
-              {{ chatStore.messages.length }} 條消息
-            </span>
-            <span class="last-active">
-              最後活動:
-              {{ formatTime(chatStore.currentConversation?.updated_at) }}
-            </span>
-          </div>
-        </div>
       </div>
 
       <!-- 模型選擇和設置 -->
@@ -593,25 +575,21 @@
                       clickable: file.preview && isImageFile(file),
                     }"
                     @click="handlePreviewImage(file)">
-                    <!-- 圖片檔案顯示預覽 - 使用與其他檔案一致的樣式，但不顯示檔名 -->
+                    <!-- 圖片檔案顯示預覽 - 填滿整個卡片區域 -->
                     <a-tooltip
                       v-if="file.preview"
                       :title="file.filename"
-                      placement="bottom">
-                      <div class="file-icon-container">
-                        <div class="thumbnail-icon image-thumbnail-icon">
-                          <img
-                            :src="file.preview"
-                            :alt="file.filename"
-                            class="image-thumbnail-preview" />
-                          <!-- 放大鏡圖示（僅圖片顯示） -->
-                          <div
-                            v-if="file.preview && isImageFile(file)"
-                            class="zoom-icon">
-                            <ZoomIn :size="8" />
-                          </div>
-                        </div>
-                        <!-- 圖片檔案不顯示檔名，但整個區域有tooltip -->
+                      placement="bottom"
+                      class="image-full-preview">
+                      <img
+                        :src="file.preview"
+                        :alt="file.filename"
+                        class="image-full-thumbnail" />
+                      <!-- 放大鏡圖示（僅圖片顯示） -->
+                      <div
+                        v-if="file.preview && isImageFile(file)"
+                        class="zoom-icon">
+                        <ZoomIn :size="8" />
                       </div>
                     </a-tooltip>
                     <!-- 非圖片檔案顯示圖示 -->
@@ -1081,20 +1059,6 @@
                 </a-upload>
               </a-tooltip>
 
-              <!-- 即時渲染切換 -->
-
-              <!-- 表情符號 -->
-              <!-- <a-button
-                type="text"
-                size="small"
-                @click="handleShowEmoji">
-                <SmileOutlined />
-              </a-button> -->
-            </div>
-
-            <div class="toolbar-right">
-              <!-- 字數統計 -->
-              <!-- <span class="char-count">{{ messageText.length }}</span> -->
               <!-- 新對話按鈕 -->
               <a-tooltip
                 placement="top"
@@ -1118,6 +1082,21 @@
                   <span v-show="!inputCollapsed">新對話</span>
                 </a-button>
               </a-tooltip>
+              <!-- 即時渲染切換 -->
+
+              <!-- 表情符號 -->
+              <!-- <a-button
+                type="text"
+                size="small"
+                @click="handleShowEmoji">
+                <SmileOutlined />
+              </a-button> -->
+            </div>
+
+            <div class="toolbar-right">
+              <!-- 字數統計 -->
+              <!-- <span class="char-count">{{ messageText.length }}</span> -->
+
               <!-- 發送按鈕 -->
               <a-button
                 type="primary"
@@ -4368,31 +4347,29 @@ const getModelEndpoint = () => {
   padding: 4px;
 }
 
+/* 圖片填滿整個卡片區域 - 直接替代file-icon-container結構 */
+.image-full-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-full-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px; /* 與.file-thumbnail的圓角一致 */
+}
+
 .thumbnail-icon {
   color: var(--custom-text-secondary);
   font-size: 24px;
 }
 
-/* 圖片縮圖圖標樣式 - 填滿整個卡片區域 */
-.image-thumbnail-icon {
-  position: relative;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--custom-bg-elevated);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0; /* 移除padding讓圖片填滿整個區域 */
-}
-
-.image-thumbnail-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 4px; /* 與容器圓角一致 */
-}
+/* 保留舊的樣式以備MessageBubble使用，但ChatArea現在使用image-full-preview */
 
 .file-name-label {
   font-size: 10px;
