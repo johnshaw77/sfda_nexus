@@ -253,9 +253,13 @@
               </div>
             </div>
             <div class="attachment-info">
-              <div class="attachment-filename">
-                {{ attachment.filename || attachment.name }}
-              </div>
+              <a-tooltip
+                :title="attachment.filename || attachment.name"
+                placement="top">
+                <div class="attachment-filename">
+                  {{ attachment.filename || attachment.name }}
+                </div>
+              </a-tooltip>
               <div class="attachment-meta">
                 <span class="attachment-size">
                   {{ getFileTypeLabel(attachment) }}
@@ -309,9 +313,13 @@
               </div>
             </div>
             <div class="attachment-info">
-              <div class="attachment-filename">
-                {{ attachment.filename || attachment.name }}
-              </div>
+              <a-tooltip
+                :title="attachment.filename || attachment.name"
+                placement="top">
+                <div class="attachment-filename">
+                  {{ attachment.filename || attachment.name }}
+                </div>
+              </a-tooltip>
               <div class="attachment-meta">
                 <span class="attachment-size">
                   {{ getFileTypeLabel(attachment) }}

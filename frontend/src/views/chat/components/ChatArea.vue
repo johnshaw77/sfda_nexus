@@ -610,9 +610,13 @@
                         </div>
                       </div>
                       <!-- 檔案名稱 -->
-                      <div class="file-name-label">
-                        {{ file.filename }}
-                      </div>
+                      <a-tooltip
+                        :title="file.filename"
+                        placement="bottom">
+                        <div class="file-name-label">
+                          {{ file.filename }}
+                        </div>
+                      </a-tooltip>
                     </div>
                     <!-- 非圖片檔案顯示圖示 -->
                     <div
@@ -633,9 +637,13 @@
                         <FileOutlined v-else />
                       </div>
                       <!-- 檔案名稱 -->
-                      <div class="file-name-label">
-                        {{ file.filename }}
-                      </div>
+                      <a-tooltip
+                        :title="file.filename"
+                        placement="bottom">
+                        <div class="file-name-label">
+                          {{ file.filename }}
+                        </div>
+                      </a-tooltip>
                     </div>
                   </div>
                 </div>
