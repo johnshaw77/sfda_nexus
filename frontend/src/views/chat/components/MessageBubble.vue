@@ -252,21 +252,22 @@
                 </div>
               </div>
             </div>
-            <div class="attachment-info">
-              <a-tooltip
-                :title="attachment.filename || attachment.name"
-                placement="top">
-                <div class="attachment-filename">
-                  {{ attachment.filename || attachment.name }}
+            <!-- 為圖片附件添加tooltip到整個info區域，不顯示檔名文字 -->
+            <a-tooltip
+              :title="attachment.filename || attachment.name"
+              placement="top">
+              <div class="attachment-info">
+                <!-- 圖片附件不顯示檔名，只保留檔案類型和大小 -->
+                <div class="attachment-meta">
+                  <span class="attachment-size">
+                    {{ getFileTypeLabel(attachment) }}
+                    {{
+                      formatFileSize(attachment.file_size || attachment.size)
+                    }}
+                  </span>
                 </div>
-              </a-tooltip>
-              <div class="attachment-meta">
-                <span class="attachment-size">
-                  {{ getFileTypeLabel(attachment) }}
-                  {{ formatFileSize(attachment.file_size || attachment.size) }}
-                </span>
               </div>
-            </div>
+            </a-tooltip>
           </div>
         </div>
       </div>
@@ -312,21 +313,31 @@
                   :style="{ color: getFileTypeColor(attachment) }" />
               </div>
             </div>
-            <div class="attachment-info">
-              <a-tooltip
-                :title="attachment.filename || attachment.name"
-                placement="top">
-                <div class="attachment-filename">
+            <a-tooltip
+              :title="attachment.filename || attachment.name"
+              placement="top">
+              <div class="attachment-info">
+                <!-- 非圖片附件顯示檔名，圖片附件不顯示檔名 -->
+                <div
+                  v-if="
+                    !(
+                      attachment.file_type === 'image' ||
+                      attachment.mime_type?.startsWith('image/')
+                    )
+                  "
+                  class="attachment-filename">
                   {{ attachment.filename || attachment.name }}
                 </div>
-              </a-tooltip>
-              <div class="attachment-meta">
-                <span class="attachment-size">
-                  {{ getFileTypeLabel(attachment) }}
-                  {{ formatFileSize(attachment.file_size || attachment.size) }}
-                </span>
+                <div class="attachment-meta">
+                  <span class="attachment-size">
+                    {{ getFileTypeLabel(attachment) }}
+                    {{
+                      formatFileSize(attachment.file_size || attachment.size)
+                    }}
+                  </span>
+                </div>
               </div>
-            </div>
+            </a-tooltip>
           </div>
 
           <!-- 🔧 移除用戶訊息的快速命令按鈕，減少視覺干擾 -->

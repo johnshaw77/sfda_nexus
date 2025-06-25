@@ -593,31 +593,27 @@
                       clickable: file.preview && isImageFile(file),
                     }"
                     @click="handlePreviewImage(file)">
-                    <!-- 圖片檔案顯示預覽 - 使用與其他檔案一致的樣式 -->
-                    <div
+                    <!-- 圖片檔案顯示預覽 - 使用與其他檔案一致的樣式，但不顯示檔名 -->
+                    <a-tooltip
                       v-if="file.preview"
-                      class="file-icon-container">
-                      <div class="thumbnail-icon image-thumbnail-icon">
-                        <img
-                          :src="file.preview"
-                          :alt="file.filename"
-                          class="image-thumbnail-preview" />
-                        <!-- 放大鏡圖示（僅圖片顯示） -->
-                        <div
-                          v-if="file.preview && isImageFile(file)"
-                          class="zoom-icon">
-                          <ZoomIn :size="8" />
+                      :title="file.filename"
+                      placement="bottom">
+                      <div class="file-icon-container">
+                        <div class="thumbnail-icon image-thumbnail-icon">
+                          <img
+                            :src="file.preview"
+                            :alt="file.filename"
+                            class="image-thumbnail-preview" />
+                          <!-- 放大鏡圖示（僅圖片顯示） -->
+                          <div
+                            v-if="file.preview && isImageFile(file)"
+                            class="zoom-icon">
+                            <ZoomIn :size="8" />
+                          </div>
                         </div>
+                        <!-- 圖片檔案不顯示檔名，但整個區域有tooltip -->
                       </div>
-                      <!-- 檔案名稱 -->
-                      <a-tooltip
-                        :title="file.filename"
-                        placement="bottom">
-                        <div class="file-name-label">
-                          {{ file.filename }}
-                        </div>
-                      </a-tooltip>
-                    </div>
+                    </a-tooltip>
                     <!-- 非圖片檔案顯示圖示 -->
                     <div
                       v-else
