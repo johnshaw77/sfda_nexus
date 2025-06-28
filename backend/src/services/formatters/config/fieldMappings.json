@@ -1,0 +1,312 @@
+{
+  "common": {
+    "SerialNumber": {
+      "label": "專案編號",
+      "priority": 1,
+      "type": "string"
+    },
+    "ID": {
+      "label": "編號",
+      "priority": 1,
+      "type": "string"
+    },
+    "Status": {
+      "label": "狀態",
+      "priority": 1,
+      "type": "string"
+    },
+    "CreatedDate": {
+      "label": "創建日期",
+      "priority": 3,
+      "type": "date"
+    },
+    "UpdatedDate": {
+      "label": "更新日期",
+      "priority": 3,
+      "type": "date"
+    },
+    "Owner": {
+      "label": "負責人",
+      "priority": 2,
+      "type": "string"
+    },
+    "Category": {
+      "label": "分類",
+      "priority": 2,
+      "type": "string"
+    },
+    "Priority": {
+      "label": "優先級",
+      "priority": 2,
+      "type": "string"
+    },
+    "Description": {
+      "label": "描述",
+      "priority": 3,
+      "type": "text"
+    },
+    "Remarks": {
+      "label": "備註",
+      "priority": 3,
+      "type": "text"
+    }
+  },
+  "mil_management": {
+    "SerialNumber": {
+      "label": "專案編號",
+      "priority": 1,
+      "type": "string"
+    },
+    "TypeName": {
+      "label": "類型",
+      "priority": 1,
+      "type": "string"
+    },
+    "Status": {
+      "label": "狀態",
+      "priority": 1,
+      "type": "string"
+    },
+    "DelayDay": {
+      "label": "延遲天數",
+      "priority": 1,
+      "type": "number",
+      "suffix": " 天"
+    },
+    "DRI_EmpName": {
+      "label": "負責人",
+      "priority": 1,
+      "type": "string"
+    },
+    "DRI_Dept": {
+      "label": "負責部門",
+      "priority": 1,
+      "type": "string"
+    },
+    "MidTypeName": {
+      "label": "中類型",
+      "priority": 2,
+      "type": "string"
+    },
+    "Importance": {
+      "label": "重要度",
+      "priority": 2,
+      "type": "string"
+    },
+    "RecordDate": {
+      "label": "建立日期",
+      "priority": 2,
+      "type": "date"
+    },
+    "Proposer_Name": {
+      "label": "提案人",
+      "priority": 2,
+      "type": "string"
+    },
+    "Proposer_EmpNo": {
+      "label": "提案人員編",
+      "priority": 3,
+      "type": "string"
+    },
+    "Proposer_Dept": {
+      "label": "提案部門",
+      "priority": 2,
+      "type": "string"
+    },
+    "Proposer_Superior_Dept": {
+      "label": "提案上級部門",
+      "priority": 3,
+      "type": "string"
+    },
+    "ProposalFactory": {
+      "label": "提案廠區",
+      "priority": 2,
+      "type": "string"
+    },
+    "DRI_EmpNo": {
+      "label": "負責人員編",
+      "priority": 3,
+      "type": "string"
+    },
+    "DRI_Superior_Dept": {
+      "label": "負責上級部門",
+      "priority": 3,
+      "type": "string"
+    },
+    "is_APPLY": {
+      "label": "申請狀態",
+      "priority": 2,
+      "type": "string"
+    },
+    "IssueDiscription": {
+      "label": "問題描述",
+      "priority": 3,
+      "type": "text"
+    },
+    "Location": {
+      "label": "地點",
+      "priority": 3,
+      "type": "string"
+    },
+    "PlanFinishDate": {
+      "label": "計劃完成日期",
+      "priority": 3,
+      "type": "date"
+    },
+    "ChangeFinishDate": {
+      "label": "變更完成日期",
+      "priority": 3,
+      "type": "date"
+    },
+    "ActualFinishDate": {
+      "label": "實際完成日期",
+      "priority": 3,
+      "type": "date"
+    },
+    "Remark": {
+      "label": "備註",
+      "priority": 3,
+      "type": "text"
+    },
+    "Solution": {
+      "label": "解決方案",
+      "priority": 3,
+      "type": "text"
+    },
+    "Phase": {
+      "label": "階段",
+      "priority": 2,
+      "type": "string"
+    },
+    "Progress": {
+      "label": "進度",
+      "priority": 2,
+      "type": "number",
+      "suffix": "%"
+    }
+  },
+  "statistical": {
+    "p_value": {
+      "label": "p 值",
+      "priority": 1,
+      "type": "number",
+      "format": "scientific",
+      "decimals": 4
+    },
+    "t_statistic": {
+      "label": "t 統計量",
+      "priority": 1,
+      "type": "number",
+      "decimals": 4
+    },
+    "f_statistic": {
+      "label": "F 統計量",
+      "priority": 1,
+      "type": "number",
+      "decimals": 4
+    },
+    "chi2_statistic": {
+      "label": "卡方統計量",
+      "priority": 1,
+      "type": "number",
+      "decimals": 4
+    },
+    "degrees_of_freedom": {
+      "label": "自由度",
+      "priority": 2,
+      "type": "integer"
+    },
+    "confidence_interval": {
+      "label": "信賴區間",
+      "priority": 2,
+      "type": "array"
+    },
+    "mean": {
+      "label": "平均值",
+      "priority": 2,
+      "type": "number",
+      "decimals": 2
+    },
+    "median": {
+      "label": "中位數",
+      "priority": 2,
+      "type": "number",
+      "decimals": 2
+    },
+    "std_dev": {
+      "label": "標準差",
+      "priority": 2,
+      "type": "number",
+      "decimals": 2
+    },
+    "variance": {
+      "label": "變異數",
+      "priority": 3,
+      "type": "number",
+      "decimals": 2
+    },
+    "sample_size": {
+      "label": "樣本數",
+      "priority": 2,
+      "type": "integer"
+    },
+    "effect_size": {
+      "label": "效應量",
+      "priority": 2,
+      "type": "number",
+      "decimals": 3
+    }
+  },
+  "employee": {
+    "EmpID": {
+      "label": "員工編號",
+      "priority": 1,
+      "type": "string"
+    },
+    "EmpName": {
+      "label": "姓名",
+      "priority": 1,
+      "type": "string"
+    },
+    "DeptName": {
+      "label": "部門",
+      "priority": 1,
+      "type": "string"
+    },
+    "Position": {
+      "label": "職位",
+      "priority": 2,
+      "type": "string"
+    },
+    "Email": {
+      "label": "電子郵件",
+      "priority": 2,
+      "type": "email"
+    },
+    "Phone": {
+      "label": "電話",
+      "priority": 2,
+      "type": "phone"
+    },
+    "HireDate": {
+      "label": "到職日期",
+      "priority": 3,
+      "type": "date"
+    },
+    "ManagerName": {
+      "label": "主管",
+      "priority": 2,
+      "type": "string"
+    },
+    "Location": {
+      "label": "工作地點",
+      "priority": 3,
+      "type": "string"
+    },
+    "EmployeeStatus": {
+      "label": "員工狀態",
+      "priority": 2,
+      "type": "string"
+    }
+  }
+}

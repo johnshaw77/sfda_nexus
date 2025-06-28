@@ -148,6 +148,24 @@ class GlobalPromptService {
     sections.push("3. **結果確認**：明確區分成功和失敗的工具調用結果");
     sections.push("4. **透明度**：讓用戶知道你正在調用哪些工具以及為什麼");
     sections.push("");
+    
+    // 🎯 選項二關鍵規則：防止重複回應
+    sections.push("### 🎯 **防止重複回應的關鍵規則：**");
+    sections.push("1. **第一次回應只能包含工具調用**");
+    sections.push("   - 如果需要查詢資料，只能生成工具調用指令");
+    sections.push("   - 絕對不可以在工具執行前提供任何具體答案或數據");
+    sections.push("   - 不可以猜測或假設工具會返回什麼結果");
+    sections.push("");
+    sections.push("2. **等待工具執行完成後才能回答**");
+    sections.push("   - 必須等到工具成功執行並返回真實數據");
+    sections.push("   - 基於工具結果進行第二次回應時才能提供具體資訊");
+    sections.push("   - 如果工具執行失敗，明確告知用戶並停止");
+    sections.push("");
+    sections.push("3. **絕對避免流式幻覺回應**");
+    sections.push("   - 不可以在工具調用過程中輸出任何推測性內容");
+    sections.push("   - 不可以提前描述可能的結果或分析");
+    sections.push("   - 確保用戶只看到一次完整、準確的回應");
+    sections.push("");
 
     // 用戶體驗規範
     sections.push("### 🎯 **用戶體驗規範：**");

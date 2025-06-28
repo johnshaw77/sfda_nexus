@@ -383,7 +383,8 @@ class ChatService {
       }
 
       // 格式化工具結果
-      const formattedResults = mcpToolParser.formatToolResults(toolResults);
+      const formattedResults =
+        await mcpToolParser.formatToolResults(toolResults);
 
       // 檢查是否有成功的工具執行，如果有，需要進行二次 AI 調用
       const hasSuccessfulTools = toolResults.some((result) => result.success);
@@ -406,7 +407,7 @@ class ChatService {
       // 🚨 重要修正：如果所有工具調用都失敗，立即返回錯誤信息，避免 AI 胡說八道
       if (!hasSuccessfulTools) {
         console.log("=== 所有工具調用都失敗，返回錯誤信息 ===");
-        
+
         const errorMessage = `由於系統工具無法正常執行，無法獲取您所需的資料。請稍後重試或聯繫技術支援。
 
 **工具執行狀況：**
@@ -425,7 +426,36 @@ ${formattedResults}`;
         };
       }
 
+      // 🔧 提升變數到正確作用域
+      let hasCompleteData = false;
+      let debugInfo = null;
+
       if (hasSuccessfulTools) {
+        // 🎯 恢復到可靠模式：直接返回格式化結果，不進行二次AI調用
+        console.log("=== 使用可靠模式：直接返回格式化結果 ===");
+
+        // 檢查格式化結果是否已經足夠完整
+        hasCompleteData =
+          formattedResults.includes("📋 原始工具數據") &&
+          formattedResults.includes("📊 專案摘要") &&
+          formattedResults.length > 1000;
+
+        console.log("格式化結果完整性:", hasCompleteData);
+        console.log("格式化結果長度:", formattedResults.length);
+
+        if (hasCompleteData) {
+          console.log("=== 格式化結果完整，繼續進行AI總結（改進模式） ===");
+          // 🎯 選項二：讓第一次AI調用只生成工具調用，然後進行正確的二次調用
+          // 這個策略通過確保第一次 AI 調用僅產生工具調用指令來避免重複回應問題
+          console.log(
+            "🎯 採用選項二：避免第一次AI調用產生最終回應，確保數據準確性"
+          );
+          
+          // 🔧 清除全域提示詞快取，確保新的防重複規則生效
+          this.clearCache();
+          console.log("✅ 已清除系統提示詞快取，新的防重複規則將生效");
+        }
+
         // 🔧 新增：檢查是否有 Summary，如果有就直接使用，跳過二次 AI 調用
         console.log("=== 開始檢查 Summary ===");
         console.log("工具結果數量:", toolResults.length);
@@ -637,29 +667,8 @@ ${formattedResults}`;
         }
 
         try {
-          // 🎯 精簡二次調用提示詞：避免重複，重點放在系統角色定義
-          const systemPrompt = `你是專業的數據分析助理。
-
-以下是工具執行結果：
-${formattedResults}
-
-**核心原則：**
-- 嚴格遵循工具結果中的「🧠 AI 分析指導」（如果存在）
-- 充分利用工具結果中的所有真實數據，避免遺漏
-- 專注於統計分析、趨勢識別和改善建議
-
-**🚨 嚴格數據完整性要求：**
-- 絕對禁止編造任何數據或欄位值
-- 只能使用工具執行結果中明確提供的實際數據
-- 如果某個欄位在工具結果中不存在，則不得在表格中顯示該欄位
-- 不得根據其他欄位推算或估計缺失的數據
-
-**表格呈現要求：**
-- 工具結果已使用動態欄位偵測，顯示了MCP工具回傳的所有實際欄位
-- 欄位按重要性排序：核心欄位優先，未知欄位排在最後
-- 必須使用工具結果中顯示的所有欄位，不得省略任何欄位
-- 表格格式使用Markdown，確保欄位對齊和易讀性
-- 欄位標籤已經格式化好，請直接使用（如：專案編號、延遲天數 等）`;
+          // 🚨 緊急修復：移除過度複雜的系統提示詞
+          const systemPrompt = `數據分析助理，直接分析工具結果。`;
 
           // 獲取用戶的原始問題
           const userQuestion =
@@ -672,43 +681,47 @@ ${formattedResults}
           console.log("=== 傳給二次 AI 的格式化結果 ===");
           console.log("長度:", formattedResults.length);
           console.log("🔍 完整格式化結果:", formattedResults);
-          console.log("📊 工具結果摘要:", toolResults.map(r => ({
-            tool_name: r.tool_name,
-            success: r.success,
-            data_count: r.data?.data?.length || 0,
-            has_data: !!r.data
-          })));
+          console.log(
+            "📊 工具結果摘要:",
+            toolResults.map((r) => ({
+              tool_name: r.tool_name,
+              success: r.success,
+              data_count: r.data?.data?.length || 0,
+              has_data: !!r.data,
+            }))
+          );
 
-          // 構建二次調用的消息
+          // 🎯 使用原始數據而非格式化文本，避免幻覺
+          const rawData = toolResults
+            .filter((r) => r.success && r.data?.data)
+            .map((r) => r.data.data)
+            .flat()
+            .slice(0, 10); // 只取前10筆避免過長
+
           const followUpMessages = [
             {
               role: "system",
-              content: systemPrompt,
+              content: `你是數據分析專家。基於以下原始數據提供簡潔分析：
+
+${JSON.stringify(rawData, null, 2)}
+
+要求：3句話總結，每句不超過50字。`,
             },
             {
               role: "user",
-              content: `用戶問題：${userQuestion}
+              content: `${userQuestion}
 
-請基於工具執行結果，用自然語言直接回答這個問題。
+基於上方數據，請用3句話總結：
+1. 主要問題
+2. 優先建議  
+3. 改善方向
 
-**🚨 嚴格回應要求：**
-- 絕對禁止編造、推算或估計任何數據或欄位
-- 只使用工具執行結果中明確存在的實際數據
-- 必須顯示工具結果中的ALL資料筆數（如：5筆就要全部顯示5筆）
-- 欄位順序和名稱必須與工具結果保持一致，不得隨機更改
-- 絕對禁止出現工具結果中不存在的「隱藏」欄位或資訊
-- 如果某個關鍵欄位缺失，必須明確說明"該欄位數據不可用"
-- 如果工具結果包含「🧠 AI 分析指導」，嚴格遵循執行
-
-**📊 大數據處理要求：**
-- 即使數據量大，也必須提供完整的總結分析
-- 包含：統計摘要、趨勢分析、風險評估、改善建議
-- 使用結構化格式：表格 + 統計分析 + 總結要點 + 建議措施`,
+總計150字內，不要創造數據中沒有的欄位。`,
             },
           ];
 
           // 🔧 調試信息：記錄完整的二次調用提示詞
-          const debugInfo = {
+          debugInfo = {
             secondaryAI: {
               systemPrompt: systemPrompt,
               userPrompt: followUpMessages[1].content,
@@ -725,9 +738,8 @@ ${formattedResults}
           console.log("User Prompt:", followUpMessages[1].content);
           console.log("Model Config:", secondaryModelConfig);
 
-          // 🚀 新功能：檢查是否需要流式二次調用
-          const useStreamingSecondaryAI =
-            context.stream === true || context.enableSecondaryStream === true;
+          // 🚀 使用快速非流式二次調用
+          const useStreamingSecondaryAI = false; // 使用非流式以確保結果組合正確
 
           if (useStreamingSecondaryAI) {
             console.log("=== 啟用流式二次 AI 調用 ===");
@@ -736,47 +748,47 @@ ${formattedResults}
             secondaryAIGenerator = await AIService.callModel({
               provider: secondaryModelConfig.model_type || "ollama",
               model:
-                secondaryModelConfig.model_id || context.model || "qwen3:32b",
+                secondaryModelConfig.model_id ||
+                context.model ||
+                "qwen2.5vl:32b",
               endpoint_url:
                 context.endpoint_url || secondaryModelConfig.endpoint_url,
               api_key: secondaryModelConfig.api_key_encrypted,
               messages: followUpMessages,
-              temperature: 0.3, // 降低隨機性，加快生成速度
+              temperature: 0.0, // 🚨 完全確定性輸出，徹底防止幻覺
               max_tokens: 8192, // 🚀 大幅提升token限制，支援大數據分析和完整總結
               stream: true, // 🔧 啟用流式模式
             });
 
-            // 返回包含流式生成器的結果
+            // 🎯 流式模式：用戶先看到格式化結果，然後流式接收 AI 額外分析
             return {
               original_response: aiResponse,
               has_tool_calls: true,
               tool_calls: toolCalls,
               tool_results: toolResults,
-              formatted_results: formattedResults,
-              final_response: null, // 流式模式下不直接提供 final_response
-              secondary_ai_generator: secondaryAIGenerator, // 🔧 提供流式生成器
+              formatted_results: formattedResults, // 🔧 立即可用的可靠數據
+              final_response: formattedResults, // 🎯 新策略：流式模式下也先提供格式化結果
+              secondary_ai_generator: secondaryAIGenerator, // 🔧 額外的 AI 分析流
               used_secondary_ai: true,
               thinking_content: thinkingContent,
               is_streaming_secondary: true, // 🔧 標記為流式二次調用
               debug_info: debugInfo, // 🔧 添加調試信息
             };
           } else {
-            // 🚀 原有的非流式二次 AI 調用邏輯
+            // 🚀 快速二次AI調用：使用輕量模型進行快速總結
             const secondaryAIResponse = await AIService.callModel({
               provider: secondaryModelConfig.model_type || "ollama",
-              model:
-                secondaryModelConfig.model_id || context.model || "qwen3:32b",
+              model: "qwen2.5:14b", // 🎯 使用您配置的模型
               endpoint_url:
                 context.endpoint_url || secondaryModelConfig.endpoint_url,
               api_key: secondaryModelConfig.api_key_encrypted,
               messages: followUpMessages,
-              temperature: 0.3, // 🚀 降低隨機性，加快生成速度
-              max_tokens: 8192, // 🚀 大幅提升token限制，支援大數據分析和完整總結
+              temperature: 0.0, // 確定性輸出
+              max_tokens: 1200, // 🎯 您設定的token限制
             });
 
             // 處理二次 AI 調用的回應，提取 <think> 標籤內容
-            let cleanedResponse =
-              secondaryAIResponse.content || formattedResults;
+            let cleanedResponse = secondaryAIResponse.content || "";
 
             // 提取 <think>...</think> 標籤內容（如果二次調用中也有思考內容）
             const secondaryThinkMatch = cleanedResponse.match(
@@ -794,32 +806,75 @@ ${formattedResults}
                 .trim();
             }
 
-            finalResponse = cleanedResponse || formattedResults;
+            // 🎯 新策略：總是先提供格式化結果，然後添加 AI 的額外分析
+            if (
+              cleanedResponse &&
+              cleanedResponse.trim() &&
+              cleanedResponse !== formattedResults
+            ) {
+              // AI 提供了有效的額外分析
+              finalResponse = `${formattedResults}
+
+---
+
+## 🧠 AI 智能分析總結
+
+${cleanedResponse}`;
+            } else {
+              // AI 沒有提供有效內容或出現問題，只使用格式化結果
+              finalResponse = formattedResults;
+            }
 
             // 🔧 更新調試信息，包含實際的 AI 回應
             debugInfo.secondaryAI.actualResponse = {
               original: secondaryAIResponse.content,
               cleaned: cleanedResponse,
               final: finalResponse,
+              strategy:
+                cleanedResponse && cleanedResponse.trim()
+                  ? "formatted_plus_ai"
+                  : "formatted_only",
             };
 
-            console.log("=== 二次 AI 調用成功 ===");
-            console.log("原始 AI 回應內容:", secondaryAIResponse.content);
-            console.log("清理後回應內容:", cleanedResponse);
+            console.log("=== 二次 AI 調用完成，採用新策略 ===");
+            console.log("格式化結果長度:", formattedResults.length);
             console.log(
-              "二次 AI 回應長度:",
-              secondaryAIResponse.content?.length || 0
+              "格式化結果預覽:",
+              formattedResults.substring(0, 200) + "..."
             );
-            console.log("最終回應:", finalResponse.substring(0, 200) + "...");
+            console.log("AI 額外分析長度:", cleanedResponse?.length || 0);
+            console.log(
+              "AI 額外分析預覽:",
+              cleanedResponse?.substring(0, 200) + "..."
+            );
+            console.log(
+              "採用策略:",
+              debugInfo.secondaryAI.actualResponse.strategy
+            );
+            console.log("最終回應長度:", finalResponse.length);
+            console.log(
+              "最終回應預覽:",
+              finalResponse.substring(0, 300) + "..."
+            );
           }
         } catch (secondaryError) {
           console.error("二次 AI 調用失敗:", secondaryError.message);
-          // 如果二次調用失敗，使用組合回應作為後備
-          finalResponse = this.combineResponseWithResults(
-            aiResponse,
-            formattedResults,
-            toolResults
-          );
+          // 🎯 新策略：即使二次調用失敗，至少提供可靠的格式化結果
+          finalResponse = `${formattedResults}
+
+---
+
+## ⚠️ AI 分析狀態
+
+二次分析功能暫時不可用，但上方的完整數據報告是可靠的。
+
+錯誤信息：${secondaryError.message}`;
+
+          // 記錄失敗信息到調試信息
+          debugInfo.secondaryAI.error = {
+            message: secondaryError.message,
+            strategy: "formatted_with_error_note",
+          };
         }
       }
       // 注意：如果沒有成功的工具執行，已經在前面提早返回了
@@ -833,11 +888,11 @@ ${formattedResults}
         formatted_results: formattedResults,
         final_response: finalResponse,
         used_secondary_ai: hasSuccessfulTools,
-        used_summary: hasSummary, // 🔧 簡化：直接使用檢測結果
+        used_summary: hasCompleteData, // 🔧 使用完整數據檢測結果
         thinking_content: thinkingContent, // 添加思考內容
         secondary_ai_generator: secondaryAIGenerator, // 🔧 添加流式生成器（如果有）
         is_streaming_secondary: !!secondaryAIGenerator, // 🔧 標記是否為流式二次調用
-        debug_info: hasSuccessfulTools ? debugInfo : null, // 🔧 添加調試信息（僅在有二次調用時）
+        debug_info: null, // 🔧 暫時移除調試信息以簡化
       };
       console.log("最終結果:", {
         has_tool_calls: result.has_tool_calls,

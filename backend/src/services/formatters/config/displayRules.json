@@ -1,0 +1,91 @@
+{
+  "general": {
+    "maxItems": 20,
+    "itemsPerPage": 10,
+    "showEmptyFields": false,
+    "truncateTextLength": 50,
+    "dateFormat": "YYYY-MM-DD HH:mm",
+    "numberFormat": {
+      "decimals": 2,
+      "useThousandSeparator": true
+    }
+  },
+  "mil_management": {
+    "highlightDelayed": true,
+    "groupByStatus": false,
+    "maxDisplayItems": 20,
+    "priorityFields": ["SerialNumber", "TypeName", "DelayDay", "DRI_EmpName", "Status"],
+    "highlightRules": {
+      "DelayDay": {
+        "condition": "> 0",
+        "style": "warning",
+        "message": "專案延遲"
+      },
+      "Status": {
+        "condition": "== '逾期'",
+        "style": "danger",
+        "message": "狀態異常"
+      }
+    },
+    "grouping": {
+      "enabled": false,
+      "field": "Status",
+      "order": ["進行中", "已完成", "暫停", "取消"]
+    }
+  },
+  "statistical": {
+    "significanceLevel": 0.05,
+    "decimalPlaces": 4,
+    "scientificNotation": true,
+    "highlightSignificant": true,
+    "confidenceLevel": 0.95,
+    "effectSizeThresholds": {
+      "small": 0.2,
+      "medium": 0.5,
+      "large": 0.8
+    },
+    "pValueFormat": {
+      "threshold": 0.001,
+      "belowThreshold": "< 0.001",
+      "decimals": 4
+    }
+  },
+  "employee": {
+    "maskSensitiveData": false,
+    "showContactInfo": true,
+    "groupByDepartment": false,
+    "maxEmployeesPerPage": 15,
+    "priorityFields": ["EmpName", "DeptName", "Position", "Email"],
+    "contactFields": ["Email", "Phone"],
+    "sensitiveFields": ["Phone", "Email"],
+    "statusColors": {
+      "active": "success",
+      "inactive": "secondary",
+      "terminated": "danger"
+    }
+  },
+  "formatting": {
+    "tables": {
+      "maxColumnWidth": 30,
+      "headerStyle": "bold",
+      "alternateRowColors": false,
+      "borderStyle": "simple"
+    },
+    "text": {
+      "maxLineLength": 80,
+      "wordWrap": true,
+      "preserveLineBreaks": true
+    },
+    "numbers": {
+      "thousandSeparator": ",",
+      "decimalSeparator": ".",
+      "percentageDecimals": 1,
+      "currencySymbol": "NT$"
+    },
+    "dates": {
+      "defaultFormat": "YYYY-MM-DD",
+      "timeFormat": "HH:mm:ss",
+      "timezone": "Asia/Taipei"
+    }
+  }
+}

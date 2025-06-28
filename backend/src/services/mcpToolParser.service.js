@@ -6,6 +6,7 @@
 import McpToolModel from "../models/McpTool.model.js";
 import mcpClient from "./mcp.service.js";
 import logger from "../utils/logger.util.js";
+import formatterFactory from "./formatters/FormatterFactory.js";
 
 class McpToolParser {
   constructor() {
@@ -441,9 +442,9 @@ class McpToolParser {
   /**
    * 格式化工具執行結果
    * @param {Array} results - 工具執行結果列表
-   * @returns {string} 格式化後的結果文本
+   * @returns {Promise<string>} 格式化後的結果文本
    */
-  formatToolResults(results) {
+  async formatToolResults(results) {
     if (!results || results.length === 0) {
       return "";
     }
@@ -489,22 +490,20 @@ class McpToolParser {
           }
         }
 
-        // 🔧 修復：如果沒有特定格式，嘗試智能格式化
+        // 🚀 使用新的格式化器工廠進行智能格式化
         if (!formattedData) {
-          // 🆕 檢查是否為統計分析工具
-          if (this.isStatisticalTool(result.tool_name)) {
-            formattedData = this.formatStatisticalData(
+          try {
+            formattedData = await formatterFactory.formatToolResult(
               result.data,
-              result.tool_name
+              result.tool_name,
+              {
+                serviceName: result.service_name,
+                executionTime: result.execution_time || result.executionTime
+              }
             );
-          }
-          // 🆕 檢查是否為業務管理工具（如 MIL）
-          else if (this.isBusinessManagementTool(result.tool_name)) {
-            formattedData = this.formatBusinessManagementData(
-              result.data,
-              result.tool_name
-            );
-          } else {
+          } catch (error) {
+            logger.error(`格式化器工廠處理失敗 (${result.tool_name})`, error);
+            // 後備處理
             formattedData = this.formatGeneralData(result.data);
           }
         }
@@ -512,7 +511,7 @@ class McpToolParser {
         sections.push(
           `✅ **${result.tool_name}** 執行成功\n` +
             `📋 **服務**: ${result.service_name}\n` +
-            `⏱️ **執行時間**: ${result.execution_time}ms\n\n` +
+            `⏱️ **執行時間**: ${result.execution_time || result.executionTime || 'N/A'}ms\n\n` +
             formattedData
         );
       } else {
