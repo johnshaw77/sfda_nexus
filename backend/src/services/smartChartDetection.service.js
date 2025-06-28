@@ -8,20 +8,7 @@ import logger from "../utils/logger.util.js";
 
 export class SmartChartDetectionService {
   constructor() {
-    // 🔧 從環境變數讀取配置
-    this.chartDetectionEnabled = process.env.ENABLE_CHART_DETECTION !== "false";
-
-    // 🚀 新增：檢測模式配置
-    this.detectionMode = process.env.CHART_DETECTION_MODE || "smart_ask";
-    this.confidenceThreshold = parseFloat(
-      process.env.CHART_DETECTION_CONFIDENCE_THRESHOLD || "0.8"
-    );
-
-    console.log("🎯 [SmartChartDetection] 初始化配置:", {
-      enabled: this.chartDetectionEnabled,
-      mode: this.detectionMode,
-      confidenceThreshold: this.confidenceThreshold,
-    });
+    console.log("🎯 [SmartChartDetection] 服務初始化");
 
     this.chartDetectionPrompt = `你是一個專業的數據分析助手。請分析用戶的輸入，判斷是否包含可以製作圖表的數據。
 
@@ -97,11 +84,25 @@ export class SmartChartDetectionService {
    * @returns {Promise<Object>}
    */
   async detectChartIntent(userInput, aiResponse = "", modelConfig = {}) {
+    // 🔧 動態讀取環境變數配置，支持運行時變更
+    const chartDetectionEnabled =
+      process.env.ENABLE_CHART_DETECTION !== "false";
+    const detectionMode = process.env.CHART_DETECTION_MODE || "smart_ask";
+    const confidenceThreshold = parseFloat(
+      process.env.CHART_DETECTION_CONFIDENCE_THRESHOLD || "0.8"
+    );
+
+    console.log("🎯 [SmartChartDetection] 當前配置:", {
+      enabled: chartDetectionEnabled,
+      mode: detectionMode,
+      confidenceThreshold: confidenceThreshold,
+    });
+
     // 🔧 如果圖表檢測被禁用，直接返回false
-    if (!this.chartDetectionEnabled) {
+    if (!chartDetectionEnabled) {
       console.log("🎯 [SmartChartDetection] 圖表檢測已禁用，跳過檢測");
       return {
-        needsChart: false,
+        hasChartData: false,
         confidence: 0,
         chartData: null,
         reason: "圖表檢測功能已禁用",
@@ -146,12 +147,12 @@ export class SmartChartDetectionService {
       const quickCheck = this.quickKeywordCheck(userInput, aiResponse);
 
       console.log(
-        `🎯 [模式: ${this.detectionMode}] Level 1 快速檢測結果:`,
+        `🎯 [模式: ${detectionMode}] Level 1 快速檢測結果:`,
         quickCheck
       );
 
       // === explicit_only 模式 ===
-      if (this.detectionMode === "explicit_only") {
+      if (detectionMode === "explicit_only") {
         if (quickCheck.hasExplicitChart) {
           console.log("✅ [explicit_only] 檢測到明確圖表請求");
           return {
@@ -173,7 +174,7 @@ export class SmartChartDetectionService {
       }
 
       // === smart_ask 模式 ===
-      if (this.detectionMode === "smart_ask") {
+      if (detectionMode === "smart_ask") {
         // Level 1: 明確請求直接通過
         if (quickCheck.hasExplicitChart) {
           console.log("✅ [smart_ask] 明確圖表請求，直接生成");
@@ -214,7 +215,7 @@ export class SmartChartDetectionService {
       }
 
       // === full_auto 模式 ===
-      if (this.detectionMode === "full_auto") {
+      if (detectionMode === "full_auto") {
         // Level 1: 明確請求
         if (quickCheck.hasExplicitChart) {
           console.log("✅ [full_auto] 明確圖表請求");
@@ -252,7 +253,7 @@ export class SmartChartDetectionService {
       return {
         hasChartData: false,
         confidence: 0,
-        reasoning: `未知檢測模式: ${this.detectionMode}`,
+        reasoning: `未知檢測模式: ${detectionMode}`,
         level: 0,
       };
     } catch (error) {

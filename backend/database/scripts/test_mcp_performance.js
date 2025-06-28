@@ -4,7 +4,7 @@
  */
 
 import axios from "axios";
-import mcpClient from "./src/services/mcp.service.js";
+import mcpClient from "../../src/services/mcp.service.js";
 
 const API_BASE = "http://localhost:3000/api";
 const TEST_USER = {

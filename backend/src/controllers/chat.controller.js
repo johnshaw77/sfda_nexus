@@ -20,6 +20,7 @@ import logger from "../utils/logger.util.js";
 import Joi from "joi";
 import { sendToUser } from "../websocket/index.js";
 import mcpToolParser from "../services/mcpToolParser.service.js";
+import mcpClient from "../services/mcp.service.js";
 
 // 輸入驗證模式
 const schemas = {
@@ -795,12 +796,26 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               },
               onToolCallComplete: (toolName, result) => {
                 if (isClientConnected) {
-                  sendSSE("tool_processing_heartbeat", {
-                    assistant_message_id: assistantMessageId,
-                    message: `✅ 工具 ${toolName} 調用完成`,
-                    timestamp: Date.now(),
-                    conversation_id: conversationId,
-                  });
+                  // 🚀 新增：檢查工具調用是否失敗，發送錯誤事件
+                  if (result && result.success === false) {
+                    sendSSE("mcp_tool_error", {
+                      assistant_message_id: assistantMessageId,
+                      tool_name: result.tool_name || toolName,
+                      service_name: result.service_name || "unknown",
+                      error: result.error || "工具調用失敗",
+                      error_type: result.error_type || "UNKNOWN_ERROR",
+                      suggestion: result.suggestion || "請重試或聯繫技術支援",
+                      timestamp: Date.now(),
+                      conversation_id: conversationId,
+                    });
+                  } else {
+                    sendSSE("tool_processing_heartbeat", {
+                      assistant_message_id: assistantMessageId,
+                      message: `✅ 工具 ${toolName} 調用完成`,
+                      timestamp: Date.now(),
+                      conversation_id: conversationId,
+                    });
+                  }
                 }
               },
             }
@@ -963,6 +978,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               thinking_content: finalThinkingContent,
               is_streaming_secondary:
                 chatResult.is_streaming_secondary || false, // 🔧 添加流式標記
+              used_summary: chatResult.used_summary || false, // 🔧 添加 Summary 使用標記
             };
 
             if (isClientConnected) {
@@ -973,6 +989,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 has_tool_calls: toolCallMetadata.has_tool_calls,
                 thinking_content: finalThinkingContent,
                 is_streaming_secondary: toolCallMetadata.is_streaming_secondary, // 🔧 傳遞流式標記
+                debug_info: chatResult.debug_info, // 🔧 新增：傳遞調試信息
+                used_summary: chatResult.used_summary, // 🔧 傳遞 Summary 使用標記
                 conversation_id: conversationId,
               });
             }
@@ -1107,6 +1125,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           // 🎯 包含完整的更新後消息（包含 chart_detection metadata）
           updated_message: updatedMessage,
           metadata: finalMetadata,
+          // 🔧 修復：包含 Summary 使用標記，防止流式完成後丟失
+          used_summary: toolCallMetadata.used_summary,
           tool_info: {
             has_tool_calls: toolCallMetadata.has_tool_calls,
             tool_calls_count: toolCallMetadata.tool_calls?.length || 0,
@@ -1770,6 +1790,132 @@ ${context}`;
   }
 });
 
+/**
+ * 獲取 MCP 服務狀態監控資訊
+ */
+export const handleGetMCPStatus = catchAsync(async (req, res) => {
+  const { user } = req;
+
+  logger.debug("獲取 MCP 服務狀態", {
+    userId: user.id,
+    userRole: user.role,
+  });
+
+  // 檢查權限（只有管理員可以查看）
+  if (!["admin", "super_admin"].includes(user.role)) {
+    throw new BusinessError("權限不足，只有管理員可以查看 MCP 服務狀態");
+  }
+
+  try {
+    // 獲取健康檢查結果
+    const healthResults = await mcpClient.healthCheck();
+    
+    // 獲取連接狀態
+    const connectionStatuses = mcpClient.getConnectionStatuses();
+    
+    // 合併健康檢查和連接狀態數據
+    const servicesStatus = connectionStatuses.map(status => {
+      const healthResult = healthResults.find(h => h.service_id === status.service_id);
+      return {
+        ...status,
+        health_check: healthResult,
+        is_healthy: healthResult?.success || false,
+        response_time: healthResult?.response_time,
+        last_health_check: healthResult?.timestamp,
+      };
+    });
+
+    // 計算總體統計
+    const totalServices = servicesStatus.length;
+    const healthyServices = servicesStatus.filter(s => s.is_healthy).length;
+    const connectedServices = servicesStatus.filter(s => s.connected).length;
+
+    const statusSummary = {
+      total_services: totalServices,
+      healthy_services: healthyServices,
+      connected_services: connectedServices,
+      unhealthy_services: totalServices - healthyServices,
+      disconnected_services: totalServices - connectedServices,
+      overall_health_rate: totalServices > 0 ? (healthyServices / totalServices * 100).toFixed(1) : 0,
+      last_updated: new Date().toISOString(),
+    };
+
+    logger.info("MCP 服務狀態獲取成功", {
+      userId: user.id,
+      totalServices: totalServices,
+      healthyServices: healthyServices,
+      connectedServices: connectedServices,
+    });
+
+    res.json(createSuccessResponse({
+      summary: statusSummary,
+      services: servicesStatus,
+      health_results: healthResults,
+      connection_statuses: connectionStatuses,
+      timestamp: new Date().toISOString(),
+    }, "MCP 服務狀態獲取成功"));
+  } catch (error) {
+    logger.error("獲取 MCP 服務狀態失敗", {
+      userId: user.id,
+      error: error.message,
+      stack: error.stack,
+    });
+    throw new BusinessError(`獲取 MCP 服務狀態失敗: ${error.message}`);
+  }
+});
+
+/**
+ * 重新連接指定的 MCP 服務
+ */
+export const handleReconnectMCPService = catchAsync(async (req, res) => {
+  const { user } = req;
+  const { serviceId } = req.params;
+
+  logger.debug("重新連接 MCP 服務", {
+    userId: user.id,
+    serviceId: serviceId,
+  });
+
+  // 檢查權限（只有管理員可以操作）
+  if (!["admin", "super_admin"].includes(user.role)) {
+    throw new BusinessError("權限不足，只有管理員可以操作 MCP 服務");
+  }
+
+  try {
+    // 驗證服務 ID
+    const serviceIdNum = parseInt(serviceId);
+    if (isNaN(serviceIdNum)) {
+      throw new ValidationError("無效的服務 ID");
+    }
+
+    // 重新連接服務
+    await mcpClient.reconnectService(serviceIdNum);
+
+    // 檢查重連後的狀態
+    const isHealthy = await mcpClient.isServiceHealthy(serviceIdNum);
+
+    logger.info("MCP 服務重新連接完成", {
+      userId: user.id,
+      serviceId: serviceIdNum,
+      isHealthy: isHealthy,
+    });
+
+    res.json(createSuccessResponse({
+      service_id: serviceIdNum,
+      reconnected: true,
+      is_healthy: isHealthy,
+      timestamp: new Date().toISOString(),
+    }, `MCP 服務 ${serviceIdNum} 重新連接${isHealthy ? '成功' : '完成，但服務仍不健康'}`));
+  } catch (error) {
+    logger.error("重新連接 MCP 服務失敗", {
+      userId: user.id,
+      serviceId: serviceId,
+      error: error.message,
+    });
+    throw new BusinessError(`重新連接 MCP 服務失敗: ${error.message}`);
+  }
+});
+
 export default {
   handleCreateConversation,
   handleSendMessage,
@@ -1788,4 +1934,6 @@ export default {
   handlePreviewSystemPrompt,
   handleClearPromptCache,
   handleOptimizePrompt,
+  handleGetMCPStatus,
+  handleReconnectMCPService,
 };

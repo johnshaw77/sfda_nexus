@@ -2,7 +2,7 @@
  * 測試圖表檢測信心度修復
  */
 
-import smartChartDetectionService from "./src/services/smartChartDetection.service.js";
+import smartChartDetectionService from "../../src/services/smartChartDetection.service.js";
 
 async function testChartConfidence() {
   console.log("🧪 === 測試圖表檢測信心度修復 ===");

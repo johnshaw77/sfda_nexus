@@ -178,11 +178,11 @@ export const initializeWebSocket = (httpServer, wsPort = 3001) => {
 
     clients.set(clientId, clientInfo);
 
-    logger.info("新的WebSocket連接", {
-      clientId,
-      ip: request.socket.remoteAddress,
-      userAgent: request.headers["user-agent"],
-    });
+    // logger.info("新的WebSocket連接", {
+    //   clientId,
+    //   ip: request.socket.remoteAddress,
+    //   userAgent: request.headers["user-agent"],
+    // });
 
     // 發送歡迎消息
     ws.send(
@@ -392,11 +392,11 @@ const handleAuthentication = async (clientId, data) => {
       },
     });
 
-    logger.info("WebSocket用戶認證成功", {
-      clientId,
-      userId: user.id,
-      username: user.username,
-    });
+    // logger.info("WebSocket用戶認證成功", {
+    //   clientId,
+    //   userId: user.id,
+    //   username: user.username,
+    // });
   } catch (error) {
     logger.error("WebSocket認證處理失敗", {
       clientId,

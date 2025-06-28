@@ -102,7 +102,6 @@
 
 <script setup>
 import { computed } from "vue";
-
 const props = defineProps({
   data: {
     type: [Object, Array, String, Number, Boolean],
@@ -345,20 +344,33 @@ const getColumnWidth = (key) => {
 /* 表格顯示 */
 .table-display {
   margin: 8px 0;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .table-display :deep(.ant-table) {
   font-size: 12px;
+  min-width: max-content;
 }
 
 .table-display :deep(.ant-table-thead > tr > th) {
   background: #fafafa;
   font-weight: 500;
   padding: 8px;
+  white-space: nowrap;
 }
 
 .table-display :deep(.ant-table-tbody > tr > td) {
   padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.table-display :deep(.ant-table-content) {
+  overflow-x: auto;
+}
+
+.table-display :deep(.ant-table-scroll) {
+  overflow-x: auto;
 }
 
 /* 卡片列表顯示 */

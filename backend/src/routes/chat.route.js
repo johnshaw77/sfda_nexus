@@ -1080,4 +1080,115 @@ router.post(
   chatController.handleOptimizePrompt
 );
 
+/**
+ * @swagger
+ * /api/chat/mcp/status:
+ *   get:
+ *     summary: 獲取 MCP 服務狀態
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: MCP 服務狀態獲取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         total_services:
+ *                           type: integer
+ *                         healthy_services:
+ *                           type: integer
+ *                         connected_services:
+ *                           type: integer
+ *                         overall_health_rate:
+ *                           type: string
+ *                     services:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           service_id:
+ *                             type: integer
+ *                           service_name:
+ *                             type: string
+ *                           endpoint_url:
+ *                             type: string
+ *                           connected:
+ *                             type: boolean
+ *                           is_healthy:
+ *                             type: boolean
+ *                           response_time:
+ *                             type: number
+ *       401:
+ *         description: 未認證
+ *       403:
+ *         description: 權限不足
+ */
+router.get(
+  "/mcp/status",
+  authenticateToken,
+  chatController.handleGetMCPStatus
+);
+
+/**
+ * @swagger
+ * /api/chat/mcp/services/{serviceId}/reconnect:
+ *   post:
+ *     summary: 重新連接 MCP 服務
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: MCP 服務 ID
+ *     responses:
+ *       200:
+ *         description: MCP 服務重新連接成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     service_id:
+ *                       type: integer
+ *                     reconnected:
+ *                       type: boolean
+ *                     is_healthy:
+ *                       type: boolean
+ *       400:
+ *         description: 請求參數錯誤
+ *       401:
+ *         description: 未認證
+ *       403:
+ *         description: 權限不足
+ */
+router.post(
+  "/mcp/services/:serviceId/reconnect",
+  authenticateToken,
+  chatController.handleReconnectMCPService
+);
+
 export default router;

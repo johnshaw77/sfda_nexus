@@ -1195,25 +1195,29 @@ export const useChatStore = defineStore("chat", () => {
               modelInfo: data.updated_message.model_info,
             });
 
-            // 保留當前的串流狀態相關字段，其他字段用updated_message覆蓋
-            const currentStreamingFields = {
+            // 保留當前的串流狀態相關字段和 Summary 標記，其他字段用updated_message覆蓋
+            const currentImportantFields = {
               isStreaming: messages.value[finalMessageIndex].isStreaming,
               typingTimer: messages.value[finalMessageIndex].typingTimer,
+              // 🔧 修復：保留 Summary 標記，防止被 updated_message 覆蓋
+              used_summary: messages.value[finalMessageIndex].used_summary,
             };
 
-            // 用updated_message的數據覆蓋，但保留串流狀態
+            // 用updated_message的數據覆蓋，但保留重要字段
             Object.assign(
               messages.value[finalMessageIndex],
               data.updated_message,
               {
                 isStreaming: false, // 串流已結束
                 content: finalConvertedContent, // 使用轉換後的內容
+                // 🔧 修復：保留 Summary 標記
+                used_summary: currentImportantFields.used_summary,
               }
             );
 
             // 清除typingTimer
-            if (currentStreamingFields.typingTimer) {
-              clearTimeout(currentStreamingFields.typingTimer);
+            if (currentImportantFields.typingTimer) {
+              clearTimeout(currentImportantFields.typingTimer);
               delete messages.value[finalMessageIndex].typingTimer;
             }
           } else {
@@ -1231,6 +1235,21 @@ export const useChatStore = defineStore("chat", () => {
                 ...messages.value[finalMessageIndex].metadata,
                 ...data.metadata,
               };
+            }
+
+            // 🔧 修復：處理 stream_done 事件中的 used_summary
+            if (data.used_summary !== undefined) {
+              messages.value[finalMessageIndex].used_summary =
+                data.used_summary;
+              if (!messages.value[finalMessageIndex].metadata) {
+                messages.value[finalMessageIndex].metadata = {};
+              }
+              messages.value[finalMessageIndex].metadata.used_summary =
+                data.used_summary;
+              console.log(
+                "📊 [stream_done] 保存 Summary 使用標記:",
+                data.used_summary
+              );
             }
           }
 
@@ -1285,6 +1304,18 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[toolMessageIndex].has_tool_calls =
             data.has_tool_calls || false;
 
+          // 🔧 新增：保存調試信息
+          if (data.debug_info) {
+            messages.value[toolMessageIndex].debug_info = data.debug_info;
+            console.log("🔍 保存調試信息:", data.debug_info);
+          }
+
+          // 🔧 新增：保存 Summary 使用標記
+          if (data.used_summary !== undefined) {
+            messages.value[toolMessageIndex].used_summary = data.used_summary;
+            console.log("📊 保存 Summary 使用標記:", data.used_summary);
+          }
+
           // 🔧 重要：同時更新 metadata 中的工具調用信息，確保 MessageBubble 能正確讀取
           if (!messages.value[toolMessageIndex].metadata) {
             messages.value[toolMessageIndex].metadata = {};
@@ -1295,6 +1326,19 @@ export const useChatStore = defineStore("chat", () => {
             data.tool_results || [];
           messages.value[toolMessageIndex].metadata.has_tool_calls =
             data.has_tool_calls || false;
+
+          // 🔧 新增：同時在 metadata 中保存調試信息
+          if (data.debug_info) {
+            messages.value[toolMessageIndex].metadata.debug_info =
+              data.debug_info;
+          }
+
+          // 🔧 新增：保存 Summary 使用標記（同時保存到 message 根級別和 metadata）
+          if (data.used_summary !== undefined) {
+            messages.value[toolMessageIndex].used_summary = data.used_summary;
+            messages.value[toolMessageIndex].metadata.used_summary =
+              data.used_summary;
+          }
 
           // 🔧 清除工具處理狀態
           messages.value[toolMessageIndex].isProcessingTools = false;
@@ -1468,10 +1512,14 @@ export const useChatStore = defineStore("chat", () => {
         );
 
         if (streamDoneMessageIndex !== -1) {
-          // 清除優化和流式狀態
+          // 🚀 清除所有流式和處理狀態
+          messages.value[streamDoneMessageIndex].isStreaming = false; // 🔧 新增：確保清除主要流式狀態
           messages.value[streamDoneMessageIndex].isOptimizing = false;
           messages.value[streamDoneMessageIndex].optimizingMessage = null;
           messages.value[streamDoneMessageIndex].isStreamingSecondary = false;
+          messages.value[streamDoneMessageIndex].isProcessingTools = false;
+          messages.value[streamDoneMessageIndex].toolProcessingMessage = null;
+          messages.value[streamDoneMessageIndex].toolProcessingError = null;
 
           // 確保最終內容完整顯示
           if (data.full_content) {
@@ -1492,7 +1540,22 @@ export const useChatStore = defineStore("chat", () => {
             messages.value[streamDoneMessageIndex].tokens_used =
               data.tokens_used;
           }
+
+          console.log("🏁 二次AI流式調用完成，所有狀態已清除:", {
+            messageId: data.assistant_message_id,
+            isStreaming: messages.value[streamDoneMessageIndex].isStreaming,
+            isOptimizing: messages.value[streamDoneMessageIndex].isOptimizing,
+            isProcessingTools:
+              messages.value[streamDoneMessageIndex].isProcessingTools,
+          });
         }
+
+        // 🚀 強制清除全局流式狀態
+        isStreaming.value = false;
+        streamingMessageId.value = null;
+        isSendingMessage.value = false;
+        aiTyping.value = false;
+
         break;
 
       case "secondary_ai_stream_error":
@@ -1504,14 +1567,30 @@ export const useChatStore = defineStore("chat", () => {
         );
 
         if (streamErrorMessageIndex !== -1) {
-          // 清除優化和流式狀態
+          // 🚀 清除所有流式和處理狀態
+          messages.value[streamErrorMessageIndex].isStreaming = false; // 🔧 新增：確保清除主要流式狀態
           messages.value[streamErrorMessageIndex].isOptimizing = false;
           messages.value[streamErrorMessageIndex].optimizingMessage = null;
           messages.value[streamErrorMessageIndex].isStreamingSecondary = false;
+          messages.value[streamErrorMessageIndex].isProcessingTools = false;
+          messages.value[streamErrorMessageIndex].toolProcessingMessage = null;
+          messages.value[streamErrorMessageIndex].toolProcessingError = null;
 
           // 顯示錯誤信息
           messages.value[streamErrorMessageIndex].streamError = data.error;
+
+          console.log("❌ 二次AI流式調用錯誤，所有狀態已清除:", {
+            messageId: data.assistant_message_id,
+            error: data.error,
+            isStreaming: messages.value[streamErrorMessageIndex].isStreaming,
+          });
         }
+
+        // 🚀 強制清除全局流式狀態
+        isStreaming.value = false;
+        streamingMessageId.value = null;
+        isSendingMessage.value = false;
+        aiTyping.value = false;
 
         // 顯示錯誤提示
         message.error(`二次 AI 調用失敗: ${data.error}`);
@@ -1604,6 +1683,55 @@ export const useChatStore = defineStore("chat", () => {
         }
 
         throw new Error(data.error);
+
+      case "mcp_tool_error":
+        // 🚀 新增：MCP 工具調用錯誤事件
+        console.error("MCP 工具調用錯誤:", data);
+        
+        const mcpErrorMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+        
+        if (mcpErrorMessageIndex !== -1) {
+          // 初始化錯誤數組（如果不存在）
+          if (!messages.value[mcpErrorMessageIndex].mcpErrors) {
+            messages.value[mcpErrorMessageIndex].mcpErrors = [];
+          }
+          
+          // 添加錯誤信息
+          messages.value[mcpErrorMessageIndex].mcpErrors.push({
+            tool_name: data.tool_name,
+            service_name: data.service_name,
+            error: data.error,
+            error_type: data.error_type,
+            suggestion: data.suggestion,
+            timestamp: data.timestamp,
+          });
+          
+          // 標記該消息有 MCP 錯誤
+          messages.value[mcpErrorMessageIndex].hasMcpErrors = true;
+          
+          // 顯示錯誤通知（使用友善的提示）
+          const errorTitle = `工具調用失敗`;
+          const errorMessage = data.suggestion || data.error;
+          
+          message.error({
+            content: `${errorTitle}：${errorMessage}`,
+            duration: 8, // 延長顯示時間讓用戶有時間閱讀建議
+            key: `mcp-error-${data.assistant_message_id}-${Date.now()}`, // 避免重複顯示
+          });
+          
+          console.log("🚨 已添加 MCP 錯誤信息到消息:", {
+            messageId: data.assistant_message_id,
+            toolName: data.tool_name,
+            serviceName: data.service_name,
+            errorType: data.error_type,
+            suggestion: data.suggestion,
+          });
+        } else {
+          console.warn("⚠️ 找不到對應的消息來顯示 MCP 錯誤:", data.assistant_message_id);
+        }
+        break;
 
       default:
         console.warn("未知的 SSE 事件類型:", eventType, data);

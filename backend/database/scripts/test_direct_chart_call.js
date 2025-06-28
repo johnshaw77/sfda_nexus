@@ -3,7 +3,7 @@
  * 跳過 AI 處理，直接調用圖表創建工具
  */
 
-import mcpClient from "./src/services/mcp.service.js";
+import mcpClient from "../../src/services/mcp.service.js";
 import axios from "axios";
 
 async function testDirectChartCall() {

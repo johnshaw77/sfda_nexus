@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import smartChartDetectionService from "./src/services/smartChartDetection.service.js";
+import smartChartDetectionService from "../../src/services/smartChartDetection.service.js";
 
 async function testModelConsistency() {
   console.log("🧪 測試智能圖表檢測模型一致性");

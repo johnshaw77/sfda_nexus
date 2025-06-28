@@ -497,6 +497,13 @@ class McpToolParser {
               result.data,
               result.tool_name
             );
+          }
+          // 🆕 檢查是否為業務管理工具（如 MIL）
+          else if (this.isBusinessManagementTool(result.tool_name)) {
+            formattedData = this.formatBusinessManagementData(
+              result.data,
+              result.tool_name
+            );
           } else {
             formattedData = this.formatGeneralData(result.data);
           }
@@ -534,6 +541,23 @@ class McpToolParser {
       "descriptive_stats",
     ];
     return statisticalTools.includes(toolName);
+  }
+
+  /**
+   * 🆕 檢查是否為業務管理工具（如 MIL 專案管理）
+   * @param {string} toolName - 工具名稱
+   * @returns {boolean} 是否為業務管理工具
+   */
+  isBusinessManagementTool(toolName) {
+    const businessTools = [
+      "get-mil-list", // 🔧 修正：使用連字符格式
+      "get_mil_list", // 保留下劃線格式以兼容
+      "get-mil-details",
+      "get_mil_details",
+      "get-mil-status-report",
+      "get_mil_status_report",
+    ];
+    return businessTools.includes(toolName);
   }
 
   /**
@@ -651,6 +675,425 @@ class McpToolParser {
     if (originalData.user_friendly_report) {
       formatted += "\n### 💡 詳細報告\n";
       formatted += originalData.user_friendly_report + "\n";
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化業務管理數據（如 MIL 專案管理）
+   * @param {Object} data - 業務數據
+   * @param {string} toolName - 工具名稱
+   * @returns {string} 格式化的業務管理報告
+   */
+  formatBusinessManagementData(data, toolName) {
+    if (!data) return "無業務數據";
+
+    let formatted = "";
+
+    try {
+      switch (toolName) {
+        case "get-mil-list": // 🔧 修正：使用連字符格式
+        case "get_mil_list": // 保留下劃線格式以兼容
+        case "get-mil-details":
+        case "get_mil_details":
+        case "get-mil-status-report":
+        case "get_mil_status_report":
+          formatted = this.formatMILResult(data, toolName);
+          break;
+        default:
+          formatted = this.formatGeneralBusinessData(data);
+      }
+    } catch (error) {
+      console.error(`格式化業務管理數據時發生錯誤 (${toolName}):`, error);
+      formatted = this.formatGeneralData(data);
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化 MIL 專案管理結果
+   * @param {Object} data - MIL 結果數據
+   * @param {string} toolName - 工具名稱
+   * @returns {string} 格式化的 MIL 報告
+   */
+  formatMILResult(data, toolName) {
+    if (!data) return "無 MIL 數據";
+    let formatted = "";
+
+    try {
+      switch (toolName) {
+        case "get-mil-list": // 🔧 修正：使用連字符格式
+        case "get_mil_list": // 保留下劃線格式以兼容
+          formatted = this.formatMILListResult(data);
+          break;
+        case "get-mil-details":
+        case "get_mil_details":
+          formatted = this.formatMILDetailsResult(data);
+          break;
+        case "get-mil-status-report":
+        case "get_mil_status_report":
+          formatted = this.formatMILStatusReport(data);
+          break;
+        default:
+          formatted = this.formatGeneralMILResult(data);
+      }
+    } catch (error) {
+      console.error(`格式化 MIL 結果時發生錯誤 (${toolName}):`, error);
+      formatted = this.formatGeneralData(data);
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化 MIL 列表結果
+   * @param {Object} data - MIL 列表數據
+   * @returns {string} 格式化的 MIL 列表報告
+   */
+  formatMILListResult(data) {
+    let formatted = "## 📋 MIL 專案管理清單\n\n";
+
+    // 🤖 AI 指導提示詞處理
+    if (data.aiInstructions) {
+      formatted += "### 🧠 AI 分析指導\n";
+      formatted += `${data.aiInstructions}\n\n`;
+      formatted += "---\n\n";
+    }
+
+    // 專案摘要資訊
+    if (data.statistics && data.statistics.summary) {
+      formatted += "### 📊 專案摘要\n";
+      formatted += `${data.statistics.summary}\n\n`;
+    }
+
+    // 專案詳細數據
+    if (data.statistics && data.statistics.details) {
+      const stats = data.statistics.details;
+      formatted += "### 🔍 專案數據分析\n";
+
+      if (stats.totalCount !== undefined) {
+        formatted += `- **總專案數**: ${stats.totalCount} 筆\n`;
+      }
+
+      if (stats.avgDelayDays !== undefined) {
+        formatted += `- **平均延遲天數**: ${stats.avgDelayDays} 天\n`;
+      }
+
+      if (stats.delayRange) {
+        formatted += `- **延遲範圍**: ${stats.delayRange.min} ~ ${stats.delayRange.max} 天\n`;
+      }
+
+      formatted += "\n";
+
+      // 風險分析
+      if (stats.riskAnalysis) {
+        formatted += "### ⚠️ 風險分析\n";
+        const risk = stats.riskAnalysis;
+        if (risk.highRisk !== undefined) {
+          formatted += `- **高風險專案**: ${risk.highRisk} 筆（延遲 > 10天）\n`;
+        }
+        if (risk.delayed !== undefined) {
+          formatted += `- **延遲專案**: ${risk.delayed} 筆\n`;
+        }
+        if (risk.onTimeOrEarly !== undefined) {
+          formatted += `- **準時或提前**: ${risk.onTimeOrEarly} 筆\n`;
+        }
+        formatted += "\n";
+      }
+
+      // 責任分布
+      if (stats.responsibility) {
+        formatted += "### 👥 責任分布\n";
+        const resp = stats.responsibility;
+        if (resp.uniqueDRICount !== undefined) {
+          formatted += `- **涉及負責人**: ${resp.uniqueDRICount} 位\n`;
+        }
+        if (resp.uniqueDeptCount !== undefined) {
+          formatted += `- **涉及部門**: ${resp.uniqueDeptCount} 個\n`;
+        }
+        formatted += "\n";
+      }
+    }
+
+    // 查詢資訊
+    if (data.totalRecords !== undefined) {
+      formatted += "### 📈 查詢資訊\n";
+      formatted += `- **查詢筆數**: ${data.count || 0} / ${data.totalRecords} 筆\n`;
+      if (data.currentPage && data.totalPages) {
+        formatted += `- **分頁資訊**: 第 ${data.currentPage} 頁，共 ${data.totalPages} 頁\n`;
+      }
+      formatted += `- **查詢時間**: ${data.timestamp || "未知"}\n\n`;
+    }
+
+    // 篩選條件
+    if (data.filters && Object.keys(data.filters).length > 0) {
+      formatted += "### 🔧 篩選條件\n";
+      const filters = data.filters;
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          formatted += `- **${key}**: ${value}\n`;
+        }
+      });
+      formatted += "\n";
+    }
+
+    // 完整數據列表（用戶要求的所有筆數）
+    if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+      formatted += `### 📝 專案清單 (共 ${data.data.length} 筆)\n`;
+      const sampleCount = data.data.length; // 🔧 顯示全部數據，不再限制為樣本
+
+      for (let i = 0; i < sampleCount; i++) {
+        const item = data.data[i];
+        formatted += `**${i + 1}. ${item.SerialNumber || "未知編號"}**\n`;
+
+        // 🎯 動態欄位偵測：顯示工具回傳的所有欄位
+        // 🔍 調試：記錄實際可用的欄位和值
+        console.log(`📋 格式化專案 ${i + 1}:`);
+        console.log(`  - 可用欄位: [${Object.keys(item).join(", ")}]`);
+        console.log(`  - 完整數據:`, JSON.stringify(item, null, 2));
+
+        // 🚀 新邏輯：動態處理所有欄位，按重要性排序
+        const fieldPriority = {
+          // 第一優先級：核心識別欄位
+          SerialNumber: { label: "專案編號", priority: 1 },
+          TypeName: { label: "類型", priority: 1 },
+          DelayDay: { label: "延遲天數", priority: 1, suffix: " 天" },
+          DRI_EmpName: { label: "負責人", priority: 1 },
+          DRI_Dept: { label: "負責部門", priority: 1 },
+          Status: { label: "狀態", priority: 1 },
+
+          // 第二優先級：重要業務欄位
+          MidTypeName: { label: "中類型", priority: 2 },
+          Importance: { label: "重要度", priority: 2 },
+          RecordDate: { label: "建立日期", priority: 2 },
+          Proposer_Name: { label: "提案人", priority: 2 },
+          Proposer_Dept: { label: "提案部門", priority: 2 },
+          ProposalFactory: { label: "提案廠區", priority: 2 },
+          is_APPLY: { label: "申請狀態", priority: 2 },
+
+          // 第三優先級：描述和日期欄位
+          IssueDiscription: { label: "問題描述", priority: 3 },
+          Location: { label: "地點", priority: 3 },
+          PlanFinishDate: { label: "計劃完成日期", priority: 3 },
+          ActualFinishDate: { label: "實際完成日期", priority: 3 },
+
+          // 🔧 額外常見欄位
+          CreatedDate: { label: "創建日期", priority: 3 },
+          UpdatedDate: { label: "更新日期", priority: 3 },
+          Owner: { label: "負責人", priority: 2 },
+          Category: { label: "分類", priority: 2 },
+          Priority: { label: "優先級", priority: 2 },
+          Description: { label: "描述", priority: 3 },
+          Remarks: { label: "備註", priority: 3 },
+          Phase: { label: "階段", priority: 2 },
+          Progress: { label: "進度", priority: 2, suffix: "%" },
+        };
+
+        // 獲取所有實際存在的欄位，按優先級排序
+        const allFields = Object.keys(item).sort((a, b) => {
+          const aPriority = fieldPriority[a]?.priority || 99; // 未知欄位放最後
+          const bPriority = fieldPriority[b]?.priority || 99;
+          return aPriority - bPriority;
+        });
+
+        console.log(`🔄 欄位排序結果: [${allFields.join(", ")}]`);
+
+        // 動態顯示所有存在的欄位
+        for (const fieldName of allFields) {
+          const value = item[fieldName];
+          if (value !== undefined && value !== null && value !== "") {
+            const config = fieldPriority[fieldName] || {
+              label: fieldName,
+              priority: 99,
+            };
+            const displayValue = config.suffix
+              ? `${value}${config.suffix}`
+              : value;
+            formatted += `- ${config.label}: ${displayValue}\n`;
+
+            // 特別記錄DelayDay欄位
+            if (fieldName === "DelayDay") {
+              console.log(`⏰ DelayDay 欄位存在，值為: ${value}`);
+            }
+          }
+        }
+
+        // 記錄未顯示的欄位（調試用）
+        const displayedFields = allFields.filter((f) => {
+          const value = item[f];
+          return value !== undefined && value !== null && value !== "";
+        });
+        const skippedFields = allFields.filter(
+          (f) => !displayedFields.includes(f)
+        );
+        if (skippedFields.length > 0) {
+          console.log(`⚠️ 跳過的欄位 (空值): [${skippedFields.join(", ")}]`);
+        }
+        formatted += "\n";
+      }
+
+      // 🔧 移除樣本限制提示，因為現在顯示全部數據
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化 MIL 詳情結果
+   * @param {Object} data - MIL 詳情數據
+   * @returns {string} 格式化的 MIL 詳情報告
+   */
+  formatMILDetailsResult(data) {
+    let formatted = "## 📄 MIL 專案詳情\n\n";
+
+    const milData = data.data || data;
+
+    if (milData.SerialNumber) {
+      formatted += `### 🔖 基本資訊\n`;
+      formatted += `- **專案編號**: ${milData.SerialNumber}\n`;
+      if (milData.TypeName)
+        formatted += `- **專案類型**: ${milData.TypeName}\n`;
+      if (milData.Status) formatted += `- **狀態**: ${milData.Status}\n`;
+      if (milData.Importance)
+        formatted += `- **重要度**: ${milData.Importance}\n`;
+      if (milData.DelayDay !== undefined)
+        formatted += `- **延遲天數**: ${milData.DelayDay} 天\n`;
+      formatted += "\n";
+    }
+
+    if (milData.Proposer_Name || milData.DRI_EmpName) {
+      formatted += `### 👤 人員資訊\n`;
+      if (milData.Proposer_Name)
+        formatted += `- **提案人**: ${milData.Proposer_Name}\n`;
+      if (milData.Proposer_Dept)
+        formatted += `- **提案部門**: ${milData.Proposer_Dept}\n`;
+      if (milData.DRI_EmpName)
+        formatted += `- **負責人**: ${milData.DRI_EmpName}\n`;
+      if (milData.DRI_Dept)
+        formatted += `- **負責部門**: ${milData.DRI_Dept}\n`;
+      formatted += "\n";
+    }
+
+    if (milData.IssueDiscription || milData.Solution) {
+      formatted += `### 📝 內容描述\n`;
+      if (milData.IssueDiscription)
+        formatted += `- **問題描述**: ${milData.IssueDiscription}\n`;
+      if (milData.Solution)
+        formatted += `- **解決方案**: ${milData.Solution}\n`;
+      if (milData.Location) formatted += `- **地點**: ${milData.Location}\n`;
+      formatted += "\n";
+    }
+
+    if (milData.PlanFinishDate || milData.ActualFinishDate) {
+      formatted += `### 📅 時程資訊\n`;
+      if (milData.RecordDate)
+        formatted += `- **建立日期**: ${milData.RecordDate}\n`;
+      if (milData.PlanFinishDate)
+        formatted += `- **計劃完成**: ${milData.PlanFinishDate}\n`;
+      if (milData.ChangeFinishDate)
+        formatted += `- **調整完成**: ${milData.ChangeFinishDate}\n`;
+      if (milData.ActualFinishDate)
+        formatted += `- **實際完成**: ${milData.ActualFinishDate}\n`;
+      formatted += "\n";
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化 MIL 狀態報告
+   * @param {Object} data - MIL 狀態報告數據
+   * @returns {string} 格式化的狀態報告
+   */
+  formatMILStatusReport(data) {
+    let formatted = "## 📊 MIL 狀態統計報告\n\n";
+
+    if (data.data && Array.isArray(data.data)) {
+      formatted += "### 📈 各狀態統計\n";
+
+      data.data.forEach((statusItem, index) => {
+        formatted += `**${index + 1}. ${statusItem.Status || "未知狀態"}**\n`;
+        if (statusItem.Count !== undefined)
+          formatted += `- 數量: ${statusItem.Count} 筆\n`;
+        if (statusItem.AvgDays !== undefined)
+          formatted += `- 平均天數: ${Math.round(statusItem.AvgDays * 10) / 10} 天\n`;
+        formatted += "\n";
+      });
+    }
+
+    if (data.timestamp) {
+      formatted += `### ⏰ 報告資訊\n`;
+      formatted += `- **生成時間**: ${data.timestamp}\n`;
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化通用 MIL 結果
+   * @param {Object} data - MIL 數據
+   * @returns {string} 格式化的通用 MIL 報告
+   */
+  formatGeneralMILResult(data) {
+    let formatted = "## 📋 MIL 數據\n\n";
+
+    // 嘗試提取主要資訊
+    if (data.statistics) {
+      formatted += "### 📊 統計摘要\n";
+      if (data.statistics.summary) {
+        formatted += `${data.statistics.summary}\n\n`;
+      }
+    }
+
+    // 如果有數據列表，顯示簡要摘要
+    if (data.data && Array.isArray(data.data)) {
+      formatted += `### 📈 數據概況\n`;
+      formatted += `- 查詢結果: ${data.data.length} 筆記錄\n`;
+
+      if (data.totalRecords) {
+        formatted += `- 總記錄數: ${data.totalRecords} 筆\n`;
+      }
+    }
+
+    return formatted;
+  }
+
+  /**
+   * 🆕 格式化通用業務管理數據
+   * @param {Object} data - 業務數據
+   * @returns {string} 格式化的業務管理報告
+   */
+  formatGeneralBusinessData(data) {
+    let formatted = "## 📋 業務管理數據\n\n";
+
+    // 嘗試提取摘要資訊
+    if (data.statistics && data.statistics.summary) {
+      formatted += "### 📊 數據摘要\n";
+      formatted += `${data.statistics.summary}\n\n`;
+    }
+
+    // 如果有數據列表，顯示概況
+    if (data.data && Array.isArray(data.data)) {
+      formatted += `### 📈 數據概況\n`;
+      formatted += `- 查詢結果: ${data.data.length} 筆記錄\n`;
+
+      if (data.totalRecords) {
+        formatted += `- 總記錄數: ${data.totalRecords} 筆\n`;
+      }
+    }
+
+    // 基本統計資訊
+    if (data.count !== undefined || data.totalRecords !== undefined) {
+      formatted += `### 📊 統計資訊\n`;
+      if (data.count !== undefined)
+        formatted += `- 當前頁記錄: ${data.count} 筆\n`;
+      if (data.totalRecords !== undefined)
+        formatted += `- 總記錄數: ${data.totalRecords} 筆\n`;
+      if (data.currentPage && data.totalPages) {
+        formatted += `- 分頁: 第 ${data.currentPage} 頁，共 ${data.totalPages} 頁\n`;
+      }
     }
 
     return formatted;

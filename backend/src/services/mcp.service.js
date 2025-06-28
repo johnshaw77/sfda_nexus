@@ -351,6 +351,92 @@ class McpClient {
   }
 
   /**
+   * 檢查服務健康狀態
+   * @param {number} serviceId - 服務 ID
+   * @returns {Promise<boolean>} 服務是否健康
+   */
+  async isServiceHealthy(serviceId) {
+    const clientInfo = this.clients.get(serviceId);
+    if (!clientInfo) {
+      logger.warn("服務健康檢查失敗：服務未連接", { service_id: serviceId });
+      return false;
+    }
+    
+    try {
+      const result = await this.testConnection(clientInfo.service.endpoint_url);
+      logger.debug("服務健康檢查結果", {
+        service_id: serviceId,
+        service_name: clientInfo.service.name,
+        healthy: result.success,
+        response_time: result.response_time,
+      });
+      return result.success;
+    } catch (error) {
+      logger.warn("服務健康檢查異常", {
+        service_id: serviceId,
+        error: error.message,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * 獲取錯誤建議
+   * @param {string} errorType - 錯誤類型
+   * @param {string} serviceName - 服務名稱
+   * @returns {string} 錯誤建議
+   */
+  getErrorSuggestion(errorType, serviceName) {
+    switch (errorType) {
+      case "SERVICE_UNAVAILABLE":
+        return `${serviceName} 服務暫時不可用，請稍後重試或聯繫管理員檢查服務狀態`;
+      case "CONNECTION_FAILED":
+        return `無法連接到 ${serviceName}，請檢查網路連接或服務配置`;
+      case "DATABASE_ERROR":
+        return `${serviceName} 資料庫連接問題，請聯繫技術支援處理`;
+      case "AUTHENTICATION_ERROR":
+        return `${serviceName} 認證失敗，請檢查 API 金鑰或權限設定`;
+      case "TIMEOUT_ERROR":
+        return `${serviceName} 請求超時，服務可能負載過高，請稍後重試`;
+      case "TOOL_NOT_FOUND":
+        return `${serviceName} 中找不到指定的工具，請檢查工具配置`;
+      default:
+        return `${serviceName} 發生未知錯誤，請重試或聯繫技術支援`;
+    }
+  }
+
+  /**
+   * 分析錯誤類型
+   * @param {Error} error - 錯誤對象
+   * @param {Object} tool - 工具信息
+   * @returns {string} 錯誤類型
+   */
+  analyzeErrorType(error, tool) {
+    const errorMessage = error.message.toLowerCase();
+    
+    if (errorMessage.includes("timeout")) {
+      return "TIMEOUT_ERROR";
+    }
+    if (errorMessage.includes("connection") || errorMessage.includes("connect")) {
+      return "CONNECTION_FAILED";
+    }
+    if (errorMessage.includes("database") || errorMessage.includes("db")) {
+      return "DATABASE_ERROR";
+    }
+    if (errorMessage.includes("auth") || errorMessage.includes("unauthorized")) {
+      return "AUTHENTICATION_ERROR";
+    }
+    if (errorMessage.includes("not found") || errorMessage.includes("404")) {
+      return "TOOL_NOT_FOUND";
+    }
+    if (errorMessage.includes("service") && errorMessage.includes("unavailable")) {
+      return "SERVICE_UNAVAILABLE";
+    }
+    
+    return "UNKNOWN_ERROR";
+  }
+
+  /**
    * 調用 MCP 工具
    * @param {number} toolId - 工具 ID
    * @param {Object} parameters - 工具參數
@@ -371,11 +457,55 @@ class McpClient {
       logger.info("🔧 工具資訊:", tool);
 
       if (!tool) {
-        throw new Error(`工具 ${toolId} 不存在`);
+        const errorType = "TOOL_NOT_FOUND";
+        const suggestion = this.getErrorSuggestion(errorType, "系統");
+        return {
+          success: false,
+          tool_name: "unknown",
+          service_name: "unknown",
+          error: `工具 ${toolId} 不存在`,
+          error_type: errorType,
+          suggestion: suggestion,
+          timestamp: new Date().toISOString(),
+        };
       }
 
       if (!tool.is_enabled) {
-        throw new Error(`工具 ${tool.name} 已被停用`);
+        const errorType = "TOOL_NOT_FOUND";
+        const suggestion = this.getErrorSuggestion(errorType, tool.service_name);
+        return {
+          success: false,
+          tool_name: tool.name,
+          service_name: tool.service_name,
+          error: `工具 ${tool.name} 已被停用`,
+          error_type: errorType,
+          suggestion: suggestion,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // 🚀 新增：工具調用前先檢查服務健康狀態
+      logger.info("🔧 檢查服務健康狀態:", tool.mcp_service_id);
+      const isHealthy = await this.isServiceHealthy(tool.mcp_service_id);
+      if (!isHealthy) {
+        const errorType = "SERVICE_UNAVAILABLE";
+        const suggestion = this.getErrorSuggestion(errorType, tool.service_name);
+        logger.warn("服務不健康，拒絕工具調用", {
+          tool_id: toolId,
+          tool_name: tool.name,
+          service_id: tool.mcp_service_id,
+          service_name: tool.service_name,
+        });
+        
+        return {
+          success: false,
+          tool_name: tool.name,
+          service_name: tool.service_name,
+          error: `MCP 服務 ${tool.service_name} 當前不可用，請檢查服務狀態`,
+          error_type: errorType,
+          suggestion: suggestion,
+          timestamp: new Date().toISOString(),
+        };
       }
 
       // 獲取對應的服務客戶端
@@ -514,11 +644,18 @@ class McpClient {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
+      // 🚀 新增：分析錯誤類型並提供建議
+      const errorType = this.analyzeErrorType(error, tool);
+      const suggestion = this.getErrorSuggestion(errorType, tool?.service_name || "unknown");
+      
       logger.error("MCP 工具調用失敗", {
         tool_id: toolId,
         tool_name: tool?.name || "unknown",
+        service_name: tool?.service_name || "unknown",
         parameters,
         error: error.message,
+        error_type: errorType,
+        suggestion: suggestion,
         stack: error.stack,
         user_id: context.user_id,
       });
@@ -528,6 +665,8 @@ class McpClient {
         tool_name: tool?.name || "unknown",
         service_name: tool?.service_name || "unknown",
         error: error.message,
+        error_type: errorType,
+        suggestion: suggestion,
         timestamp: new Date().toISOString(),
       };
     }

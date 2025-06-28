@@ -1,75 +1,68 @@
+/**
+ * 測試智能圖表檢測服務
+ */
+
 import smartChartDetectionService from "../../src/services/smartChartDetection.service.js";
 
-async function testSmartChartDetection() {
+async function testChartDetection() {
   console.log("🎯 開始測試智能圖表檢測服務...\n");
 
-  const userInput = "台部:50%、港澳:30%、台積電:20%，請幫我繪製圓餅圖";
-  const aiResponse = `目前我無法直接繪製圓餅圖，但可以提供以下解決方案：
+  const testCases = [
+    {
+      name: "百分比數據測試",
+      userInput: "台部:50%、港澳:30%、台積電:20%，請幫我繪製圓餅圖",
+      aiResponse:
+        "根據您提供的數據，我為您分析各部門的比例分布：台部佔50%、港澳佔30%、台積電佔20%。",
+    },
+    {
+      name: "營收數據測試",
+      userInput: "請分析一下我們的季度營收",
+      aiResponse:
+        "根據數據顯示：Q1營收100萬、Q2營收150萬、Q3營收120萬、Q4營收180萬，整體呈現上升趨勢。",
+    },
+    {
+      name: "無圖表數據測試",
+      userInput: "今天天氣如何？",
+      aiResponse: "今天天氣晴朗，溫度適中，是個出門的好日子。",
+    },
+    {
+      name: "複雜數據測試",
+      userInput: "幫我分析銷售數據",
+      aiResponse:
+        "銷售分析結果：產品A銷售額200萬元，產品B銷售額150萬元，產品C銷售額100萬元。建議重點推廣產品A。",
+    },
+  ];
 
-1. **使用 Excel/Google Sheets**:
-   - 輸入數據：台部50%、港澳30%、台積電20%
-   - 選擇「插入」→「圓餅圖」即可自動生成
+  for (const testCase of testCases) {
+    console.log(`📊 測試案例：${testCase.name}`);
+    console.log(`用戶輸入：${testCase.userInput}`);
+    console.log(`AI回應：${testCase.aiResponse}`);
 
-2. **Python (Matplotlib)**:
-   \`\`\`python
-   import matplotlib.pyplot as plt
+    try {
+      const result = await smartChartDetectionService.detectChartIntent(
+        testCase.userInput,
+        testCase.aiResponse
+      );
 
-   labels = ['台部', '港澳', '台積電']
-   sizes = [50, 30, 20]
-   plt.pie(sizes, labels=labels, autopct='%1.1f%%')
-   plt.axis('equal')
-   plt.show()
-   \`\`\`
-
-3. **Power BI/Tableau**:
-   - 將數據導入後，選擇「圓餅圖」視覺呈現即可
-
-需要我協助進行其他視覺化方式嗎？`;
-
-  try {
-    console.log("📝 測試數據:");
-    console.log("用戶輸入:", userInput);
-    console.log("AI回應長度:", aiResponse.length, "字符");
-    console.log("");
-
-    // 執行檢測
-    const result = await smartChartDetectionService.detectChartIntent(
-      userInput,
-      aiResponse
-    );
-
-    console.log("✅ 檢測結果:");
-    console.log("hasChartData:", result.hasChartData);
-    console.log("confidence:", result.confidence);
-    console.log("chartType:", result.chartType);
-    console.log("data:", JSON.stringify(result.data, null, 2));
-    console.log("title:", result.title);
-    console.log("reasoning:", result.reasoning);
-
-    // 驗證結果
-    if (result.hasChartData && result.data && result.data.length > 0) {
-      console.log("\n🎉 測試成功！檢測到有效的圖表數據");
-      console.log("數據項目數:", result.data.length);
-      result.data.forEach((item, index) => {
-        console.log(`  ${index + 1}. ${item.label}: ${item.value}%`);
+      console.log("檢測結果：", {
+        hasChartData: result.hasChartData,
+        chartType: result.chartType,
+        confidence: result.confidence,
+        dataCount: result.data?.length || 0,
+        title: result.title,
+        reasoning: result.reasoning,
       });
-    } else {
-      console.log("\n❌ 測試失敗！未檢測到有效的圖表數據");
-      console.log("失敗原因:", result.reasoning);
+
+      if (result.hasChartData && result.data) {
+        console.log("提取的數據：", result.data);
+      }
+    } catch (error) {
+      console.error("檢測失敗：", error.message);
     }
-  } catch (error) {
-    console.error("❌ 測試過程中發生錯誤:", error.message);
-    console.error("錯誤堆棧:", error.stack);
+
+    console.log("─".repeat(60));
   }
 }
 
 // 執行測試
-testSmartChartDetection()
-  .then(() => {
-    console.log("\n🏁 測試完成");
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error("💥 測試失敗:", error);
-    process.exit(1);
-  });
+testChartDetection().catch(console.error);

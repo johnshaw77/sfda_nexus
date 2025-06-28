@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import chatService from "./src/services/chat.service.js";
+import chatService from "../../src/services/chat.service.js";
 
 async function testChartModelOptimization() {
   console.log("🧪 === 測試圖表場景模型優化 ===");
@@ -73,7 +73,7 @@ async function testChartModelOptimization() {
   try {
     // 初始化資料庫連接
     const { initializeDatabase, query } = await import(
-      "./src/config/database.config.js"
+      "../../src/config/database.config.js"
     );
     await initializeDatabase();
 

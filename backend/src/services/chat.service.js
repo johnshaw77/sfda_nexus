@@ -403,8 +403,168 @@ class ChatService {
       );
       console.log("hasSuccessfulTools:", hasSuccessfulTools);
 
+      // 🚨 重要修正：如果所有工具調用都失敗，立即返回錯誤信息，避免 AI 胡說八道
+      if (!hasSuccessfulTools) {
+        console.log("=== 所有工具調用都失敗，返回錯誤信息 ===");
+        
+        const errorMessage = `由於系統工具無法正常執行，無法獲取您所需的資料。請稍後重試或聯繫技術支援。
+
+**工具執行狀況：**
+${formattedResults}`;
+
+        return {
+          original_response: aiResponse,
+          has_tool_calls: true,
+          tool_calls: toolCalls,
+          tool_results: toolResults,
+          final_response: errorMessage,
+          used_secondary_ai: false,
+          used_summary: false,
+          thinking_content: thinkingContent,
+          debug_info: null,
+        };
+      }
+
       if (hasSuccessfulTools) {
-        console.log("=== 開始二次 AI 調用 ===");
+        // 🔧 新增：檢查是否有 Summary，如果有就直接使用，跳過二次 AI 調用
+        console.log("=== 開始檢查 Summary ===");
+        console.log("工具結果數量:", toolResults.length);
+
+        const hasSummary = toolResults.some((result, index) => {
+          console.log(`檢查工具 ${index + 1}:`, result.tool_name);
+          console.log("工具成功:", result.success);
+
+          if (!result.success) {
+            console.log("工具失敗，跳過");
+            return false;
+          }
+
+          // 🔧 修復：檢查多個可能的數據位置
+          const dataToCheck = result.result || result.data || result;
+
+          if (!dataToCheck || typeof dataToCheck !== "object") {
+            console.log("工具無有效結果，跳過");
+            return false;
+          }
+
+          console.log("工具結果結構檢查:");
+          console.log("- 檢查 result.result:", !!result.result);
+          console.log("- 檢查 result.data:", !!result.data);
+          console.log(
+            "- 使用數據源:",
+            result.result
+              ? "result.result"
+              : result.data
+                ? "result.data"
+                : "result"
+          );
+          console.log("- 數據根級別鍵:", Object.keys(dataToCheck));
+
+          // 檢查數據內部結構
+          if (dataToCheck.data) {
+            console.log("- 內部 data 欄位存在，類型:", typeof dataToCheck.data);
+            if (typeof dataToCheck.data === "object") {
+              console.log("- 內部 data 鍵:", Object.keys(dataToCheck.data));
+            }
+          }
+
+          // 檢查 statistics 欄位
+          if (dataToCheck.statistics) {
+            console.log(
+              "- statistics 欄位存在，類型:",
+              typeof dataToCheck.statistics
+            );
+            if (typeof dataToCheck.statistics === "object") {
+              console.log(
+                "- statistics 鍵:",
+                Object.keys(dataToCheck.statistics)
+              );
+              if (dataToCheck.statistics.summary) {
+                console.log(
+                  "- statistics.summary 存在，類型:",
+                  typeof dataToCheck.statistics.summary
+                );
+                console.log(
+                  "- statistics.summary 預覽:",
+                  dataToCheck.statistics.summary.substring(0, 100) + "..."
+                );
+              }
+            }
+          }
+
+          console.log(
+            "工具結果內容預覽:",
+            JSON.stringify(dataToCheck, null, 2).substring(0, 1000) + "..."
+          );
+
+          // 深度搜索 Summary
+          function findSummary(obj, path = "") {
+            if (!obj || typeof obj !== "object") return null;
+
+            console.log(`🔍 搜索路徑: ${path || "root"}`);
+            console.log(`🔍 當前對象鍵:`, Object.keys(obj));
+
+            // 檢查常見的 Summary 欄位名稱
+            const summaryFields = ["Summary", "summary", "SUMMARY"];
+            for (const field of summaryFields) {
+              if (obj.hasOwnProperty(field)) {
+                console.log(`🔍 找到欄位 '${field}' 在路徑 '${path}.${field}'`);
+                console.log(`🔍 欄位類型:`, typeof obj[field]);
+                console.log(
+                  `🔍 欄位值預覽:`,
+                  obj[field]?.toString().substring(0, 100) + "..."
+                );
+
+                if (
+                  obj[field] &&
+                  typeof obj[field] === "string" &&
+                  obj[field].trim()
+                ) {
+                  console.log(
+                    `✅ 在路徑 '${path}.${field}' 找到有效 Summary:`,
+                    obj[field].substring(0, 100) + "..."
+                  );
+                  return obj[field];
+                }
+              }
+            }
+
+            // 遞歸搜索
+            for (const key in obj) {
+              if (typeof obj[key] === "object" && obj[key] !== null) {
+                const newPath = path ? `${path}.${key}` : key;
+                console.log(`🔍 遞歸搜索: ${newPath}`);
+                const found = findSummary(obj[key], newPath);
+                if (found) return found;
+              }
+            }
+
+            return null;
+          }
+
+          const foundSummary = findSummary(dataToCheck);
+          console.log("🎯 Summary 搜索結果:", !!foundSummary);
+          if (foundSummary) {
+            console.log(
+              "🎯 找到的 Summary 內容:",
+              foundSummary.substring(0, 200) + "..."
+            );
+          }
+          return foundSummary !== null;
+        });
+
+        console.log("=== Summary 檢查結果:", hasSummary, "===");
+
+        if (hasSummary) {
+          console.log(
+            "=== 檢測到 Summary，但仍進行 AI 二次處理以提供智能分析 ==="
+          );
+        } else {
+          console.log("=== 未檢測到 Summary，開始 AI 二次調用 ===");
+        }
+
+        // 🔧 簡化：直接標記是否有 Summary，後續在結果中使用
+        const extractedSummaries = [];
 
         // 獲取模型配置
         const modelConfig = context.model_config || {};
@@ -477,27 +637,29 @@ class ChatService {
         }
 
         try {
-          // 🔧 修復二次調用提示詞：專門針對統計分析結果優化
-          const systemPrompt = `你是一個專業的數據分析助理，基於工具執行結果，用自然語言回答用戶的問題。
+          // 🎯 精簡二次調用提示詞：避免重複，重點放在系統角色定義
+          const systemPrompt = `你是專業的數據分析助理。
 
-工具執行結果：
+以下是工具執行結果：
 ${formattedResults}
 
-重要規則：
-1. 🔍 **基於實際結果**：上述工具執行結果包含了真實的數據分析，請基於這些結果回答
-2. 📊 **統計結果解讀**：如果是統計分析，請用通俗易懂的語言解釋統計意義
-3. 💡 **實用建議**：提供基於分析結果的實際建議和結論
-4. 🚫 **禁止內容**：
-   - 不要使用 <think>...</think> 標籤
-   - 不要顯示思考過程
-   - 不要提供 SQL 語法或技術實現
-   - 不要說「沒有數據」（除非工具真的失敗了）
-   - 不要編造不存在的資訊
-5. ✅ **正確做法**：
-   - 直接基於工具結果回答
-   - 用自然語言整理和呈現數據
-   - 保持回應完整和專業
-   - 重點解釋統計顯著性的實際意義`;
+**核心原則：**
+- 嚴格遵循工具結果中的「🧠 AI 分析指導」（如果存在）
+- 充分利用工具結果中的所有真實數據，避免遺漏
+- 專注於統計分析、趨勢識別和改善建議
+
+**🚨 嚴格數據完整性要求：**
+- 絕對禁止編造任何數據或欄位值
+- 只能使用工具執行結果中明確提供的實際數據
+- 如果某個欄位在工具結果中不存在，則不得在表格中顯示該欄位
+- 不得根據其他欄位推算或估計缺失的數據
+
+**表格呈現要求：**
+- 工具結果已使用動態欄位偵測，顯示了MCP工具回傳的所有實際欄位
+- 欄位按重要性排序：核心欄位優先，未知欄位排在最後
+- 必須使用工具結果中顯示的所有欄位，不得省略任何欄位
+- 表格格式使用Markdown，確保欄位對齊和易讀性
+- 欄位標籤已經格式化好，請直接使用（如：專案編號、延遲天數 等）`;
 
           // 獲取用戶的原始問題
           const userQuestion =
@@ -509,7 +671,13 @@ ${formattedResults}
           console.log("用戶問題:", userQuestion);
           console.log("=== 傳給二次 AI 的格式化結果 ===");
           console.log("長度:", formattedResults.length);
-          console.log("內容預覽:", formattedResults.substring(0, 500) + "...");
+          console.log("🔍 完整格式化結果:", formattedResults);
+          console.log("📊 工具結果摘要:", toolResults.map(r => ({
+            tool_name: r.tool_name,
+            success: r.success,
+            data_count: r.data?.data?.length || 0,
+            has_data: !!r.data
+          })));
 
           // 構建二次調用的消息
           const followUpMessages = [
@@ -521,16 +689,41 @@ ${formattedResults}
               role: "user",
               content: `用戶問題：${userQuestion}
 
-請基於上述工具執行結果，用自然語言直接回答這個問題。
+請基於工具執行結果，用自然語言直接回答這個問題。
 
-🔧 重要提醒：
-- 工具已經成功執行並返回了分析結果
-- 請直接基於這些結果提供回答
-- 不要使用 <think>...</think> 標籤
-- 不要顯示思考過程
-- 直接提供清晰的最終答案`,
+**🚨 嚴格回應要求：**
+- 絕對禁止編造、推算或估計任何數據或欄位
+- 只使用工具執行結果中明確存在的實際數據
+- 必須顯示工具結果中的ALL資料筆數（如：5筆就要全部顯示5筆）
+- 欄位順序和名稱必須與工具結果保持一致，不得隨機更改
+- 絕對禁止出現工具結果中不存在的「隱藏」欄位或資訊
+- 如果某個關鍵欄位缺失，必須明確說明"該欄位數據不可用"
+- 如果工具結果包含「🧠 AI 分析指導」，嚴格遵循執行
+
+**📊 大數據處理要求：**
+- 即使數據量大，也必須提供完整的總結分析
+- 包含：統計摘要、趨勢分析、風險評估、改善建議
+- 使用結構化格式：表格 + 統計分析 + 總結要點 + 建議措施`,
             },
           ];
+
+          // 🔧 調試信息：記錄完整的二次調用提示詞
+          const debugInfo = {
+            secondaryAI: {
+              systemPrompt: systemPrompt,
+              userPrompt: followUpMessages[1].content,
+              fullMessages: followUpMessages,
+              modelConfig: secondaryModelConfig,
+              formattedResults: formattedResults,
+              userQuestion: userQuestion,
+              timestamp: new Date().toISOString(),
+            },
+          };
+
+          console.log("=== 二次 AI 調用調試信息 ===");
+          console.log("System Prompt:", systemPrompt);
+          console.log("User Prompt:", followUpMessages[1].content);
+          console.log("Model Config:", secondaryModelConfig);
 
           // 🚀 新功能：檢查是否需要流式二次調用
           const useStreamingSecondaryAI =
@@ -549,7 +742,7 @@ ${formattedResults}
               api_key: secondaryModelConfig.api_key_encrypted,
               messages: followUpMessages,
               temperature: 0.3, // 降低隨機性，加快生成速度
-              max_tokens: 800, // 調整為適中數值，確保回應完整
+              max_tokens: 8192, // 🚀 大幅提升token限制，支援大數據分析和完整總結
               stream: true, // 🔧 啟用流式模式
             });
 
@@ -565,6 +758,7 @@ ${formattedResults}
               used_secondary_ai: true,
               thinking_content: thinkingContent,
               is_streaming_secondary: true, // 🔧 標記為流式二次調用
+              debug_info: debugInfo, // 🔧 添加調試信息
             };
           } else {
             // 🚀 原有的非流式二次 AI 調用邏輯
@@ -577,7 +771,7 @@ ${formattedResults}
               api_key: secondaryModelConfig.api_key_encrypted,
               messages: followUpMessages,
               temperature: 0.3, // 🚀 降低隨機性，加快生成速度
-              max_tokens: 800, // 🔧 調整為適中數值，確保回應完整
+              max_tokens: 8192, // 🚀 大幅提升token限制，支援大數據分析和完整總結
             });
 
             // 處理二次 AI 調用的回應，提取 <think> 標籤內容
@@ -601,6 +795,14 @@ ${formattedResults}
             }
 
             finalResponse = cleanedResponse || formattedResults;
+
+            // 🔧 更新調試信息，包含實際的 AI 回應
+            debugInfo.secondaryAI.actualResponse = {
+              original: secondaryAIResponse.content,
+              cleaned: cleanedResponse,
+              final: finalResponse,
+            };
+
             console.log("=== 二次 AI 調用成功 ===");
             console.log("原始 AI 回應內容:", secondaryAIResponse.content);
             console.log("清理後回應內容:", cleanedResponse);
@@ -619,14 +821,8 @@ ${formattedResults}
             toolResults
           );
         }
-      } else {
-        // 如果沒有成功的工具執行，使用原有邏輯
-        finalResponse = this.combineResponseWithResults(
-          aiResponse,
-          formattedResults,
-          toolResults
-        );
       }
+      // 注意：如果沒有成功的工具執行，已經在前面提早返回了
 
       console.log("=== CHAT SERVICE: 處理完成 ===");
       const result = {
@@ -637,9 +833,11 @@ ${formattedResults}
         formatted_results: formattedResults,
         final_response: finalResponse,
         used_secondary_ai: hasSuccessfulTools,
+        used_summary: hasSummary, // 🔧 簡化：直接使用檢測結果
         thinking_content: thinkingContent, // 添加思考內容
         secondary_ai_generator: secondaryAIGenerator, // 🔧 添加流式生成器（如果有）
         is_streaming_secondary: !!secondaryAIGenerator, // 🔧 標記是否為流式二次調用
+        debug_info: hasSuccessfulTools ? debugInfo : null, // 🔧 添加調試信息（僅在有二次調用時）
       };
       console.log("最終結果:", {
         has_tool_calls: result.has_tool_calls,
@@ -647,6 +845,7 @@ ${formattedResults}
         tool_results_count: result.tool_results?.length || 0,
         final_response_length: result.final_response?.length || 0,
         used_secondary_ai: result.used_secondary_ai,
+        used_summary: result.used_summary, // 🔧 新增：顯示 Summary 使用狀態
         is_streaming_secondary: result.is_streaming_secondary,
       });
 
@@ -683,8 +882,9 @@ ${formattedResults}
       // 因為原始回應可能包含編造的數據，違反全域規則
       return `❌ **工具調用失敗**
 
-由於系統工具無法正常執行，無法獲取您所需的資料。
+由於系統工具無法正常執行，無法獲取您所需的資料。請稍後重試或聯繫技術支援。
 
+**工具執行狀況：**
 ${formattedResults}
 
 ⚠️ **重要提醒**：為確保資料準確性，我無法提供未經工具驗證的資訊。請檢查系統狀態或聯繫管理員。`;

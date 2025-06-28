@@ -138,6 +138,57 @@
         </div>
       </div>
 
+      <!-- 🚨 MCP 錯誤顯示 -->
+      <div
+        v-if="message.role === 'assistant' && message.mcpErrors && message.mcpErrors.length > 0"
+        class="mcp-errors-section">
+        <div class="mcp-errors-header">
+          <ExclamationCircleOutlined class="error-icon" />
+          <span>工具調用問題</span>
+          <a-badge :count="message.mcpErrors.length" class="error-count" />
+        </div>
+        <div class="mcp-errors-list">
+          <div
+            v-for="(mcpError, index) in message.mcpErrors"
+            :key="index"
+            class="mcp-error-item">
+            <a-alert
+              :type="getErrorAlertType(mcpError.error_type)"
+              :message="getErrorTitle(mcpError)"
+              :description="getErrorDescription(mcpError)"
+              show-icon
+              closable
+              @close="handleDismissMcpError(index)"
+              class="mcp-error-alert">
+              <template #icon>
+                <ExclamationCircleOutlined v-if="mcpError.error_type === 'SERVICE_UNAVAILABLE'" />
+                <DisconnectOutlined v-else-if="mcpError.error_type === 'CONNECTION_FAILED'" />
+                <DatabaseOutlined v-else-if="mcpError.error_type === 'DATABASE_ERROR'" />
+                <SafetyCertificateOutlined v-else-if="mcpError.error_type === 'AUTHENTICATION_ERROR'" />
+                <ClockCircleOutlined v-else-if="mcpError.error_type === 'TIMEOUT_ERROR'" />
+                <ToolOutlined v-else-if="mcpError.error_type === 'TOOL_NOT_FOUND'" />
+                <WarningOutlined v-else />
+              </template>
+              <template #action>
+                <a-button
+                  v-if="mcpError.error_type === 'SERVICE_UNAVAILABLE' || mcpError.error_type === 'CONNECTION_FAILED'"
+                  size="small"
+                  :type="mcpError.retried ? 'default' : 'primary'"
+                  :disabled="mcpError.retried"
+                  @click="handleRetryMcpTool(mcpError)">
+                  <template v-if="mcpError.retried">
+                    <CheckOutlined /> 已重試
+                  </template>
+                  <template v-else>
+                    <ReloadOutlined /> 重試
+                  </template>
+                </a-button>
+              </template>
+            </a-alert>
+          </div>
+        </div>
+      </div>
+
       <!-- 思考過程顯示 -->
       <div
         v-if="message.role === 'assistant' && getThinkingContent()"
@@ -347,6 +398,78 @@
 
       <!-- 主要內容 -->
       <div class="message-text">
+        <!-- 🔧 新增：Summary 模式標識 -->
+        <div
+          v-if="message.role === 'assistant' && message.used_summary"
+          class="summary-mode-indicator">
+          <div class="summary-badge">
+            <FileTextOutlined />
+            <span>工具摘要模式</span>
+            <a-tooltip
+              title="工具提供了數據摘要，AI 基於此摘要和完整數據進行了智能分析">
+              <InfoCircleOutlined class="info-icon" />
+            </a-tooltip>
+          </div>
+        </div>
+
+        <!-- 🔧 工具 Summary 顯示（AI 回應之前） -->
+        <div
+          v-if="message.role === 'assistant' && toolSummaries.length > 0"
+          class="tool-summaries-section">
+          <div
+            v-for="(summaryItem, index) in toolSummaries"
+            :key="index"
+            class="tool-summary-item">
+            <div class="tool-summary-header">
+              <FileTextOutlined />
+              <span class="tool-summary-title"
+                >{{ summaryItem.toolName }} 數據摘要</span
+              >
+              <a-tag
+                color="green"
+                size="small"
+                >工具摘要</a-tag
+              >
+            </div>
+            <div class="tool-summary-content">
+              {{ summaryItem.summary }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 🔧 臨時調試顯示 
+        <div
+          v-if="message.role === 'assistant' && message.metadata?.tool_results"
+          style="
+            background: yellow;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid red;
+            max-height: 300px;
+            overflow-y: auto;
+          ">
+          <strong>🔍 調試信息:</strong><br />
+          工具結果數量: {{ message.metadata.tool_results.length }}<br />
+          toolSummaries 數量: {{ toolSummaries.length }}<br />
+          <div
+            v-for="(result, index) in message.metadata.tool_results"
+            :key="index">
+            <strong>工具結果 {{ index }}:</strong><br />
+            {{ result }}<br />
+            success: {{ result.success }}<br />
+            tool_name: {{ result.tool_name }}<br />
+            有 result: {{ !!result.result }}<br />
+            有 data: {{ !!result.data }}<br />
+            result 內的 summary: {{ result.result?.summary }}<br />
+            result 內的 Summary: {{ result.result?.Summary }}<br />
+            result 內的 statistics.summary:
+            {{ result.result?.statistics?.summary }}<br />
+            直接的 summary: {{ result.summary }}<br />
+            直接的 Summary: {{ result.Summary }}<br />
+            ---<br />
+          </div>
+        </div>
+-->
         <!-- AI 消息 - 錯誤訊息使用純文本顯示 -->
         <div
           v-if="message.role === 'assistant' && isErrorMessage"
@@ -469,7 +592,7 @@
             </a-button>
           </a-tooltip>
 
-          <!-- 🎯 測試圖表檢測按鈕 -->
+          <!-- 🎯 測試圖表檢測按鈕 TODO: 先關閉圖表檢查
           <a-tooltip title="測試圖表檢測">
             <a-button
               type="text"
@@ -479,6 +602,7 @@
               <BarChartOutlined />
             </a-button>
           </a-tooltip>
+          -->
         </div>
         <div class="model-info-right">
           <span class="token-usage">
@@ -530,7 +654,8 @@
         </div>
       </div>
 
-      <!-- 🎯 智能檢測狀態提示（開發模式） -->
+      <!-- 🎯 智能檢測狀態提示（開發模式）TODO: 先關閉 -->
+      <!--
       <div
         v-if="
           message.role === 'assistant' &&
@@ -551,6 +676,7 @@
           Math.round(backendChartDetection.confidence * 100)
         }}%)
       </div>
+      -->
 
       <!-- 🎯 MCP 工具創建的圖表（最高優先級） -->
       <div
@@ -618,7 +744,8 @@
           showChartSuggestion &&
           detectedCharts.length > 0 &&
           !hasBackendDetectedChart &&
-          !hasMcpDetectedChart
+          !hasMcpDetectedChart &&
+          frontendChartDetectionEnabled
         "
         class="chart-suggestion-section">
         <div class="chart-suggestion-header">
@@ -768,6 +895,11 @@ import {
   ExclamationCircleOutlined,
   CheckOutlined,
   MessageOutlined,
+  DisconnectOutlined,
+  DatabaseOutlined,
+  SafetyCertificateOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
   // 檔案類型圖標
   TableOutlined,
   FileExcelOutlined,
@@ -785,6 +917,7 @@ import {
   LineChartOutlined,
   FileAddOutlined,
   ReloadOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons-vue";
 
 // 導入自定義檔案圖示組件
@@ -927,6 +1060,27 @@ const hasBackendDetectedChart = computed(() => {
   return hasChart;
 });
 
+// 🎯 前端智能圖表檢測開關 - 配合後端設置
+const frontendChartDetectionEnabled = computed(() => {
+  // 如果後端明確禁用，前端也禁用
+  const detection = backendChartDetection.value;
+  if (detection && detection.reason === "圖表檢測功能已禁用") {
+    console.log("🎯 [MessageBubble] 後端圖表檢測已禁用，前端也禁用");
+    return false;
+  }
+
+  // 如果已經有 MCP 工具圖表或後端智能圖表，前端檢測不啟用
+  if (hasMcpDetectedChart.value || hasBackendDetectedChart.value) {
+    console.log("🎯 [MessageBubble] 已有 MCP 或後端圖表，禁用前端檢測");
+    return false;
+  }
+
+  // 🚀 新增：臨時禁用前端智能檢測 - 統一由後端 MCP 處理
+  // TODO: 未來可以通過 .env 或後端配置來控制這個開關
+  console.log("🎯 [MessageBubble] 前端智能檢測已暫時禁用，統一由後端 MCP 處理");
+  return false;
+});
+
 // 🎯 計算屬性：判斷是否有 MCP 工具檢測到的圖表
 const hasMcpDetectedChart = computed(() => {
   const detection = mcpChartDetection.value;
@@ -978,6 +1132,91 @@ const isChartMessage = computed(() => {
 // 🎯 計算屬性：獲取圖表數據
 const chartData = computed(() => {
   return props.message.metadata?.chartData || null;
+});
+
+// 🔧 計算屬性：提取工具結果中的 Summary 信息
+const toolSummaries = computed(() => {
+  const toolResults = props.message.metadata?.tool_results || [];
+  const summaries = [];
+
+  console.log("🔍 [toolSummaries] 調試信息:", {
+    messageId: props.message.id,
+    toolResultsCount: toolResults.length,
+    toolResults: toolResults,
+  });
+
+  for (const result of toolResults) {
+    console.log("🔍 [toolSummaries] 檢查工具結果:", {
+      success: result.success,
+      hasResult: !!result.result,
+      resultData: result.result,
+      toolName: result.tool_name,
+    });
+
+    if (!result.success) continue;
+
+    // 🔧 修復：檢查多個可能的數據位置
+    const dataSources = [
+      result.result, // 原始邏輯
+      result.data, // 另一個可能的位置
+      result, // 直接在 result 對象中
+    ].filter(Boolean);
+
+    for (const data of dataSources) {
+      if (!data || typeof data !== "object") continue;
+
+      // 檢查 statistics.summary 字段
+      if (data.statistics?.summary) {
+        console.log("✅ 找到 statistics.summary:", data.statistics.summary);
+        summaries.push({
+          toolName: result.tool_name || "Unknown Tool",
+          summary: data.statistics.summary,
+        });
+        break;
+      }
+      // 檢查直接的 summary 字段
+      else if (data.summary) {
+        console.log("✅ 找到直接 summary:", data.summary);
+        summaries.push({
+          toolName: result.tool_name || "Unknown Tool",
+          summary: data.summary,
+        });
+        break;
+      }
+      // 檢查大寫的 Summary 字段
+      else if (data.Summary) {
+        console.log("✅ 找到大寫 Summary:", data.Summary);
+        summaries.push({
+          toolName: result.tool_name || "Unknown Tool",
+          summary: data.Summary,
+        });
+        break;
+      }
+    }
+
+    // 如果這個工具結果沒有找到 Summary，記錄調試信息
+    let foundInThisResult = false;
+    for (const data of dataSources) {
+      if (
+        data &&
+        typeof data === "object" &&
+        (data.statistics?.summary || data.summary || data.Summary)
+      ) {
+        foundInThisResult = true;
+        break;
+      }
+    }
+
+    if (!foundInThisResult) {
+      console.log(
+        "❌ 在這個工具結果中未找到 Summary 字段，檢查的數據源:",
+        dataSources.map((d) => Object.keys(d || {}))
+      );
+    }
+  }
+
+  console.log("🔍 [toolSummaries] 最終結果:", summaries);
+  return summaries;
 });
 
 // 用戶消息的最大高度（行數）
@@ -1511,7 +1750,7 @@ const getQuotePreview = (content) => {
 };
 
 const getModelColor = (provider) => {
-  console.log("🔍 [MessageBubble] getModelColor:", provider);
+  // console.log("🔍 [MessageBubble] getModelColor:", provider);
   const colors = {
     ollama: "green",
     gemini: "blue",
@@ -1788,6 +2027,8 @@ const handleGenerateChartFromFile = (attachment) => {
 
 // 🎯 圖表檢測和生成功能
 const detectChartsInMessage = async () => {
+  // TODO: 先關閉圖表檢查
+  return;
   console.log("🎯 [MessageBubble] 開始圖表檢測:", {
     messageId: props.message.id,
     role: props.message.role,
@@ -1822,6 +2063,13 @@ const detectChartsInMessage = async () => {
   if (hasBackendDetectedChart.value) {
     console.log("🎯 [MessageBubble] ✅ 後端智能檢測已生成圖表，跳過前端檢測");
     showChartSuggestion.value = false; // 後端已顯示圖表，不需要建議
+    return;
+  }
+
+  // 🎯 檢查前端檢測是否啟用
+  if (!frontendChartDetectionEnabled.value) {
+    console.log("🎯 [MessageBubble] 前端圖表檢測已禁用，跳過檢測");
+    showChartSuggestion.value = false;
     return;
   }
 
@@ -2160,6 +2408,104 @@ watch(
   },
   { immediate: false }
 );
+
+// 🚨 MCP 錯誤處理方法
+const getErrorAlertType = (errorType) => {
+  switch (errorType) {
+    case "SERVICE_UNAVAILABLE":
+    case "CONNECTION_FAILED":
+      return "warning";
+    case "DATABASE_ERROR":
+    case "AUTHENTICATION_ERROR":
+      return "error";
+    case "TIMEOUT_ERROR":
+      return "info";
+    case "TOOL_NOT_FOUND":
+      return "warning";
+    default:
+      return "error";
+  }
+};
+
+const getErrorTitle = (mcpError) => {
+  switch (mcpError.error_type) {
+    case "SERVICE_UNAVAILABLE":
+      return `${mcpError.service_name} 服務不可用`;
+    case "CONNECTION_FAILED":
+      return `連接 ${mcpError.service_name} 失敗`;
+    case "DATABASE_ERROR":
+      return `${mcpError.service_name} 資料庫錯誤`;
+    case "AUTHENTICATION_ERROR":
+      return `${mcpError.service_name} 認證失敗`;
+    case "TIMEOUT_ERROR":
+      return `${mcpError.tool_name} 請求超時`;
+    case "TOOL_NOT_FOUND":
+      return `工具 ${mcpError.tool_name} 不可用`;
+    default:
+      return `${mcpError.tool_name} 執行失敗`;
+  }
+};
+
+const getErrorDescription = (mcpError) => {
+  return mcpError.suggestion || mcpError.error;
+};
+
+const handleDismissMcpError = (index) => {
+  if (props.message.mcpErrors && props.message.mcpErrors.length > index) {
+    props.message.mcpErrors.splice(index, 1);
+    
+    // 如果沒有錯誤了，清除錯誤標記
+    if (props.message.mcpErrors.length === 0) {
+      props.message.hasMcpErrors = false;
+    }
+  }
+};
+
+const handleRetryMcpTool = async (mcpError) => {
+  try {
+    // 顯示重試開始提示
+    antMessage.info(`正在重試 ${mcpError.tool_name}，請稍候...`);
+    
+    // 根據失敗的工具名稱構建重試消息
+    let retryContent = "";
+    const toolName = mcpError.tool_name;
+    
+    // 根據工具類型生成適當的重試請求
+    if (toolName.includes("scatter") || toolName.includes("chart")) {
+      retryContent = "請重新嘗試生成散點圖，使用可用的數據庫連接。";
+    } else if (toolName.includes("sql") || toolName.includes("query")) {
+      retryContent = "請重新執行 SQL 查詢，確保數據庫連接正常。";
+    } else if (toolName.includes("data") || toolName.includes("fetch")) {
+      retryContent = "請重新獲取數據，檢查數據源連接狀態。";
+    } else {
+      retryContent = `請重新嘗試執行 ${toolName} 工具，確保相關服務正常運行。`;
+    }
+    
+    // 發送重試消息
+    await chatStore.sendMessage(retryContent, {
+      metadata: {
+        isRetry: true,
+        originalToolName: toolName,
+        originalError: mcpError.error,
+        retryTimestamp: Date.now()
+      }
+    });
+    
+    // 標記該錯誤為已重試
+    mcpError.retried = true;
+    mcpError.retryTimestamp = Date.now();
+    
+    console.log("MCP 工具重試已發送:", {
+      toolName,
+      retryContent,
+      originalError: mcpError.error
+    });
+    
+  } catch (error) {
+    console.error("重試 MCP 工具失敗:", error);
+    antMessage.error(`重試 ${mcpError.tool_name} 失敗，請稍後再試`);
+  }
+};
 
 // 組件掛載時檢測
 onMounted(() => {
@@ -2595,6 +2941,87 @@ onMounted(() => {
 }
 
 /* 🔧 移除快速命令暗色模式樣式 */
+
+/* 🚨 MCP 錯誤顯示樣式 */
+.mcp-errors-section {
+  margin-top: 12px;
+  border: 1px solid var(--ant-color-error-border);
+  border-radius: 8px;
+  background: var(--ant-color-error-bg);
+  overflow: hidden;
+}
+
+.mcp-errors-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ant-color-error-border-hover);
+  border-bottom: 1px solid var(--ant-color-error-border);
+  font-weight: 500;
+  color: var(--ant-color-error);
+}
+
+.mcp-errors-header .error-icon {
+  color: var(--ant-color-error);
+}
+
+.mcp-errors-header .error-count {
+  margin-left: auto;
+}
+
+.mcp-errors-list {
+  padding: 0;
+}
+
+.mcp-error-item {
+  border-bottom: 1px solid var(--ant-color-error-border);
+}
+
+.mcp-error-item:last-child {
+  border-bottom: none;
+}
+
+.mcp-error-alert {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.mcp-error-alert :deep(.ant-alert-message) {
+  font-weight: 500;
+  color: var(--ant-color-error);
+}
+
+.mcp-error-alert :deep(.ant-alert-description) {
+  color: var(--ant-color-text);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.mcp-error-alert :deep(.ant-alert-icon) {
+  color: var(--ant-color-error);
+}
+
+.mcp-error-alert :deep(.ant-alert-action) {
+  margin-left: 12px;
+}
+
+/* 暗色模式下的 MCP 錯誤樣式調整 */
+:root[data-theme="dark"] .mcp-errors-section {
+  border-color: var(--ant-color-error-border);
+  background: rgba(255, 77, 79, 0.04);
+}
+
+:root[data-theme="dark"] .mcp-errors-header {
+  background: rgba(255, 77, 79, 0.08);
+  border-bottom-color: var(--ant-color-error-border);
+}
+
+:root[data-theme="dark"] .mcp-error-item {
+  border-bottom-color: var(--ant-color-error-border);
+}
 
 /* 圖片預覽縮圖樣式 - 填滿整個卡片區域 */
 .image-preview-icon {
@@ -3421,5 +3848,111 @@ onMounted(() => {
 :root[data-theme="dark"] .chart-confirmation-actions .ant-btn-primary:hover {
   background: #ffec3d;
   border-color: #ffec3d;
+}
+
+/* 🔧 工具 Summary 顯示樣式 */
+.tool-summaries-section {
+  margin-bottom: 16px;
+}
+
+.tool-summary-item {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+}
+
+.tool-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #389e0d;
+}
+
+.tool-summary-title {
+  font-size: 14px;
+}
+
+.tool-summary-content {
+  color: #262626;
+  font-size: 14px;
+  line-height: 1.6;
+  background: white;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d9f7be;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* 🔧 Summary 模式標識樣式 */
+.summary-mode-indicator {
+  margin-bottom: 12px;
+}
+
+.summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(82, 196, 26, 0.1),
+    rgba(135, 208, 104, 0.1)
+  );
+  border: 1px solid rgba(82, 196, 26, 0.3);
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #52c41a;
+  box-shadow: 0 2px 4px rgba(82, 196, 26, 0.1);
+}
+
+.summary-badge .info-icon {
+  font-size: 12px;
+  color: rgba(82, 196, 26, 0.7);
+  cursor: help;
+}
+
+.summary-badge .info-icon:hover {
+  color: #52c41a;
+}
+
+/* 暗黑模式下的 Summary 模式樣式 */
+:root[data-theme="dark"] .summary-badge {
+  background: linear-gradient(
+    135deg,
+    rgba(135, 208, 104, 0.15),
+    rgba(183, 235, 143, 0.15)
+  );
+  border-color: rgba(135, 208, 104, 0.4);
+  color: #95de64;
+  box-shadow: 0 2px 4px rgba(135, 208, 104, 0.15);
+}
+
+:root[data-theme="dark"] .summary-badge .info-icon {
+  color: rgba(135, 208, 104, 0.8);
+}
+
+:root[data-theme="dark"] .summary-badge .info-icon:hover {
+  color: #95de64;
+}
+
+/* 暗黑模式下的工具 Summary 樣式 */
+:root[data-theme="dark"] .tool-summary-item {
+  background: #162312;
+  border-color: #274916;
+}
+
+:root[data-theme="dark"] .tool-summary-header {
+  color: #95de64;
+}
+
+:root[data-theme="dark"] .tool-summary-content {
+  background: #1f1f1f;
+  border-color: #274916;
+  color: #d9d9d9;
 }
 </style>
