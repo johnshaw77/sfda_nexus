@@ -461,16 +461,22 @@ ${formattedResults}`;
         console.log("格式化結果長度:", formattedResults.length);
 
         if (hasCompleteData) {
-          console.log("=== 格式化結果完整，繼續進行AI總結（改進模式） ===");
-          // 🎯 選項二：讓第一次AI調用只生成工具調用，然後進行正確的二次調用
-          // 這個策略通過確保第一次 AI 調用僅產生工具調用指令來避免重複回應問題
-          console.log(
-            "🎯 採用選項二：避免第一次AI調用產生最終回應，確保數據準確性"
-          );
+          console.log("=== 格式化結果完整，但跳過舊的AI總結（使用新的流式總結） ===");
+          // 🎬 新策略：禁用舊的二次AI調用，只使用新的流式總結
+          console.log("🎬 已禁用舊的AI總結機制，將使用新的流式總結");
           
-          // 🔧 清除全域提示詞快取，確保新的防重複規則生效
-          this.clearCache();
-          console.log("✅ 已清除系統提示詞快取，新的防重複規則將生效");
+          // 直接返回格式化結果，不進行二次AI調用
+          return {
+            original_response: aiResponse,
+            has_tool_calls: true,
+            tool_calls: toolCalls,
+            tool_results: toolResults,
+            final_response: formattedResults,
+            used_secondary_ai: false, // 標記為未使用舊的二次AI
+            used_summary: false,
+            thinking_content: thinkingContent,
+            debug_info: null,
+          };
         }
 
         // 🔧 新增：檢查是否有 Summary，如果有就直接使用，跳過二次 AI 調用
@@ -1056,31 +1062,78 @@ ${formattedResults}
 
   /**
    * 🎬 生成AI總結（流式打字機效果）
-   * @param {string} toolResults - 工具執行結果
+   * @param {Array} coreData - 結構化的核心數據
    * @param {string} userQuestion - 用戶問題
    * @param {Object} context - 上下文
    * @returns {AsyncGenerator} 流式生成器
    */
-  async* generateAISummaryStream(toolResults, userQuestion, context) {
+  async* generateAISummaryStream(coreData, userQuestion, context) {
     try {
       console.log("=== 開始生成AI總結流 ===");
+      logger.info("AI總結 - 接收到的核心數據", {
+        coreDataCount: coreData.length,
+        coreData: JSON.stringify(coreData, null, 2)
+      });
+      console.log("核心數據:", JSON.stringify(coreData, null, 2));
 
-      // 📋 準備總結提示詞
-      const summaryPrompt = `基於以下工具執行結果，為用戶問題提供智能分析總結：
+      // 🎯 構建精確的數據摘要 - 包含實際數據內容
+      const dataFormat = coreData.map(item => {
+        // 提取關鍵數據點
+        let keyPoints = {};
+        if (Array.isArray(item.data)) {
+          keyPoints.total_records = item.data.length;
+          if (item.data.length > 0) {
+            keyPoints.sample_fields = Object.keys(item.data[0]);
+            // 🔧 關鍵修復：包含實際數據內容，不只是統計信息
+            keyPoints.actual_data = item.data;
+          }
+        } else if (item.data && typeof item.data === 'object') {
+          keyPoints = item.data;
+        } else if (typeof item.data === 'string') {
+          keyPoints.content = item.data;
+        }
+
+        return {
+          tool: item.tool,
+          key_data: keyPoints,
+          summary: item.summary
+        };
+      }).filter(item => item.key_data && Object.keys(item.key_data).length > 0);
+
+      // 🔍 調試：記錄傳遞給AI的數據格式
+      logger.info("AI總結 - 傳遞給AI的數據格式", {
+        dataFormat: JSON.stringify(dataFormat, null, 2)
+      });
+      console.log("🔍 [調試] 傳遞給AI的數據格式:", JSON.stringify(dataFormat, null, 2));
+
+      // 📋 準備更精確的總結提示詞 - 確保AI能看到完整數據
+      const summaryPrompt = `請根據以下查詢結果，為用戶提供簡潔的分析總結：
 
 **用戶問題**: ${userQuestion}
 
-**工具執行結果**:
-${toolResults}
+**原始工具數據**:
+${JSON.stringify(coreData, null, 2)}
 
-**要求**:
-1. 用自然對話的語氣總結關鍵發現
-2. 提供有價值的洞察和建議
-3. 保持專業但友善的語調
-4. 不要重複已顯示的詳細數據
-5. 專注於解釋數據的含義和影響
+**處理後的數據摘要**:
+${JSON.stringify(dataFormat, null, 2)}
 
-請以對話方式提供總結分析：`;
+**分析要求**:
+1. 用2-3句話簡潔回答用戶問題
+2. 仔細檢查數據中的延遲天數(Delay_Day)等關鍵字段
+3. 基於實際數據提供關鍵洞察
+4. 不要編造數據中沒有的信息
+5. 保持對話式語調，避免技術術語
+6. 如果數據不足以回答問題，請誠實說明
+
+請特別注意：數據中包含的延遲天數信息，並據此回答用戶的問題。
+
+請提供分析：`;
+
+      // 🔍 調試：記錄提示詞
+      logger.info("AI總結 - 生成的提示詞", {
+        promptLength: summaryPrompt.length,
+        prompt: summaryPrompt
+      });
 
       // 🎯 使用更強大的模型進行總結
       const summaryModelConfig = await this.getSummaryModelConfig(context);
@@ -1145,43 +1198,50 @@ ${toolResults}
    */
   async getSummaryModelConfig(context) {
     try {
-      // 優先使用更強大的模型進行總結
+      // 🎯 優先使用指定的本地模型進行總結
       const { query } = await import("../config/database.config.js");
       
-      // 查找強大的總結模型（按優先級）
+      // 查找指定的 qwen2.5:14b 模型 (id: 47)
       const { rows } = await query(`
         SELECT * FROM ai_models 
         WHERE is_active = 1 
-        AND (
-          model_id LIKE '%gpt-4%' OR 
-          model_id LIKE '%claude-3%' OR 
-          model_id LIKE '%gemini-1.5-pro%' OR
-          model_id LIKE '%gemini-2.0%'
-        )
-        ORDER BY 
-          CASE 
-            WHEN model_id LIKE '%gpt-4%' THEN 1
-            WHEN model_id LIKE '%claude-3%' THEN 2
-            WHEN model_id LIKE '%gemini-2.0%' THEN 3
-            WHEN model_id LIKE '%gemini-1.5-pro%' THEN 4
-            ELSE 5
-          END
+        AND id = 47
         LIMIT 1
       `);
 
       if (rows.length > 0) {
-        logger.info("使用強大模型進行AI總結", {
+        logger.info("使用指定的本地模型進行AI總結", {
           model: rows[0].model_id,
-          provider: rows[0].model_type
+          provider: rows[0].model_type,
+          endpoint: rows[0].endpoint_url
         });
         return rows[0];
       }
 
-      // 回退到用戶選擇的模型
+      // 如果指定模型不可用，查找其他 qwen 模型
+      const { rows: qwenRows } = await query(`
+        SELECT * FROM ai_models 
+        WHERE is_active = 1 
+        AND model_id LIKE '%qwen%'
+        ORDER BY id DESC
+        LIMIT 1
+      `);
+
+      if (qwenRows.length > 0) {
+        logger.info("使用備選 qwen 模型進行AI總結", {
+          model: qwenRows[0].model_id,
+          provider: qwenRows[0].model_type,
+          endpoint: qwenRows[0].endpoint_url
+        });
+        return qwenRows[0];
+      }
+
+      // 最終回退到用戶選擇的模型
+      logger.warn("指定模型不可用，回退到用戶選擇的模型");
       return context.model_config || {
-        model_type: 'gemini',
-        model_id: 'gemini-1.5-flash',
-        endpoint_url: null,
+        model_type: 'ollama',
+        model_id: 'qwen2.5:14b',
+        endpoint_url: 'http://10.8.32.39:8000/ollama',
         api_key_encrypted: null
       };
 

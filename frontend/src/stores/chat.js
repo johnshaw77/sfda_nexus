@@ -1063,8 +1063,14 @@ export const useChatStore = defineStore("chat", () => {
             streamMessage.thinking_content = convertedThinkingContent;
           }
 
+          // 🎯 關鍵修復：檢查是否有工具調用或工具結果，如果有則跳過原始AI內容顯示
+          const hasToolActivity = streamMessage.isProcessingTools || 
+                                 streamMessage.toolResultSections || 
+                                 streamMessage.isGeneratingSummary ||
+                                 streamMessage.finalContent;
+
           // 處理主要內容的即時顯示（使用打字機效果）
-          if (data.content !== undefined && messageIndex !== -1) {
+          if (data.content !== undefined && messageIndex !== -1 && !hasToolActivity) {
             const currentContent = streamMessage.content || "";
 
             // 🔧 新增：對 AI 回應內容也應用文字轉換
@@ -1078,15 +1084,11 @@ export const useChatStore = defineStore("chat", () => {
 
             const newContent = convertedContent;
 
-            console.log("📝 準備打字機動畫:", {
+            console.log("📝 準備打字機動畫 (無工具調用):", {
               messageId: streamMessage.id,
               currentLength: currentContent.length,
               newLength: newContent.length,
               shouldAnimate: newContent.length > currentContent.length,
-              hasDelta: !!data.content_delta,
-              deltaLength: data.content_delta?.length || 0,
-              deltaPreview:
-                data.content_delta?.substring(0, 20) + "..." || "無",
             });
 
             // 如果有新內容，使用打字機動畫
@@ -1096,10 +1098,17 @@ export const useChatStore = defineStore("chat", () => {
               // 如果內容沒有增加，直接更新
               streamMessage.content = newContent;
             }
+          } else if (hasToolActivity) {
+            console.log("🎯 跳過原始AI內容顯示，因為有工具活動:", {
+              messageId: streamMessage.id,
+              isProcessingTools: streamMessage.isProcessingTools,
+              hasToolResultSections: !!streamMessage.toolResultSections,
+              isGeneratingSummary: streamMessage.isGeneratingSummary
+            });
           }
 
-          // 更新完整內容（用於最終狀態）
-          if (data.full_content !== undefined) {
+          // 🎯 修復：只在沒有工具活動時更新完整內容
+          if (data.full_content !== undefined && !hasToolActivity) {
             // 🔧 新增：對完整內容也應用文字轉換
             const convertedFullContent =
               isTextConverterEnabled.value && textConverter.isAvailable()
@@ -1110,6 +1119,8 @@ export const useChatStore = defineStore("chat", () => {
                 : data.full_content;
 
             streamMessage.full_content = convertedFullContent;
+          } else if (hasToolActivity) {
+            console.log("🎯 跳過完整內容更新，因為有工具活動");
           }
 
           // 更新其他屬性
@@ -1184,14 +1195,31 @@ export const useChatStore = defineStore("chat", () => {
           const existingThinkingContent =
             messages.value[finalMessageIndex].thinking_content;
 
-          // 確保最終內容完整顯示（應用文字轉換）
-          const finalConvertedContent =
-            isTextConverterEnabled.value && textConverter.isAvailable()
-              ? textConverter.convertStreamThinkingContent(
-                  data.full_content,
-                  textConversionMode.value
-                )
-              : data.full_content;
+          // 🎯 關鍵修復：檢查是否有工具活動，決定是否更新內容
+          const hasToolActivity = messages.value[finalMessageIndex].toolResultSections || 
+                                 messages.value[finalMessageIndex].isGeneratingSummary ||
+                                 messages.value[finalMessageIndex].finalContent;
+
+          let finalConvertedContent = null;
+
+          // 🎯 只有在沒有工具活動時才更新內容，避免覆蓋工具結果
+          if (!hasToolActivity && data.full_content) {
+            finalConvertedContent =
+              isTextConverterEnabled.value && textConverter.isAvailable()
+                ? textConverter.convertStreamThinkingContent(
+                    data.full_content,
+                    textConversionMode.value
+                  )
+                : data.full_content;
+                
+            console.log("🎯 [stream_done] 更新最終內容 (無工具活動)");
+          } else if (hasToolActivity) {
+            console.log("🎯 [stream_done] 跳過內容更新，保持工具結果:", {
+              hasToolResultSections: !!messages.value[finalMessageIndex].toolResultSections,
+              isGeneratingSummary: messages.value[finalMessageIndex].isGeneratingSummary,
+              hasFinalContent: messages.value[finalMessageIndex].finalContent
+            });
+          }
 
           // 🔧 如果有updated_message，使用完整的更新後消息信息
           if (data.updated_message) {
@@ -1208,18 +1236,36 @@ export const useChatStore = defineStore("chat", () => {
               typingTimer: messages.value[finalMessageIndex].typingTimer,
               // 🔧 修復：保留 Summary 標記，防止被 updated_message 覆蓋
               used_summary: messages.value[finalMessageIndex].used_summary,
+              // 🎯 保留工具結果相關字段
+              content: hasToolActivity ? messages.value[finalMessageIndex].content : undefined,
+              toolResultSections: messages.value[finalMessageIndex].toolResultSections,
+              isGeneratingSummary: messages.value[finalMessageIndex].isGeneratingSummary,
+              finalContent: messages.value[finalMessageIndex].finalContent,
             };
+
+            // 🎯 準備更新對象，條件性地包含內容
+            const updateObject = {
+              isStreaming: false, // 串流已結束
+              // 🔧 修復：保留 Summary 標記
+              used_summary: currentImportantFields.used_summary,
+              // 🎯 保留工具結果相關字段
+              toolResultSections: currentImportantFields.toolResultSections,
+              isGeneratingSummary: currentImportantFields.isGeneratingSummary,
+              finalContent: currentImportantFields.finalContent,
+            };
+
+            // 🎯 只有在沒有工具活動且有最終內容時才更新 content
+            if (!hasToolActivity && finalConvertedContent !== null) {
+              updateObject.content = finalConvertedContent;
+            } else if (hasToolActivity && currentImportantFields.content !== undefined) {
+              updateObject.content = currentImportantFields.content;
+            }
 
             // 用updated_message的數據覆蓋，但保留重要字段
             Object.assign(
               messages.value[finalMessageIndex],
               data.updated_message,
-              {
-                isStreaming: false, // 串流已結束
-                content: finalConvertedContent, // 使用轉換後的內容
-                // 🔧 修復：保留 Summary 標記
-                used_summary: currentImportantFields.used_summary,
-              }
+              updateObject
             );
 
             // 清除typingTimer
@@ -1228,8 +1274,12 @@ export const useChatStore = defineStore("chat", () => {
               delete messages.value[finalMessageIndex].typingTimer;
             }
           } else {
-            // 原有的更新邏輯
-            messages.value[finalMessageIndex].content = finalConvertedContent;
+            // 原有的更新邏輯 - 但也要檢查工具活動
+            // 🎯 只有在沒有工具活動時才更新內容
+            if (!hasToolActivity && finalConvertedContent !== null) {
+              messages.value[finalMessageIndex].content = finalConvertedContent;
+            }
+            
             messages.value[finalMessageIndex].tokens_used = data.tokens_used;
             messages.value[finalMessageIndex].cost = data.cost;
             messages.value[finalMessageIndex].processing_time =
@@ -1436,6 +1486,9 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[startProcessingMessageIndex].isProcessingTools = true;
           messages.value[startProcessingMessageIndex].toolProcessingMessage =
             data.message;
+          // 🎯 關鍵：清除已有的原始AI內容，準備顯示工具結果
+          messages.value[startProcessingMessageIndex].content = "";
+          console.log("🎯 確認工具調用開始，清除原始內容");
         }
         break;
 
@@ -1576,18 +1629,25 @@ export const useChatStore = defineStore("chat", () => {
           message.summaryContent = data.accumulated_content || (message.summaryContent || "") + data.content;
           message.summaryProgress = data.progress || 0;
           
-          // 更新顯示內容（添加總結部分）
-          const baseContent = message.toolResultSections ? 
-            message.toolResultSections
+          // 🎯 修復：確保正確的內容順序
+          // 1. 首先獲取基礎內容（工具結果）
+          let baseContent = "";
+          if (message.toolResultSections) {
+            baseContent = message.toolResultSections
               .sort((a, b) => a.index - b.index)
               .map(section => section.content)
-              .join("") : message.content;
-              
-          // 為總結添加格式化標題和內容
-          const summarySection = message.summaryContent ? 
-            `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}` : '';
-            
-          message.content = baseContent + summarySection;
+              .join("");
+          } else {
+            // 如果沒有工具結果分段，從現有content中移除之前的總結
+            baseContent = message.content.split('\n\n---\n\n## 🤖 智能總結')[0];
+          }
+          
+          // 2. 添加總結部分（始終在最後）
+          if (message.summaryContent) {
+            message.content = baseContent + `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}`;
+          } else {
+            message.content = baseContent;
+          }
           
           console.log("🎬 AI總結內容更新:", {
             messageId: data.assistant_message_id,
@@ -1615,15 +1675,21 @@ export const useChatStore = defineStore("chat", () => {
           message.summaryMessage = null;
           message.summaryProgress = 100;
           
-          // 確保最終內容包含完整總結
+          // 🎯 修復：確保最終內容順序正確
           message.summaryContent = data.summary_content;
           
-          const baseContent = message.toolResultSections ? 
-            message.toolResultSections
+          // 1. 獲取基礎內容（工具結果）
+          let baseContent = "";
+          if (message.toolResultSections) {
+            baseContent = message.toolResultSections
               .sort((a, b) => a.index - b.index)
               .map(section => section.content)
-              .join("") : message.content.split('\n\n---\n\n## 🤖 智能總結')[0];
-              
+              .join("");
+          } else {
+            baseContent = message.content.split('\n\n---\n\n## 🤖 智能總結')[0];
+          }
+          
+          // 2. 組合最終內容
           message.content = baseContent + `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}`;
           
           console.log("🎬 AI總結已完成");

@@ -1058,15 +1058,78 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               timestamp: Date.now(),
             });
 
-            // 獲取格式化的工具結果
-            const toolResultsText = toolCallMetadata.tool_results
+            // 🎯 改進：只提取核心數據，避免格式化噪音
+            const coreData = toolCallMetadata.tool_results
               .filter(r => r.success)
-              .map(r => r.formatted_result || JSON.stringify(r.result))
-              .join('\n\n');
+              .map(r => {
+                // 🎯 直接從工具結果的 data 字段提取原始數據
+                let data = null;
+                const toolName = r.tool_name;
+                
+                // 關鍵修復：直接使用工具結果的原始 data，而不是格式化後的 result
+                if (r.data) {
+                  // 工具結果的原始數據
+                  data = r.data;
+                } else if (r.result?.data) {
+                  // 備選路徑：result.data
+                  data = r.result.data;
+                } else if (r.result) {
+                  // 使用整個 result
+                  data = r.result;
+                } else {
+                  // 最後備選
+                  data = r;
+                }
+                
+                // 🔍 調試：記錄原始工具結果結構
+                console.log("🔍 [調試] 工具結果結構:", {
+                  toolName: toolName,
+                  resultStructure: {
+                    hasResult: !!r.result,
+                    hasResultData: !!(r.result?.data),
+                    hasNestedData: !!(r.result?.result?.data),
+                    hasContent: !!(r.result?.content),
+                    resultType: typeof r.result,
+                    extractedDataType: typeof data,
+                    resultKeys: r.result ? Object.keys(r.result) : [],
+                    extractedDataLength: Array.isArray(data) ? data.length : typeof data === 'string' ? data.length : 0,
+                    // 完整的結果結構 - 安全處理
+                    fullResult: r.result ? JSON.stringify(r.result, null, 2).substring(0, 500) : 'undefined'
+                  }
+                });
+                
+                // 🔍 如果是數組，檢查內容樣本
+                if (Array.isArray(data) && data.length > 0) {
+                  console.log("🔍 [調試] 數據樣本 (前3筆):", {
+                    toolName: toolName,
+                    totalRecords: data.length,
+                    sampleData: data.slice(0, 3)
+                  });
+                }
+                
+                // 返回結構化的核心數據
+                return {
+                  tool: toolName,
+                  data: data,
+                  // 只包含基本統計信息
+                  summary: r.result?.summary || r.result?.result?.summary
+                };
+              });
+
+            // 🔍 調試：記錄最終核心數據
+            console.log("🔍 [調試] 最終核心數據:", {
+              coreDataLength: coreData.length,
+              coreDataStructure: coreData.map(item => ({
+                tool: item.tool,
+                dataType: typeof item.data,
+                dataLength: Array.isArray(item.data) ? item.data.length : typeof item.data === 'string' ? item.data.length : 0,
+                hasSummary: !!item.summary
+              }))
+            });
 
             // 生成AI總結流
             const summaryGenerator = chatService.generateAISummaryStream(
-              toolResultsText,
+              coreData, // 只傳遞核心數據
               content, // 用戶問題
               {
                 user_id: user.id,
@@ -1116,8 +1179,8 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 timestamp: Date.now(),
               });
               
-              // 將總結添加到最終內容中
-              finalContent = finalContent + '\n\n---\n\n## 🤖 智能總結\n\n' + summaryContent;
+              // 🎯 不要在後端添加總結到finalContent，前端會處理
+              // finalContent保持原樣，讓前端通過SSE事件來處理總結顯示
             }
 
             console.log("=== AI總結流處理完成 ===");
@@ -1207,27 +1270,56 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
             }
           }
 
-          await MessageModel.update(assistantMessageId, {
-            content: finalContent,
-            tokens_used: chunk.tokens_used,
-            cost: chunk.cost,
-            processing_time: chunk.processing_time,
-            metadata: finalMetadata,
-            // 🔧 修復：正確保存智能體信息
-            agent_id: conversation.agent_id,
-            agent_name: agentInfo
-              ? agentInfo.display_name || agentInfo.name
-              : null,
-            // 🔧 修復：正確保存模型信息，使用用戶選擇的模型
-            model_info: {
-              provider: model.model_type,
-              model: model.model_id,
-              display_name: model.display_name,
-              processing_time: chunk.processing_time,
+          // 🎯 關鍵修復：如果有工具調用，不要覆蓋已經組裝好的內容
+          let updateContent = finalContent;
+          if (toolCallMetadata.has_tool_calls && toolCallMetadata.tool_results && 
+              toolCallMetadata.tool_results.some(r => r.success)) {
+            
+            // 有成功的工具調用時，保持現有內容不變
+            // 因為前端已經通過SSE事件處理了內容組裝
+            console.log("🎯 有工具調用，跳過final content更新，避免覆蓋已組裝的內容");
+            
+            // 只更新metadata和其他信息，不更新content
+            await MessageModel.update(assistantMessageId, {
               tokens_used: chunk.tokens_used,
               cost: chunk.cost,
-            },
-          });
+              processing_time: chunk.processing_time,
+              metadata: finalMetadata,
+              agent_id: conversation.agent_id,
+              agent_name: agentInfo
+                ? agentInfo.display_name || agentInfo.name
+                : null,
+              model_info: {
+                provider: model.model_type,
+                model: model.model_id,
+                display_name: model.display_name,
+                processing_time: chunk.processing_time,
+                tokens_used: chunk.tokens_used,
+                cost: chunk.cost,
+              },
+            });
+          } else {
+            // 沒有工具調用時，正常更新內容
+            await MessageModel.update(assistantMessageId, {
+              content: finalContent,
+              tokens_used: chunk.tokens_used,
+              cost: chunk.cost,
+              processing_time: chunk.processing_time,
+              metadata: finalMetadata,
+              agent_id: conversation.agent_id,
+              agent_name: agentInfo
+                ? agentInfo.display_name || agentInfo.name
+                : null,
+              model_info: {
+                provider: model.model_type,
+                model: model.model_id,
+                display_name: model.display_name,
+                processing_time: chunk.processing_time,
+                tokens_used: chunk.tokens_used,
+                cost: chunk.cost,
+              },
+            });
+          }
         }
 
         // 🎯 獲取更新後的完整消息（包含 metadata）
