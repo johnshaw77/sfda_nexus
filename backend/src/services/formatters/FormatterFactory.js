@@ -172,6 +172,14 @@ class FormatterFactory {
    */
   async formatToolResult(data, toolName, context = {}) {
     try {
+      // 🔧 添加調試信息
+      logger.debug(`[FormatterFactory] 開始格式化工具結果`, {
+        toolName,
+        toolNameType: typeof toolName,
+        hasData: !!data,
+        context
+      });
+
       // 確保工廠已初始化
       if (!this.initialized) {
         await this.initialize();

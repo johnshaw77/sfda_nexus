@@ -50,8 +50,48 @@ export const dbConfig = {
   dateStrings: true,
 };
 
+// KESS 資料庫連接配置
+export const kessDbConfig = {
+  host: process.env.KESS_DB_HOST || "10.1.10.131",
+  port: parseInt(process.env.KESS_DB_PORT) || 3306,
+  user: process.env.KESS_DB_USER || "qsuser",
+  password: process.env.KESS_DB_PASSWORD || "1q2w3e4R",
+  database: process.env.KESS_DB_NAME || "qsm",
+
+  // 連接池配置
+  connectionLimit: 10,
+  timeout: 60000,
+  reconnect: true,
+
+  // 字符集和時區配置
+  charset: "utf8mb4",
+  timezone: "+08:00",
+
+  // 確保使用正確的字符集
+  typeCast: function (field, next) {
+    if (field.type === "VAR_STRING" || field.type === "STRING") {
+      return field.string();
+    }
+    return next();
+  },
+
+  // SSL配置 (生產環境建議啟用)
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? {
+          rejectUnauthorized: false,
+        }
+      : false,
+
+  // 其他配置
+  supportBigNumbers: true,
+  bigNumberStrings: true,
+  dateStrings: true,
+};
+
 // 建立連接池
 let pool = null;
+let kessPool = null;
 
 /**
  * 初始化資料庫連接池
@@ -86,6 +126,38 @@ export const initializeDatabase = async () => {
 };
 
 /**
+ * 初始化 KESS 資料庫連接池
+ */
+export const initializeKessDatabase = async () => {
+  try {
+    console.log("🔍 初始化 KESS 資料庫連接池");
+    console.log("🔍 KESS 資料庫配置:", kessDbConfig);
+    kessPool = mysql.createPool(kessDbConfig);
+
+    // 測試連接並設置字符集
+    const connection = await kessPool.getConnection();
+
+    // 確保字符集設置正確
+    await connection.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+    await connection.execute("SET character_set_client = utf8mb4");
+    await connection.execute("SET character_set_connection = utf8mb4");
+    await connection.execute("SET character_set_results = utf8mb4");
+
+    logger.info("✅ KESS 資料庫連接池初始化成功");
+    logger.info("✅ KESS 字符集設置為 utf8mb4");
+    logger.info(
+      `📊 連接到 KESS 資料庫: ${kessDbConfig.database}@${kessDbConfig.host}:${kessDbConfig.port}`
+    );
+    connection.release();
+
+    return kessPool;
+  } catch (error) {
+    logger.error("❌ KESS 資料庫連接失敗:", error.message);
+    throw error;
+  }
+};
+
+/**
  * 獲取資料庫連接池
  */
 export const getPool = () => {
@@ -93,6 +165,18 @@ export const getPool = () => {
     throw new Error("資料庫連接池尚未初始化，請先調用 initializeDatabase()");
   }
   return pool;
+};
+
+/**
+ * 獲取 KESS 資料庫連接池
+ */
+export const getKessPool = () => {
+  if (!kessPool) {
+    throw new Error(
+      "KESS 資料庫連接池尚未初始化，請先調用 initializeKessDatabase()"
+    );
+  }
+  return kessPool;
 };
 
 /**
@@ -146,6 +230,71 @@ export const query = async (sql, params = []) => {
     console.error("完整錯誤:", error);
 
     logger.error("SQL查詢執行失敗:", {
+      sql: sql,
+      params: params,
+      formattedSql: formatQuery(sql, params),
+      error: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+    });
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
+/**
+ * 執行 KESS 資料庫 SQL查詢
+ * @param {string} sql - SQL語句
+ * @param {Array} params - 參數陣列
+ * @returns {Promise<Object>} 查詢結果
+ */
+export const kessQuery = async (sql, params = []) => {
+  const connection = await getKessPool().getConnection();
+
+  try {
+    // 確保每個連接都設置正確的字符集
+    await connection.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+
+    // 根據 PRINT_SQL 環境變數決定是否打印 SQL 調試信息
+    const shouldPrintSQL =
+      process.env.PRINT_SQL === "true" ||
+      (process.env.NODE_ENV === "development" &&
+        process.env.PRINT_SQL !== "false");
+
+    if (shouldPrintSQL) {
+      console.log("🔍 執行 KESS SQL 查詢:");
+      console.log("SQL:", sql);
+      console.log("參數:", params);
+      console.log("格式化 SQL:", formatQuery(sql, params));
+    }
+
+    const [rows, fields] = await connection.execute(sql, params);
+
+    // 根據 PRINT_SQL 環境變數決定是否打印結果統計
+    if (shouldPrintSQL) {
+      console.log(
+        "✅ KESS 查詢成功，返回",
+        Array.isArray(rows) ? rows.length : "N/A",
+        "行數據"
+      );
+    }
+
+    return { rows, fields };
+  } catch (error) {
+    // 直接在控制台打印詳細錯誤信息
+    console.error("❌ KESS SQL查詢執行失敗:");
+    console.error("SQL:", sql);
+    console.error("參數:", params);
+    console.error("格式化 SQL:", formatQuery(sql, params));
+    console.error("錯誤代碼:", error.code);
+    console.error("錯誤編號:", error.errno);
+    console.error("SQL狀態:", error.sqlState);
+    console.error("錯誤訊息:", error.message);
+    console.error("完整錯誤:", error);
+
+    logger.error("KESS SQL查詢執行失敗:", {
       sql: sql,
       params: params,
       formattedSql: formatQuery(sql, params),
@@ -218,6 +367,16 @@ export const closeDatabase = async () => {
       logger.error("關閉資料庫連接池時發生錯誤:", error.message);
     }
   }
+
+  if (kessPool) {
+    try {
+      await kessPool.end();
+      kessPool = null;
+      logger.info("KESS 資料庫連接池已關閉");
+    } catch (error) {
+      logger.error("關閉 KESS 資料庫連接池時發生錯誤:", error.message);
+    }
+  }
 };
 
 /**
@@ -243,8 +402,11 @@ export const formatQuery = (sql, params) => {
 // 導出預設的資料庫工具
 export default {
   initializeDatabase,
+  initializeKessDatabase,
   getPool,
+  getKessPool,
   query,
+  kessQuery,
   transaction,
   checkConnection,
   closeDatabase,

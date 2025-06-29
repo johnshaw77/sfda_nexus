@@ -673,6 +673,228 @@ class McpClient {
   }
 
   /**
+   * 調用 MCP 工具（SSE 流式版本）
+   * @param {number} toolId - 工具 ID
+   * @param {Object} parameters - 工具參數
+   * @param {Object} context - 調用上下文
+   * @param {Function} onChunk - 接收數據塊的回調函數
+   * @param {Function} onError - 錯誤回調函數
+   * @param {Function} onComplete - 完成回調函數
+   * @returns {Promise<void>} 流式調用控制器
+   */
+  async invokeToolStream(toolId, parameters = {}, context = {}, onChunk, onError, onComplete) {
+    logger.info("🚀 ===== MCP 工具 SSE 流式調用開始 =====");
+    logger.info("🚀 工具 ID:", toolId);
+    logger.info("🚀 參數:", parameters);
+    logger.info("🚀 上下文:", context);
+
+    let tool = null;
+
+    try {
+      // 獲取工具信息（複用現有邏輯）
+      tool = await McpToolModel.getMcpToolById(toolId);
+      logger.info("🚀 工具資訊:", tool);
+
+      if (!tool) {
+        const errorType = "TOOL_NOT_FOUND";
+        const suggestion = this.getErrorSuggestion(errorType, "系統");
+        onError && onError({
+          success: false,
+          tool_name: "unknown",
+          service_name: "unknown",
+          error: `工具 ${toolId} 不存在`,
+          error_type: errorType,
+          suggestion: suggestion,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (!tool.is_enabled) {
+        const errorType = "TOOL_NOT_FOUND";
+        const suggestion = this.getErrorSuggestion(errorType, tool.service_name);
+        onError && onError({
+          success: false,
+          tool_name: tool.name,
+          service_name: tool.service_name,
+          error: `工具 ${tool.name} 已被停用`,
+          error_type: errorType,
+          suggestion: suggestion,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // 健康檢查（複用現有邏輯）
+      const isHealthy = await this.isServiceHealthy(tool.mcp_service_id);
+      if (!isHealthy) {
+        const errorType = "SERVICE_UNAVAILABLE";
+        const suggestion = this.getErrorSuggestion(errorType, tool.service_name);
+        onError && onError({
+          success: false,
+          tool_name: tool.name,
+          service_name: tool.service_name,
+          error: `MCP 服務 ${tool.service_name} 當前不可用，請檢查服務狀態`,
+          error_type: errorType,
+          suggestion: suggestion,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // 獲取或重連客戶端（複用現有邏輯）
+      let clientInfo = this.clients.get(tool.mcp_service_id);
+      if (!clientInfo || !clientInfo.connected) {
+        logger.info(`🚀 服務未連接，嘗試即時重連: ${tool.service_name}`);
+        try {
+          const service = await McpServiceModel.getMcpServiceById(tool.mcp_service_id);
+          if (service && service.is_active) {
+            await this.connectToServiceWithRetry(service, 1);
+            clientInfo = this.clients.get(tool.mcp_service_id);
+          }
+        } catch (reconnectError) {
+          logger.warn(`即時重連失敗: ${tool.service_name}`, {
+            error: reconnectError.message,
+          });
+        }
+
+        if (!clientInfo || !clientInfo.connected) {
+          onError && onError({
+            success: false,
+            tool_name: tool.name,
+            service_name: tool.service_name,
+            error: `MCP 服務 ${tool.mcp_service_id} 未連接，重連失敗`,
+            error_type: "CONNECTION_FAILED",
+            suggestion: this.getErrorSuggestion("CONNECTION_FAILED", tool.service_name),
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+      }
+
+      // 構建 SSE 請求
+      const moduleName = this.getModuleName(tool.service_name);
+      const endpoint = `/${tool.name}`;
+      const fullUrl = clientInfo.service.endpoint_url + endpoint;
+      
+      logger.info("🚀 發起 SSE 流式調用", {
+        tool_name: tool.name,
+        service_name: tool.service_name,
+        url: fullUrl,
+        parameters
+      });
+
+      // 使用 fetch 進行 SSE 調用
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+        body: JSON.stringify(parameters)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      logger.info("🚀 SSE 連接建立成功");
+
+      // 處理 SSE 數據流
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          logger.info("🚀 SSE 流讀取完成");
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+
+            if (jsonStr === '[DONE]') {
+              logger.info("🚀 收到完成信號");
+              onComplete && onComplete();
+              break;
+            }
+
+            try {
+              const data = JSON.parse(jsonStr);
+              
+              if (data.error) {
+                logger.error("🚀 SSE 流中收到錯誤:", data);
+                onError && onError({
+                  success: false,
+                  tool_name: tool.name,
+                  service_name: tool.service_name,
+                  error: data.message || "流式調用失敗",
+                  error_type: "STREAM_ERROR",
+                  suggestion: this.getErrorSuggestion("STREAM_ERROR", tool.service_name),
+                  timestamp: new Date().toISOString(),
+                });
+              } else {
+                // 正常的數據塊
+                onChunk && onChunk({
+                  toolName: tool.name,
+                  serviceName: tool.service_name,
+                  content: data.content,
+                  index: data.index,
+                  total: data.total,
+                  timestamp: data.timestamp
+                });
+              }
+            } catch (parseError) {
+              logger.warn("🚀 SSE 數據解析錯誤:", parseError.message);
+            }
+          }
+        }
+      }
+
+      // 更新工具使用次數
+      await McpToolModel.incrementToolUsage(toolId);
+
+      logger.info("🚀 MCP 工具 SSE 流式調用成功完成", {
+        tool_id: toolId,
+        tool_name: tool.name,
+        user_id: context.user_id,
+      });
+
+    } catch (error) {
+      const errorType = this.analyzeErrorType(error, tool);
+      const suggestion = this.getErrorSuggestion(errorType, tool?.service_name || "unknown");
+      
+      logger.error("🚀 MCP 工具 SSE 流式調用失敗", {
+        tool_id: toolId,
+        tool_name: tool?.name || "unknown",
+        error: error.message,
+        error_type: errorType,
+        user_id: context.user_id,
+      });
+
+      onError && onError({
+        success: false,
+        tool_name: tool?.name || "unknown",
+        service_name: tool?.service_name || "unknown",
+        error: error.message,
+        error_type: errorType,
+        suggestion: suggestion,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
    * 獲取所有已連接的服務狀態
    * @returns {Array} 服務狀態列表
    */

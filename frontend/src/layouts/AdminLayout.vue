@@ -198,6 +198,11 @@
             <span>智能體管理</span>
           </a-menu-item>
 
+          <a-menu-item key="knowledge">
+            <BookOutlined />
+            <span>知識庫管理</span>
+          </a-menu-item>
+
           <a-menu-item key="quick-commands">
             <ThunderboltOutlined />
             <span>快速命令</span>
@@ -500,6 +505,7 @@ import {
   MenuFoldOutlined,
   ApiOutlined,
   RobotOutlined,
+  BookOutlined,
   ThunderboltOutlined,
   CloudServerOutlined,
   ExperimentOutlined,
@@ -582,6 +588,7 @@ const handleMenuClick = ({ key }) => {
     users: "/admin/users",
     agents: "/admin/agents",
     models: "/admin/models",
+    knowledge: "/admin/knowledge",
     "quick-commands": "/admin/quick-commands",
     "mcp-services": "/admin/mcp-services",
     "mcp-tools-tester": "/admin/mcp-tools-tester",
@@ -665,6 +672,7 @@ watch(
       "/admin/users": "users",
       "/admin/agents": "agents",
       "/admin/models": "models",
+      "/admin/knowledge": "knowledge",
       "/admin/quick-commands": "quick-commands",
       "/admin/mcp-services": "mcp-services",
       "/admin/mcp-tools-tester": "mcp-tools-tester",

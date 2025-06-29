@@ -231,6 +231,95 @@ export default {
   },
 
   /**
+   * 調用 MCP 工具（SSE 流式版本）
+   * @param {Object} params - 調用參數
+   * @param {number} params.serviceId - 服務 ID
+   * @param {number} params.toolId - 工具 ID
+   * @param {string} params.toolName - 工具名稱
+   * @param {Object} params.parameters - 工具參數
+   * @param {Function} params.onMessage - SSE 消息回調函數
+   * @param {Function} params.onError - 錯誤回調函數
+   * @param {Function} params.onComplete - 完成回調函數
+   * @returns {Object} 包含 abort 方法的控制器
+   */
+  callToolStream({ serviceId, toolId, toolName, parameters, onMessage, onError, onComplete }) {
+    const controller = new AbortController();
+    
+    // 對於 MIL 工具，直接調用 MCP 服務器的 SSE 端點
+    const mcpServerUrl = 'http://localhost:8080'; // 從配置中獲取
+    const streamUrl = `${mcpServerUrl}/api/mil/${toolName}`;
+    
+    const requestData = {
+      ...parameters
+    };
+
+    fetch(streamUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+      body: JSON.stringify(requestData),
+      signal: controller.signal,
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      function readStream() {
+        return reader.read().then(({ done, value }) => {
+          if (done) {
+            if (onComplete) onComplete();
+            return;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              
+              if (jsonStr === '[DONE]') {
+                if (onComplete) onComplete();
+                return;
+              }
+
+              try {
+                const data = JSON.parse(jsonStr);
+                if (onMessage) onMessage(data);
+              } catch (parseError) {
+                console.warn('MCP SSE 數據解析錯誤:', parseError, 'Data:', jsonStr);
+              }
+            }
+          }
+
+          return readStream();
+        });
+      }
+
+      return readStream();
+    })
+    .catch(error => {
+      if (error.name !== 'AbortError' && onError) {
+        onError(error);
+      }
+    });
+
+    return {
+      abort: () => controller.abort()
+    };
+  },
+
+  /**
    * 獲取工具調用歷史
    * @param {number} toolId - 工具 ID（可選）
    * @param {number} limit - 限制條數（可選）

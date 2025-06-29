@@ -19,6 +19,7 @@ import mcpServicesRoutes from "./mcpServices.route.js";
 import mcpToolsRoutes from "./mcpTools.route.js";
 import mcpAgentsRoutes from "./mcpAgents.route.js";
 import qwenAgentRoutes from "./qwenAgent.route.js";
+import knowledgeRoutes from "./knowledge.route.js";
 // import workflowsRoutes from './workflows.route.js';
 // import toolsRoutes from './tools.route.js';
 
@@ -45,6 +46,7 @@ router.get("/", (req, res) => {
       mcpTools: "/api/mcp/tools",
       mcpAgents: "/api/mcp/agents",
       qwenAgent: "/api/qwen-agent",
+      knowledge: "/api/knowledge",
     },
     status: "running",
     timestamp: new Date().toISOString(),
@@ -76,6 +78,7 @@ router.use("/mcp/services", mcpServicesRoutes); // MCP 服務管理路由
 router.use("/mcp/tools", mcpToolsRoutes); // MCP 工具管理路由
 router.use("/mcp/agents", mcpAgentsRoutes); // MCP 智能體權限管理路由
 router.use("/qwen-agent", qwenAgentRoutes); // Qwen-Agent 服務路由
+router.use("/knowledge", knowledgeRoutes); // 知識庫管理路由
 // router.use('/workflows', workflowsRoutes); // 工作流管理路由
 // router.use('/tools', toolsRoutes);         // 工具管理路由
 

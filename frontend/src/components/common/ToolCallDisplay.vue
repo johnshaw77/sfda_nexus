@@ -139,9 +139,40 @@
 
         <!-- 標準展示模式 -->
         <div v-else>
+          <!-- 🚀 MCP 工具流式顯示 -->
+          <div
+            v-if="isMcpStreaming"
+            class="mcp-streaming-result">
+            <div class="mcp-streaming-header">
+              <div class="streaming-indicator">
+                <span class="streaming-dot"></span>
+                <span>{{ mcpToolName }} 數據流式載入中...</span>
+              </div>
+              <div v-if="mcpProgress" class="streaming-progress">
+                <a-progress
+                  :percent="mcpProgress.percentage"
+                  size="small"
+                  :show-info="false" />
+                <span class="progress-text">
+                  {{ mcpProgress.current }} / {{ mcpProgress.total }}
+                </span>
+              </div>
+            </div>
+            <div class="mcp-stream-content">
+              <div class="streaming-content-container">
+                <!-- 使用 AnimatedContent 組件進行逐行顯示 -->
+                <AnimatedContent
+                  :content="mcpStreamContent"
+                  :enable-animation="true"
+                  :chunk-size="{ min: 15, max: 30 }"
+                  :delay="{ min: 30, max: 80 }" />
+              </div>
+            </div>
+          </div>
+
           <!-- 🖼️ 圖片顯示（最高優先級） -->
           <div
-            v-if="hasImageData"
+            v-else-if="hasImageData"
             class="image-result">
             <div class="image-container">
               <div class="image-header">
@@ -254,6 +285,7 @@ import { ref, computed, watch } from "vue";
 import StructuredDataDisplay from "./StructuredDataDisplay.vue";
 import StreamingResultViewer from "./StreamingResultViewer.vue";
 import DebugPanel from "./DebugPanel.vue";
+import AnimatedContent from "./AnimatedContent.vue";
 import ToolDisplayConfigManager from "@/utils/toolDisplayConfig.js";
 import {
   parseStatisticalResult,
@@ -353,6 +385,23 @@ const getToolColor = (toolName) => {
   const config = ToolDisplayConfigManager.getToolConfig(toolName);
   return config.color;
 };
+
+// 🚀 MCP 工具流式狀態相關計算屬性
+const isMcpStreaming = computed(() => {
+  return props.toolCall?.mcpStreaming === true;
+});
+
+const mcpStreamContent = computed(() => {
+  return props.toolCall?.mcpStreamContent || "";
+});
+
+const mcpProgress = computed(() => {
+  return props.toolCall?.mcpProgress || null;
+});
+
+const mcpToolName = computed(() => {
+  return props.toolCall?.mcpToolName || props.toolCall?.toolName || props.toolCall?.name || "工具";
+});
 
 // 🖼️ 圖片數據相關計算屬性和方法
 const hasImageData = computed(() => {
@@ -958,6 +1007,77 @@ const getDebugInfo = () => {
   padding: 4px 12px;
   height: auto;
   font-size: 12px;
+}
+
+/* 🚀 MCP 工具流式顯示樣式 */
+.mcp-streaming-result {
+  padding: 16px;
+  background: var(--custom-bg-component);
+  border-radius: 6px;
+  margin: 12px 0;
+}
+
+.mcp-streaming-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--custom-border-secondary);
+}
+
+.streaming-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--custom-text-secondary);
+}
+
+.streaming-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--custom-primary-color);
+  border-radius: 50%;
+  animation: streaming-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes streaming-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.streaming-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--custom-text-tertiary);
+  white-space: nowrap;
+}
+
+.mcp-stream-content {
+  background: var(--custom-bg-primary);
+  border: 1px solid var(--custom-border-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.streaming-content-container {
+  padding: 16px;
+  min-height: 60px;
+  line-height: 1.6;
+  color: var(--custom-text-primary);
 }
 
 /* 為了向後兼容，保留深色模式支援（使用 CSS 變量覆蓋） */

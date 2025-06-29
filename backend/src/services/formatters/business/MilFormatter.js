@@ -234,6 +234,11 @@ export default class MilFormatter extends BaseFormatter {
    * @returns {string} 格式化的原始數據區段
    */
   formatRawDataSection(rawData) {
+    // 🔇 暫時隱藏原始工具數據區段
+    return "";
+    
+    /* 
+    // 原始實現 - 如需要可以重新啟用
     if (!Array.isArray(rawData) || rawData.length === 0) {
       return "### 📋 原始工具數據\n\n無數據\n\n";
     }
@@ -264,6 +269,7 @@ export default class MilFormatter extends BaseFormatter {
     }
     
     return formatted;
+    */
   }
 
   /**

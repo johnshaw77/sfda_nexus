@@ -21,6 +21,7 @@ import { setupSwagger } from "./src/config/swagger.config.js";
 import { initializeWebSocket } from "./src/websocket/index.js";
 import {
   initializeDatabase,
+  initializeKessDatabase,
   closeDatabase,
 } from "./src/config/database.config.js";
 import mcpClient from "./src/services/mcp.service.js";
@@ -95,6 +96,11 @@ async function startServer() {
     logger.info("🔗 正在初始化資料庫連接...");
     await initializeDatabase();
     logger.info("✅ 資料庫連接池初始化成功");
+
+    // 初始化 KESS 資料庫連接池
+    logger.info("🔗 正在初始化 KESS 資料庫連接...");
+    await initializeKessDatabase();
+    logger.info("✅ KESS 資料庫連接池初始化成功");
 
     // 初始化 MCP 客戶端
     logger.info("🔗 正在初始化 MCP 客戶端...");

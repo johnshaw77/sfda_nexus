@@ -370,7 +370,21 @@ class FieldMapper {
    * @returns {string} 推斷的類別
    */
   inferCategoryFromToolName(toolName) {
-    const toolNameLower = toolName.toLowerCase();
+    // 🔧 修復：確保toolName是字符串
+    if (!toolName) {
+      logger.warn('[FieldMapper] toolName為空，使用默認分類');
+      return 'common';
+    }
+    
+    // 如果toolName是對象，嘗試提取字符串值
+    if (typeof toolName === 'object') {
+      logger.warn('[FieldMapper] toolName是對象，嘗試提取字符串值', { toolName });
+      toolName = toolName.name || toolName.tool_name || toolName.toString() || 'unknown';
+    }
+    
+    // 確保是字符串
+    const toolNameStr = String(toolName);
+    const toolNameLower = toolNameStr.toLowerCase();
     
     if (toolNameLower.includes('mil') || toolNameLower.includes('project')) {
       return 'mil_management';

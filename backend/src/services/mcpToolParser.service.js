@@ -444,6 +444,151 @@ class McpToolParser {
    * @param {Array} results - 工具執行結果列表
    * @returns {Promise<string>} 格式化後的結果文本
    */
+  /**
+   * 🎬 格式化工具結果（串流版本）- 逐段返回格式化內容
+   * @param {Array} results - 工具執行結果
+   * @param {Function} onSectionReady - 每個區段準備好時的回調函數
+   * @returns {Promise<string>} 完整的格式化結果
+   */
+  async formatToolResultsStream(results, onSectionReady = null) {
+    if (!results || results.length === 0) {
+      return "";
+    }
+
+    const allSections = [];
+    let currentSectionIndex = 0;
+
+    for (const result of results) {
+      // 🔧 添加調試信息
+      console.log('🎬 [formatToolResultsStream] 處理工具結果:', {
+        tool_name: result.tool_name,
+        tool_name_type: typeof result.tool_name,
+        success: result.success,
+        hasData: !!result.data
+      });
+
+      if (result.success) {
+        // 🎯 步驟1：發送摘要信息
+        if (onSectionReady) {
+          const summarySection = await this.generateSummarySection(result);
+          if (summarySection) {
+            allSections.push(summarySection);
+            await onSectionReady({
+              type: 'summary',
+              content: summarySection,
+              index: currentSectionIndex++,
+              total: results.length * 3, // 估計總段數（摘要+數據+列表）
+            });
+            
+            // 模擬處理延遲，讓用戶看到分段效果
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+
+        // 🎯 步驟2：發送主要數據部分
+        let formattedData = "";
+        
+        // 使用新的格式化器工廠進行智能格式化
+        try {
+          formattedData = await formatterFactory.formatToolResult(
+            result.data,
+            result.tool_name,
+            { parameters: result.parameters }
+          );
+        } catch (formatterError) {
+          console.error("格式化器處理失敗:", formatterError.message);
+          formattedData = this.fallbackFormat(result);
+        }
+
+        if (formattedData && onSectionReady) {
+          allSections.push(formattedData);
+          await onSectionReady({
+            type: 'data',
+            content: formattedData,
+            index: currentSectionIndex++,
+            total: results.length * 3,
+          });
+          
+          // 模擬處理延遲
+          await new Promise(resolve => setTimeout(resolve, 400));
+        }
+
+        // 🎯 步驟3：發送附加信息（如果有的話）
+        const additionalInfo = await this.generateAdditionalInfo(result);
+        if (additionalInfo && onSectionReady) {
+          allSections.push(additionalInfo);
+          await onSectionReady({
+            type: 'additional',
+            content: additionalInfo,
+            index: currentSectionIndex++,
+            total: results.length * 3,
+          });
+          
+          // 模擬處理延遲
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } else {
+        // 處理失敗的工具調用
+        const errorSection = `❌ **工具調用失敗**\n- 工具：${result.tool_name}\n- 錯誤：${result.error}\n\n`;
+        allSections.push(errorSection);
+        
+        if (onSectionReady) {
+          await onSectionReady({
+            type: 'error',
+            content: errorSection,
+            index: currentSectionIndex++,
+            total: results.length * 3,
+          });
+        }
+      }
+    }
+
+    return allSections.join("");
+  }
+
+  /**
+   * 🎯 生成摘要區段
+   */
+  async generateSummarySection(result) {
+    if (!result.data || !result.data.data) return null;
+    
+    const dataCount = Array.isArray(result.data.data) ? result.data.data.length : 1;
+    return `## 📊 資料摘要\n\n✅ 成功查詢到 **${dataCount}** 筆資料\n\n---\n\n`;
+  }
+
+  /**
+   * 🎯 生成附加信息區段
+   */
+  async generateAdditionalInfo(result) {
+    if (!result.data || !result.data.data || !Array.isArray(result.data.data)) return null;
+    
+    const data = result.data.data;
+    if (data.length === 0) return null;
+    
+    // 生成數據統計信息
+    const stats = [];
+    
+    // 分析常見欄位
+    const sampleItem = data[0];
+    const availableFields = Object.keys(sampleItem);
+    
+    return `## 📋 資料統計\n\n` +
+           `- **總記錄數**: ${data.length}\n` +
+           `- **可用欄位**: ${availableFields.length} 個\n` +
+           `- **主要欄位**: ${availableFields.slice(0, 5).join(', ')}\n\n`;
+  }
+
+  /**
+   * 🎯 備用格式化方法
+   */
+  fallbackFormat(result) {
+    if (!result.data) {
+      return `❌ **工具調用失敗**\n- 工具：${result.tool_name}\n- 錯誤：${result.error}\n\n`;
+    }
+
+    return `✅ **工具調用成功**\n- 工具：${result.tool_name}\n- 數據：${JSON.stringify(result.data, null, 2)}\n\n`;
+  }
+
   async formatToolResults(results) {
     if (!results || results.length === 0) {
       return "";

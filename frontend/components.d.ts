@@ -46,6 +46,7 @@ declare module 'vue' {
     AMenuItem: typeof import('ant-design-vue/es')['MenuItem']
     AMenuItemGroup: typeof import('ant-design-vue/es')['MenuItemGroup']
     AModal: typeof import('ant-design-vue/es')['Modal']
+    AnimatedContent: typeof import('./src/components/common/AnimatedContent.vue')['default']
     APagination: typeof import('ant-design-vue/es')['Pagination']
     APopconfirm: typeof import('ant-design-vue/es')['Popconfirm']
     AppSidebar: typeof import('./src/components/AppSidebar.vue')['default']
@@ -56,6 +57,7 @@ declare module 'vue' {
     ARangePicker: typeof import('ant-design-vue/es')['RangePicker']
     AResult: typeof import('ant-design-vue/es')['Result']
     ARow: typeof import('ant-design-vue/es')['Row']
+    ASegmented: typeof import('ant-design-vue/es')['Segmented']
     ASelect: typeof import('ant-design-vue/es')['Select']
     ASelectOption: typeof import('ant-design-vue/es')['SelectOption']
     ASlider: typeof import('ant-design-vue/es')['Slider']
@@ -99,5 +101,6 @@ declare module 'vue' {
     StructuredDataDisplay: typeof import('./src/components/common/StructuredDataDisplay.vue')['default']
     TextConverterSettings: typeof import('./src/components/common/TextConverterSettings.vue')['default']
     ToolCallDisplay: typeof import('./src/components/common/ToolCallDisplay.vue')['default']
+    TypeWriter: typeof import('./src/components/common/TypeWriter.vue')['default']
   }
 }

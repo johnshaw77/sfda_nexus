@@ -12,6 +12,20 @@ export class MessageModel {
    * @param {Object} messageData - 訊息數據
    * @returns {Promise<Object>} 創建的訊息信息
    */
+  /**
+   * 處理內容（由於現在使用LONGTEXT，不再需要截斷）
+   * @param {string} content - 原始內容
+   * @returns {Object} 處理後的內容和元數據
+   */
+  static processLongContent(content) {
+    // 🎯 資料庫已改為LONGTEXT，不再需要長度限制
+    return {
+      processedContent: content,
+      isTruncated: false,
+      originalLength: content ? content.length : 0
+    };
+  }
+
   static async create(messageData) {
     const {
       conversation_id,
@@ -29,6 +43,10 @@ export class MessageModel {
       agent_name = null,
     } = messageData;
 
+    // 🎯 使用LONGTEXT後不再需要內容處理
+    const processedContent = content;
+    const processedMetadata = metadata || {};
+
     try {
       return await transaction(async (connection) => {
         // 插入訊息
@@ -41,10 +59,10 @@ export class MessageModel {
           [
             conversation_id,
             role,
-            content,
+            processedContent, // 🔧 使用處理過的內容
             content_type,
             attachments ? JSON.stringify(attachments) : null,
-            metadata ? JSON.stringify(metadata) : null,
+            processedMetadata ? JSON.stringify(processedMetadata) : null, // 🔧 使用處理過的metadata
             tokens_used,
             cost,
             model_info ? JSON.stringify(model_info) : null,
@@ -246,17 +264,20 @@ export class MessageModel {
     const updateFields = [];
     const updateValues = [];
 
+    // 🎯 使用LONGTEXT後不再需要內容長度檢查
+    let processedUpdateData = { ...updateData };
+
     // 過濾允許更新的字段
-    Object.keys(updateData).forEach((key) => {
-      if (allowedFields.includes(key) && updateData[key] !== undefined) {
+    Object.keys(processedUpdateData).forEach((key) => {
+      if (allowedFields.includes(key) && processedUpdateData[key] !== undefined) {
         updateFields.push(`${key} = ?`);
         if (
           ["attachments", "metadata", "model_info"].includes(key) &&
-          updateData[key]
+          processedUpdateData[key]
         ) {
-          updateValues.push(JSON.stringify(updateData[key]));
+          updateValues.push(JSON.stringify(processedUpdateData[key]));
         } else {
-          updateValues.push(updateData[key]);
+          updateValues.push(processedUpdateData[key]);
         }
       }
     });
@@ -266,7 +287,7 @@ export class MessageModel {
     }
 
     // 如果更新內容，標記為已編輯
-    if (updateData.content) {
+    if (processedUpdateData.content) {
       updateFields.push("is_edited = TRUE");
     }
 
@@ -284,6 +305,45 @@ export class MessageModel {
       logger.error("更新訊息失敗", {
         id,
         updateData,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * 獲取訊息的完整內容（如果被截斷了）
+   * @param {number} id - 訊息ID
+   * @returns {Promise<Object|null>} 完整內容或null
+   */
+  static async getFullContent(id) {
+    try {
+      const message = await this.findById(id);
+      if (!message) {
+        return null;
+      }
+
+      // 檢查是否有被截斷的內容
+      if (message.metadata && message.metadata.contentTruncated) {
+        return {
+          id: message.id,
+          fullContent: message.metadata.contentTruncated.fullContent,
+          originalLength: message.metadata.contentTruncated.originalLength,
+          truncatedAt: message.metadata.contentTruncated.truncatedAt,
+          displayedContent: message.content
+        };
+      }
+
+      // 內容沒有被截斷，返回原始內容
+      return {
+        id: message.id,
+        fullContent: message.content,
+        originalLength: message.content.length,
+        isTruncated: false
+      };
+    } catch (error) {
+      logger.error("獲取完整內容失敗", {
+        id,
         error: error.message,
       });
       throw error;

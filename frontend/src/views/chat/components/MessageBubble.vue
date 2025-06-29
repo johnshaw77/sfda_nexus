@@ -140,12 +140,18 @@
 
       <!-- 🚨 MCP 錯誤顯示 -->
       <div
-        v-if="message.role === 'assistant' && message.mcpErrors && message.mcpErrors.length > 0"
+        v-if="
+          message.role === 'assistant' &&
+          message.mcpErrors &&
+          message.mcpErrors.length > 0
+        "
         class="mcp-errors-section">
         <div class="mcp-errors-header">
           <ExclamationCircleOutlined class="error-icon" />
           <span>工具調用問題</span>
-          <a-badge :count="message.mcpErrors.length" class="error-count" />
+          <a-badge
+            :count="message.mcpErrors.length"
+            class="error-count" />
         </div>
         <div class="mcp-errors-list">
           <div
@@ -161,17 +167,26 @@
               @close="handleDismissMcpError(index)"
               class="mcp-error-alert">
               <template #icon>
-                <ExclamationCircleOutlined v-if="mcpError.error_type === 'SERVICE_UNAVAILABLE'" />
-                <DisconnectOutlined v-else-if="mcpError.error_type === 'CONNECTION_FAILED'" />
-                <DatabaseOutlined v-else-if="mcpError.error_type === 'DATABASE_ERROR'" />
-                <SafetyCertificateOutlined v-else-if="mcpError.error_type === 'AUTHENTICATION_ERROR'" />
-                <ClockCircleOutlined v-else-if="mcpError.error_type === 'TIMEOUT_ERROR'" />
-                <ToolOutlined v-else-if="mcpError.error_type === 'TOOL_NOT_FOUND'" />
+                <ExclamationCircleOutlined
+                  v-if="mcpError.error_type === 'SERVICE_UNAVAILABLE'" />
+                <DisconnectOutlined
+                  v-else-if="mcpError.error_type === 'CONNECTION_FAILED'" />
+                <DatabaseOutlined
+                  v-else-if="mcpError.error_type === 'DATABASE_ERROR'" />
+                <SafetyCertificateOutlined
+                  v-else-if="mcpError.error_type === 'AUTHENTICATION_ERROR'" />
+                <ClockCircleOutlined
+                  v-else-if="mcpError.error_type === 'TIMEOUT_ERROR'" />
+                <ToolOutlined
+                  v-else-if="mcpError.error_type === 'TOOL_NOT_FOUND'" />
                 <WarningOutlined v-else />
               </template>
               <template #action>
                 <a-button
-                  v-if="mcpError.error_type === 'SERVICE_UNAVAILABLE' || mcpError.error_type === 'CONNECTION_FAILED'"
+                  v-if="
+                    mcpError.error_type === 'SERVICE_UNAVAILABLE' ||
+                    mcpError.error_type === 'CONNECTION_FAILED'
+                  "
                   size="small"
                   :type="mcpError.retried ? 'default' : 'primary'"
                   :disabled="mcpError.retried"
@@ -179,9 +194,7 @@
                   <template v-if="mcpError.retried">
                     <CheckOutlined /> 已重試
                   </template>
-                  <template v-else>
-                    <ReloadOutlined /> 重試
-                  </template>
+                  <template v-else> <ReloadOutlined /> 重試 </template>
                 </a-button>
               </template>
             </a-alert>
@@ -256,6 +269,33 @@
           <LoadingOutlined
             spin
             class="processing-spinner" />
+        </div>
+      </div>
+
+      <!-- 🎬 新增：工具結果分段串流狀態顯示 -->
+      <div
+        v-if="message.role === 'assistant' && message.toolResultSections && !message.finalContent"
+        class="tool-result-streaming-section">
+        <div class="tool-result-streaming-header">
+          <LoadingOutlined spin />
+          <div class="streaming-content">
+            <div class="streaming-message">
+              📋 正在組織結果 {{ message.currentSection || 0 }}/{{ message.totalSections || 0 }}
+            </div>
+            <div
+              v-if="message.toolResultProgress !== undefined"
+              class="streaming-progress">
+              <a-progress
+                :percent="message.toolResultProgress"
+                :show-info="false"
+                size="small"
+                :stroke-color="{
+                  '0%': '#108ee9',
+                  '100%': '#52c41a',
+                }" />
+              <span class="progress-text">{{ message.toolResultProgress }}%</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -476,7 +516,21 @@
           class="plain-text error-text">
           {{ message.content }}
         </div>
-        <!-- AI 消息 - 使用 CodeHighlight 組件 -->
+        <!-- AI 消息 - 使用動畫內容組件 -->
+        <AnimatedContent
+          v-if="
+            shouldUseContentAnimation &&
+            message.role === 'assistant' &&
+            !isChartMessage
+          "
+          :content="message.content"
+          :enable-animation="true"
+          :animation-speed="'normal'"
+          :chunk-size-range="[15, 25]"
+          :enable-gradient-effect="true"
+          ref="animatedContentRef"
+          @animation-complete="() => {}" />
+        <!-- AI 消息 - 使用 CodeHighlight 組件 (fallback) -->
         <CodeHighlight
           v-else-if="message.role === 'assistant' && !isChartMessage"
           :content="message.content"
@@ -579,6 +633,30 @@
               size="small"
               @click="handleQuoteMessage">
               <MessageOutlined />
+            </a-button>
+          </a-tooltip>
+
+          <!-- 🎬 動畫效果切換按鈕 -->
+          <a-tooltip
+            :title="enableContentAnimation ? '關閉動畫效果' : '開啟動畫效果'">
+            <a-button
+              type="text"
+              size="small"
+              @click="toggleContentAnimation"
+              :class="{ 'animation-active': enableContentAnimation }">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor">
+                <path
+                  v-if="enableContentAnimation"
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                <path
+                  v-else
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                  opacity="0.3" />
+              </svg>
             </a-button>
           </a-tooltip>
 
@@ -872,6 +950,7 @@ import {
   askFileQuestion,
 } from "@/api/files";
 import CodeHighlight from "@/components/common/CodeHighlight.vue";
+import AnimatedContent from "@/components/common/AnimatedContent.vue";
 import ToolCallDisplay from "@/components/common/ToolCallDisplay.vue";
 import SmartChart from "@/components/common/SmartChart.vue";
 import { chartIntegrationService } from "@/services/chartIntegrationService";
@@ -959,6 +1038,10 @@ const shouldShowExpandButton = ref(false);
 const codeHighlightRef = ref(null);
 const toolCallsCollapsed = ref(true); // 工具調用預設為折疊狀態
 const thinkingCollapsed = ref(true); // 思考過程預設為折疊狀態
+
+// 🎬 內容動畫相關狀態
+const enableContentAnimation = ref(true); // 控制是否啟用內容動畫效果
+const animatedContentRef = ref(null);
 
 // 思考內容動畫相關
 const displayedThinkingContent = ref("");
@@ -1058,6 +1141,79 @@ const hasBackendDetectedChart = computed(() => {
   }
 
   return hasChart;
+});
+
+// 🎬 計算屬性：判斷是否應該使用內容動畫效果
+// 追蹤消息是否曾經串流過
+// 只有當消息明確標記為曾經串流過時才設為true
+const hasBeenStreamed = ref(false)
+
+// 檢查消息是否曾經串流過（通過檢查消息的來源）
+const wasEverStreaming = computed(() => {
+  // 如果消息有 isStreaming 字段且曾經為 true，或者有特定的串流標記
+  return props.message.hasOwnProperty('isStreaming') && hasBeenStreamed.value
+})
+
+// 監聽串流狀態變化
+watch(() => props.message.isStreaming, (isStreaming, wasStreaming) => {
+  if (wasStreaming && !isStreaming) {
+    // 串流剛結束
+    hasBeenStreamed.value = true
+    console.log('串流結束，標記為已串流過')
+  }
+}, { immediate: true })
+
+// 組件掛載時檢查初始狀態
+onMounted(() => {
+  // 如果消息初始時就在串流，標記它
+  if (props.message.isStreaming) {
+    console.log('消息初始時正在串流')
+  } else if (props.message.hasOwnProperty('isStreaming')) {
+    // 如果有 isStreaming 屬性但為 false，且有內容，可能是串流剛結束的消息
+    // 但我們不設置 hasBeenStreamed，因為可能是工具回應
+    console.log('消息有 isStreaming 屬性但不在串流中')
+  } else {
+    // 沒有 isStreaming 屬性，可能是工具回應或靜態內容
+    console.log('消息沒有 isStreaming 屬性，可能是工具回應')
+  }
+})
+
+// 監聽動畫開關變化，當用戶手動開啟動畫時重置狀態
+watch(enableContentAnimation, (newValue) => {
+  if (newValue && hasBeenStreamed.value) {
+    // 用戶手動開啟動畫，重置串流狀態，允許動畫
+    hasBeenStreamed.value = false
+    console.log('用戶手動開啟動畫，重置串流狀態')
+  }
+})
+
+const shouldUseContentAnimation = computed(() => {
+  // 只對AI助手回應且非錯誤訊息啟用動畫
+  const isCompleted = !props.message.isStreaming && props.message.status !== 'streaming'
+  
+  const shouldAnimate = (
+    enableContentAnimation.value &&
+    props.message.role === "assistant" &&
+    !isErrorMessage.value &&
+    !isChartMessage.value &&
+    props.message.content &&
+    props.message.content.length > 100 &&
+    isCompleted && // 確保消息完全完成
+    !hasBeenStreamed.value // 重要：沒有串流過的消息才動畫
+  )
+  
+  console.log('動畫條件檢查:', {
+    enableContentAnimation: enableContentAnimation.value,
+    role: props.message.role,
+    messageId: props.message.id,
+    hasBeenStreamed: hasBeenStreamed.value,
+    isStreaming: props.message.isStreaming,
+    hasStreamingProperty: props.message.hasOwnProperty('isStreaming'),
+    isCompleted,
+    shouldAnimate
+  })
+  
+  return shouldAnimate
 });
 
 // 🎯 前端智能圖表檢測開關 - 配合後端設置
@@ -1789,6 +1945,14 @@ const handleQuoteMessage = () => {
   antMessage.success("消息已引用");
 };
 
+// 🎬 切換內容動畫效果
+const toggleContentAnimation = () => {
+  enableContentAnimation.value = !enableContentAnimation.value;
+  antMessage.info(
+    enableContentAnimation.value ? "動畫效果已開啟" : "動畫效果已關閉"
+  );
+};
+
 const handleDeleteMessage = async () => {
   try {
     await chatStore.handleDeleteMessage(props.message.id);
@@ -2453,7 +2617,7 @@ const getErrorDescription = (mcpError) => {
 const handleDismissMcpError = (index) => {
   if (props.message.mcpErrors && props.message.mcpErrors.length > index) {
     props.message.mcpErrors.splice(index, 1);
-    
+
     // 如果沒有錯誤了，清除錯誤標記
     if (props.message.mcpErrors.length === 0) {
       props.message.hasMcpErrors = false;
@@ -2465,11 +2629,11 @@ const handleRetryMcpTool = async (mcpError) => {
   try {
     // 顯示重試開始提示
     antMessage.info(`正在重試 ${mcpError.tool_name}，請稍候...`);
-    
+
     // 根據失敗的工具名稱構建重試消息
     let retryContent = "";
     const toolName = mcpError.tool_name;
-    
+
     // 根據工具類型生成適當的重試請求
     if (toolName.includes("scatter") || toolName.includes("chart")) {
       retryContent = "請重新嘗試生成散點圖，使用可用的數據庫連接。";
@@ -2480,27 +2644,26 @@ const handleRetryMcpTool = async (mcpError) => {
     } else {
       retryContent = `請重新嘗試執行 ${toolName} 工具，確保相關服務正常運行。`;
     }
-    
+
     // 發送重試消息
     await chatStore.sendMessage(retryContent, {
       metadata: {
         isRetry: true,
         originalToolName: toolName,
         originalError: mcpError.error,
-        retryTimestamp: Date.now()
-      }
+        retryTimestamp: Date.now(),
+      },
     });
-    
+
     // 標記該錯誤為已重試
     mcpError.retried = true;
     mcpError.retryTimestamp = Date.now();
-    
+
     console.log("MCP 工具重試已發送:", {
       toolName,
       retryContent,
-      originalError: mcpError.error
+      originalError: mcpError.error,
     });
-    
   } catch (error) {
     console.error("重試 MCP 工具失敗:", error);
     antMessage.error(`重試 ${mcpError.tool_name} 失敗，請稍後再試`);
@@ -3385,6 +3548,54 @@ onMounted(() => {
   }
 }
 
+/* 🎬 新增：工具結果分段串流狀態樣式 */
+.tool-result-streaming-section {
+  background: linear-gradient(90deg, #e6f4ff 0%, #f6ffed 100%);
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  animation: streamingPulse 2s ease-in-out infinite;
+}
+
+.tool-result-streaming-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.streaming-content {
+  flex: 1;
+}
+
+.streaming-message {
+  font-size: 14px;
+  color: #52c41a;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.streaming-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.streaming-progress .progress-text {
+  font-size: 12px;
+  color: #52c41a;
+  font-weight: 600;
+}
+
+@keyframes streamingPulse {
+  0%, 100% {
+    background: linear-gradient(90deg, #e6f4ff 0%, #f6ffed 100%);
+  }
+  50% {
+    background: linear-gradient(90deg, #f0f9ff 0%, #f9ffed 100%);
+  }
+}
+
 /* 🔧 新增：工具處理狀態樣式 */
 .tool-processing-section {
   margin: 8px 0;
@@ -3954,5 +4165,65 @@ onMounted(() => {
   background: #1f1f1f;
   border-color: #274916;
   color: #d9d9d9;
+}
+
+/* 🎬 動畫按鈕樣式 */
+.animation-active {
+  color: #1890ff !important;
+  background-color: rgba(24, 144, 255, 0.1) !important;
+}
+
+.animation-active:hover {
+  background-color: rgba(24, 144, 255, 0.2) !important;
+}
+
+.animation-active svg {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+/* 暗色主題適配 */
+:root[data-theme="dark"] .animation-active {
+  color: #177ddc !important;
+  background-color: rgba(23, 125, 220, 0.1) !important;
+}
+
+:root[data-theme="dark"] .animation-active:hover {
+  background-color: rgba(23, 125, 220, 0.2) !important;
+}
+
+/* 暗色主題適配 - 工具結果分段串流 */
+:root[data-theme="dark"] .tool-result-streaming-section {
+  background: linear-gradient(90deg, #001529 0%, #162312 100%);
+  border-color: #274916;
+  animation: streamingPulseDark 2s ease-in-out infinite;
+}
+
+:root[data-theme="dark"] .streaming-message {
+  color: #95de64;
+}
+
+:root[data-theme="dark"] .streaming-progress .progress-text {
+  color: #95de64;
+}
+
+@keyframes streamingPulseDark {
+  0%, 100% {
+    background: linear-gradient(90deg, #001529 0%, #162312 100%);
+  }
+  50% {
+    background: linear-gradient(90deg, #003a5c 0%, #274916 100%);
+  }
 }
 </style>

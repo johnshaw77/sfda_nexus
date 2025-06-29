@@ -794,6 +794,32 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   });
                 }
               },
+              // 🎬 新增：工具結果分段串流回調
+              onToolResultSection: async (sectionData) => {
+                if (isClientConnected) {
+                  sendSSE("tool_result_section", {
+                    assistant_message_id: assistantMessageId,
+                    section_type: sectionData.type,
+                    section_content: sectionData.content,
+                    section_index: sectionData.index,
+                    total_sections: sectionData.total,
+                    progress: Math.round(((sectionData.index + 1) / sectionData.total) * 100),
+                    conversation_id: conversationId,
+                    timestamp: Date.now(),
+                  });
+                }
+              },
+              // 🎬 新增：AI總結開始回調
+              onAISummaryStart: () => {
+                if (isClientConnected) {
+                  sendSSE("ai_summary_start", {
+                    assistant_message_id: assistantMessageId,
+                    message: "🤖 正在生成智能總結...",
+                    conversation_id: conversationId,
+                    timestamp: Date.now(),
+                  });
+                }
+              },
               onToolCallComplete: (toolName, result) => {
                 if (isClientConnected) {
                   // 🚀 新增：檢查工具調用是否失敗，發送錯誤事件
@@ -1015,6 +1041,99 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           }
 
           toolCallMetadata.thinking_content = finalThinkingContent;
+        }
+
+        // 🎬 新增：AI總結流處理
+        if (toolCallMetadata.has_tool_calls && toolCallMetadata.tool_results && 
+            toolCallMetadata.tool_results.some(r => r.success) && isClientConnected) {
+          
+          try {
+            console.log("=== 開始AI總結流處理 ===");
+            
+            // 發送AI總結開始事件
+            sendSSE("ai_summary_start", {
+              assistant_message_id: assistantMessageId,
+              message: "🤖 正在生成智能總結...",
+              conversation_id: conversationId,
+              timestamp: Date.now(),
+            });
+
+            // 獲取格式化的工具結果
+            const toolResultsText = toolCallMetadata.tool_results
+              .filter(r => r.success)
+              .map(r => r.formatted_result || JSON.stringify(r.result))
+              .join('\n\n');
+
+            // 生成AI總結流
+            const summaryGenerator = chatService.generateAISummaryStream(
+              toolResultsText,
+              content, // 用戶問題
+              {
+                user_id: user.id,
+                conversation_id: conversationId,
+                model_config: model
+              }
+            );
+
+            let summaryContent = "";
+            
+            // 處理AI總結流
+            for await (const summaryChunk of summaryGenerator) {
+              if (!isClientConnected) {
+                console.log("客戶端已斷開，停止AI總結流處理");
+                break;
+              }
+
+              if (summaryChunk.type === 'ai_summary_delta') {
+                summaryContent += summaryChunk.content;
+                
+                // 發送AI總結增量事件
+                sendSSE("ai_summary_delta", {
+                  assistant_message_id: assistantMessageId,
+                  content: summaryChunk.content,
+                  accumulated_content: summaryContent,
+                  progress: summaryChunk.progress || 0,
+                  conversation_id: conversationId,
+                  timestamp: summaryChunk.timestamp,
+                });
+              } else if (summaryChunk.type === 'ai_summary_error') {
+                sendSSE("ai_summary_error", {
+                  assistant_message_id: assistantMessageId,
+                  error: summaryChunk.error,
+                  conversation_id: conversationId,
+                  timestamp: summaryChunk.timestamp,
+                });
+                break;
+              }
+            }
+
+            // 發送AI總結完成事件
+            if (summaryContent && isClientConnected) {
+              sendSSE("ai_summary_complete", {
+                assistant_message_id: assistantMessageId,
+                summary_content: summaryContent,
+                conversation_id: conversationId,
+                timestamp: Date.now(),
+              });
+              
+              // 將總結添加到最終內容中
+              finalContent = finalContent + '\n\n---\n\n## 🤖 智能總結\n\n' + summaryContent;
+            }
+
+            console.log("=== AI總結流處理完成 ===");
+            
+          } catch (summaryError) {
+            console.error("AI總結流處理失敗:", summaryError.message);
+            
+            if (isClientConnected) {
+              sendSSE("ai_summary_error", {
+                assistant_message_id: assistantMessageId,
+                error: `AI總結生成失敗: ${summaryError.message}`,
+                conversation_id: conversationId,
+                timestamp: Date.now(),
+              });
+            }
+          }
         }
 
         // 🎯 智能圖表檢測（串流模式）
@@ -1916,6 +2035,50 @@ export const handleReconnectMCPService = catchAsync(async (req, res) => {
   }
 });
 
+/**
+ * 獲取訊息的完整內容
+ */
+const handleGetFullMessageContent = catchAsync(async (req, res) => {
+  const { messageId } = req.params;
+  const userId = req.user.id;
+
+  logger.info("獲取訊息完整內容", {
+    messageId,
+    userId,
+  });
+
+  try {
+    // 首先驗證訊息是否存在且用戶有權限訪問
+    const message = await MessageModel.findById(messageId);
+    if (!message) {
+      throw new BusinessError("訊息不存在", 404);
+    }
+
+    // 驗證用戶是否有權限訪問這個訊息
+    const conversation = await ConversationModel.findById(message.conversation_id);
+    if (!conversation || conversation.user_id !== userId) {
+      throw new BusinessError("無權限訪問此訊息", 403);
+    }
+
+    // 獲取完整內容
+    const fullContent = await MessageModel.getFullContent(messageId);
+    
+    res.json(
+      createSuccessResponse({
+        message: "獲取完整內容成功",
+        data: fullContent,
+      })
+    );
+  } catch (error) {
+    logger.error("獲取訊息完整內容失敗", {
+      messageId,
+      userId,
+      error: error.message,
+    });
+    throw error;
+  }
+});
+
 export default {
   handleCreateConversation,
   handleSendMessage,
@@ -1936,4 +2099,5 @@ export default {
   handleOptimizePrompt,
   handleGetMCPStatus,
   handleReconnectMCPService,
+  handleGetFullMessageContent,
 };

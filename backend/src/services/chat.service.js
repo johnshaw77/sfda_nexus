@@ -8,6 +8,7 @@ import mcpToolParser from "./mcpToolParser.service.js";
 import logger from "../utils/logger.util.js";
 import globalPromptService from "./globalPrompt.service.js";
 import AIService from "./ai.service.js";
+import McpServiceModel from "../models/McpService.model.js";
 
 class ChatService {
   constructor() {
@@ -382,9 +383,25 @@ class ChatService {
         console.log("工具執行結果:", JSON.stringify(toolResults, null, 2));
       }
 
-      // 格式化工具結果
-      const formattedResults =
-        await mcpToolParser.formatToolResults(toolResults);
+      // 🎬 格式化工具結果（使用串流版本）
+      let formattedResults = "";
+      
+      // 檢查是否需要串流格式化
+      if (context.stream && context.onToolResultSection) {
+        console.log("=== 使用串流格式化工具結果 ===");
+        formattedResults = await mcpToolParser.formatToolResultsStream(
+          toolResults,
+          context.onToolResultSection
+        );
+        
+        // 🎬 工具結果完成後，開始AI總結階段
+        if (context.onAISummaryStart) {
+          context.onAISummaryStart();
+        }
+      } else {
+        console.log("=== 使用標準格式化工具結果 ===");
+        formattedResults = await mcpToolParser.formatToolResults(toolResults);
+      }
 
       // 檢查是否有成功的工具執行，如果有，需要進行二次 AI 調用
       const hasSuccessfulTools = toolResults.some((result) => result.success);
@@ -1034,6 +1051,150 @@ ${formattedResults}
         error: error.message,
       });
       return basePrompt;
+    }
+  }
+
+  /**
+   * 🎬 生成AI總結（流式打字機效果）
+   * @param {string} toolResults - 工具執行結果
+   * @param {string} userQuestion - 用戶問題
+   * @param {Object} context - 上下文
+   * @returns {AsyncGenerator} 流式生成器
+   */
+  async* generateAISummaryStream(toolResults, userQuestion, context) {
+    try {
+      console.log("=== 開始生成AI總結流 ===");
+
+      // 📋 準備總結提示詞
+      const summaryPrompt = `基於以下工具執行結果，為用戶問題提供智能分析總結：
+
+**用戶問題**: ${userQuestion}
+
+**工具執行結果**:
+${toolResults}
+
+**要求**:
+1. 用自然對話的語氣總結關鍵發現
+2. 提供有價值的洞察和建議
+3. 保持專業但友善的語調
+4. 不要重複已顯示的詳細數據
+5. 專注於解釋數據的含義和影響
+
+請以對話方式提供總結分析：`;
+
+      // 🎯 使用更強大的模型進行總結
+      const summaryModelConfig = await this.getSummaryModelConfig(context);
+      
+      console.log("總結模型配置:", summaryModelConfig);
+
+      // 📡 調用AI進行總結
+      const summaryResponse = await AIService.callModel({
+        provider: summaryModelConfig.model_type,
+        model: summaryModelConfig.model_id,
+        endpoint_url: summaryModelConfig.endpoint_url,
+        api_key: summaryModelConfig.api_key_encrypted,
+        messages: [
+          {
+            role: "user",
+            content: summaryPrompt
+          }
+        ],
+        temperature: 0.8, // 稍高的創造性
+        max_tokens: 2048,
+      });
+
+      // 🎬 模擬打字機效果 - 逐字返回
+      const summaryContent = summaryResponse.content || '';
+      const words = summaryContent.split('');
+      
+      for (let i = 0; i < words.length; i++) {
+        // 🎯 控制打字速度 - 更自然的速度
+        const delay = Math.random() * 30 + 20; // 20-50ms隨機延遲
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        yield {
+          type: 'ai_summary_delta',
+          content: words[i],
+          timestamp: new Date().toISOString(),
+          progress: Math.round((i + 1) / words.length * 100)
+        };
+      }
+
+      console.log("=== AI總結流生成完成 ===");
+
+    } catch (error) {
+      logger.error("生成AI總結流失敗", {
+        error: error.message,
+        userQuestion,
+        context: context.conversation_id
+      });
+      
+      // 💔 流式錯誤處理
+      yield {
+        type: 'ai_summary_error',
+        error: '抱歉，AI總結生成失敗，請稍後重試。',
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * 🎯 獲取總結專用的模型配置（使用更強大的模型）
+   * @param {Object} context - 上下文
+   * @returns {Object} 模型配置
+   */
+  async getSummaryModelConfig(context) {
+    try {
+      // 優先使用更強大的模型進行總結
+      const { query } = await import("../config/database.config.js");
+      
+      // 查找強大的總結模型（按優先級）
+      const { rows } = await query(`
+        SELECT * FROM ai_models 
+        WHERE is_active = 1 
+        AND (
+          model_id LIKE '%gpt-4%' OR 
+          model_id LIKE '%claude-3%' OR 
+          model_id LIKE '%gemini-1.5-pro%' OR
+          model_id LIKE '%gemini-2.0%'
+        )
+        ORDER BY 
+          CASE 
+            WHEN model_id LIKE '%gpt-4%' THEN 1
+            WHEN model_id LIKE '%claude-3%' THEN 2
+            WHEN model_id LIKE '%gemini-2.0%' THEN 3
+            WHEN model_id LIKE '%gemini-1.5-pro%' THEN 4
+            ELSE 5
+          END
+        LIMIT 1
+      `);
+
+      if (rows.length > 0) {
+        logger.info("使用強大模型進行AI總結", {
+          model: rows[0].model_id,
+          provider: rows[0].model_type
+        });
+        return rows[0];
+      }
+
+      // 回退到用戶選擇的模型
+      return context.model_config || {
+        model_type: 'gemini',
+        model_id: 'gemini-1.5-flash',
+        endpoint_url: null,
+        api_key_encrypted: null
+      };
+
+    } catch (error) {
+      logger.error("獲取總結模型配置失敗", { error: error.message });
+      
+      // 最終回退
+      return {
+        model_type: 'gemini',
+        model_id: 'gemini-1.5-flash',
+        endpoint_url: null,
+        api_key_encrypted: null
+      };
     }
   }
 }

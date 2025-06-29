@@ -1172,6 +1172,13 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[finalMessageIndex].isOptimizing = false;
           messages.value[finalMessageIndex].optimizingMessage = null;
           messages.value[finalMessageIndex].isStreamingSecondary = false;
+          
+          // 🎬 清除工具結果分段狀態
+          if (messages.value[finalMessageIndex].toolResultSections) {
+            // 設置最終內容標記，防止繼續更新
+            messages.value[finalMessageIndex].finalContent = true;
+            console.log("🎬 工具結果分段串流完成，清除分段狀態");
+          }
 
           // 保存現有的思考內容（如果有的話）
           const existingThinkingContent =
@@ -1471,6 +1478,179 @@ export const useChatStore = defineStore("chat", () => {
         }
         break;
 
+      case "tool_result_section":
+        // 🎬 新增：工具結果分段串流事件
+        console.log("收到工具結果分段:", data);
+
+        // 找到對應的消息
+        const sectionMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (sectionMessageIndex !== -1) {
+          const message = messages.value[sectionMessageIndex];
+          
+          // 初始化分段數據結構
+          if (!message.toolResultSections) {
+            message.toolResultSections = [];
+            message.totalSections = data.total_sections;
+            message.currentSection = 0;
+          }
+
+          // 添加新的分段
+          message.toolResultSections.push({
+            type: data.section_type,
+            content: data.section_content,
+            index: data.section_index,
+            timestamp: data.timestamp,
+          });
+
+          // 更新進度
+          message.currentSection = data.section_index + 1;
+          message.toolResultProgress = data.progress;
+
+          // 🎬 逐步構建內容，創建類似打字機的效果
+          const accumulatedContent = message.toolResultSections
+            .sort((a, b) => a.index - b.index)
+            .map(section => section.content)
+            .join("");
+
+          // 更新消息內容（如果還沒有最終內容）
+          if (!message.finalContent) {
+            message.content = accumulatedContent;
+          }
+
+          // 更新處理狀態消息
+          message.toolProcessingMessage = `📋 正在組織結果 ${message.currentSection}/${message.totalSections} (${data.progress}%)`;
+
+          console.log("🎬 工具結果分段更新:", {
+            messageId: data.assistant_message_id,
+            sectionType: data.section_type,
+            sectionIndex: data.section_index,
+            totalSections: data.total_sections,
+            progress: data.progress,
+            accumulatedLength: accumulatedContent.length,
+          });
+        }
+        break;
+
+      case "ai_summary_start":
+        // 🎬 AI總結開始事件
+        console.log("AI總結開始:", data);
+
+        // 找到對應的消息
+        const summaryStartMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (summaryStartMessageIndex !== -1) {
+          const message = messages.value[summaryStartMessageIndex];
+          
+          // 清除工具處理狀態，開始總結階段
+          message.isProcessingTools = false;
+          message.toolProcessingMessage = null;
+          
+          // 設置總結狀態
+          message.isGeneratingSummary = true;
+          message.summaryContent = "";
+          message.summaryProgress = 0;
+          message.summaryMessage = data.message || "🤖 正在生成智能總結...";
+          
+          console.log("🎬 AI總結狀態已設置");
+        }
+        break;
+
+      case "ai_summary_delta":
+        // 🎬 AI總結增量事件（打字機效果）
+        console.log("AI總結增量:", data);
+
+        // 找到對應的消息
+        const summaryDeltaMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (summaryDeltaMessageIndex !== -1) {
+          const message = messages.value[summaryDeltaMessageIndex];
+          
+          // 累積總結內容
+          message.summaryContent = data.accumulated_content || (message.summaryContent || "") + data.content;
+          message.summaryProgress = data.progress || 0;
+          
+          // 更新顯示內容（添加總結部分）
+          const baseContent = message.toolResultSections ? 
+            message.toolResultSections
+              .sort((a, b) => a.index - b.index)
+              .map(section => section.content)
+              .join("") : message.content;
+              
+          // 為總結添加格式化標題和內容
+          const summarySection = message.summaryContent ? 
+            `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}` : '';
+            
+          message.content = baseContent + summarySection;
+          
+          console.log("🎬 AI總結內容更新:", {
+            messageId: data.assistant_message_id,
+            deltaLength: data.content?.length || 0,
+            totalSummaryLength: message.summaryContent?.length || 0,
+            progress: data.progress
+          });
+        }
+        break;
+
+      case "ai_summary_complete":
+        // 🎬 AI總結完成事件
+        console.log("AI總結完成:", data);
+
+        // 找到對應的消息
+        const summaryCompleteMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (summaryCompleteMessageIndex !== -1) {
+          const message = messages.value[summaryCompleteMessageIndex];
+          
+          // 清除總結狀態
+          message.isGeneratingSummary = false;
+          message.summaryMessage = null;
+          message.summaryProgress = 100;
+          
+          // 確保最終內容包含完整總結
+          message.summaryContent = data.summary_content;
+          
+          const baseContent = message.toolResultSections ? 
+            message.toolResultSections
+              .sort((a, b) => a.index - b.index)
+              .map(section => section.content)
+              .join("") : message.content.split('\n\n---\n\n## 🤖 智能總結')[0];
+              
+          message.content = baseContent + `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}`;
+          
+          console.log("🎬 AI總結已完成");
+        }
+        break;
+
+      case "ai_summary_error":
+        // 🎬 AI總結錯誤事件
+        console.error("AI總結錯誤:", data);
+
+        // 找到對應的消息
+        const summaryErrorMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+
+        if (summaryErrorMessageIndex !== -1) {
+          const message = messages.value[summaryErrorMessageIndex];
+          
+          // 清除總結狀態
+          message.isGeneratingSummary = false;
+          message.summaryMessage = null;
+          message.summaryError = data.error;
+          
+          console.log("🎬 AI總結發生錯誤");
+        }
+        break;
+
       case "secondary_ai_start":
         // 二次 AI 調用開始
         console.log("二次 AI 調用開始:", data);
@@ -1730,6 +1910,87 @@ export const useChatStore = defineStore("chat", () => {
           });
         } else {
           console.warn("⚠️ 找不到對應的消息來顯示 MCP 錯誤:", data.assistant_message_id);
+        }
+        break;
+
+      case "mcp_tool_start":
+        // 🚀 新增：MCP 工具流式調用開始
+        console.log("MCP 工具流式調用開始:", data);
+        
+        const mcpStartMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+        
+        if (mcpStartMessageIndex !== -1) {
+          messages.value[mcpStartMessageIndex].mcpStreaming = true;
+          messages.value[mcpStartMessageIndex].mcpToolName = data.toolName;
+          messages.value[mcpStartMessageIndex].mcpStreamContent = "";
+        }
+        break;
+
+      case "mcp_tool_chunk":
+        // 🚀 新增：MCP 工具流式內容塊
+        console.log("MCP 工具流式內容塊:", data);
+        
+        const mcpChunkMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+        
+        if (mcpChunkMessageIndex !== -1) {
+          // 累積流式內容
+          if (!messages.value[mcpChunkMessageIndex].mcpStreamContent) {
+            messages.value[mcpChunkMessageIndex].mcpStreamContent = "";
+          }
+          messages.value[mcpChunkMessageIndex].mcpStreamContent += data.content;
+          
+          // 更新進度信息
+          if (data.index !== undefined && data.total !== undefined) {
+            messages.value[mcpChunkMessageIndex].mcpProgress = {
+              current: data.index + 1,
+              total: data.total,
+              percentage: Math.round(((data.index + 1) / data.total) * 100)
+            };
+          }
+        }
+        break;
+
+      case "mcp_tool_complete":
+        // 🚀 新增：MCP 工具流式調用完成
+        console.log("MCP 工具流式調用完成:", data);
+        
+        const mcpCompleteMessageIndex = messages.value.findIndex(
+          (msg) => msg.id === data.assistant_message_id
+        );
+        
+        if (mcpCompleteMessageIndex !== -1) {
+          // 標記流式結束
+          messages.value[mcpCompleteMessageIndex].mcpStreaming = false;
+          
+          // 將流式內容設置為最終工具結果
+          const finalContent = messages.value[mcpCompleteMessageIndex].mcpStreamContent || "";
+          
+          // 初始化工具調用結果數組（如果不存在）
+          if (!messages.value[mcpCompleteMessageIndex].tool_results) {
+            messages.value[mcpCompleteMessageIndex].tool_results = [];
+          }
+          
+          // 添加流式結果到工具調用結果中
+          messages.value[mcpCompleteMessageIndex].tool_results.push({
+            tool_name: data.toolName || messages.value[mcpCompleteMessageIndex].mcpToolName,
+            result: finalContent,
+            timestamp: new Date().toISOString(),
+            isStreamed: true
+          });
+          
+          // 標記有工具調用
+          messages.value[mcpCompleteMessageIndex].has_tool_calls = true;
+          
+          // 清理臨時屬性
+          delete messages.value[mcpCompleteMessageIndex].mcpStreamContent;
+          delete messages.value[mcpCompleteMessageIndex].mcpProgress;
+          delete messages.value[mcpCompleteMessageIndex].mcpToolName;
+          
+          console.log("🏁 MCP 工具流式調用完成，結果已保存");
         }
         break;
 

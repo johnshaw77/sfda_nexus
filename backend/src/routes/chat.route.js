@@ -1191,4 +1191,58 @@ router.post(
   chatController.handleReconnectMCPService
 );
 
+/**
+ * @swagger
+ * /api/chat/messages/{messageId}/full-content:
+ *   get:
+ *     tags:
+ *       - Chat
+ *     summary: 獲取訊息的完整內容
+ *     description: 當訊息內容過長被截斷時，獲取完整的原始內容
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 訊息ID
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 獲取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     fullContent:
+ *                       type: string
+ *                     originalLength:
+ *                       type: integer
+ *                     isTruncated:
+ *                       type: boolean
+ *                     truncatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       403:
+ *         description: 無權限訪問
+ *       404:
+ *         description: 訊息不存在
+ */
+router.get(
+  "/messages/:messageId/full-content",
+  authenticateToken,
+  chatController.handleGetFullMessageContent
+);
+
 export default router;

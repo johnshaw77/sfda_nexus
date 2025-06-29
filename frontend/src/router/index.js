@@ -186,6 +186,15 @@ const routes = [
           icon: "FileTextOutlined",
         },
       },
+      {
+        path: "knowledge",
+        name: "KnowledgeManagement",
+        component: () => import("@/views/admin/knowledge.vue"),
+        meta: {
+          title: "知識庫管理",
+          icon: "BookOutlined",
+        },
+      },
     ],
   },
 
