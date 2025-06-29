@@ -385,7 +385,7 @@ class ChatService {
 
       // 🎬 格式化工具結果（使用串流版本）
       let formattedResults = "";
-      
+
       // 檢查是否需要串流格式化
       if (context.stream && context.onToolResultSection) {
         console.log("=== 使用串流格式化工具結果 ===");
@@ -393,7 +393,7 @@ class ChatService {
           toolResults,
           context.onToolResultSection
         );
-        
+
         // 🎬 工具結果完成後，開始AI總結階段
         if (context.onAISummaryStart) {
           context.onAISummaryStart();
@@ -461,10 +461,12 @@ ${formattedResults}`;
         console.log("格式化結果長度:", formattedResults.length);
 
         if (hasCompleteData) {
-          console.log("=== 格式化結果完整，但跳過舊的AI總結（使用新的流式總結） ===");
+          console.log(
+            "=== 格式化結果完整，但跳過舊的AI總結（使用新的流式總結） ==="
+          );
           // 🎬 新策略：禁用舊的二次AI調用，只使用新的流式總結
           console.log("🎬 已禁用舊的AI總結機制，將使用新的流式總結");
-          
+
           // 直接返回格式化結果，不進行二次AI調用
           return {
             original_response: aiResponse,
@@ -636,12 +638,15 @@ ${formattedResults}`;
             "🎨 [圖表場景優化] 檢測到圖表創建工具調用，使用專門的輕量模型"
           );
 
-          // 🚀 從資料庫獲取專門的圖表回應模型 (qwen2.5vl:7b)
+          // 🚀 從資料庫獲取專門的圖表回應模型
           try {
             const { query } = await import("../config/database.config.js");
+            // 🔧 使用環境變數配置的輕量模型
+            const lightModelName =
+              process.env.PROMPT_OPTIMIZATION_MODEL_NAME || "qwen2.5:1.5b";
             const { rows: chartModelRows } = await query(
               "SELECT * FROM ai_models WHERE model_id = ? AND is_active = 1",
-              ["qwen2.5:1.5b"]
+              [lightModelName]
             );
 
             if (chartModelRows.length > 0) {
@@ -658,7 +663,7 @@ ${formattedResults}`;
               );
             } else {
               console.log(
-                "⚠️ [圖表場景優化] 未找到 qwen2.5vl:7b 模型，使用 fallback 輕量模型"
+                `⚠️ [圖表場景優化] 未找到 ${lightModelName} 模型，使用 fallback 輕量模型`
               );
               // fallback 到任何可用的輕量模型
               const { rows: lightModelRows } = await query(
@@ -799,9 +804,12 @@ ${JSON.stringify(rawData, null, 2)}
             };
           } else {
             // 🚀 快速二次AI調用：使用輕量模型進行快速總結
+            // 🔧 使用環境變數配置的總結模型
+            const summaryModelName =
+              process.env.AI_SUMMARY_MODEL_NAME || "qwen2.5:14b";
             const secondaryAIResponse = await AIService.callModel({
               provider: secondaryModelConfig.model_type || "ollama",
-              model: "qwen2.5:14b", // 🎯 使用您配置的模型
+              model: secondaryModelConfig.model_id || summaryModelName, // 🎯 使用配置的模型
               endpoint_url:
                 context.endpoint_url || secondaryModelConfig.endpoint_url,
               api_key: secondaryModelConfig.api_key_encrypted,
@@ -1067,44 +1075,51 @@ ${formattedResults}
    * @param {Object} context - 上下文
    * @returns {AsyncGenerator} 流式生成器
    */
-  async* generateAISummaryStream(coreData, userQuestion, context) {
+  async *generateAISummaryStream(coreData, userQuestion, context) {
     try {
       console.log("=== 開始生成AI總結流 ===");
       logger.info("AI總結 - 接收到的核心數據", {
         coreDataCount: coreData.length,
-        coreData: JSON.stringify(coreData, null, 2)
+        coreData: JSON.stringify(coreData, null, 2),
       });
       console.log("核心數據:", JSON.stringify(coreData, null, 2));
 
       // 🎯 構建精確的數據摘要 - 包含實際數據內容
-      const dataFormat = coreData.map(item => {
-        // 提取關鍵數據點
-        let keyPoints = {};
-        if (Array.isArray(item.data)) {
-          keyPoints.total_records = item.data.length;
-          if (item.data.length > 0) {
-            keyPoints.sample_fields = Object.keys(item.data[0]);
-            // 🔧 關鍵修復：包含實際數據內容，不只是統計信息
-            keyPoints.actual_data = item.data;
+      const dataFormat = coreData
+        .map((item) => {
+          // 提取關鍵數據點
+          let keyPoints = {};
+          if (Array.isArray(item.data)) {
+            keyPoints.total_records = item.data.length;
+            if (item.data.length > 0) {
+              keyPoints.sample_fields = Object.keys(item.data[0]);
+              // 🔧 關鍵修復：包含實際數據內容，不只是統計信息
+              keyPoints.actual_data = item.data;
+            }
+          } else if (item.data && typeof item.data === "object") {
+            keyPoints = item.data;
+          } else if (typeof item.data === "string") {
+            keyPoints.content = item.data;
           }
-        } else if (item.data && typeof item.data === 'object') {
-          keyPoints = item.data;
-        } else if (typeof item.data === 'string') {
-          keyPoints.content = item.data;
-        }
 
-        return {
-          tool: item.tool,
-          key_data: keyPoints,
-          summary: item.summary
-        };
-      }).filter(item => item.key_data && Object.keys(item.key_data).length > 0);
+          return {
+            tool: item.tool,
+            key_data: keyPoints,
+            summary: item.summary,
+          };
+        })
+        .filter(
+          (item) => item.key_data && Object.keys(item.key_data).length > 0
+        );
 
       // 🔍 調試：記錄傳遞給AI的數據格式
       logger.info("AI總結 - 傳遞給AI的數據格式", {
-        dataFormat: JSON.stringify(dataFormat, null, 2)
+        dataFormat: JSON.stringify(dataFormat, null, 2),
       });
-      console.log("🔍 [調試] 傳遞給AI的數據格式:", JSON.stringify(dataFormat, null, 2));
+      console.log(
+        "🔍 [調試] 傳遞給AI的數據格式:",
+        JSON.stringify(dataFormat, null, 2)
+      );
 
       // 📋 準備更精確的總結提示詞 - 確保AI能看到完整數據
       const summaryPrompt = `請根據以下查詢結果，為用戶提供簡潔的分析總結：
@@ -1132,12 +1147,12 @@ ${JSON.stringify(dataFormat, null, 2)}
       // 🔍 調試：記錄提示詞
       logger.info("AI總結 - 生成的提示詞", {
         promptLength: summaryPrompt.length,
-        prompt: summaryPrompt
+        prompt: summaryPrompt,
       });
 
       // 🎯 使用更強大的模型進行總結
       const summaryModelConfig = await this.getSummaryModelConfig(context);
-      
+
       console.log("總結模型配置:", summaryModelConfig);
 
       // 📡 調用AI進行總結
@@ -1149,44 +1164,43 @@ ${JSON.stringify(dataFormat, null, 2)}
         messages: [
           {
             role: "user",
-            content: summaryPrompt
-          }
+            content: summaryPrompt,
+          },
         ],
         temperature: 0.8, // 稍高的創造性
         max_tokens: 2048,
       });
 
       // 🎬 模擬打字機效果 - 逐字返回
-      const summaryContent = summaryResponse.content || '';
-      const words = summaryContent.split('');
-      
+      const summaryContent = summaryResponse.content || "";
+      const words = summaryContent.split("");
+
       for (let i = 0; i < words.length; i++) {
         // 🎯 控制打字速度 - 更自然的速度
         const delay = Math.random() * 30 + 20; // 20-50ms隨機延遲
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
         yield {
-          type: 'ai_summary_delta',
+          type: "ai_summary_delta",
           content: words[i],
           timestamp: new Date().toISOString(),
-          progress: Math.round((i + 1) / words.length * 100)
+          progress: Math.round(((i + 1) / words.length) * 100),
         };
       }
 
       console.log("=== AI總結流生成完成 ===");
-
     } catch (error) {
       logger.error("生成AI總結流失敗", {
         error: error.message,
         userQuestion,
-        context: context.conversation_id
+        context: context.conversation_id,
       });
-      
+
       // 💔 流式錯誤處理
       yield {
-        type: 'ai_summary_error',
-        error: '抱歉，AI總結生成失敗，請稍後重試。',
-        timestamp: new Date().toISOString()
+        type: "ai_summary_error",
+        error: "抱歉，AI總結生成失敗，請稍後重試。",
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -1198,24 +1212,56 @@ ${JSON.stringify(dataFormat, null, 2)}
    */
   async getSummaryModelConfig(context) {
     try {
-      // 🎯 優先使用指定的本地模型進行總結
+      // 🔧 從環境變數讀取 AI 總結專用模型配置
+      const targetModelId = process.env.AI_SUMMARY_MODEL_ID || 47;
+      const targetModelName =
+        process.env.AI_SUMMARY_MODEL_NAME || "qwen2.5:14b";
+
+      logger.info("AI總結模型配置", {
+        targetModelId: targetModelId,
+        targetModelName: targetModelName,
+      });
+
       const { query } = await import("../config/database.config.js");
-      
-      // 查找指定的 qwen2.5:14b 模型 (id: 47)
-      const { rows } = await query(`
+
+      // 🎯 優先使用環境變數指定的模型 ID
+      const { rows } = await query(
+        `
         SELECT * FROM ai_models 
         WHERE is_active = 1 
-        AND id = 47
+        AND id = ?
         LIMIT 1
-      `);
+      `,
+        [targetModelId]
+      );
 
       if (rows.length > 0) {
         logger.info("使用指定的本地模型進行AI總結", {
           model: rows[0].model_id,
           provider: rows[0].model_type,
-          endpoint: rows[0].endpoint_url
+          endpoint: rows[0].endpoint_url,
         });
         return rows[0];
+      }
+
+      // 🔧 如果指定 ID 的模型不存在，嘗試按模型名稱查找
+      const { rows: nameMatchRows } = await query(
+        `
+        SELECT * FROM ai_models 
+        WHERE is_active = 1 
+        AND model_id = ?
+        LIMIT 1
+      `,
+        [targetModelName]
+      );
+
+      if (nameMatchRows.length > 0) {
+        logger.info("指定 ID 模型不存在，使用名稱匹配的模型進行AI總結", {
+          model: nameMatchRows[0].model_id,
+          provider: nameMatchRows[0].model_type,
+          endpoint: nameMatchRows[0].endpoint_url,
+        });
+        return nameMatchRows[0];
       }
 
       // 如果指定模型不可用，查找其他 qwen 模型
@@ -1228,32 +1274,33 @@ ${JSON.stringify(dataFormat, null, 2)}
       `);
 
       if (qwenRows.length > 0) {
-        logger.info("使用備選 qwen 模型進行AI總結", {
+        logger.warn("指定模型不可用，使用備選 qwen 模型進行AI總結", {
           model: qwenRows[0].model_id,
           provider: qwenRows[0].model_type,
-          endpoint: qwenRows[0].endpoint_url
+          endpoint: qwenRows[0].endpoint_url,
         });
         return qwenRows[0];
       }
 
       // 最終回退到用戶選擇的模型
-      logger.warn("指定模型不可用，回退到用戶選擇的模型");
-      return context.model_config || {
-        model_type: 'ollama',
-        model_id: 'qwen2.5:14b',
-        endpoint_url: 'http://10.8.32.39:8000/ollama',
-        api_key_encrypted: null
-      };
-
+      logger.warn("所有指定模型都不可用，回退到用戶選擇的模型");
+      return (
+        context.model_config || {
+          model_type: "ollama",
+          model_id: targetModelName,
+          endpoint_url: "http://10.8.32.39:8000/ollama",
+          api_key_encrypted: null,
+        }
+      );
     } catch (error) {
       logger.error("獲取總結模型配置失敗", { error: error.message });
-      
+
       // 最終回退
       return {
-        model_type: 'gemini',
-        model_id: 'gemini-1.5-flash',
+        model_type: "gemini",
+        model_id: "gemini-1.5-flash",
         endpoint_url: null,
-        api_key_encrypted: null
+        api_key_encrypted: null,
       };
     }
   }

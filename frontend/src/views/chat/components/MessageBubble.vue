@@ -1,3 +1,49 @@
+<!--
+
+/**
+ * @fileoverview MessageBubble - 聊天消息氣泡組件
+ * @description 這是聊天介面中的核心組件，負責渲染和管理所有類型的消息氣泡，
+ * 包括用戶消息、AI 助手回應、系統消息等。支援多種功能如工具調用、
+ * 圖表生成、思考過程顯示、附件處理等。
+ * 
+ * @component MessageBubble
+ * @author SFDA Development Team
+ * @since 1.0.0
+ * @version 2.0.0
+ * 
+ * @example
+ * <MessageBubble 
+ *   :message="messageData"
+ *   :show-status="true"
+ *   @quote-message="handleQuoteMessage"
+ *   @regenerate-response="handleRegenerateResponse"
+ *   @generate-chart="handleGenerateChart"
+ * />
+ * 
+ * @description 主要功能模組：
+ * - 消息頭部資訊（MessageHeader）
+ * - 消息內容渲染（MessageContent）
+ * - 引用消息顯示（QuotedMessage）
+ * - 思考過程顯示（ThinkingProcess）
+ * - 工具調用結果（ToolCallResults）
+ * - MCP 錯誤處理（McpErrorDisplay）
+ * - 附件顯示（MessageAttachments）
+ * - 圖表顯示和建議（ChartDisplay, ChartSuggestion）
+ * - 消息操作工具欄（MessageActions）
+ * 
+ * @requires vue
+ * @requires ant-design-vue
+ * @requires @/stores/chat
+ * @requires @/stores/config
+ * @requires @/stores/auth
+ * @requires @/stores/agents
+ * @requires @/utils/datetimeFormat
+ * @requires @/api/files
+ * @requires @/services/chartIntegrationService
+ * @requires @/utils/mcpStatisticalAdapter
+ */
+*/
+-->
 <template>
   <div
     class="message-bubble"
@@ -8,309 +54,44 @@
       'error-message': isErrorMessage,
     }">
     <!-- 消息頭部信息 -->
-    <div class="message-header">
-      <div class="message-avatar">
-        <!-- 用戶頭像 -->
-        <a-avatar
-          v-if="message.role === 'user'"
-          :size="32"
-          :src="authStore.user?.avatar"
-          :style="{
-            backgroundColor: authStore.user?.avatar ? 'transparent' : '#1890ff',
-          }">
-          <UserOutlined v-if="!authStore.user?.avatar" />
-        </a-avatar>
-
-        <!-- AI智能體頭像 -->
-        <div
-          v-else-if="message.role === 'assistant'"
-          class="agent-avatar-wrapper">
-          <!-- 如果智能體有 base64 avatar，顯示圖片 -->
-          <a-avatar
-            v-if="
-              currentAgentAvatar &&
-              typeof currentAgentAvatar === 'string' &&
-              currentAgentAvatar.startsWith('data:')
-            "
-            :size="32"
-            :src="currentAgentAvatar"
-            class="agent-avatar-image" />
-          <!-- 如果智能體有頭像配置但不是圖片，使用漸變背景 -->
-          <a-avatar
-            v-else-if="
-              currentAgentAvatar && typeof currentAgentAvatar === 'object'
-            "
-            :size="32"
-            :style="{
-              backgroundColor: 'transparent',
-              background:
-                currentAgentAvatar.gradient ||
-                currentAgentAvatar.background ||
-                '#52c41a',
-            }"
-            class="agent-avatar-bg">
-            <!-- 如果有自定義圖標 -->
-            <svg
-              v-if="currentAgentAvatar.icon"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="currentColor">
-              <path :d="currentAgentAvatar.icon" />
-            </svg>
-            <!-- 沒有自定義圖標使用默認 -->
-            <RobotOutlined v-else />
-          </a-avatar>
-          <!-- 沒有頭像配置時使用默認 -->
-          <a-avatar
-            v-else
-            :size="32"
-            :style="{ backgroundColor: '#52c41a' }">
-            <RobotOutlined />
-          </a-avatar>
-        </div>
-
-        <!-- 系統消息頭像 -->
-        <a-avatar
-          v-else
-          :size="32"
-          :style="{ backgroundColor: '#faad14' }">
-          <InfoCircleOutlined />
-        </a-avatar>
-      </div>
-      <div class="message-info">
-        <div class="message-sender">
-          {{ getSenderName() }}
-        </div>
-        <div class="message-time">
-          {{ formatMessageTime(message.created_at) }}
-        </div>
-      </div>
-    </div>
+    <MessageHeader
+      :message="message"
+      :agent-avatar="currentAgentAvatar" />
 
     <!-- 消息內容 TODO: 做TEST-->
     <div class="message-content">
       <!-- 引用的消息 -->
-      <div
-        v-if="message.quoted_message"
-        class="quoted-message">
-        <div class="quote-header">
-          <UserOutlined v-if="message.quoted_message.role === 'user'" />
-          <RobotOutlined v-else />
-          <span>{{
-            message.quoted_message.role === "user"
-              ? "用戶"
-              : message.quoted_message.agent_name ||
-                agentsStore.getCurrentAgent?.display_name ||
-                agentsStore.getCurrentAgent?.name ||
-                "AI助手"
-          }}</span>
-        </div>
-        <div class="quote-content">
-          {{ getQuotePreview(message.quoted_message.content) }}
-        </div>
-      </div>
+      <QuotedMessage :message="message" />
 
-      <!-- 工具調用結果顯示 - 移到最終回應內容之前 -->
-      <div
-        v-if="message.role === 'assistant' && effectiveToolCalls.length > 0"
-        class="tool-calls-section">
-        <div
-          class="tool-calls-header"
-          @click="toggleToolCallsCollapse"
-          style="cursor: pointer">
-          <div class="tool-calls-header-left">
-            <ToolOutlined />
-            <span>工具調用 ({{ effectiveToolCalls.length }})</span>
-          </div>
-          <div class="tool-calls-header-right">
-            <DownOutlined
-              :class="['collapse-icon', { collapsed: toolCallsCollapsed }]" />
-          </div>
-        </div>
-        <div
-          v-show="!toolCallsCollapsed"
-          class="tool-calls-list">
-          <ToolCallDisplay
-            v-for="(toolCall, index) in effectiveToolCalls"
-            :key="index"
-            :tool-call="toolCall" />
-        </div>
-      </div>
+      <!-- 工具調用結果顯示 -->
+      <ToolCallResults
+        :message="message"
+        :effective-tool-calls="effectiveToolCalls"
+        :tool-calls-collapsed="toolCallsCollapsed"
+        @toggle-tool-calls-collapse="toggleToolCallsCollapse" />
 
-      <!-- 🚨 MCP 錯誤顯示 -->
-      <div
-        v-if="
-          message.role === 'assistant' &&
-          message.mcpErrors &&
-          message.mcpErrors.length > 0
-        "
-        class="mcp-errors-section">
-        <div class="mcp-errors-header">
-          <ExclamationCircleOutlined class="error-icon" />
-          <span>工具調用問題</span>
-          <a-badge
-            :count="message.mcpErrors.length"
-            class="error-count" />
-        </div>
-        <div class="mcp-errors-list">
-          <div
-            v-for="(mcpError, index) in message.mcpErrors"
-            :key="index"
-            class="mcp-error-item">
-            <a-alert
-              :type="getErrorAlertType(mcpError.error_type)"
-              :message="getErrorTitle(mcpError)"
-              :description="getErrorDescription(mcpError)"
-              show-icon
-              closable
-              @close="handleDismissMcpError(index)"
-              class="mcp-error-alert">
-              <template #icon>
-                <ExclamationCircleOutlined
-                  v-if="mcpError.error_type === 'SERVICE_UNAVAILABLE'" />
-                <DisconnectOutlined
-                  v-else-if="mcpError.error_type === 'CONNECTION_FAILED'" />
-                <DatabaseOutlined
-                  v-else-if="mcpError.error_type === 'DATABASE_ERROR'" />
-                <SafetyCertificateOutlined
-                  v-else-if="mcpError.error_type === 'AUTHENTICATION_ERROR'" />
-                <ClockCircleOutlined
-                  v-else-if="mcpError.error_type === 'TIMEOUT_ERROR'" />
-                <ToolOutlined
-                  v-else-if="mcpError.error_type === 'TOOL_NOT_FOUND'" />
-                <WarningOutlined v-else />
-              </template>
-              <template #action>
-                <a-button
-                  v-if="
-                    mcpError.error_type === 'SERVICE_UNAVAILABLE' ||
-                    mcpError.error_type === 'CONNECTION_FAILED'
-                  "
-                  size="small"
-                  :type="mcpError.retried ? 'default' : 'primary'"
-                  :disabled="mcpError.retried"
-                  @click="handleRetryMcpTool(mcpError)">
-                  <template v-if="mcpError.retried">
-                    <CheckOutlined /> 已重試
-                  </template>
-                  <template v-else> <ReloadOutlined /> 重試 </template>
-                </a-button>
-              </template>
-            </a-alert>
-          </div>
-        </div>
-      </div>
+      <!-- MCP 錯誤顯示 -->
+      <McpErrorDisplay
+        :message="message"
+        @retry-mcp-service="handleRetryMcpTool" />
 
       <!-- 思考過程顯示 -->
-      <div
-        v-if="message.role === 'assistant' && getThinkingContent()"
-        class="thinking-section">
-        <div
-          class="thinking-header"
-          @click="toggleThinkingCollapse"
-          style="cursor: pointer">
-          <div class="thinking-header-left">
-            <BulbOutlined />
-            <span>思考過程</span>
-            <span
-              v-if="isMessageStreaming || isThinkingAnimating"
-              class="thinking-indicator">
-              <LoadingOutlined spin />
-              <span class="thinking-status">
-                {{ isThinkingAnimating ? "思考中..." : "生成中..." }}
-              </span>
-            </span>
-          </div>
-          <div class="thinking-header-right">
-            <DownOutlined
-              :class="['collapse-icon', { collapsed: thinkingCollapsed }]" />
-          </div>
-        </div>
-        <div
-          v-show="!thinkingCollapsed"
-          class="thinking-content">
-          <div class="thinking-text">
-            {{ displayedThinkingContent }}
-            <span
-              v-if="isThinkingAnimating"
-              class="thinking-cursor"
-              >|</span
-            >
-          </div>
-        </div>
-      </div>
+      <ThinkingProcess
+        :message="message"
+        :thinking-collapsed="thinkingCollapsed"
+        :is-message-streaming="isMessageStreaming"
+        :is-thinking-animating="isThinkingAnimating"
+        :displayed-thinking-content="displayedThinkingContent"
+        @toggle-thinking-collapse="toggleThinkingCollapse" />
 
-      <!-- 🔧 新增：工具處理狀態顯示 -->
-      <div
-        v-if="message.role === 'assistant' && message.isProcessingTools"
-        class="tool-processing-section">
-        <div class="tool-processing-header">
-          <ToolOutlined />
-          <div class="tool-processing-content">
-            <div class="tool-processing-message">
-              {{ message.toolProcessingMessage || "正在檢查並處理工具調用..." }}
-            </div>
-            <!-- 🚀 新增：進度條 -->
-            <div
-              v-if="message.progress !== undefined"
-              class="tool-progress">
-              <a-progress
-                :percent="message.progress"
-                :show-info="false"
-                size="small"
-                :stroke-color="{
-                  '0%': '#108ee9',
-                  '100%': '#87d068',
-                }" />
-              <span class="progress-text">{{ message.progress }}%</span>
-            </div>
-          </div>
-          <LoadingOutlined
-            spin
-            class="processing-spinner" />
-        </div>
-      </div>
+      <!-- 工具處理狀態顯示 -->
+      <ToolProcessingStatus :message="message" />
 
-      <!-- 🎬 新增：工具結果分段串流狀態顯示 -->
-      <div
-        v-if="message.role === 'assistant' && message.toolResultSections && !message.finalContent"
-        class="tool-result-streaming-section">
-        <div class="tool-result-streaming-header">
-          <LoadingOutlined spin />
-          <div class="streaming-content">
-            <div class="streaming-message">
-              📋 正在組織結果 {{ message.currentSection || 0 }}/{{ message.totalSections || 0 }}
-            </div>
-            <div
-              v-if="message.toolResultProgress !== undefined"
-              class="streaming-progress">
-              <a-progress
-                :percent="message.toolResultProgress"
-                :show-info="false"
-                size="small"
-                :stroke-color="{
-                  '0%': '#108ee9',
-                  '100%': '#52c41a',
-                }" />
-              <span class="progress-text">{{ message.toolResultProgress }}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- 工具結果分段串流狀態顯示 -->
+      <ToolResultStreaming :message="message" />
 
-      <!-- 🚀 新增：二次調用優化狀態顯示 -->
-      <div
-        v-if="message.role === 'assistant' && message.isOptimizing"
-        class="optimizing-section">
-        <div class="optimizing-header">
-          <BulbOutlined />
-          <span>{{ message.optimizingMessage || "正在優化回應內容..." }}</span>
-          <LoadingOutlined
-            spin
-            class="processing-spinner" />
-        </div>
-      </div>
+      <!-- 二次調用優化狀態顯示 -->
+      <OptimizingStatus :message="message" />
 
       <!-- 🔧 新增：工具處理錯誤顯示 -->
       <div
@@ -320,417 +101,50 @@
         <span>{{ message.toolProcessingError }}</span>
       </div>
 
-      <!-- 🔧 附件顯示移到內容上方 -->
-      <!-- 圖片附件顯示（僅用戶訊息） - 使用與其他檔案一致的卡片樣式 -->
-      <div
-        v-if="message.role === 'user' && imageAttachments.length > 0"
-        class="message-attachments">
-        <div
-          v-for="attachment in imageAttachments"
-          :key="attachment.id"
-          class="attachment-item"
-          @click="handleViewAttachment(attachment)">
-          <div class="attachment-card">
-            <div class="attachment-icon-container">
-              <div class="attachment-icon image-preview-icon">
-                <img
-                  :src="getImageSrc(attachment.id)"
-                  :alt="attachment.filename || attachment.name"
-                  class="image-preview-thumbnail"
-                  @error="handleImageError" />
-                <div class="image-preview-overlay">
-                  <EyeOutlined class="preview-icon" />
-                </div>
-              </div>
-            </div>
-            <!-- 為圖片附件添加tooltip到整個info區域，不顯示檔名文字 -->
-            <a-tooltip
-              :title="attachment.filename || attachment.name"
-              placement="top">
-              <div class="attachment-info">
-                <!-- 圖片附件不顯示檔名，只保留檔案類型和大小 -->
-                <div class="attachment-meta">
-                  <span class="attachment-size">
-                    {{ getFileTypeLabel(attachment) }}
-                    {{
-                      formatFileSize(attachment.file_size || attachment.size)
-                    }}
-                  </span>
-                </div>
-              </div>
-            </a-tooltip>
-          </div>
-        </div>
-      </div>
-
-      <!-- 非圖片附件列表或AI消息的所有附件 -->
-      <div
-        v-if="
-          message.attachments &&
-          (message.role === 'assistant' || nonImageAttachments.length > 0)
-        "
-        class="message-attachments">
-        <div
-          v-for="attachment in message.role === 'assistant'
-            ? message.attachments
-            : nonImageAttachments"
-          :key="attachment.id"
-          class="attachment-item"
-          @click="handleViewAttachment(attachment)">
-          <div class="attachment-card">
-            <div class="attachment-icon-container">
-              <!-- 圖片附件顯示預覽縮圖 -->
-              <div
-                v-if="
-                  attachment.file_type === 'image' ||
-                  attachment.mime_type?.startsWith('image/')
-                "
-                class="attachment-icon image-preview-icon">
-                <img
-                  :src="getImageSrc(attachment.id)"
-                  :alt="attachment.filename || attachment.name"
-                  class="image-preview-thumbnail"
-                  @error="handleImageError" />
-                <div class="image-preview-overlay">
-                  <EyeOutlined class="preview-icon" />
-                </div>
-              </div>
-              <!-- 非圖片附件顯示檔案圖標 -->
-              <div
-                v-else
-                class="attachment-icon">
-                <component
-                  :is="getFileIcon(attachment)"
-                  :style="{ color: getFileTypeColor(attachment) }" />
-              </div>
-            </div>
-            <a-tooltip
-              :title="attachment.filename || attachment.name"
-              placement="top">
-              <div class="attachment-info">
-                <!-- 非圖片附件顯示檔名，圖片附件不顯示檔名 -->
-                <div
-                  v-if="
-                    !(
-                      attachment.file_type === 'image' ||
-                      attachment.mime_type?.startsWith('image/')
-                    )
-                  "
-                  class="attachment-filename">
-                  {{ attachment.filename || attachment.name }}
-                </div>
-                <div class="attachment-meta">
-                  <span class="attachment-size">
-                    {{ getFileTypeLabel(attachment) }}
-                    {{
-                      formatFileSize(attachment.file_size || attachment.size)
-                    }}
-                  </span>
-                </div>
-              </div>
-            </a-tooltip>
-          </div>
-
-          <!-- 🔧 移除用戶訊息的快速命令按鈕，減少視覺干擾 -->
-          <!-- 檔案操作按鈕已隱藏，不再顯示快速命令 -->
-        </div>
-      </div>
+      <!-- 附件顯示 -->
+      <MessageAttachments
+        :message="message"
+        @view-attachment="handleViewAttachment" />
 
       <!-- 主要內容 -->
-      <div class="message-text">
-        <!-- 🔧 新增：Summary 模式標識 -->
-        <div
-          v-if="message.role === 'assistant' && message.used_summary"
-          class="summary-mode-indicator">
-          <div class="summary-badge">
-            <FileTextOutlined />
-            <span>工具摘要模式</span>
-            <a-tooltip
-              title="工具提供了數據摘要，AI 基於此摘要和完整數據進行了智能分析">
-              <InfoCircleOutlined class="info-icon" />
-            </a-tooltip>
-          </div>
-        </div>
+      <MessageContent
+        :message="message"
+        :is-error-message="isErrorMessage"
+        :should-use-content-animation="shouldUseContentAnimation"
+        :is-chart-message="isChartMessage"
+        :is-user-message-collapsed="isUserMessageCollapsed"
+        :should-show-expand-button="shouldShowExpandButton"
+        :realtime-render="configStore.chatSettings.useRealtimeRender"
+        :tool-summaries="toolSummaries"
+        @toggle-user-message-expand="toggleUserMessageExpand" />
 
-        <!-- 🔧 工具 Summary 顯示（AI 回應之前） -->
-        <div
-          v-if="message.role === 'assistant' && toolSummaries.length > 0"
-          class="tool-summaries-section">
-          <div
-            v-for="(summaryItem, index) in toolSummaries"
-            :key="index"
-            class="tool-summary-item">
-            <div class="tool-summary-header">
-              <FileTextOutlined />
-              <span class="tool-summary-title"
-                >{{ summaryItem.toolName }} 數據摘要</span
-              >
-              <a-tag
-                color="green"
-                size="small"
-                >工具摘要</a-tag
-              >
-            </div>
-            <div class="tool-summary-content">
-              {{ summaryItem.summary }}
-            </div>
-          </div>
-        </div>
+      <!-- 圖表顯示 -->
+      <ChartDisplay
+        :is-chart-message="isChartMessage"
+        :chart-data="chartData"
+        :has-mcp-detected-chart="hasMcpDetectedChart"
+        :mcp-chart-detection="mcpChartDetection"
+        :has-backend-detected-chart="hasBackendDetectedChart"
+        :backend-chart-detection="backendChartDetection" />
 
-        <!-- 🔧 臨時調試顯示 
-        <div
-          v-if="message.role === 'assistant' && message.metadata?.tool_results"
-          style="
-            background: yellow;
-            padding: 10px;
-            margin: 10px 0;
-            border: 2px solid red;
-            max-height: 300px;
-            overflow-y: auto;
-          ">
-          <strong>🔍 調試信息:</strong><br />
-          工具結果數量: {{ message.metadata.tool_results.length }}<br />
-          toolSummaries 數量: {{ toolSummaries.length }}<br />
-          <div
-            v-for="(result, index) in message.metadata.tool_results"
-            :key="index">
-            <strong>工具結果 {{ index }}:</strong><br />
-            {{ result }}<br />
-            success: {{ result.success }}<br />
-            tool_name: {{ result.tool_name }}<br />
-            有 result: {{ !!result.result }}<br />
-            有 data: {{ !!result.data }}<br />
-            result 內的 summary: {{ result.result?.summary }}<br />
-            result 內的 Summary: {{ result.result?.Summary }}<br />
-            result 內的 statistics.summary:
-            {{ result.result?.statistics?.summary }}<br />
-            直接的 summary: {{ result.summary }}<br />
-            直接的 Summary: {{ result.Summary }}<br />
-            ---<br />
-          </div>
-        </div>
--->
-        <!-- AI 消息 - 錯誤訊息使用純文本顯示 -->
-        <div
-          v-if="message.role === 'assistant' && isErrorMessage"
-          class="plain-text error-text">
-          {{ message.content }}
-        </div>
-        <!-- AI 消息 - 使用動畫內容組件 -->
-        <AnimatedContent
-          v-if="
-            shouldUseContentAnimation &&
-            message.role === 'assistant' &&
-            !isChartMessage
-          "
-          :content="message.content"
-          :enable-animation="true"
-          :animation-speed="'normal'"
-          :chunk-size-range="[15, 25]"
-          :enable-gradient-effect="true"
-          ref="animatedContentRef"
-          @animation-complete="() => {}" />
-        <!-- AI 消息 - 使用 CodeHighlight 組件 (fallback) -->
-        <CodeHighlight
-          v-else-if="message.role === 'assistant' && !isChartMessage"
-          :content="message.content"
-          :is-streaming="message.isStreaming"
-          :enable-keyword-highlight="true"
-          theme="auto"
-          :debug="false"
-          :realtime-render="configStore.chatSettings.useRealtimeRender"
-          ref="codeHighlightRef" />
-        <!-- 純文本（用戶消息） -->
-        <div
-          v-else
-          class="plain-text"
-          :class="{
-            collapsed: isUserMessageCollapsed && shouldShowExpandButton,
-          }"
-          ref="userMessageContent">
-          {{ message.content }}
-        </div>
-        <!-- 展開/收起按鈕（用戶消息） -->
-        <div
-          v-if="message.role === 'user' && shouldShowExpandButton"
-          class="expand-button-container">
-          <a-button
-            type="link"
-            size="small"
-            @click="toggleUserMessageExpand"
-            class="expand-button">
-            <template #icon>
-              <svg
-                v-if="isUserMessageCollapsed"
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="currentColor">
-                <path d="M7 14l5-5 5 5z" />
-              </svg>
-              <svg
-                v-else
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="currentColor">
-                <path d="M7 10l5 5 5-5z" />
-              </svg>
-            </template>
-            {{ isUserMessageCollapsed ? "展開" : "收起" }}
-          </a-button>
-        </div>
-      </div>
-
-      <!-- 🎯 智能圖表展示 -->
-      <div
-        v-if="isChartMessage && chartData"
-        class="chart-message-container">
-        <SmartChart
-          :data="chartData.data || {}"
-          :prebuilt-chart="chartData"
-          :chart-type="chartData.type || chartData.chartType"
-          :title="chartData.title"
-          :description="chartData.description"
-          :width="'100%'"
-          :height="400"
-          :enable-download="true"
-          :enable-fullscreen="true"
-          :enable-data-view="true"
-          :enable-type-switch="true" />
-      </div>
-
-      <!-- AI 模型信息 - 統一顯示 -->
-      <div
+      <!-- AI 模型信息和操作 -->
+      <MessageActions
         v-if="message.role === 'assistant'"
         v-show="!message.isStreaming && message.status !== 'sending'"
-        class="model-info">
-        <!-- 工具欄放在模型信息右側 -->
-        <div
-          v-show="!message.isStreaming && message.status !== 'sending'"
-          class="model-info-actions">
-          <a-tooltip title="複製消息">
-            <a-button
-              type="text"
-              size="small"
-              @click="handleCopyMessage">
-              <CopyOutlined />
-            </a-button>
-          </a-tooltip>
+        :message="message"
+        :enable-content-animation="enableContentAnimation"
+        @copy-content="handleCopyMessage"
+        @regenerate-response="handleRegenerateResponse"
+        @quote-message="handleQuoteMessage"
+        @toggle-content-animation="toggleContentAnimation"
+        @delete-message="handleDeleteMessage" />
 
-          <a-tooltip title="重新生成">
-            <a-button
-              type="text"
-              size="small"
-              @click="handleRegenerateResponse">
-              <ReloadOutlined />
-            </a-button>
-          </a-tooltip>
-
-          <a-tooltip title="引用回覆">
-            <a-button
-              type="text"
-              size="small"
-              @click="handleQuoteMessage">
-              <MessageOutlined />
-            </a-button>
-          </a-tooltip>
-
-          <!-- 🎬 動畫效果切換按鈕 -->
-          <a-tooltip
-            :title="enableContentAnimation ? '關閉動畫效果' : '開啟動畫效果'">
-            <a-button
-              type="text"
-              size="small"
-              @click="toggleContentAnimation"
-              :class="{ 'animation-active': enableContentAnimation }">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="currentColor">
-                <path
-                  v-if="enableContentAnimation"
-                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                <path
-                  v-else
-                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                  opacity="0.3" />
-              </svg>
-            </a-button>
-          </a-tooltip>
-
-          <a-tooltip title="刪除消息">
-            <a-button
-              type="text"
-              size="small"
-              @click="handleDeleteMessage"
-              class="danger-item">
-              <DeleteOutlined />
-            </a-button>
-          </a-tooltip>
-
-          <!-- 🎯 測試圖表檢測按鈕 TODO: 先關閉圖表檢查
-          <a-tooltip title="測試圖表檢測">
-            <a-button
-              type="text"
-              size="small"
-              @click="detectChartsInMessage"
-              style="color: #1890ff">
-              <BarChartOutlined />
-            </a-button>
-          </a-tooltip>
-          -->
-        </div>
-        <div class="model-info-right">
-          <span class="token-usage">
-            Token: {{ (message.tokens_used || 0).toLocaleString() }}
-          </span>
-          <!-- <span
-            class="cost-info"
-            v-if="message.cost && parseFloat(message.cost) > 0">
-            Cost: ${{ parseFloat(message.cost).toFixed(6) }}
-          </span> -->
-          <a-tag
-            :color="getModelColor(message.model_info?.provider || 'default')">
-            {{
-              message.model_info?.model ||
-              message.model ||
-              message.model_info?.display_name ||
-              "未知模型"
-            }}
-          </a-tag>
-        </div>
-      </div>
-
-      <!-- 🎯 智能詢問：確認是否需要製作圖表 -->
-      <div
-        v-if="
-          message.role === 'assistant' &&
-          backendChartDetection &&
-          backendChartDetection.needsConfirmation
-        "
-        class="chart-confirmation-section">
-        <div class="chart-confirmation-header">
-          <QuestionCircleOutlined />
-          <span>{{ backendChartDetection.confirmationMessage }}</span>
-        </div>
-        <div class="chart-confirmation-actions">
-          <a-button
-            type="primary"
-            size="small"
-            @click="handleConfirmChart(true)"
-            :loading="isGeneratingChart">
-            <BarChartOutlined />
-            是的，製作圖表
-          </a-button>
-          <a-button
-            size="small"
-            @click="handleConfirmChart(false)">
-            不需要
-          </a-button>
-        </div>
-      </div>
+      <!-- 圖表確認 -->
+      <ChartConfirmation
+        :message="message"
+        :backend-chart-detection="backendChartDetection"
+        :is-generating-chart="isGeneratingChart"
+        @confirm-chart="handleConfirmChart" />
 
       <!-- 🎯 智能檢測狀態提示（開發模式）TODO: 先關閉 -->
       <!--
@@ -756,134 +170,17 @@
       </div>
       -->
 
-      <!-- 🎯 MCP 工具創建的圖表（最高優先級） -->
-      <div
-        v-if="hasMcpDetectedChart"
-        class="smart-chart-section mcp-chart">
-        <div class="smart-chart-header">
-          <BarChartOutlined />
-          <span>🛠️ AI工具圖表創建</span>
-          <div class="confidence-badge">
-            可信度: {{ Math.round(mcpChartDetection.confidence * 100) }}%
-          </div>
-        </div>
-        <div class="smart-chart-content">
-          <SmartChart
-            :data="mcpChartDetection.data"
-            :chart-type="mcpChartDetection.chartType"
-            :title="mcpChartDetection.title"
-            :config="{
-              height: 300,
-              showActions: true,
-              enableExport: true,
-            }"
-            class="mcp-generated-chart" />
-        </div>
-        <div class="smart-chart-reasoning">
-          <div class="reasoning-text">
-            {{ mcpChartDetection.reasoning }}
-          </div>
-        </div>
-      </div>
-
-      <!-- 🎯 後端智能檢測到的圖表（自動顯示，當沒有 MCP 圖表時） -->
-      <div
-        v-if="hasBackendDetectedChart && !hasMcpDetectedChart"
-        class="smart-chart-section">
-        <div class="smart-chart-header">
-          <BarChartOutlined />
-          <span>🧠 AI智能圖表分析</span>
-          <div class="confidence-badge">
-            可信度: {{ Math.round(backendChartDetection.confidence * 100) }}%
-          </div>
-        </div>
-        <div class="smart-chart-content">
-          <SmartChart
-            :data="backendChartDetection.data"
-            :chart-type="backendChartDetection.chartType"
-            :title="backendChartDetection.title"
-            :config="{
-              height: 300,
-              showActions: true,
-              enableExport: true,
-            }"
-            class="auto-generated-chart" />
-        </div>
-        <div class="smart-chart-reasoning">
-          <div class="reasoning-text">
-            {{ backendChartDetection.reasoning }}
-          </div>
-        </div>
-      </div>
-
-      <!-- 🎯 智能圖表建議（手動檢測） - 🔧 保留但降低優先級 -->
-      <div
-        v-if="
-          showChartSuggestion &&
-          detectedCharts.length > 0 &&
-          !hasBackendDetectedChart &&
-          !hasMcpDetectedChart &&
-          frontendChartDetectionEnabled
-        "
-        class="chart-suggestion-section">
-        <div class="chart-suggestion-header">
-          <BarChartOutlined />
-          <span>檢測到可視化數據</span>
-          <a-button
-            type="text"
-            size="small"
-            @click="handleDismissChartSuggestion"
-            class="dismiss-button">
-            <span style="font-size: 12px">×</span>
-          </a-button>
-        </div>
-        <div class="chart-suggestions">
-          <div
-            v-for="(chart, index) in detectedCharts.slice(0, 3)"
-            :key="index"
-            class="chart-suggestion-item"
-            @click="handleGenerateChart(chart)">
-            <div class="chart-icon">
-              <BarChartOutlined v-if="chart.type === 'bar'" />
-              <LineChartOutlined v-else-if="chart.type === 'line'" />
-              <svg
-                v-else-if="chart.type === 'pie'"
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="currentColor">
-                <path
-                  d="M12 2C13.1 2 14 2.9 14 4V12H22C22 17.5 17.5 22 12 22S2 17.5 2 12S6.5 2 12 2Z" />
-              </svg>
-              <TableOutlined v-else />
-            </div>
-            <div class="chart-info">
-              <div class="chart-title">
-                {{ chart.title || `${chart.type} 圖表` }}
-              </div>
-              <div class="chart-confidence">
-                可信度: {{ Math.round(chart.confidence * 100) }}%
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 🎯 檢測狀態指示器 -->
-      <div
-        v-if="isDetectingCharts"
-        class="chart-detection-status">
-        <LoadingOutlined spin />
-        <span>分析數據中...</span>
-      </div>
-
-      <!-- 🎯 檢測錯誤 -->
-      <div
-        v-if="chartDetectionError"
-        class="chart-detection-error">
-        <ExclamationCircleOutlined />
-        <span>{{ chartDetectionError }}</span>
-      </div>
+      <!-- 圖表建議和檢測狀態 -->
+      <ChartSuggestion
+        :show-chart-suggestion="showChartSuggestion"
+        :detected-charts="detectedCharts"
+        :has-backend-detected-chart="hasBackendDetectedChart"
+        :has-mcp-detected-chart="hasMcpDetectedChart"
+        :frontend-chart-detection-enabled="frontendChartDetectionEnabled"
+        :is-detecting-charts="isDetectingCharts"
+        :chart-detection-error="chartDetectionError"
+        @dismiss-chart-suggestion="handleDismissChartSuggestion"
+        @generate-chart="handleGenerateChart" />
     </div>
 
     <!-- 用戶消息和系統消息的工具欄（AI消息工具欄已集成到模型信息中） -->
@@ -944,118 +241,176 @@ import { useConfigStore } from "@/stores/config";
 import { useAuthStore } from "@/stores/auth";
 import { useAgentsStore } from "@/stores/agents";
 import { formatMessageTime } from "@/utils/datetimeFormat";
-import {
-  getFilePreviewUrl,
-  getImageBlobUrl,
-  askFileQuestion,
-} from "@/api/files";
-import CodeHighlight from "@/components/common/CodeHighlight.vue";
-import AnimatedContent from "@/components/common/AnimatedContent.vue";
+import { getFilePreviewUrl, askFileQuestion } from "@/api/files";
+import MessageHeader from "./headers/MessageHeader.vue";
 import ToolCallDisplay from "@/components/common/ToolCallDisplay.vue";
-import SmartChart from "@/components/common/SmartChart.vue";
+import ToolCallResults from "./tools/ToolCallResults.vue";
+import McpErrorDisplay from "./tools/McpErrorDisplay.vue";
+import ToolProcessingStatus from "./tools/ToolProcessingStatus.vue";
+import ToolResultStreaming from "./tools/ToolResultStreaming.vue";
+import OptimizingStatus from "./tools/OptimizingStatus.vue";
+import QuotedMessage from "./content/QuotedMessage.vue";
+import ThinkingProcess from "./content/ThinkingProcess.vue";
+import MessageContent from "./content/MessageContent.vue";
+import MessageActions from "./content/MessageActions.vue";
+import ChartConfirmation from "./content/ChartConfirmation.vue";
+import MessageAttachments from "./attachments/MessageAttachments.vue";
+import ChartDisplay from "./charts/ChartDisplay.vue";
+import ChartSuggestion from "./charts/ChartSuggestion.vue";
 import { chartIntegrationService } from "@/services/chartIntegrationService";
 import { mcpStatisticalAdapter } from "@/utils/mcpStatisticalAdapter";
 import {
-  UserOutlined,
-  RobotOutlined,
-  InfoCircleOutlined,
   CopyOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  MoreOutlined,
-  DownOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined,
-  QuestionCircleOutlined,
-  UpOutlined,
-  BulbOutlined,
-  LoadingOutlined,
-  ToolOutlined,
-  ExclamationCircleOutlined,
-  CheckOutlined,
   MessageOutlined,
-  DisconnectOutlined,
-  DatabaseOutlined,
-  SafetyCertificateOutlined,
-  ClockCircleOutlined,
-  WarningOutlined,
-  // 檔案類型圖標
-  TableOutlined,
-  FileExcelOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FilePptOutlined,
-  PictureOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
-  FileOutlined,
-  // 添加快速建議詞需要的圖示
-  ReadOutlined,
-  AlignLeftOutlined,
-  BarChartOutlined,
-  LineChartOutlined,
-  FileAddOutlined,
-  ReloadOutlined,
-  FileTextOutlined,
+  CheckOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons-vue";
 
-// 導入自定義檔案圖示組件
-import FileWord from "@/assets/icons/FileWord.vue";
-import FileCSV from "@/assets/icons/FileCSV.vue";
-import FileExcel from "@/assets/icons/FileExcel.vue";
-import FilePowerpoint from "@/assets/icons/FilePowerpoint.vue";
-import FilePDF from "@/assets/icons/FilePDF.vue";
+/**
+ * @typedef {Object} MessageObject
+ * @property {string} id - 消息唯一標識符
+ * @property {'user'|'assistant'|'system'} role - 消息角色類型
+ * @property {string} content - 消息內容文本
+ * @property {string} [agent_id] - 智能體 ID
+ * @property {string} [agent_name] - 智能體名稱
+ * @property {boolean} [isStreaming] - 是否正在串流
+ * @property {string} [status] - 消息狀態 ('sending'|'sent'|'error')
+ * @property {boolean} [isError] - 是否為錯誤消息
+ * @property {string} [thinking_content] - 思考過程內容
+ * @property {Object} [metadata] - 消息元數據
+ * @property {Array} [tool_calls] - 工具調用列表
+ * @property {Array} [attachments] - 附件列表
+ * @property {Object} [quoted_message] - 引用的消息
+ */
 
-// Props
+/**
+ * 組件 Props 定義
+ * @typedef {Object} Props
+ * @property {MessageObject} message - 要顯示的消息對象，包含所有消息相關資訊
+ * @property {boolean} [showStatus=true] - 是否顯示消息狀態圖示（發送中、已發送、錯誤等）
+ */
 const props = defineProps({
+  /** @type {MessageObject} 消息對象，包含消息的所有資訊和元數據 */
   message: {
     type: Object,
     required: true,
   },
+  /** @type {boolean} 是否顯示消息狀態，控制底部狀態圖示的顯示 */
   showStatus: {
     type: Boolean,
     default: true,
   },
 });
 
-// Emits
+/**
+ * 組件事件定義
+ * @typedef {Object} Emits
+ * @property {Function} quote-message - 引用消息事件，當用戶點擊引用按鈕時觸發
+ * @property {Function} regenerate-response - 重新生成回應事件，當用戶要求重新生成 AI 回應時觸發
+ * @property {Function} generate-chart - 生成圖表事件，當檢測到圖表機會並用戶確認生成時觸發
+ */
 const emit = defineEmits([
+  /**
+   * 引用消息事件
+   * @param {MessageObject} message - 被引用的消息對象
+   */
   "quote-message",
+  /**
+   * 重新生成回應事件
+   * @param {MessageObject} message - 需要重新生成回應的消息對象
+   */
   "regenerate-response",
+  /**
+   * 生成圖表事件
+   * @param {Object} chartData - 圖表生成數據
+   * @param {string} chartData.messageId - 消息 ID
+   * @param {Object} chartData.chartData - 圖表數據和配置
+   */
   "generate-chart",
 ]);
 
-// Store
-const chatStore = useChatStore();
-const configStore = useConfigStore();
-const authStore = useAuthStore();
-const agentsStore = useAgentsStore();
+/**
+ * 狀態管理 Store 實例
+ * @description 使用 Pinia 管理的全域狀態，提供聊天、配置、認證和智能體相關功能
+ */
+const chatStore = useChatStore(); // 聊天對話狀態管理
+const configStore = useConfigStore(); // 應用配置管理
+const authStore = useAuthStore(); // 用戶認證狀態
+const agentsStore = useAgentsStore(); // 智能體管理
 
-// 響應式狀態
+/**
+ * ====== 組件響應式狀態 ======
+ * @description 管理組件內部的各種狀態，包括 UI 展示、動畫控制、圖表處理等
+ */
+
+/**
+ * 用戶消息相關狀態
+ * @description 控制用戶消息的展示和交互行為
+ */
+/** @type {Ref<HTMLElement|null>} 用戶消息內容 DOM 引用 */
 const userMessageContent = ref(null);
+/** @type {Ref<boolean>} 用戶消息是否處於折疊狀態 */
 const isUserMessageCollapsed = ref(true);
+/** @type {Ref<boolean>} 是否應該顯示展開按鈕（當內容過長時） */
 const shouldShowExpandButton = ref(false);
+/** @type {Ref<HTMLElement|null>} 代碼高亮容器 DOM 引用 */
 const codeHighlightRef = ref(null);
-const toolCallsCollapsed = ref(true); // 工具調用預設為折疊狀態
-const thinkingCollapsed = ref(true); // 思考過程預設為折疊狀態
 
-// 🎬 內容動畫相關狀態
-const enableContentAnimation = ref(true); // 控制是否啟用內容動畫效果
+/**
+ * 工具調用和思考過程狀態
+ * @description 控制工具調用結果和思考過程的展示狀態
+ */
+/** @type {Ref<boolean>} 工具調用結果是否折疊（預設折疊） */
+const toolCallsCollapsed = ref(true);
+/** @type {Ref<boolean>} 思考過程是否折疊（預設折疊） */
+const thinkingCollapsed = ref(true);
+
+/**
+ * 內容動畫相關狀態
+ * @description 控制消息內容的動畫效果，提升用戶體驗
+ */
+/** @type {Ref<boolean>} 是否啟用內容動畫效果 */
+const enableContentAnimation = ref(true);
+/** @type {Ref<HTMLElement|null>} 動畫內容容器 DOM 引用 */
 const animatedContentRef = ref(null);
 
-// 思考內容動畫相關
+/**
+ * 思考內容動畫狀態
+ * @description 管理思考過程的逐字顯示動畫
+ */
+/** @type {Ref<string>} 當前顯示的思考內容（用於動畫效果） */
 const displayedThinkingContent = ref("");
+/** @type {Ref<boolean>} 思考內容是否正在播放動畫 */
 const isThinkingAnimating = ref(false);
+/** @type {Ref<number|null>} 思考內容動畫計時器 ID */
 const thinkingAnimationTimer = ref(null);
 
-// 🎯 智能圖表相關狀態
+/**
+ * 智能圖表相關狀態
+ * @description 管理圖表檢測、生成和顯示的各種狀態
+ */
+/** @type {Ref<Array>} 檢測到的圖表數據列表 */
 const detectedCharts = ref([]);
+/** @type {Ref<boolean>} 是否正在檢測圖表機會 */
 const isDetectingCharts = ref(false);
+/** @type {Ref<string|null>} 圖表檢測過程中的錯誤信息 */
 const chartDetectionError = ref(null);
+/** @type {Ref<boolean>} 是否顯示圖表建議 UI */
 const showChartSuggestion = ref(false);
+/** @type {Ref<boolean>} 是否正在生成圖表 */
 const isGeneratingChart = ref(false);
 
-// 🎯 計算屬性：檢查後端智能檢測結果
+/**
+ * ====== 計算屬性 ======
+ * @description 根據 props 和響應式狀態計算出的派生狀態
+ */
+
+/**
+ * 後端圖表檢測結果
+ * @description 從消息元數據中提取後端智能檢測的圖表資訊
+ * @returns {Object|null} 包含圖表檢測結果的對象，如果沒有檢測結果則返回 null
+ * @computed
+ */
 const backendChartDetection = computed(() => {
   const detection = props.message.metadata?.chart_detection || null;
 
@@ -1073,7 +428,12 @@ const backendChartDetection = computed(() => {
   return detection;
 });
 
-// 🎯 計算屬性：檢查 MCP 工具調用中的圖表數據
+/**
+ * MCP 工具圖表檢測結果
+ * @description 從 MCP 工具調用結果中檢測圖表創建數據
+ * @returns {Object|null} MCP 工具創建的圖表數據，包含圖表類型、數據和元數據
+ * @computed
+ */
 const mcpChartDetection = computed(() => {
   const toolResults = props.message.metadata?.tool_results || [];
 
@@ -1146,52 +506,57 @@ const hasBackendDetectedChart = computed(() => {
 // 🎬 計算屬性：判斷是否應該使用內容動畫效果
 // 追蹤消息是否曾經串流過
 // 只有當消息明確標記為曾經串流過時才設為true
-const hasBeenStreamed = ref(false)
+const hasBeenStreamed = ref(false);
 
 // 檢查消息是否曾經串流過（通過檢查消息的來源）
 const wasEverStreaming = computed(() => {
   // 如果消息有 isStreaming 字段且曾經為 true，或者有特定的串流標記
-  return props.message.hasOwnProperty('isStreaming') && hasBeenStreamed.value
-})
+  return props.message.hasOwnProperty("isStreaming") && hasBeenStreamed.value;
+});
 
 // 監聽串流狀態變化
-watch(() => props.message.isStreaming, (isStreaming, wasStreaming) => {
-  if (wasStreaming && !isStreaming) {
-    // 串流剛結束
-    hasBeenStreamed.value = true
-    console.log('串流結束，標記為已串流過')
-  }
-}, { immediate: true })
+watch(
+  () => props.message.isStreaming,
+  (isStreaming, wasStreaming) => {
+    if (wasStreaming && !isStreaming) {
+      // 串流剛結束
+      hasBeenStreamed.value = true;
+      console.log("串流結束，標記為已串流過");
+    }
+  },
+  { immediate: true }
+);
 
 // 組件掛載時檢查初始狀態
 onMounted(() => {
   // 如果消息初始時就在串流，標記它
   if (props.message.isStreaming) {
-    console.log('消息初始時正在串流')
-  } else if (props.message.hasOwnProperty('isStreaming')) {
+    console.log("消息初始時正在串流");
+  } else if (props.message.hasOwnProperty("isStreaming")) {
     // 如果有 isStreaming 屬性但為 false，且有內容，可能是串流剛結束的消息
     // 但我們不設置 hasBeenStreamed，因為可能是工具回應
-    console.log('消息有 isStreaming 屬性但不在串流中')
+    console.log("消息有 isStreaming 屬性但不在串流中");
   } else {
     // 沒有 isStreaming 屬性，可能是工具回應或靜態內容
-    console.log('消息沒有 isStreaming 屬性，可能是工具回應')
+    console.log("消息沒有 isStreaming 屬性，可能是工具回應");
   }
-})
+});
 
 // 監聽動畫開關變化，當用戶手動開啟動畫時重置狀態
 watch(enableContentAnimation, (newValue) => {
   if (newValue && hasBeenStreamed.value) {
     // 用戶手動開啟動畫，重置串流狀態，允許動畫
-    hasBeenStreamed.value = false
-    console.log('用戶手動開啟動畫，重置串流狀態')
+    hasBeenStreamed.value = false;
+    console.log("用戶手動開啟動畫，重置串流狀態");
   }
-})
+});
 
 const shouldUseContentAnimation = computed(() => {
   // 只對AI助手回應且非錯誤訊息啟用動畫
-  const isCompleted = !props.message.isStreaming && props.message.status !== 'streaming'
-  
-  const shouldAnimate = (
+  const isCompleted =
+    !props.message.isStreaming && props.message.status !== "streaming";
+
+  const shouldAnimate =
     enableContentAnimation.value &&
     props.message.role === "assistant" &&
     !isErrorMessage.value &&
@@ -1199,21 +564,20 @@ const shouldUseContentAnimation = computed(() => {
     props.message.content &&
     props.message.content.length > 100 &&
     isCompleted && // 確保消息完全完成
-    !hasBeenStreamed.value // 重要：沒有串流過的消息才動畫
-  )
-  
-  console.log('動畫條件檢查:', {
+    !hasBeenStreamed.value; // 重要：沒有串流過的消息才動畫
+
+  console.log("動畫條件檢查:", {
     enableContentAnimation: enableContentAnimation.value,
     role: props.message.role,
     messageId: props.message.id,
     hasBeenStreamed: hasBeenStreamed.value,
     isStreaming: props.message.isStreaming,
-    hasStreamingProperty: props.message.hasOwnProperty('isStreaming'),
+    hasStreamingProperty: props.message.hasOwnProperty("isStreaming"),
     isCompleted,
-    shouldAnimate
-  })
-  
-  return shouldAnimate
+    shouldAnimate,
+  });
+
+  return shouldAnimate;
 });
 
 // 🎯 前端智能圖表檢測開關 - 配合後端設置
@@ -1378,29 +742,6 @@ const toolSummaries = computed(() => {
 // 用戶消息的最大高度（行數）
 const MAX_USER_MESSAGE_LINES = 6;
 
-// 圖片 blob URLs 管理
-const imageBlobUrls = ref(new Map());
-const loadingImages = ref(new Set());
-
-// 計算屬性：分離圖片和非圖片附件
-const imageAttachments = computed(() => {
-  if (!props.message.attachments) return [];
-  return props.message.attachments.filter(
-    (attachment) =>
-      attachment.file_type === "image" ||
-      attachment.mime_type?.startsWith("image/")
-  );
-});
-
-const nonImageAttachments = computed(() => {
-  if (!props.message.attachments) return [];
-  return props.message.attachments.filter(
-    (attachment) =>
-      attachment.file_type !== "image" &&
-      !attachment.mime_type?.startsWith("image/")
-  );
-});
-
 // 計算屬性：獲取有效的工具調用列表
 const effectiveToolCalls = computed(() => {
   const toolCalls =
@@ -1490,39 +831,6 @@ const effectiveToolCalls = computed(() => {
 });
 
 // 獲取圖片 URL
-const getImageSrc = (fileId) => {
-  // 如果已經有 blob URL，返回它
-  if (imageBlobUrls.value.has(fileId)) {
-    return imageBlobUrls.value.get(fileId);
-  }
-
-  // 如果正在載入，返回占位符
-  if (loadingImages.value.has(fileId)) {
-    return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik03NSA2MEwxMjUgMTA1TDE2MCA3NUwxNzUgOTBWMTIwSDI1VjkwTDQwIDc1TDc1IDYwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8Y2lyY2xlIGN4PSI2NSIgY3k9IjQ1IiByPSIxMCIgZmlsbD0iI0NDQ0NDQyIvPgo8L3N2Zz4K";
-  }
-
-  // 開始載入圖片
-  loadImageBlob(fileId);
-  return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik03NSA2MEwxMjUgMTA1TDE2MCA3NUwxNzUgOTBWMTIwSDI1VjkwTDQwIDc1TDc1IDYwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8Y2lyY2xlIGN4PSI2NSIgY3k9IjQ1IiByPSIxMCIgZmlsbD0iI0NDQ0NDQyIvPgo8L3N2Zz4K";
-};
-
-// 載入圖片 blob
-const loadImageBlob = async (fileId) => {
-  if (loadingImages.value.has(fileId) || imageBlobUrls.value.has(fileId)) {
-    return;
-  }
-
-  loadingImages.value.add(fileId);
-
-  try {
-    const blobUrl = await getImageBlobUrl(fileId);
-    imageBlobUrls.value.set(fileId, blobUrl);
-  } catch (error) {
-    console.error("載入圖片失敗:", error);
-  } finally {
-    loadingImages.value.delete(fileId);
-  }
-};
 
 // 生命週期
 onMounted(() => {
@@ -1537,11 +845,6 @@ onMounted(() => {
   if (props.message.role === "user") {
     checkUserMessageHeight();
   }
-
-  // 預載入圖片
-  imageAttachments.value.forEach((attachment) => {
-    loadImageBlob(attachment.id);
-  });
 
   // 🎯 對於已完成的消息，立即檢測
   if (!isMessageStreaming.value && props.message.role === "assistant") {
@@ -1674,63 +977,7 @@ const getThinkingContent = () => {
 };
 
 // 計算屬性
-const getSenderName = () => {
-  switch (props.message.role) {
-    case "user":
-      return (
-        authStore.user?.display_name ||
-        authStore.user?.username ||
-        authStore.user?.email ||
-        "用戶"
-      );
-    case "assistant":
-      // 🔧 添加調試信息
-      console.log("🔍 [MessageBubble] getSenderName 調試信息:", {
-        messageId: props.message.id,
-        messageAgentName: props.message.agent_name,
-        messageAgentId: props.message.agent_id,
-        currentAgent: agentsStore.getCurrentAgent,
-      });
-
-      // 優先從消息中獲取智能體名稱，然後從當前智能體獲取
-      if (props.message.agent_name) {
-        console.log(
-          "🔍 [MessageBubble] 使用消息中的智能體名稱:",
-          props.message.agent_name
-        );
-        return props.message.agent_name;
-      }
-
-      // 嘗試從智能體 ID 獲取名稱
-      if (props.message.agent_id) {
-        const agent = agentsStore.getAgentById(props.message.agent_id);
-        if (agent) {
-          console.log(
-            "🔍 [MessageBubble] 從智能體ID獲取名稱:",
-            agent.display_name || agent.name
-          );
-          return agent.display_name || agent.name;
-        }
-      }
-
-      // 從當前智能體獲取
-      const currentAgent = agentsStore.getCurrentAgent;
-      if (currentAgent) {
-        console.log(
-          "🔍 [MessageBubble] 使用當前智能體名稱:",
-          currentAgent.display_name || currentAgent.name
-        );
-        return currentAgent.display_name || currentAgent.name;
-      }
-
-      console.log("🔍 [MessageBubble] 使用默認名稱: AI助手");
-      return "AI助手";
-    case "system":
-      return "系統";
-    default:
-      return "未知";
-  }
-};
+// getSenderName 函數已移動到 MessageInfo 組件中
 
 // 監控消息內容變化（用戶消息）
 watch(
@@ -1879,7 +1126,12 @@ const animateThinkingContent = (targetContent) => {
   }
 };
 
-// 錯誤檢測邏輯
+/**
+ * 錯誤消息檢測
+ * @description 判斷當前消息是否為錯誤消息，用於應用錯誤樣式
+ * @returns {boolean} 如果是錯誤消息則返回 true
+ * @computed
+ */
 const isErrorMessage = computed(() => {
   if (!props.message) return false;
 
@@ -1916,15 +1168,18 @@ const getModelColor = (provider) => {
   return colors[provider] || "default";
 };
 
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
+/**
+ * ====== 事件處理方法 ======
+ * @description 處理用戶交互和組件內部事件的方法集合
+ */
 
-// 事件處理
+/**
+ * 複製消息內容到剪貼板
+ * @description 將當前消息的文本內容複製到系統剪貼板
+ * @async
+ * @function
+ * @throws {Error} 當剪貼板操作失敗時拋出錯誤
+ */
 const handleCopyMessage = async () => {
   try {
     await navigator.clipboard.writeText(props.message.content);
@@ -1983,14 +1238,6 @@ const handleViewAttachment = (attachment) => {
   }
 };
 
-const handleImageError = (event) => {
-  console.error("圖片載入失敗:", event.target.src);
-  // 設置錯誤占位符
-  event.target.src =
-    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRkZFQkVFIiBzdHJva2U9IiNGRjc4NzUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iNSw1Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNzUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iI0ZGNzg3NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+5ZyW54mH6L275LiK5aSx5pWXPC90ZXh0Pgo8L3N2Zz4K";
-  antMessage.error("圖片載入失敗");
-};
-
 // 處理總結關鍵要點
 const handleSummarizeFile = async (attachment) => {
   try {
@@ -2037,121 +1284,6 @@ const handleGenerateDocument = async (attachment) => {
     console.error("生成文件失敗:", error);
     antMessage.error("生成文件失敗，請稍後再試");
   }
-};
-
-// 添加檔案類型判斷方法
-const getFileType = (attachment) => {
-  const filename = attachment.filename || attachment.name || "";
-  const mimeType = attachment.mime_type || "";
-  const extension = filename.toLowerCase().split(".").pop();
-
-  // 表格檔案
-  if (extension === "csv" || mimeType === "text/csv") {
-    return "csv";
-  }
-  if (
-    extension === "xlsx" ||
-    extension === "xls" ||
-    mimeType.includes("spreadsheet")
-  ) {
-    return "excel";
-  }
-
-  // 文檔檔案
-  if (extension === "pdf" || mimeType === "application/pdf") {
-    return "pdf";
-  }
-  if (
-    extension === "doc" ||
-    extension === "docx" ||
-    mimeType.includes("document")
-  ) {
-    return "word";
-  }
-  if (
-    extension === "ppt" ||
-    extension === "pptx" ||
-    mimeType.includes("presentation")
-  ) {
-    return "powerpoint";
-  }
-
-  // 媒體檔案
-  if (mimeType.startsWith("image/")) {
-    return "image";
-  }
-  if (mimeType.startsWith("video/")) {
-    return "video";
-  }
-  if (mimeType.startsWith("audio/")) {
-    return "audio";
-  }
-
-  return "file";
-};
-
-// 獲取檔案圖標組件
-const getFileIcon = (attachment) => {
-  const fileType = getFileType(attachment);
-
-  switch (fileType) {
-    case "csv":
-      return FileCSV;
-    case "excel":
-      return FileExcel;
-    case "pdf":
-      return FilePDF;
-    case "word":
-      return FileWord;
-    case "powerpoint":
-      return FilePowerpoint;
-    case "image":
-      return PictureOutlined;
-    case "video":
-      return VideoCameraOutlined;
-    case "audio":
-      return AudioOutlined;
-    default:
-      return FileOutlined;
-  }
-};
-
-// 獲取檔案類型標籤
-const getFileTypeLabel = (attachment) => {
-  const fileType = getFileType(attachment);
-
-  const labels = {
-    csv: "CSV 表格",
-    excel: "Excel 表格",
-    pdf: "PDF 文檔",
-    word: "Word 文檔",
-    powerpoint: "PowerPoint",
-    image: "圖片",
-    video: "影片",
-    audio: "音訊",
-    file: "檔案",
-  };
-
-  return labels[fileType] || "檔案";
-};
-
-// 獲取檔案類型顏色
-const getFileTypeColor = (attachment) => {
-  const fileType = getFileType(attachment);
-
-  const colors = {
-    csv: "#52c41a", // 綠色
-    excel: "#13c2c2", // 青色
-    pdf: "#f5222d", // 紅色
-    word: "#1890ff", // 藍色
-    powerpoint: "#fa8c16", // 橙色
-    image: "#722ed1", // 紫色
-    video: "#eb2f96", // 粉色
-    audio: "#faad14", // 黃色
-    file: "#8c8c8c", // 灰色
-  };
-
-  return colors[fileType] || "#8c8c8c";
 };
 
 // 檔案處理函數 - PDF
@@ -2573,57 +1705,7 @@ watch(
   { immediate: false }
 );
 
-// 🚨 MCP 錯誤處理方法
-const getErrorAlertType = (errorType) => {
-  switch (errorType) {
-    case "SERVICE_UNAVAILABLE":
-    case "CONNECTION_FAILED":
-      return "warning";
-    case "DATABASE_ERROR":
-    case "AUTHENTICATION_ERROR":
-      return "error";
-    case "TIMEOUT_ERROR":
-      return "info";
-    case "TOOL_NOT_FOUND":
-      return "warning";
-    default:
-      return "error";
-  }
-};
-
-const getErrorTitle = (mcpError) => {
-  switch (mcpError.error_type) {
-    case "SERVICE_UNAVAILABLE":
-      return `${mcpError.service_name} 服務不可用`;
-    case "CONNECTION_FAILED":
-      return `連接 ${mcpError.service_name} 失敗`;
-    case "DATABASE_ERROR":
-      return `${mcpError.service_name} 資料庫錯誤`;
-    case "AUTHENTICATION_ERROR":
-      return `${mcpError.service_name} 認證失敗`;
-    case "TIMEOUT_ERROR":
-      return `${mcpError.tool_name} 請求超時`;
-    case "TOOL_NOT_FOUND":
-      return `工具 ${mcpError.tool_name} 不可用`;
-    default:
-      return `${mcpError.tool_name} 執行失敗`;
-  }
-};
-
-const getErrorDescription = (mcpError) => {
-  return mcpError.suggestion || mcpError.error;
-};
-
-const handleDismissMcpError = (index) => {
-  if (props.message.mcpErrors && props.message.mcpErrors.length > index) {
-    props.message.mcpErrors.splice(index, 1);
-
-    // 如果沒有錯誤了，清除錯誤標記
-    if (props.message.mcpErrors.length === 0) {
-      props.message.hasMcpErrors = false;
-    }
-  }
-};
+// MCP 錯誤處理方法
 
 const handleRetryMcpTool = async (mcpError) => {
   try {
@@ -2791,51 +1873,9 @@ onMounted(() => {
   border-radius: 4px !important;
 }
 
-.message-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
+/* 頭像和消息信息樣式已移動到對應組件中 */
 
-.message-avatar {
-  flex-shrink: 0;
-}
-
-.agent-avatar-wrapper {
-  position: relative;
-}
-
-.agent-avatar-image {
-  border: 2px solid rgba(82, 196, 26, 0.2);
-}
-
-.agent-avatar-bg {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.agent-avatar-bg svg {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.message-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.message-sender {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.user-message .message-sender {
-  color: var(--custom-text-primary);
-}
-
-.message-time {
-  font-size: 12px;
-  opacity: 0.7;
-}
+/* 消息信息樣式已移動到 MessageInfo 組件中 */
 
 .message-actions {
   opacity: 0;
@@ -2982,468 +2022,9 @@ onMounted(() => {
   gap: 12px;
 }
 
-.attachment-item {
-  display: flex;
-  flex-direction: column;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s;
-  cursor: pointer;
-  background-color: var(--color-bg-container);
-  border: 1px solid var(--color-border);
-  width: 100%;
-  max-width: 320px;
-  margin-bottom: 10px;
-}
+/* 附件相關樣式移至 MessageAttachments 組件 */
 
-.attachment-card {
-  display: flex;
-  padding: 12px;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.attachment-icon-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.attachment-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  font-size: 24px;
-  background-color: var(--color-bg-elevated);
-  border-radius: 8px;
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.attachment-filename {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  text-align: left;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.2;
-  margin-bottom: 10px;
-}
-
-.attachment-icon::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 8px;
-  background: currentColor;
-  opacity: 0.1;
-  transition: opacity 0.3s ease;
-}
-
-.attachment-item:hover .attachment-icon::before {
-  opacity: 0.15;
-}
-
-.attachment-info {
-  flex: 1;
-  overflow: hidden;
-}
-
-.attachment-name {
-  font-weight: 500;
-  margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--color-text);
-  font-size: 14px;
-}
-
-.attachment-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.file-type-label {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: currentColor;
-  color: white;
-  opacity: 0.9;
-  flex-shrink: 0;
-}
-
-.attachment-size {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
-}
-
-/* 🔧 移除快速命令相關樣式，簡化附件顯示 */
-
-/* 暗色模式調整 */
-:root[data-theme="dark"] .attachment-item {
-  background-color: var(--color-bg-elevated);
-  border-color: var(--color-border-secondary);
-}
-
-:root[data-theme="dark"] .attachment-icon,
-:root[data-theme="dark"] .image-preview-icon {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* 🔧 移除快速命令暗色模式樣式 */
-
-/* 🚨 MCP 錯誤顯示樣式 */
-.mcp-errors-section {
-  margin-top: 12px;
-  border: 1px solid var(--ant-color-error-border);
-  border-radius: 8px;
-  background: var(--ant-color-error-bg);
-  overflow: hidden;
-}
-
-.mcp-errors-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--ant-color-error-border-hover);
-  border-bottom: 1px solid var(--ant-color-error-border);
-  font-weight: 500;
-  color: var(--ant-color-error);
-}
-
-.mcp-errors-header .error-icon {
-  color: var(--ant-color-error);
-}
-
-.mcp-errors-header .error-count {
-  margin-left: auto;
-}
-
-.mcp-errors-list {
-  padding: 0;
-}
-
-.mcp-error-item {
-  border-bottom: 1px solid var(--ant-color-error-border);
-}
-
-.mcp-error-item:last-child {
-  border-bottom: none;
-}
-
-.mcp-error-alert {
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-}
-
-.mcp-error-alert :deep(.ant-alert-message) {
-  font-weight: 500;
-  color: var(--ant-color-error);
-}
-
-.mcp-error-alert :deep(.ant-alert-description) {
-  color: var(--ant-color-text);
-  margin-top: 4px;
-  line-height: 1.4;
-}
-
-.mcp-error-alert :deep(.ant-alert-icon) {
-  color: var(--ant-color-error);
-}
-
-.mcp-error-alert :deep(.ant-alert-action) {
-  margin-left: 12px;
-}
-
-/* 暗色模式下的 MCP 錯誤樣式調整 */
-:root[data-theme="dark"] .mcp-errors-section {
-  border-color: var(--ant-color-error-border);
-  background: rgba(255, 77, 79, 0.04);
-}
-
-:root[data-theme="dark"] .mcp-errors-header {
-  background: rgba(255, 77, 79, 0.08);
-  border-bottom-color: var(--ant-color-error-border);
-}
-
-:root[data-theme="dark"] .mcp-error-item {
-  border-bottom-color: var(--ant-color-error-border);
-}
-
-/* 圖片預覽縮圖樣式 - 填滿整個卡片區域 */
-.image-preview-icon {
-  /* 繼承標準圖標的所有樣式 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  font-size: 24px;
-  background-color: var(--color-bg-elevated);
-  border-radius: 8px;
-  position: relative;
-  transition: all 0.3s ease;
-  /* 圖片填滿整個區域 */
-  padding: 0; /* 移除padding讓圖片填滿整個區域 */
-  overflow: hidden;
-}
-
-/* 移除標準圖標的::before偽元素 */
-.image-preview-icon::before {
-  display: none !important;
-}
-
-.image-preview-thumbnail {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 8px; /* 與容器圓角一致 */
-  transition: transform 0.3s ease;
-}
-
-.attachment-item:hover .image-preview-thumbnail {
-  transform: scale(1.1);
-}
-
-.image-preview-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  border-radius: 8px; /* 與容器圓角一致 */
-}
-
-.attachment-item:hover .image-preview-overlay {
-  opacity: 1;
-}
-
-.preview-icon {
-  color: white;
-  font-size: 16px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-/* 確保圖片附件卡片與其他檔案類型一致的樣式 */
-.attachment-item .attachment-card {
-  background: var(--color-bg-container);
-}
-
-.attachment-item:hover .attachment-card {
-  background: var(--color-bg-elevated);
-}
-
-/* 工具調用樣式 - 適配暗黑模式 */
-.tool-calls-section {
-  margin-top: 12px;
-  border: 1px solid var(--custom-border-primary);
-  border-radius: 8px;
-  background: var(--custom-bg-secondary);
-  overflow: hidden;
-}
-
-.tool-calls-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--custom-bg-tertiary);
-  border-bottom: 1px solid var(--custom-border-primary);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--custom-text-secondary);
-  user-select: none;
-  transition: background-color 0.2s ease;
-}
-
-.tool-calls-header:hover {
-  background: var(--custom-bg-quaternary);
-}
-
-.tool-calls-header-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tool-calls-header-right {
-  display: flex;
-  align-items: center;
-}
-
-.collapse-icon {
-  transition: transform 0.2s ease;
-  color: var(--custom-text-tertiary);
-  font-size: 12px;
-}
-
-.collapse-icon.collapsed {
-  transform: rotate(-90deg);
-}
-
-.tool-calls-list {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* 暗黑模式下的工具調用樣式 */
-:root[data-theme="dark"] .tool-calls-section {
-  border-color: var(--custom-border-secondary);
-  background: var(--custom-bg-primary);
-}
-
-:root[data-theme="dark"] .tool-calls-header {
-  background: var(--custom-bg-secondary);
-  border-bottom-color: var(--custom-border-secondary);
-  color: var(--custom-text-primary);
-}
-
-:root[data-theme="dark"] .tool-calls-header:hover {
-  background: var(--custom-bg-tertiary);
-}
-
-:root[data-theme="dark"] .collapse-icon {
-  color: var(--custom-text-secondary);
-}
-
-/* 思考過程樣式 */
-.thinking-section {
-  margin-top: 12px;
-  border: 1px solid var(--custom-border-primary);
-  border-radius: 8px;
-  background: var(--custom-bg-secondary);
-  overflow: hidden;
-}
-
-.thinking-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--custom-bg-tertiary);
-  border-bottom: 1px solid var(--custom-border-primary);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--custom-text-secondary);
-  user-select: none;
-  transition: background-color 0.2s ease;
-}
-
-.thinking-header:hover {
-  background: var(--custom-bg-quaternary);
-}
-
-.thinking-header-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.thinking-indicator {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 8px;
-  color: #1890ff;
-  font-size: 12px;
-}
-
-.thinking-status {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.thinking-header-right {
-  display: flex;
-  align-items: center;
-}
-
-.thinking-content {
-  padding: 12px;
-  background: var(--custom-bg-primary);
-}
-
-.thinking-text {
-  white-space: pre-wrap;
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--custom-text-secondary);
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  background: rgba(0, 0, 0, 0.02);
-  padding: 8px 12px;
-  border-radius: 4px;
-  border-left: 3px solid #faad14;
-  position: relative;
-}
-
-.thinking-cursor {
-  color: #1890ff;
-  font-weight: bold;
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
-}
-
-/* 暗黑模式下的思考過程樣式 */
-:root[data-theme="dark"] .thinking-section {
-  border-color: #3e4651;
-}
-
-:root[data-theme="dark"] .thinking-header {
-  border-color: #3e4651;
-  background-color: #262626;
-}
-
-:root[data-theme="dark"] .thinking-content {
-  background-color: #1f1f1f;
-  color: #b8b8b8;
-}
-
-:root[data-theme="dark"] .thinking-text {
-  color: #b8b8b8;
-}
+/* 思考過程樣式移至 ThinkingProcess 組件 */
 
 .model-info {
   margin-top: 8px;
@@ -3539,527 +2120,14 @@ onMounted(() => {
     padding: 10px 12px;
   }
 
-  .message-header {
-    margin-bottom: 6px;
-  }
-
-  .message-avatar {
-    display: none;
-  }
-}
-
-/* 🎬 新增：工具結果分段串流狀態樣式 */
-.tool-result-streaming-section {
-  background: linear-gradient(90deg, #e6f4ff 0%, #f6ffed 100%);
-  border: 1px solid #b7eb8f;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin: 8px 0;
-  animation: streamingPulse 2s ease-in-out infinite;
-}
-
-.tool-result-streaming-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.streaming-content {
-  flex: 1;
-}
-
-.streaming-message {
-  font-size: 14px;
-  color: #52c41a;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.streaming-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.streaming-progress .progress-text {
-  font-size: 12px;
-  color: #52c41a;
-  font-weight: 600;
-}
-
-@keyframes streamingPulse {
-  0%, 100% {
-    background: linear-gradient(90deg, #e6f4ff 0%, #f6ffed 100%);
-  }
-  50% {
-    background: linear-gradient(90deg, #f0f9ff 0%, #f9ffed 100%);
-  }
-}
-
-/* 🔧 新增：工具處理狀態樣式 */
-.tool-processing-section {
-  margin: 8px 0;
-  padding: 12px;
-  background-color: #f0f9ff;
-  border: 1px solid #b3d8ff;
-  border-radius: 6px;
-  border-left: 3px solid #1890ff;
-}
-
-.tool-processing-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #1890ff;
-  font-size: 14px;
-}
-
-.tool-processing-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tool-processing-message {
-  font-size: 14px;
-  color: #1890ff;
-}
-
-/* 🚀 新增：工具處理進度條樣式 */
-.tool-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.tool-progress .ant-progress {
-  flex: 1;
-  margin: 0;
-}
-
-.progress-text {
-  font-size: 12px;
-  color: #1890ff;
-  font-weight: 500;
-  min-width: 35px;
-  text-align: right;
-}
-
-.processing-spinner {
-  color: #1890ff;
-}
-
-.tool-processing-error {
-  margin: 8px 0;
-  padding: 12px;
-  background-color: #fff2f0;
-  border: 1px solid #ffccc7;
-  border-radius: 6px;
-  border-left: 3px solid #ff4d4f;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #cf1322;
-  font-size: 14px;
-}
-
-/* 暗黑模式下的工具處理狀態樣式 */
-[data-theme="dark"] .tool-processing-section {
-  background-color: #111b26;
-  border-color: #1e3a5f;
-}
-
-[data-theme="dark"] .tool-processing-header {
-  color: #69c0ff;
-}
-
-[data-theme="dark"] .processing-spinner {
-  color: #69c0ff;
-}
-
-[data-theme="dark"] .tool-processing-error {
-  background-color: #2a1215;
-  border-color: #58181c;
-  color: #ff7875;
-}
-
-/* 🚀 二次調用優化狀態樣式 */
-.optimizing-section {
-  margin: 8px 0;
-  padding: 12px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f4ff 100%);
-  border: 1px solid #b3d8ff;
-  border-radius: 6px;
-  border-left: 3px solid #52c41a;
-}
-
-.optimizing-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #389e0d;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* 暗黑模式下的優化狀態樣式 */
-[data-theme="dark"] .optimizing-section {
-  background: linear-gradient(135deg, #0f1419 0%, #162329 100%);
-  border-color: #1e3a5f;
-}
-
-[data-theme="dark"] .optimizing-header {
-  color: #95de64;
-}
-
-/* 🎯 智能圖表建議樣式 */
-.chart-suggestion-section {
-  margin-top: 12px;
-  border: 1px solid var(--custom-border-primary);
-  border-radius: 8px;
-  background: var(--custom-bg-secondary);
-  overflow: hidden;
-  border-left: 3px solid #1890ff;
-}
-
-.chart-suggestion-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--custom-bg-tertiary);
-  border-bottom: 1px solid var(--custom-border-primary);
-  font-size: 13px;
-  font-weight: 500;
-  color: #1890ff;
-  gap: 6px;
-}
-
-.dismiss-button {
-  color: var(--custom-text-tertiary) !important;
-  padding: 0 4px !important;
-  height: auto !important;
-  min-width: auto !important;
-}
-
-.dismiss-button:hover {
-  color: var(--custom-text-secondary) !important;
-  background: transparent !important;
-}
-
-.chart-suggestions {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.chart-suggestion-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 6px;
-  background: var(--custom-bg-primary);
-  border: 1px solid var(--custom-border-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.chart-suggestion-item:hover {
-  background: var(--custom-bg-tertiary);
-  border-color: #1890ff;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-}
-
-.chart-icon {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #1890ff;
-  background: rgba(24, 144, 255, 0.1);
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.chart-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.chart-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--custom-text-primary);
-  margin-bottom: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chart-confidence {
-  font-size: 11px;
-  color: var(--custom-text-tertiary);
-}
-
-/* 檢測狀態指示器 */
-.chart-detection-status {
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: rgba(24, 144, 255, 0.05);
-  border: 1px solid rgba(24, 144, 255, 0.2);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #1890ff;
-}
-
-/* 檢測錯誤 */
-.chart-detection-error {
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: rgba(255, 77, 79, 0.05);
-  border: 1px solid rgba(255, 77, 79, 0.2);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #ff4d4f;
-}
-
-/* 暗黑模式下的圖表建議樣式 */
-:root[data-theme="dark"] .chart-suggestion-section {
-  border-color: var(--custom-border-secondary);
-  background: var(--custom-bg-primary);
-}
-
-:root[data-theme="dark"] .chart-suggestion-header {
-  background: var(--custom-bg-secondary);
-  border-bottom-color: var(--custom-border-secondary);
-  color: #69c0ff;
-}
-
-:root[data-theme="dark"] .chart-suggestion-item {
-  background: var(--custom-bg-secondary);
-  border-color: var(--custom-border-primary);
-}
-
-:root[data-theme="dark"] .chart-suggestion-item:hover {
-  background: var(--custom-bg-tertiary);
-  border-color: #69c0ff;
-  box-shadow: 0 2px 8px rgba(105, 192, 255, 0.15);
-}
-
-:root[data-theme="dark"] .chart-icon {
-  color: #69c0ff;
-  background: rgba(105, 192, 255, 0.1);
-}
-
-:root[data-theme="dark"] .chart-detection-status {
-  background: rgba(105, 192, 255, 0.1);
-  border-color: rgba(105, 192, 255, 0.3);
-  color: #69c0ff;
-}
-
-:root[data-theme="dark"] .chart-detection-error {
-  background: rgba(255, 120, 117, 0.1);
-  border-color: rgba(255, 120, 117, 0.3);
-  color: #ff7875;
-}
-
-/* 🎯 智能圖表分析樣式 */
-.smart-chart-section {
-  margin-top: 16px;
-  padding: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(24, 144, 255, 0.05),
-    rgba(82, 196, 26, 0.05)
-  );
-  border: 1px solid rgba(24, 144, 255, 0.2);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
-}
-
-.smart-chart-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-weight: 600;
-  color: #1890ff;
-}
-
-.confidence-badge {
-  margin-left: auto;
-  padding: 2px 8px;
-  background: rgba(24, 144, 255, 0.1);
-  border: 1px solid rgba(24, 144, 255, 0.3);
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #1890ff;
-}
-
-.smart-chart-content {
-  margin: 12px 0;
-  background: white;
-  border-radius: 8px;
-  padding: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-}
-
-.auto-generated-chart {
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.smart-chart-reasoning {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: rgba(24, 144, 255, 0.05);
-  border-left: 3px solid #1890ff;
-  border-radius: 0 6px 6px 0;
-}
-
-.reasoning-text {
-  font-size: 13px;
-  color: var(--custom-text-secondary);
-  line-height: 1.4;
-}
-
-/* 暗黑模式下的智能圖表樣式 */
-:root[data-theme="dark"] .smart-chart-section {
-  background: linear-gradient(
-    135deg,
-    rgba(69, 192, 255, 0.08),
-    rgba(82, 196, 26, 0.08)
-  );
-  border-color: rgba(69, 192, 255, 0.3);
-}
-
-:root[data-theme="dark"] .smart-chart-header {
-  color: #69c0ff;
-}
-
-:root[data-theme="dark"] .confidence-badge {
-  background: rgba(69, 192, 255, 0.15);
-  border-color: rgba(69, 192, 255, 0.4);
-  color: #69c0ff;
-}
-
-:root[data-theme="dark"] .smart-chart-content {
-  background: var(--custom-bg-secondary);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-
-:root[data-theme="dark"] .smart-chart-reasoning {
-  background: rgba(69, 192, 255, 0.08);
-  border-left-color: #69c0ff;
-}
-
-/* 🎯 圖表消息樣式 */
-.chart-message-container {
-  margin-top: 12px;
-  border: 1px solid var(--custom-border-primary);
-  border-radius: 8px;
-  background: var(--custom-bg-secondary);
-  overflow: hidden;
-  border-left: 3px solid #52c41a;
-}
-
-/* 暗黑模式下的圖表消息樣式 */
-:root[data-theme="dark"] .chart-message-container {
-  border-color: var(--custom-border-secondary);
-  background: var(--custom-bg-primary);
-  border-left-color: #95de64;
-}
-
-/* 確保圖表消息中的SmartChart組件樣式正確 */
-.chart-message-container :deep(.smart-chart-container) {
-  border: none;
-  background: transparent;
+  /* 響應式頭像樣式已移動到 MessageHeader 組件中 */
 }
 
-/* 🎯 圖表確認樣式 */
-.chart-confirmation-section {
-  margin-top: 12px;
-  padding: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(250, 173, 20, 0.05),
-    rgba(255, 197, 61, 0.05)
-  );
-  border: 1px solid rgba(250, 173, 20, 0.3);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(250, 173, 20, 0.1);
-}
-
-.chart-confirmation-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  color: #d48806;
-  font-weight: 500;
-}
-
-.chart-confirmation-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.chart-confirmation-actions .ant-btn {
-  border-radius: 6px;
-  font-size: 13px;
-  height: 32px;
-  padding: 0 12px;
-}
-
-.chart-confirmation-actions .ant-btn-primary {
-  background: #faad14;
-  border-color: #faad14;
-}
-
-.chart-confirmation-actions .ant-btn-primary:hover {
-  background: #ffc53d;
-  border-color: #ffc53d;
-}
-
-/* 暗黑模式下的圖表確認樣式 */
-:root[data-theme="dark"] .chart-confirmation-section {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 197, 61, 0.08),
-    rgba(250, 219, 20, 0.08)
-  );
-  border-color: rgba(255, 197, 61, 0.3);
-}
-
-:root[data-theme="dark"] .chart-confirmation-header {
-  color: #ffc53d;
-}
+/* 圖表建議樣式移至 ChartSuggestion 組件 */
 
-:root[data-theme="dark"] .chart-confirmation-actions .ant-btn-primary {
-  background: #ffc53d;
-  border-color: #ffc53d;
-  color: #000;
-}
+/* 圖表顯示相關樣式移至 ChartDisplay 組件 */
 
-:root[data-theme="dark"] .chart-confirmation-actions .ant-btn-primary:hover {
-  background: #ffec3d;
-  border-color: #ffec3d;
-}
+/* 圖表確認樣式移至 ChartConfirmation 組件 */
 
 /* 🔧 工具 Summary 顯示樣式 */
 .tool-summaries-section {
@@ -4201,29 +2269,5 @@ onMounted(() => {
 
 :root[data-theme="dark"] .animation-active:hover {
   background-color: rgba(23, 125, 220, 0.2) !important;
-}
-
-/* 暗色主題適配 - 工具結果分段串流 */
-:root[data-theme="dark"] .tool-result-streaming-section {
-  background: linear-gradient(90deg, #001529 0%, #162312 100%);
-  border-color: #274916;
-  animation: streamingPulseDark 2s ease-in-out infinite;
-}
-
-:root[data-theme="dark"] .streaming-message {
-  color: #95de64;
-}
-
-:root[data-theme="dark"] .streaming-progress .progress-text {
-  color: #95de64;
-}
-
-@keyframes streamingPulseDark {
-  0%, 100% {
-    background: linear-gradient(90deg, #001529 0%, #162312 100%);
-  }
-  50% {
-    background: linear-gradient(90deg, #003a5c 0%, #274916 100%);
-  }
 }
 </style>

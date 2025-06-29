@@ -803,7 +803,9 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                     section_content: sectionData.content,
                     section_index: sectionData.index,
                     total_sections: sectionData.total,
-                    progress: Math.round(((sectionData.index + 1) / sectionData.total) * 100),
+                    progress: Math.round(
+                      ((sectionData.index + 1) / sectionData.total) * 100
+                    ),
                     conversation_id: conversationId,
                     timestamp: Date.now(),
                   });
@@ -1044,12 +1046,15 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
         }
 
         // 🎬 新增：AI總結流處理
-        if (toolCallMetadata.has_tool_calls && toolCallMetadata.tool_results && 
-            toolCallMetadata.tool_results.some(r => r.success) && isClientConnected) {
-          
+        if (
+          toolCallMetadata.has_tool_calls &&
+          toolCallMetadata.tool_results &&
+          toolCallMetadata.tool_results.some((r) => r.success) &&
+          isClientConnected
+        ) {
           try {
             console.log("=== 開始AI總結流處理 ===");
-            
+
             // 發送AI總結開始事件
             sendSSE("ai_summary_start", {
               assistant_message_id: assistantMessageId,
@@ -1060,12 +1065,12 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
 
             // 🎯 改進：只提取核心數據，避免格式化噪音
             const coreData = toolCallMetadata.tool_results
-              .filter(r => r.success)
-              .map(r => {
+              .filter((r) => r.success)
+              .map((r) => {
                 // 🎯 直接從工具結果的 data 字段提取原始數據
                 let data = null;
                 const toolName = r.tool_name;
-                
+
                 // 關鍵修復：直接使用工具結果的原始 data，而不是格式化後的 result
                 if (r.data) {
                   // 工具結果的原始數據
@@ -1080,51 +1085,61 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   // 最後備選
                   data = r;
                 }
-                
+
                 // 🔍 調試：記錄原始工具結果結構
                 console.log("🔍 [調試] 工具結果結構:", {
                   toolName: toolName,
                   resultStructure: {
                     hasResult: !!r.result,
-                    hasResultData: !!(r.result?.data),
-                    hasNestedData: !!(r.result?.result?.data),
-                    hasContent: !!(r.result?.content),
+                    hasResultData: !!r.result?.data,
+                    hasNestedData: !!r.result?.result?.data,
+                    hasContent: !!r.result?.content,
                     resultType: typeof r.result,
                     extractedDataType: typeof data,
                     resultKeys: r.result ? Object.keys(r.result) : [],
-                    extractedDataLength: Array.isArray(data) ? data.length : typeof data === 'string' ? data.length : 0,
+                    extractedDataLength: Array.isArray(data)
+                      ? data.length
+                      : typeof data === "string"
+                        ? data.length
+                        : 0,
                     // 完整的結果結構 - 安全處理
-                    fullResult: r.result ? JSON.stringify(r.result, null, 2).substring(0, 500) : 'undefined'
-                  }
+                    fullResult: r.result
+                      ? JSON.stringify(r.result, null, 2).substring(0, 500)
+                      : "undefined",
+                  },
                 });
-                
+
                 // 🔍 如果是數組，檢查內容樣本
                 if (Array.isArray(data) && data.length > 0) {
                   console.log("🔍 [調試] 數據樣本 (前3筆):", {
                     toolName: toolName,
                     totalRecords: data.length,
-                    sampleData: data.slice(0, 3)
+                    sampleData: data.slice(0, 3),
                   });
                 }
-                
+
                 // 返回結構化的核心數據
                 return {
                   tool: toolName,
                   data: data,
                   // 只包含基本統計信息
-                  summary: r.result?.summary || r.result?.result?.summary
+                  summary: r.result?.summary || r.result?.result?.summary,
                 };
               });
 
             // 🔍 調試：記錄最終核心數據
             console.log("🔍 [調試] 最終核心數據:", {
               coreDataLength: coreData.length,
-              coreDataStructure: coreData.map(item => ({
+              coreDataStructure: coreData.map((item) => ({
                 tool: item.tool,
                 dataType: typeof item.data,
-                dataLength: Array.isArray(item.data) ? item.data.length : typeof item.data === 'string' ? item.data.length : 0,
-                hasSummary: !!item.summary
-              }))
+                dataLength: Array.isArray(item.data)
+                  ? item.data.length
+                  : typeof item.data === "string"
+                    ? item.data.length
+                    : 0,
+                hasSummary: !!item.summary,
+              })),
             });
 
             // 生成AI總結流
@@ -1134,12 +1149,12 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               {
                 user_id: user.id,
                 conversation_id: conversationId,
-                model_config: model
+                model_config: model,
               }
             );
 
             let summaryContent = "";
-            
+
             // 處理AI總結流
             for await (const summaryChunk of summaryGenerator) {
               if (!isClientConnected) {
@@ -1147,9 +1162,9 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 break;
               }
 
-              if (summaryChunk.type === 'ai_summary_delta') {
+              if (summaryChunk.type === "ai_summary_delta") {
                 summaryContent += summaryChunk.content;
-                
+
                 // 發送AI總結增量事件
                 sendSSE("ai_summary_delta", {
                   assistant_message_id: assistantMessageId,
@@ -1159,7 +1174,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   conversation_id: conversationId,
                   timestamp: summaryChunk.timestamp,
                 });
-              } else if (summaryChunk.type === 'ai_summary_error') {
+              } else if (summaryChunk.type === "ai_summary_error") {
                 sendSSE("ai_summary_error", {
                   assistant_message_id: assistantMessageId,
                   error: summaryChunk.error,
@@ -1178,16 +1193,15 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 conversation_id: conversationId,
                 timestamp: Date.now(),
               });
-              
+
               // 🎯 不要在後端添加總結到finalContent，前端會處理
               // finalContent保持原樣，讓前端通過SSE事件來處理總結顯示
             }
 
             console.log("=== AI總結流處理完成 ===");
-            
           } catch (summaryError) {
             console.error("AI總結流處理失敗:", summaryError.message);
-            
+
             if (isClientConnected) {
               sendSSE("ai_summary_error", {
                 assistant_message_id: assistantMessageId,
@@ -1272,13 +1286,17 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
 
           // 🎯 關鍵修復：如果有工具調用，不要覆蓋已經組裝好的內容
           let updateContent = finalContent;
-          if (toolCallMetadata.has_tool_calls && toolCallMetadata.tool_results && 
-              toolCallMetadata.tool_results.some(r => r.success)) {
-            
+          if (
+            toolCallMetadata.has_tool_calls &&
+            toolCallMetadata.tool_results &&
+            toolCallMetadata.tool_results.some((r) => r.success)
+          ) {
             // 有成功的工具調用時，保持現有內容不變
             // 因為前端已經通過SSE事件處理了內容組裝
-            console.log("🎯 有工具調用，跳過final content更新，避免覆蓋已組裝的內容");
-            
+            console.log(
+              "🎯 有工具調用，跳過final content更新，避免覆蓋已組裝的內容"
+            );
+
             // 只更新metadata和其他信息，不更新content
             await MessageModel.update(assistantMessageId, {
               tokens_used: chunk.tokens_used,
@@ -1837,18 +1855,45 @@ export const handleOptimizePrompt = catchAsync(async (req, res) => {
   });
 
   try {
-    // 固定使用 qwen2.5:1.5b 模型（ID: 46）- 更快的輕量級模型
-    const targetModelId = 46;
+    // 🔧 從環境變數讀取提示詞優化專用模型配置
+    const targetModelId = process.env.PROMPT_OPTIMIZATION_MODEL_ID || 46;
+    const targetModelName =
+      process.env.PROMPT_OPTIMIZATION_MODEL_NAME || "qwen2.5:1.5b";
+
+    logger.info("提示詞優化模型配置", {
+      userId: user.id,
+      targetModelId: targetModelId,
+      targetModelName: targetModelName,
+    });
+
     const { rows: modelRows } = await query(
       "SELECT * FROM ai_models WHERE id = ? AND is_active = TRUE",
       [targetModelId]
     );
 
     if (modelRows.length === 0) {
-      throw new BusinessError("優化提示詞專用模型不可用，請聯繫管理員");
-    }
+      // 🔧 如果指定 ID 的模型不存在，嘗試按模型名稱查找
+      const { rows: fallbackModelRows } = await query(
+        "SELECT * FROM ai_models WHERE model_id = ? AND is_active = TRUE",
+        [targetModelName]
+      );
 
-    const model = modelRows[0];
+      if (fallbackModelRows.length === 0) {
+        throw new BusinessError(
+          `優化提示詞專用模型不可用（ID: ${targetModelId}, 名稱: ${targetModelName}），請聯繫管理員檢查模型配置`
+        );
+      }
+
+      // 使用 fallback 模型
+      logger.warn("指定 ID 的模型不存在，使用名稱匹配的模型", {
+        userId: user.id,
+        fallbackModel: fallbackModelRows[0],
+      });
+
+      var model = fallbackModelRows[0];
+    } else {
+      var model = modelRows[0];
+    }
 
     // 構建優化提示詞的系統提示（禁用思考模式，使用繁體中文）
     const systemPrompt = `/no_think 你是一個專業的提示詞優化專家。你的任務是幫助用戶優化他們的提示詞，使其更加清晰、具體和有效。請使用繁體中文回應。
@@ -2020,13 +2065,15 @@ export const handleGetMCPStatus = catchAsync(async (req, res) => {
   try {
     // 獲取健康檢查結果
     const healthResults = await mcpClient.healthCheck();
-    
+
     // 獲取連接狀態
     const connectionStatuses = mcpClient.getConnectionStatuses();
-    
+
     // 合併健康檢查和連接狀態數據
-    const servicesStatus = connectionStatuses.map(status => {
-      const healthResult = healthResults.find(h => h.service_id === status.service_id);
+    const servicesStatus = connectionStatuses.map((status) => {
+      const healthResult = healthResults.find(
+        (h) => h.service_id === status.service_id
+      );
       return {
         ...status,
         health_check: healthResult,
@@ -2038,8 +2085,8 @@ export const handleGetMCPStatus = catchAsync(async (req, res) => {
 
     // 計算總體統計
     const totalServices = servicesStatus.length;
-    const healthyServices = servicesStatus.filter(s => s.is_healthy).length;
-    const connectedServices = servicesStatus.filter(s => s.connected).length;
+    const healthyServices = servicesStatus.filter((s) => s.is_healthy).length;
+    const connectedServices = servicesStatus.filter((s) => s.connected).length;
 
     const statusSummary = {
       total_services: totalServices,
@@ -2047,7 +2094,10 @@ export const handleGetMCPStatus = catchAsync(async (req, res) => {
       connected_services: connectedServices,
       unhealthy_services: totalServices - healthyServices,
       disconnected_services: totalServices - connectedServices,
-      overall_health_rate: totalServices > 0 ? (healthyServices / totalServices * 100).toFixed(1) : 0,
+      overall_health_rate:
+        totalServices > 0
+          ? ((healthyServices / totalServices) * 100).toFixed(1)
+          : 0,
       last_updated: new Date().toISOString(),
     };
 
@@ -2058,13 +2108,18 @@ export const handleGetMCPStatus = catchAsync(async (req, res) => {
       connectedServices: connectedServices,
     });
 
-    res.json(createSuccessResponse({
-      summary: statusSummary,
-      services: servicesStatus,
-      health_results: healthResults,
-      connection_statuses: connectionStatuses,
-      timestamp: new Date().toISOString(),
-    }, "MCP 服務狀態獲取成功"));
+    res.json(
+      createSuccessResponse(
+        {
+          summary: statusSummary,
+          services: servicesStatus,
+          health_results: healthResults,
+          connection_statuses: connectionStatuses,
+          timestamp: new Date().toISOString(),
+        },
+        "MCP 服務狀態獲取成功"
+      )
+    );
   } catch (error) {
     logger.error("獲取 MCP 服務狀態失敗", {
       userId: user.id,
@@ -2111,12 +2166,17 @@ export const handleReconnectMCPService = catchAsync(async (req, res) => {
       isHealthy: isHealthy,
     });
 
-    res.json(createSuccessResponse({
-      service_id: serviceIdNum,
-      reconnected: true,
-      is_healthy: isHealthy,
-      timestamp: new Date().toISOString(),
-    }, `MCP 服務 ${serviceIdNum} 重新連接${isHealthy ? '成功' : '完成，但服務仍不健康'}`));
+    res.json(
+      createSuccessResponse(
+        {
+          service_id: serviceIdNum,
+          reconnected: true,
+          is_healthy: isHealthy,
+          timestamp: new Date().toISOString(),
+        },
+        `MCP 服務 ${serviceIdNum} 重新連接${isHealthy ? "成功" : "完成，但服務仍不健康"}`
+      )
+    );
   } catch (error) {
     logger.error("重新連接 MCP 服務失敗", {
       userId: user.id,
@@ -2147,14 +2207,16 @@ const handleGetFullMessageContent = catchAsync(async (req, res) => {
     }
 
     // 驗證用戶是否有權限訪問這個訊息
-    const conversation = await ConversationModel.findById(message.conversation_id);
+    const conversation = await ConversationModel.findById(
+      message.conversation_id
+    );
     if (!conversation || conversation.user_id !== userId) {
       throw new BusinessError("無權限訪問此訊息", 403);
     }
 
     // 獲取完整內容
     const fullContent = await MessageModel.getFullContent(messageId);
-    
+
     res.json(
       createSuccessResponse({
         message: "獲取完整內容成功",
