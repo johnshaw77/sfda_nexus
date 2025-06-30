@@ -1121,8 +1121,22 @@ ${formattedResults}
         JSON.stringify(dataFormat, null, 2)
       );
 
-      // 📋 準備更精確的總結提示詞 - 確保AI能看到完整數據
-      const summaryPrompt = `請根據以下查詢結果，為用戶提供簡潔的分析總結：
+      // 🤖 提取所有工具的 AI 指導提示詞
+      const allAIInstructions = coreData
+        .map((item) => item.aiInstructions)
+        .filter((instructions) => instructions && instructions.trim())
+        .join("\n\n");
+
+      console.log("🤖 [AI指導] 提取到的動態指導提示詞:", {
+        hasInstructions: !!allAIInstructions,
+        instructionsLength: allAIInstructions.length,
+        instructions:
+          allAIInstructions.substring(0, 200) +
+          (allAIInstructions.length > 200 ? "..." : ""),
+      });
+
+      // 📋 準備更精確的總結提示詞 - 使用動態 AI 指導
+      let summaryPrompt = `請根據以下查詢結果，為用戶提供簡潔的分析總結：
 
 **用戶問題**: ${userQuestion}
 
@@ -1130,24 +1144,53 @@ ${formattedResults}
 ${JSON.stringify(coreData, null, 2)}
 
 **處理後的數據摘要**:
-${JSON.stringify(dataFormat, null, 2)}
+${JSON.stringify(dataFormat, null, 2)}`;
+
+      // 🤖 如果有 AI 指導提示詞，優先使用動態指導
+      if (allAIInstructions) {
+        summaryPrompt += `
+
+**🧠 重要：請嚴格遵循以下 AI 分析指導**：
+${allAIInstructions}
+
+**基於上述指導的分析要求**:
+1. 嚴格按照上述 AI 指導提示詞進行分析
+2. 用5-7句話簡潔回答用戶問題
+3. 基於實際數據提供關鍵洞察
+4. 不要編造數據中沒有的信息
+5. 保持對話式語調，避免技術術語`;
+      } else {
+        // 🔄 回退到固定指導（當沒有動態指導時）
+        summaryPrompt += `
 
 **分析要求**:
-1. 用2-3句話簡潔回答用戶問題
+1. 用5-7句話簡潔回答用戶問題
 2. 仔細檢查數據中的延遲天數(Delay_Day)等關鍵字段
 3. 基於實際數據提供關鍵洞察
 4. 不要編造數據中沒有的信息
 5. 保持對話式語調，避免技術術語
 6. 如果數據不足以回答問題，請誠實說明
 
-請特別注意：數據中包含的延遲天數信息，並據此回答用戶的問題。
+請特別注意：數據中包含的延遲天數信息，並據此回答用戶的問題。`;
+      }
+
+      summaryPrompt += `
 
 請提供分析：`;
 
       // 🔍 調試：記錄提示詞
       logger.info("AI總結 - 生成的提示詞", {
         promptLength: summaryPrompt.length,
+        hasAIInstructions: !!allAIInstructions,
+        aiInstructionsLength: allAIInstructions.length,
         prompt: summaryPrompt,
+      });
+      console.log("🔍 [調試] 最終生成的提示詞:", {
+        promptLength: summaryPrompt.length,
+        hasAIInstructions: !!allAIInstructions,
+        prompt:
+          summaryPrompt.substring(0, 500) +
+          (summaryPrompt.length > 500 ? "..." : ""),
       });
 
       // 🎯 使用更強大的模型進行總結
@@ -1168,7 +1211,7 @@ ${JSON.stringify(dataFormat, null, 2)}
           },
         ],
         temperature: 0.8, // 稍高的創造性
-        max_tokens: 2048,
+        max_tokens: 4096,
       });
 
       // 🎬 模擬打字機效果 - 逐字返回

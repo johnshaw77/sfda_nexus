@@ -1071,7 +1071,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 let data = null;
                 const toolName = r.tool_name;
 
-                // 關鍵修復：直接使用工具結果的原始 data，而不是格式化後的 result
+                // 關鍵修復：直接使用工具結果的原始 data，而不是格式化後的 result //NOTE: 這裡要規範，就只有 r.result.data ??
                 if (r.data) {
                   // 工具結果的原始數據
                   data = r.data;
@@ -1124,6 +1124,12 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   data: data,
                   // 只包含基本統計信息
                   summary: r.result?.summary || r.result?.result?.summary,
+                  // 🤖 新增：提取 AI 指導提示詞
+                  aiInstructions:
+                    r.result?.aiInstructions ||
+                    r.data?.aiInstructions ||
+                    r.result?.data?.aiInstructions ||
+                    null,
                 };
               });
 
