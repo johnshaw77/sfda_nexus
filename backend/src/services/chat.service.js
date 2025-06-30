@@ -1135,62 +1135,51 @@ ${formattedResults}
           (allAIInstructions.length > 200 ? "..." : ""),
       });
 
-      // 📋 準備更精確的總結提示詞 - 使用動態 AI 指導
-      let summaryPrompt = `請根據以下查詢結果，為用戶提供簡潔的分析總結：
+      // 📋 準備精簡的總結提示詞 - 優化版本
+      let summaryPrompt;
 
-**用戶問題**: ${userQuestion}
-
-**原始工具數據**:
-${JSON.stringify(coreData, null, 2)}
-
-**處理後的數據摘要**:
-${JSON.stringify(dataFormat, null, 2)}`;
-
-      // 🤖 如果有 AI 指導提示詞，優先使用動態指導
+      // 🤖 如果有 AI 指導提示詞，使用簡化的動態指導版本
       if (allAIInstructions) {
-        summaryPrompt += `
+        summaryPrompt = `**用戶問題**: ${userQuestion}
 
-**🧠 重要：請嚴格遵循以下 AI 分析指導**：
+**查詢結果**: ${JSON.stringify(dataFormat, null, 2)}
+
+**🧠 分析指導**:
 ${allAIInstructions}
 
-**基於上述指導的分析要求**:
-1. 嚴格按照上述 AI 指導提示詞進行分析
-2. 用5-7句話簡潔回答用戶問題
-3. 基於實際數據提供關鍵洞察
-4. 不要編造數據中沒有的信息
-5. 保持對話式語調，避免技術術語`;
+**要求**: 根據上述指導，用5-7句話簡潔分析並回答用戶問題。`;
       } else {
-        // 🔄 回退到固定指導（當沒有動態指導時）
-        summaryPrompt += `
+        // 🔄 回退到簡化的固定指導
+        summaryPrompt = `**用戶問題**: ${userQuestion}
+
+**查詢結果**: ${JSON.stringify(dataFormat, null, 2)}
 
 **分析要求**:
 1. 用5-7句話簡潔回答用戶問題
-2. 仔細檢查數據中的延遲天數(Delay_Day)等關鍵字段
-3. 基於實際數據提供關鍵洞察
+2. 基於實際數據提供關鍵洞察  
+3. 重點關注延遲天數等關鍵指標
 4. 不要編造數據中沒有的信息
 5. 保持對話式語調，避免技術術語
-6. 如果數據不足以回答問題，請誠實說明
-
-請特別注意：數據中包含的延遲天數信息，並據此回答用戶的問題。`;
-      }
-
-      summaryPrompt += `
 
 請提供分析：`;
+      }
 
-      // 🔍 調試：記錄提示詞
-      logger.info("AI總結 - 生成的提示詞", {
+      // 🔍 調試：記錄優化後的提示詞
+      logger.info("AI總結 - 優化後的提示詞", {
         promptLength: summaryPrompt.length,
         hasAIInstructions: !!allAIInstructions,
         aiInstructionsLength: allAIInstructions.length,
         prompt: summaryPrompt,
       });
-      console.log("🔍 [調試] 最終生成的提示詞:", {
+      console.log("🔍 [調試] 優化後的提示詞:", {
         promptLength: summaryPrompt.length,
         hasAIInstructions: !!allAIInstructions,
+        originalLength: "原版本約1500字符",
+        optimizedLength: `優化後${summaryPrompt.length}字符`,
+        reductionPercent: `減少約${Math.round((1 - summaryPrompt.length / 1500) * 100)}%`,
         prompt:
-          summaryPrompt.substring(0, 500) +
-          (summaryPrompt.length > 500 ? "..." : ""),
+          summaryPrompt.substring(0, 300) +
+          (summaryPrompt.length > 300 ? "..." : ""),
       });
 
       // 🎯 使用更強大的模型進行總結
