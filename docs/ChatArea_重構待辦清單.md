@@ -30,7 +30,7 @@
 
   ```bash
   # 創建目錄結構
-  frontend/src/views/chat/components/ChatArea/
+  frontend/src/views/chat/components/chatarea/
   ├── index.vue                  # 主容器組件
   ├── ChatHeader.vue             # 頭部組件
   ├── ChatMessages.vue           # 消息列表組件
@@ -39,12 +39,13 @@
   ├── QuickCommands.vue          # 快速命令組件
   ├── VoiceInput.vue             # 語音輸入組件
   ├── ChatSettings.vue           # 設置組件
-  ├── SmartFeatures.vue          # 智能功能組件
-  └── composables/
-      ├── useScrollControl.js    # 滾動控制
-      ├── useFileHandler.js      # 文件處理
-      ├── useVoiceRecognition.js # 語音識別
-      └── useSmartSuggestions.js # 智能建議
+  └── SmartFeatures.vue          # 智能功能組件
+
+  frontend/src/composables/chatarea/
+  ├── useScrollControl.js    # 滾動控制
+  ├── useFileHandler.js      # 文件處理
+  ├── useVoiceRecognition.js # 語音識別
+  └── useSmartSuggestions.js # 智能建議
   ```
 
 - [ ] **驗收標準**：
@@ -54,7 +55,7 @@
 
 ### 任務 1.2：創建 Composables 基礎 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/composables/`
+- [ ] **檔案**：`frontend/src/composables/chatarea/`
 - [ ] **優先級**：🔴 高
 - [ ] **預估時間**：12 小時
 - [ ] **負責人**：前端開發工程師
@@ -166,7 +167,7 @@
 
 ### 任務 1.3：創建 ChatHeader 組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/ChatHeader.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/ChatHeader.vue`
 - [ ] **優先級**：🟡 中
 - [ ] **預估時間**：6 小時
 - [ ] **負責人**：UI 開發工程師
@@ -212,7 +213,7 @@
 
 ### 任務 1.4：創建 ChatMessages 組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/ChatMessages.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/ChatMessages.vue`
 - [ ] **優先級**：🔴 高
 - [ ] **預估時間**：8 小時
 - [ ] **負責人**：前端開發工程師
@@ -242,7 +243,7 @@
   </template>
 
   <script setup>
-  import { useScrollControl } from "./composables/useScrollControl";
+  import { useScrollControl } from "@/composables/chatarea/useScrollControl";
 
   const {
     autoScrollEnabled,
@@ -261,7 +262,7 @@
 
 ### 任務 1.5：創建 ChatInput 基礎組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/ChatInput.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/ChatInput.vue`
 - [ ] **優先級**：🔴 高
 - [ ] **預估時間**：10 小時
 - [ ] **負責人**：前端開發工程師
@@ -316,7 +317,7 @@
 
 ### 任務 2.1：創建 FileManager 組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/FileManager.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/FileManager.vue`
 - [ ] **優先級**：🔴 高
 - [ ] **預估時間**：12 小時
 - [ ] **負責人**：文件處理專家
@@ -358,7 +359,7 @@
   </template>
 
   <script setup>
-  import { useFileHandler } from "./composables/useFileHandler";
+  import { useFileHandler } from "@/composables/chatarea/useFileHandler";
   import { useFileType } from "@/composables/useFileType";
 
   const {
@@ -391,7 +392,7 @@
 
 ### 任務 2.2：創建 QuickCommands 組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/QuickCommands.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/QuickCommands.vue`
 - [ ] **優先級**：🟡 中
 - [ ] **預估時間**：8 小時
 - [ ] **負責人**：前端開發工程師
@@ -454,7 +455,7 @@
 
 ### 任務 2.3：創建 VoiceInput 組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/VoiceInput.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/VoiceInput.vue`
 - [ ] **優先級**：🟡 中
 - [ ] **預估時間**：6 小時
 - [ ] **負責人**：前端開發工程師
@@ -490,7 +491,7 @@
   </template>
 
   <script setup>
-  import { useVoiceRecognition } from "./composables/useVoiceRecognition";
+  import { useVoiceRecognition } from "@/composables/chatarea/useVoiceRecognition";
 
   const { speechSupported, isListening, speechResult, toggleVoiceInput } =
     useVoiceRecognition();
@@ -514,7 +515,7 @@
 
 ### 任務 2.4：創建 ChatSettings 組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/ChatSettings.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/ChatSettings.vue`
 - [ ] **優先級**：🟡 中
 - [ ] **預估時間**：8 小時
 - [ ] **負責人**：前端開發工程師
@@ -576,7 +577,7 @@
 
 ### 任務 3.1：創建 SmartFeatures 組件 ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/SmartFeatures.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/SmartFeatures.vue`
 - [ ] **優先級**：🟡 中
 - [ ] **預估時間**：10 小時
 - [ ] **負責人**：AI 功能專家
@@ -609,7 +610,7 @@
   </template>
 
   <script setup>
-  import { useSmartSuggestions } from "./composables/useSmartSuggestions";
+  import { useSmartSuggestions } from "@/composables/chatarea/useSmartSuggestions";
 
   const {
     suggestions,
@@ -636,7 +637,7 @@
 
 ### 任務 3.2：創建主容器 ChatArea/index.vue ⏳
 
-- [ ] **檔案**：`frontend/src/views/chat/components/ChatArea/index.vue`
+- [ ] **檔案**：`frontend/src/views/chat/components/chatarea/index.vue`
 - [ ] **優先級**：🔴 高
 - [ ] **預估時間**：12 小時
 - [ ] **負責人**：前端架構師

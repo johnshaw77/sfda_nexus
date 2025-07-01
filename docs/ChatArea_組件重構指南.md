@@ -47,7 +47,7 @@
 
 ```
 views/chat/components/
-├── ChatArea/                      # ← 重構後的主容器
+├── chatarea/                      # ← 重構後的主容器 (小寫)
 │   ├── index.vue                  # 主組件 (~200行)
 │   ├── ChatHeader.vue             # 聊天頭部 (~200行)
 │   ├── ChatMessages.vue           # 消息列表 (~300行)
@@ -56,13 +56,14 @@ views/chat/components/
 │   ├── QuickCommands.vue          # 快速命令 (~300行)
 │   ├── VoiceInput.vue             # 語音輸入 (~200行)
 │   ├── ChatSettings.vue           # 設置面板 (~300行)
-│   ├── SmartFeatures.vue          # 智能功能 (~400行)
-│   └── composables/               # 組件專用 composables
-│       ├── useScrollControl.js    # 滾動控制
-│       ├── useFileHandler.js      # 文件處理
-│       ├── useVoiceRecognition.js # 語音識別
-│       └── useSmartSuggestions.js # 智能建議
-└── ChatArea.vue                   # 原始文件備份
+│   └── SmartFeatures.vue          # 智能功能 (~400行)
+├── ChatArea.vue                   # 原始文件備份
+└── composables/
+    └── chatarea/                  # ChatArea 專用 composables
+        ├── useScrollControl.js    # 滾動控制
+        ├── useFileHandler.js      # 文件處理
+        ├── useVoiceRecognition.js # 語音識別
+        └── useSmartSuggestions.js # 智能建議
 ```
 
 ### 🧩 組件功能劃分
