@@ -148,7 +148,9 @@
                 <span class="streaming-dot"></span>
                 <span>{{ mcpToolName }} 數據流式載入中...</span>
               </div>
-              <div v-if="mcpProgress" class="streaming-progress">
+              <div
+                v-if="mcpProgress"
+                class="streaming-progress">
                 <a-progress
                   :percent="mcpProgress.percentage"
                   size="small"
@@ -161,11 +163,15 @@
             <div class="mcp-stream-content">
               <div class="streaming-content-container">
                 <!-- 使用 AnimatedContent 組件進行逐行顯示 -->
-                <AnimatedContent
+                <!-- <AnimatedContent
                   :content="mcpStreamContent"
                   :enable-animation="true"
                   :chunk-size="{ min: 15, max: 30 }"
-                  :delay="{ min: 30, max: 80 }" />
+                  :delay="{ min: 30, max: 80 }" /> -->
+                <!-- 直接顯示 MCP 流式內容 -->
+                <div class="mcp-stream-text">
+                  {{ mcpStreamContent }}
+                </div>
               </div>
             </div>
           </div>
@@ -400,25 +406,64 @@ const mcpProgress = computed(() => {
 });
 
 const mcpToolName = computed(() => {
-  return props.toolCall?.mcpToolName || props.toolCall?.toolName || props.toolCall?.name || "工具";
+  return (
+    props.toolCall?.mcpToolName ||
+    props.toolCall?.toolName ||
+    props.toolCall?.name ||
+    "工具"
+  );
 });
 
 // 🖼️ 圖片數據相關計算屬性和方法
 const hasImageData = computed(() => {
-  // 檢查 toolCall.result.data._meta.image_data
-  return !!(
+  // 🔧 擴展圖片數據檢查路徑
+  const result = !!(
+    // 原有路徑
     props.toolCall?.result?.data?._meta?.image_data?.base64 ||
-    props.toolCall?.result?._meta?.image_data?.base64
+    props.toolCall?.result?._meta?.image_data?.base64 ||
+    // 🆕 新增：統計工具的常見路徑
+    props.toolCall?.result?.image_data?.base64 ||
+    props.toolCall?.result?.data?.image_data?.base64 ||
+    // 🆕 新增：直接在 result 根層級的路徑
+    props.toolCall?.result?.has_image && props.toolCall?.result?.image_data
   );
+  
+  console.log("🔍 [ToolCallDisplay] hasImageData 檢查:", {
+    toolName: props.toolCall?.name,
+    result,
+    paths: {
+      "result.data._meta.image_data.base64": !!props.toolCall?.result?.data?._meta?.image_data?.base64,
+      "result._meta.image_data.base64": !!props.toolCall?.result?._meta?.image_data?.base64,
+      "result.image_data.base64": !!props.toolCall?.result?.image_data?.base64,
+      "result.data.image_data.base64": !!props.toolCall?.result?.data?.image_data?.base64,
+      "result.has_image": !!props.toolCall?.result?.has_image,
+      "result.image_data": !!props.toolCall?.result?.image_data
+    }
+  });
+  
+  return result;
 });
 
 const getImageData = () => {
-  // 從兩個可能的位置獲取圖片數據
-  return (
+  // 🔧 擴展圖片數據獲取路徑
+  const imageData = (
+    // 原有路徑
     props.toolCall?.result?.data?._meta?.image_data ||
     props.toolCall?.result?._meta?.image_data ||
+    // 🆕 新增：統計工具的常見路徑
+    props.toolCall?.result?.image_data ||
+    props.toolCall?.result?.data?.image_data ||
     null
   );
+  
+  console.log("🔍 [ToolCallDisplay] getImageData 結果:", {
+    hasImageData: !!imageData,
+    hasBase64: !!imageData?.base64,
+    format: imageData?.format,
+    base64Preview: imageData?.base64?.substring(0, 50) + "..."
+  });
+  
+  return imageData;
 };
 
 const getImageDataUrl = () => {
@@ -1043,7 +1088,8 @@ const getDebugInfo = () => {
 }
 
 @keyframes streaming-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.3;
     transform: scale(1);
   }

@@ -3,7 +3,7 @@
 /**
  * @fileoverview MessageActions - 消息操作工具欄組件
  * @description 為 AI 助手消息提供操作工具欄，包括複製、重新生成、引用回覆、
- * 動畫效果切換、刪除等功能。同時顯示消息的模型信息和 Token 使用量。
+ * 刪除等功能。同時顯示消息的模型信息和 Token 使用量。
  * 
  * @component MessageActions
  * @author SFDA Development Team
@@ -66,7 +66,7 @@
         </a-button>
       </a-tooltip>
 
-      <!-- 動畫效果切換按鈕 -->
+      <!-- 動畫效果切換按鈕 
       <a-tooltip
         :title="enableContentAnimation ? '關閉動畫效果' : '開啟動畫效果'">
         <a-button
@@ -89,7 +89,7 @@
           </svg>
         </a-button>
       </a-tooltip>
-
+-->
       <a-tooltip title="刪除消息">
         <a-button
           type="text"
@@ -215,11 +215,11 @@ const getModelColor = (provider) => {
   justify-content: space-between;
   margin-top: 8px;
   padding: 6px 8px;
-  background: var(--custom-bg-tertiary);
+  /* background: var(--custom-bg-tertiary); */
   border-radius: 6px;
   font-size: 12px;
   color: var(--custom-text-tertiary);
-  border: 1px solid var(--custom-border-primary);
+  /* border: 1px solid var(--custom-border-primary); */
 }
 
 .model-info-left {

@@ -279,7 +279,12 @@
       ref="messagesContainer"
       :style="{
         height: `calc(100% - ${inputCollapsed ? 60 : inputAreaHeight}px)`,
-      }">
+      }"
+      @scroll="handleUserScroll"
+      @wheel="handleScrollStart"
+      @touchstart="handleScrollStart"
+      @mousedown="handleScrollStart"
+      @scroll.stop="handleScrollEnd">
       <!-- <div class="background-video">
         <video
           src="/images/ssss.mp4"
@@ -398,6 +403,24 @@
                 }}
                 正在思考中...</span
               >
+            </div>
+          </div>
+
+          <!-- 🎯 自動滾動狀態指示器 -->
+          <div
+            v-if="!autoScrollEnabled && chatStore.messages.length > 0"
+            class="scroll-control-indicator">
+            <div class="scroll-paused-notice">
+              <span class="scroll-icon">⏸️</span>
+              <span class="scroll-text">自動滾動已暫停</span>
+              <a-button
+                type="link"
+                size="small"
+                @click="() => { autoScrollEnabled = true; scrollToBottom(); }"
+                class="resume-scroll-btn">
+                <DownOutlined />
+                回到底部
+              </a-button>
             </div>
           </div>
         </div>
@@ -1261,6 +1284,7 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, h } from "vue";
 import { message } from "ant-design-vue";
+import { DownOutlined } from "@ant-design/icons-vue";
 // Icons are globally registered in main.js
 import { useChatStore } from "@/stores/chat";
 import { useWebSocketStore } from "@/stores/websocket";
@@ -1347,6 +1371,11 @@ const showAgentMenu = ref(false);
 
 const agentMenuPosition = ref({ top: 0, left: 0 });
 const inputAreaHeight = ref(320); // 增加默認高度以適應新的最小高度
+
+// 🎯 自動滾動控制
+const autoScrollEnabled = ref(true); // 是否啟用自動滾動
+const userScrollTimeout = ref(null); // 用戶滾動暫停計時器
+const isUserScrolling = ref(false); // 用戶是否正在主動滾動
 const isResizing = ref(false);
 const minInputHeight = 280; // 增加最小高度以適應工具欄和附件
 const maxInputHeight = 600;
@@ -1551,7 +1580,7 @@ const findModelById = (modelId) => {
 
 const scrollToBottom = () => {
   nextTick(() => {
-    if (messagesContainer.value) {
+    if (messagesContainer.value && autoScrollEnabled.value) {
       messagesContainer.value.scrollTo({
         top: messagesContainer.value.scrollHeight,
         behavior: "smooth",
@@ -1565,13 +1594,60 @@ const scrollToBottomWithDelay = async (delay = 100) => {
   await nextTick();
   // 等待一個短暫延遲確保消息完全渲染
   setTimeout(() => {
-    if (messagesContainer.value) {
+    if (messagesContainer.value && autoScrollEnabled.value) {
       messagesContainer.value.scrollTo({
         top: messagesContainer.value.scrollHeight,
         behavior: "smooth",
       });
     }
   }, delay);
+};
+
+// 🎯 檢測用戶是否手動滾動
+const isAtBottom = () => {
+  if (!messagesContainer.value) return true;
+  const container = messagesContainer.value;
+  const threshold = 100; // 100px 的容差
+  return container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
+};
+
+// 🎯 用戶滾動事件處理
+const handleUserScroll = () => {
+  if (!messagesContainer.value || isUserScrolling.value) return;
+  
+  // 如果用戶滾動到了底部，恢復自動滾動
+  if (isAtBottom()) {
+    autoScrollEnabled.value = true;
+    console.log("🎯 用戶滾動到底部，恢復自動滾動");
+  } else {
+    // 用戶滾動到了其他位置，暫停自動滾動
+    autoScrollEnabled.value = false;
+    console.log("🎯 用戶手動滾動，暫停自動滾動");
+    
+    // 清除之前的計時器
+    if (userScrollTimeout.value) {
+      clearTimeout(userScrollTimeout.value);
+    }
+    
+    // 設置計時器，10秒後自動恢復滾動（如果用戶沒有繼續操作）
+    userScrollTimeout.value = setTimeout(() => {
+      if (!isUserScrolling.value) {
+        autoScrollEnabled.value = true;
+        console.log("🎯 超時恢復自動滾動");
+      }
+    }, 10000); // 10秒
+  }
+};
+
+// 🎯 檢測用戶滾動行為（鼠標滾輪、拖拽滾動條等）
+const handleScrollStart = () => {
+  isUserScrolling.value = true;
+};
+
+const handleScrollEnd = () => {
+  setTimeout(() => {
+    isUserScrolling.value = false;
+  }, 150); // 滾動結束後150ms標記為結束
 };
 
 // 事件處理
@@ -3244,6 +3320,12 @@ onUnmounted(() => {
   if (isListening.value) {
     stopSpeechRecognition();
   }
+
+  // 🎯 清理自動滾動計時器
+  if (userScrollTimeout.value) {
+    clearTimeout(userScrollTimeout.value);
+    userScrollTimeout.value = null;
+  }
 });
 
 const handleResizeStart = (event) => {
@@ -4832,5 +4914,68 @@ const getModelEndpoint = () => {
 :root[data-theme="dark"] .analyzing-indicator {
   background: var(--custom-bg-primary);
   border-color: var(--custom-border-secondary);
+}
+
+/* 🎯 自動滾動控制指示器 */
+.scroll-control-indicator {
+  position: fixed;
+  bottom: 120px;
+  right: 24px;
+  z-index: 1000;
+  opacity: 0.9;
+}
+
+.scroll-paused-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  animation: slideInUp 0.3s ease-out;
+}
+
+.scroll-icon {
+  font-size: 14px;
+}
+
+.scroll-text {
+  color: var(--custom-text-secondary);
+  font-weight: 500;
+}
+
+.resume-scroll-btn {
+  padding: 2px 8px !important;
+  height: 24px !important;
+  border-radius: 12px !important;
+  font-size: 11px !important;
+  border: 1px solid var(--primary-color) !important;
+  color: var(--primary-color) !important;
+}
+
+.resume-scroll-btn:hover {
+  background: var(--primary-color) !important;
+  color: white !important;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+}
+
+/* 暗色主題適配 */
+:root[data-theme="dark"] .scroll-paused-notice {
+  background: var(--custom-bg-tertiary);
+  border-color: var(--custom-border-secondary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 </style>

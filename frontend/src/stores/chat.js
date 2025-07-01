@@ -1064,13 +1064,18 @@ export const useChatStore = defineStore("chat", () => {
           }
 
           // 🎯 關鍵修復：檢查是否有工具調用或工具結果，如果有則跳過原始AI內容顯示
-          const hasToolActivity = streamMessage.isProcessingTools || 
-                                 streamMessage.toolResultSections || 
-                                 streamMessage.isGeneratingSummary ||
-                                 streamMessage.finalContent;
+          const hasToolActivity =
+            streamMessage.isProcessingTools ||
+            streamMessage.toolResultSections ||
+            streamMessage.isGeneratingSummary ||
+            streamMessage.finalContent;
 
           // 處理主要內容的即時顯示（使用打字機效果）
-          if (data.content !== undefined && messageIndex !== -1 && !hasToolActivity) {
+          if (
+            data.content !== undefined &&
+            messageIndex !== -1 &&
+            !hasToolActivity
+          ) {
             const currentContent = streamMessage.content || "";
 
             // 🔧 新增：對 AI 回應內容也應用文字轉換
@@ -1103,7 +1108,7 @@ export const useChatStore = defineStore("chat", () => {
               messageId: streamMessage.id,
               isProcessingTools: streamMessage.isProcessingTools,
               hasToolResultSections: !!streamMessage.toolResultSections,
-              isGeneratingSummary: streamMessage.isGeneratingSummary
+              isGeneratingSummary: streamMessage.isGeneratingSummary,
             });
           }
 
@@ -1183,7 +1188,7 @@ export const useChatStore = defineStore("chat", () => {
           messages.value[finalMessageIndex].isOptimizing = false;
           messages.value[finalMessageIndex].optimizingMessage = null;
           messages.value[finalMessageIndex].isStreamingSecondary = false;
-          
+
           // 🎬 清除工具結果分段狀態
           if (messages.value[finalMessageIndex].toolResultSections) {
             // 設置最終內容標記，防止繼續更新
@@ -1196,9 +1201,10 @@ export const useChatStore = defineStore("chat", () => {
             messages.value[finalMessageIndex].thinking_content;
 
           // 🎯 關鍵修復：檢查是否有工具活動，決定是否更新內容
-          const hasToolActivity = messages.value[finalMessageIndex].toolResultSections || 
-                                 messages.value[finalMessageIndex].isGeneratingSummary ||
-                                 messages.value[finalMessageIndex].finalContent;
+          const hasToolActivity =
+            messages.value[finalMessageIndex].toolResultSections ||
+            messages.value[finalMessageIndex].isGeneratingSummary ||
+            messages.value[finalMessageIndex].finalContent;
 
           let finalConvertedContent = null;
 
@@ -1211,13 +1217,15 @@ export const useChatStore = defineStore("chat", () => {
                     textConversionMode.value
                   )
                 : data.full_content;
-                
+
             console.log("🎯 [stream_done] 更新最終內容 (無工具活動)");
           } else if (hasToolActivity) {
             console.log("🎯 [stream_done] 跳過內容更新，保持工具結果:", {
-              hasToolResultSections: !!messages.value[finalMessageIndex].toolResultSections,
-              isGeneratingSummary: messages.value[finalMessageIndex].isGeneratingSummary,
-              hasFinalContent: messages.value[finalMessageIndex].finalContent
+              hasToolResultSections:
+                !!messages.value[finalMessageIndex].toolResultSections,
+              isGeneratingSummary:
+                messages.value[finalMessageIndex].isGeneratingSummary,
+              hasFinalContent: messages.value[finalMessageIndex].finalContent,
             });
           }
 
@@ -1237,9 +1245,13 @@ export const useChatStore = defineStore("chat", () => {
               // 🔧 修復：保留 Summary 標記，防止被 updated_message 覆蓋
               used_summary: messages.value[finalMessageIndex].used_summary,
               // 🎯 保留工具結果相關字段
-              content: hasToolActivity ? messages.value[finalMessageIndex].content : undefined,
-              toolResultSections: messages.value[finalMessageIndex].toolResultSections,
-              isGeneratingSummary: messages.value[finalMessageIndex].isGeneratingSummary,
+              content: hasToolActivity
+                ? messages.value[finalMessageIndex].content
+                : undefined,
+              toolResultSections:
+                messages.value[finalMessageIndex].toolResultSections,
+              isGeneratingSummary:
+                messages.value[finalMessageIndex].isGeneratingSummary,
               finalContent: messages.value[finalMessageIndex].finalContent,
             };
 
@@ -1257,7 +1269,10 @@ export const useChatStore = defineStore("chat", () => {
             // 🎯 只有在沒有工具活動且有最終內容時才更新 content
             if (!hasToolActivity && finalConvertedContent !== null) {
               updateObject.content = finalConvertedContent;
-            } else if (hasToolActivity && currentImportantFields.content !== undefined) {
+            } else if (
+              hasToolActivity &&
+              currentImportantFields.content !== undefined
+            ) {
               updateObject.content = currentImportantFields.content;
             }
 
@@ -1279,7 +1294,7 @@ export const useChatStore = defineStore("chat", () => {
             if (!hasToolActivity && finalConvertedContent !== null) {
               messages.value[finalMessageIndex].content = finalConvertedContent;
             }
-            
+
             messages.value[finalMessageIndex].tokens_used = data.tokens_used;
             messages.value[finalMessageIndex].cost = data.cost;
             messages.value[finalMessageIndex].processing_time =
@@ -1542,7 +1557,7 @@ export const useChatStore = defineStore("chat", () => {
 
         if (sectionMessageIndex !== -1) {
           const message = messages.value[sectionMessageIndex];
-          
+
           // 初始化分段數據結構
           if (!message.toolResultSections) {
             message.toolResultSections = [];
@@ -1565,7 +1580,7 @@ export const useChatStore = defineStore("chat", () => {
           // 🎬 逐步構建內容，創建類似打字機的效果
           const accumulatedContent = message.toolResultSections
             .sort((a, b) => a.index - b.index)
-            .map(section => section.content)
+            .map((section) => section.content)
             .join("");
 
           // 更新消息內容（如果還沒有最終內容）
@@ -1598,17 +1613,17 @@ export const useChatStore = defineStore("chat", () => {
 
         if (summaryStartMessageIndex !== -1) {
           const message = messages.value[summaryStartMessageIndex];
-          
+
           // 清除工具處理狀態，開始總結階段
           message.isProcessingTools = false;
           message.toolProcessingMessage = null;
-          
+
           // 設置總結狀態
           message.isGeneratingSummary = true;
           message.summaryContent = "";
           message.summaryProgress = 0;
           message.summaryMessage = data.message || "🤖 正在生成智能總結...";
-          
+
           console.log("🎬 AI總結狀態已設置");
         }
         break;
@@ -1624,36 +1639,40 @@ export const useChatStore = defineStore("chat", () => {
 
         if (summaryDeltaMessageIndex !== -1) {
           const message = messages.value[summaryDeltaMessageIndex];
-          
+
           // 累積總結內容
-          message.summaryContent = data.accumulated_content || (message.summaryContent || "") + data.content;
+          message.summaryContent =
+            data.accumulated_content ||
+            (message.summaryContent || "") + data.content;
           message.summaryProgress = data.progress || 0;
-          
+
           // 🎯 修復：確保正確的內容順序
           // 1. 首先獲取基礎內容（工具結果）
           let baseContent = "";
           if (message.toolResultSections) {
             baseContent = message.toolResultSections
               .sort((a, b) => a.index - b.index)
-              .map(section => section.content)
+              .map((section) => section.content)
               .join("");
           } else {
             // 如果沒有工具結果分段，從現有content中移除之前的總結
-            baseContent = message.content.split('\n\n---\n\n## 🤖 智能總結')[0];
+            baseContent = message.content.split("\n\n---\n\n## 🤖 智能總結")[0];
           }
-          
+
           // 2. 添加總結部分（始終在最後）
           if (message.summaryContent) {
-            message.content = baseContent + `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}`;
+            message.content =
+              baseContent +
+              `\n\n---\n\n## 🤖 智能總結(僅供參考考\n\n${message.summaryContent}`;
           } else {
             message.content = baseContent;
           }
-          
+
           console.log("🎬 AI總結內容更新:", {
             messageId: data.assistant_message_id,
             deltaLength: data.content?.length || 0,
             totalSummaryLength: message.summaryContent?.length || 0,
-            progress: data.progress
+            progress: data.progress,
           });
         }
         break;
@@ -1669,29 +1688,31 @@ export const useChatStore = defineStore("chat", () => {
 
         if (summaryCompleteMessageIndex !== -1) {
           const message = messages.value[summaryCompleteMessageIndex];
-          
+
           // 清除總結狀態
           message.isGeneratingSummary = false;
           message.summaryMessage = null;
           message.summaryProgress = 100;
-          
+
           // 🎯 修復：確保最終內容順序正確
           message.summaryContent = data.summary_content;
-          
+
           // 1. 獲取基礎內容（工具結果）
           let baseContent = "";
           if (message.toolResultSections) {
             baseContent = message.toolResultSections
               .sort((a, b) => a.index - b.index)
-              .map(section => section.content)
+              .map((section) => section.content)
               .join("");
           } else {
-            baseContent = message.content.split('\n\n---\n\n## 🤖 智能總結')[0];
+            baseContent = message.content.split("\n\n---\n\n## 🤖 智能總結")[0];
           }
-          
+
           // 2. 組合最終內容
-          message.content = baseContent + `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}`;
-          
+          message.content =
+            baseContent +
+            `\n\n---\n\n## 🤖 智能總結\n\n${message.summaryContent}`;
+
           console.log("🎬 AI總結已完成");
         }
         break;
@@ -1707,12 +1728,12 @@ export const useChatStore = defineStore("chat", () => {
 
         if (summaryErrorMessageIndex !== -1) {
           const message = messages.value[summaryErrorMessageIndex];
-          
+
           // 清除總結狀態
           message.isGeneratingSummary = false;
           message.summaryMessage = null;
           message.summaryError = data.error;
-          
+
           console.log("🎬 AI總結發生錯誤");
         }
         break;
@@ -1933,17 +1954,17 @@ export const useChatStore = defineStore("chat", () => {
       case "mcp_tool_error":
         // 🚀 新增：MCP 工具調用錯誤事件
         console.error("MCP 工具調用錯誤:", data);
-        
+
         const mcpErrorMessageIndex = messages.value.findIndex(
           (msg) => msg.id === data.assistant_message_id
         );
-        
+
         if (mcpErrorMessageIndex !== -1) {
           // 初始化錯誤數組（如果不存在）
           if (!messages.value[mcpErrorMessageIndex].mcpErrors) {
             messages.value[mcpErrorMessageIndex].mcpErrors = [];
           }
-          
+
           // 添加錯誤信息
           messages.value[mcpErrorMessageIndex].mcpErrors.push({
             tool_name: data.tool_name,
@@ -1953,20 +1974,20 @@ export const useChatStore = defineStore("chat", () => {
             suggestion: data.suggestion,
             timestamp: data.timestamp,
           });
-          
+
           // 標記該消息有 MCP 錯誤
           messages.value[mcpErrorMessageIndex].hasMcpErrors = true;
-          
+
           // 顯示錯誤通知（使用友善的提示）
           const errorTitle = `工具調用失敗`;
           const errorMessage = data.suggestion || data.error;
-          
+
           message.error({
             content: `${errorTitle}：${errorMessage}`,
             duration: 8, // 延長顯示時間讓用戶有時間閱讀建議
             key: `mcp-error-${data.assistant_message_id}-${Date.now()}`, // 避免重複顯示
           });
-          
+
           console.log("🚨 已添加 MCP 錯誤信息到消息:", {
             messageId: data.assistant_message_id,
             toolName: data.tool_name,
@@ -1975,18 +1996,21 @@ export const useChatStore = defineStore("chat", () => {
             suggestion: data.suggestion,
           });
         } else {
-          console.warn("⚠️ 找不到對應的消息來顯示 MCP 錯誤:", data.assistant_message_id);
+          console.warn(
+            "⚠️ 找不到對應的消息來顯示 MCP 錯誤:",
+            data.assistant_message_id
+          );
         }
         break;
 
       case "mcp_tool_start":
         // 🚀 新增：MCP 工具流式調用開始
         console.log("MCP 工具流式調用開始:", data);
-        
+
         const mcpStartMessageIndex = messages.value.findIndex(
           (msg) => msg.id === data.assistant_message_id
         );
-        
+
         if (mcpStartMessageIndex !== -1) {
           messages.value[mcpStartMessageIndex].mcpStreaming = true;
           messages.value[mcpStartMessageIndex].mcpToolName = data.toolName;
@@ -1997,24 +2021,24 @@ export const useChatStore = defineStore("chat", () => {
       case "mcp_tool_chunk":
         // 🚀 新增：MCP 工具流式內容塊
         console.log("MCP 工具流式內容塊:", data);
-        
+
         const mcpChunkMessageIndex = messages.value.findIndex(
           (msg) => msg.id === data.assistant_message_id
         );
-        
+
         if (mcpChunkMessageIndex !== -1) {
           // 累積流式內容
           if (!messages.value[mcpChunkMessageIndex].mcpStreamContent) {
             messages.value[mcpChunkMessageIndex].mcpStreamContent = "";
           }
           messages.value[mcpChunkMessageIndex].mcpStreamContent += data.content;
-          
+
           // 更新進度信息
           if (data.index !== undefined && data.total !== undefined) {
             messages.value[mcpChunkMessageIndex].mcpProgress = {
               current: data.index + 1,
               total: data.total,
-              percentage: Math.round(((data.index + 1) / data.total) * 100)
+              percentage: Math.round(((data.index + 1) / data.total) * 100),
             };
           }
         }
@@ -2023,39 +2047,42 @@ export const useChatStore = defineStore("chat", () => {
       case "mcp_tool_complete":
         // 🚀 新增：MCP 工具流式調用完成
         console.log("MCP 工具流式調用完成:", data);
-        
+
         const mcpCompleteMessageIndex = messages.value.findIndex(
           (msg) => msg.id === data.assistant_message_id
         );
-        
+
         if (mcpCompleteMessageIndex !== -1) {
           // 標記流式結束
           messages.value[mcpCompleteMessageIndex].mcpStreaming = false;
-          
+
           // 將流式內容設置為最終工具結果
-          const finalContent = messages.value[mcpCompleteMessageIndex].mcpStreamContent || "";
-          
+          const finalContent =
+            messages.value[mcpCompleteMessageIndex].mcpStreamContent || "";
+
           // 初始化工具調用結果數組（如果不存在）
           if (!messages.value[mcpCompleteMessageIndex].tool_results) {
             messages.value[mcpCompleteMessageIndex].tool_results = [];
           }
-          
+
           // 添加流式結果到工具調用結果中
           messages.value[mcpCompleteMessageIndex].tool_results.push({
-            tool_name: data.toolName || messages.value[mcpCompleteMessageIndex].mcpToolName,
+            tool_name:
+              data.toolName ||
+              messages.value[mcpCompleteMessageIndex].mcpToolName,
             result: finalContent,
             timestamp: new Date().toISOString(),
-            isStreamed: true
+            isStreamed: true,
           });
-          
+
           // 標記有工具調用
           messages.value[mcpCompleteMessageIndex].has_tool_calls = true;
-          
+
           // 清理臨時屬性
           delete messages.value[mcpCompleteMessageIndex].mcpStreamContent;
           delete messages.value[mcpCompleteMessageIndex].mcpProgress;
           delete messages.value[mcpCompleteMessageIndex].mcpToolName;
-          
+
           console.log("🏁 MCP 工具流式調用完成，結果已保存");
         }
         break;

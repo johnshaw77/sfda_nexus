@@ -719,32 +719,80 @@ ${formattedResults}`;
             }))
           );
 
-          // 🎯 使用原始數據而非格式化文本，避免幻覺
-          const rawData = toolResults
-            .filter((r) => r.success && r.data?.data)
-            .map((r) => r.data.data)
-            .flat()
-            .slice(0, 10); // 只取前10筆避免過長
+          // 🔧 修復：徹底清理所有可能導致 AI 幻覺的數據
+          const cleanedToolData = toolResults
+            .filter((r) => r.success && r.data)
+            .map((r) => {
+              // 🚨 關鍵修復：創建完全乾淨的數據結構
+              const cleaned = {
+                tool_name: r.tool_name,
+                timestamp: r.timestamp,
+                summary: null,
+                statistics: null,
+                data_count: 0
+              };
+              
+              // 安全提取統計數據和摘要
+              if (r.data && typeof r.data === 'object') {
+                // 提取統計結果
+                if (r.data.statistics && typeof r.data.statistics === 'object') {
+                  cleaned.statistics = {
+                    test_statistic: r.data.statistics.test_statistic,
+                    p_value: r.data.statistics.p_value,
+                    critical_value: r.data.statistics.critical_value,
+                    degrees_of_freedom: r.data.statistics.degrees_of_freedom,
+                    effect_size: r.data.statistics.effect_size,
+                    conclusion: r.data.statistics.conclusion
+                  };
+                }
+                
+                // 提取安全的摘要信息
+                if (r.data.summary && typeof r.data.summary === 'string' && r.data.summary.length < 2000) {
+                  cleaned.summary = r.data.summary;
+                }
+                
+                // 提取數據計數
+                if (r.data.data && Array.isArray(r.data.data)) {
+                  cleaned.data_count = r.data.data.length;
+                }
+                
+                // 提取基本數據描述（不包含原始數據）
+                if (r.data.description && typeof r.data.description === 'string' && r.data.description.length < 1000) {
+                  cleaned.description = r.data.description;
+                }
+              }
+              
+              return cleaned;
+            })
+            .slice(0, 2); // 進一步限制數據量
 
           const followUpMessages = [
             {
               role: "system",
-              content: `你是數據分析專家。基於以下原始數據提供簡潔分析：
+              content: `你是專業的統計分析師，專門分析生產線數據。
 
-${JSON.stringify(rawData, null, 2)}
+🎯 **分析任務：**
+- 基於統計工具結果分析生產線性能
+- 圖表已顯示，專注於統計結論和業務洞察
+- 必須圍繞用戶問題提供專業建議
 
-要求：3句話總結，每句不超過50字。`,
+**統計結果摘要：**
+${cleanedToolData.map(d => `工具: ${d.tool_name}
+統計值: ${d.statistics ? JSON.stringify(d.statistics, null, 2) : '無'}
+摘要: ${d.summary || '無'}`).join('\n\n')}
+
+要求：基於統計結果提供3-4句專業分析。`,
             },
             {
               role: "user",
-              content: `${userQuestion}
+              content: `用戶問題：「${userQuestion}」
 
-基於上方數據，請用3句話總結：
-1. 主要問題
-2. 優先建議  
-3. 改善方向
+請基於上述統計分析結果，針對用戶的具體問題提供專業回答：
+1. 統計檢定結論
+2. 數據特徵說明
+3. 實際業務建議
 
-總計150字內，不要創造數據中沒有的欄位。`,
+要求：直接回答用戶問題，150字內。`,
             },
           ];
 
@@ -843,14 +891,48 @@ ${JSON.stringify(rawData, null, 2)}
               cleanedResponse.trim() &&
               cleanedResponse !== formattedResults
             ) {
-              // AI 提供了有效的額外分析
+              // AI 提供了有效的額外分析，添加調試信息
               finalResponse = `${formattedResults}
 
 ---
 
 ## 🧠 AI 智能分析總結
 
-${cleanedResponse}`;
+${cleanedResponse}
+
+---
+
+## 🔍 調試信息 (開發用)
+
+<details>
+<summary>點擊查看完整 Prompt 和數據</summary>
+
+### System Prompt:
+\`\`\`
+${followUpMessages[0].content}
+\`\`\`
+
+### User Prompt:
+\`\`\`
+${followUpMessages[1].content}
+\`\`\`
+
+### 清理後的工具數據:
+\`\`\`json
+${JSON.stringify(cleanedToolData, null, 2)}
+\`\`\`
+
+### AI 原始回應:
+\`\`\`
+${secondaryAIResponse.content}
+\`\`\`
+
+### 模型配置:
+\`\`\`json
+${JSON.stringify(secondaryModelConfig, null, 2)}
+\`\`\`
+
+</details>`;
             } else {
               // AI 沒有提供有效內容或出現問題，只使用格式化結果
               finalResponse = formattedResults;
@@ -1103,9 +1185,9 @@ ${formattedResults}
           }
 
           return {
-            tool: item.tool,
+            //tool: item.tool,
             key_data: keyPoints,
-            summary: item.summary,
+            //summary: item.summary,
           };
         })
         .filter(
@@ -1147,7 +1229,7 @@ ${formattedResults}
 **🧠 分析指導**:
 ${allAIInstructions}
 
-**要求**: 根據上述指導，用5-7句話簡潔分析並回答用戶問題。`;
+**要求**: 根據上述指導，無需推理,不需要再重複性回答工具已回傳的結果，只要分析並給出總結及建議，用繁體中文回答。`;
       } else {
         // 🔄 回退到簡化的固定指導
         summaryPrompt = `**用戶問題**: ${userQuestion}
@@ -1155,15 +1237,18 @@ ${allAIInstructions}
 **查詢結果**: ${JSON.stringify(dataFormat, null, 2)}
 
 **分析要求**:
-1. 用5-7句話簡潔回答用戶問題
+1. 簡潔回答用戶問題
 2. 基於實際數據提供關鍵洞察  
 3. 重點關注延遲天數等關鍵指標
 4. 不要編造數據中沒有的信息
 5. 保持對話式語調，避免技術術語
+6. 無需推理，直接回答
 
 請提供分析：`;
       }
-
+      console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+      console.log(summaryPrompt);
+      console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
       // 🔍 調試：記錄優化後的提示詞
       logger.info("AI總結 - 優化後的提示詞", {
         promptLength: summaryPrompt.length,
@@ -1178,8 +1263,8 @@ ${allAIInstructions}
         optimizedLength: `優化後${summaryPrompt.length}字符`,
         reductionPercent: `減少約${Math.round((1 - summaryPrompt.length / 1500) * 100)}%`,
         prompt:
-          summaryPrompt.substring(0, 300) +
-          (summaryPrompt.length > 300 ? "..." : ""),
+          summaryPrompt.substring(0, 2300) +
+          (summaryPrompt.length > 2300 ? "..." : ""),
       });
 
       // 🎯 使用更強大的模型進行總結
@@ -1200,7 +1285,7 @@ ${allAIInstructions}
           },
         ],
         temperature: 0.8, // 稍高的創造性
-        max_tokens: 4096,
+        max_tokens: 8192,
       });
 
       // 🎬 模擬打字機效果 - 逐字返回

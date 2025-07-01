@@ -361,15 +361,29 @@ class McpToolParser {
           actualToolName = actualToolName.split(".").pop(); // 取最後一部分
         }
 
+        // 🔧 修復：標準化工具名稱格式，處理連字符與下劃線的差異
+        // 特殊處理：create-box-plot -> create_boxplot
+        let normalizedToolName = actualToolName.toLowerCase();
+        if (normalizedToolName === "create-box-plot") {
+          normalizedToolName = "create_boxplot";
+        } else {
+          normalizedToolName = normalizedToolName.replace(/-/g, "_");
+        }
+
         const tool = tools.find(
-          (t) => t.name.toLowerCase() === actualToolName.toLowerCase()
+          (t) => {
+            const normalizedDbToolName = t.name.toLowerCase().replace(/-/g, "_");
+            return normalizedDbToolName === normalizedToolName;
+          }
         );
 
         logger.info("🔧 工具查找", {
           originalName: toolCall.name,
           actualToolName: actualToolName,
+          normalizedToolName: normalizedToolName,
           found: !!tool,
           toolId: tool?.id,
+          matchedToolName: tool?.name,
         });
 
         if (!tool) {
@@ -457,43 +471,56 @@ class McpToolParser {
 
     const allSections = [];
     let currentSectionIndex = 0;
+    
+    // 🔧 修復：準確計算實際的段數
+    let totalSections = 0;
+    for (const result of results) {
+      if (result.success) {
+        totalSections += 1; // 主要格式化內容
+        // 統計工具通常只有一個主要格式化段落
+      } else {
+        totalSections += 1; // 錯誤段落
+      }
+    }
 
     for (const result of results) {
       // 🔧 添加調試信息
-      console.log('🎬 [formatToolResultsStream] 處理工具結果:', {
+      console.log("🎬 [formatToolResultsStream] 處理工具結果:", {
         tool_name: result.tool_name,
         tool_name_type: typeof result.tool_name,
         success: result.success,
-        hasData: !!result.data
+        hasData: !!result.data,
       });
 
       if (result.success) {
-        // 🎯 步驟1：發送摘要信息
-        if (onSectionReady) {
-          const summarySection = await this.generateSummarySection(result);
-          if (summarySection) {
-            allSections.push(summarySection);
-            await onSectionReady({
-              type: 'summary',
-              content: summarySection,
-              index: currentSectionIndex++,
-              total: results.length * 3, // 估計總段數（摘要+數據+列表）
-            });
-            
-            // 模擬處理延遲，讓用戶看到分段效果
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-        }
 
-        // 🎯 步驟2：發送主要數據部分
+        // 🎯 發送主要格式化內容
         let formattedData = "";
-        
+
         // 使用新的格式化器工廠進行智能格式化
         try {
+          // 🔧 修復：傳遞完整的 result 對象，而不只是 result.data
+          const fullData = {
+            ...result.data,
+            // 確保圖片相關信息被包含
+            has_image: result.has_image || result.data?.has_image,
+            image_data: result.image_data || result.data?.image_data,
+            image_format: result.image_format || result.data?.image_format,
+            chart_type: result.chart_type || result.data?.chart_type,
+            // 保留其他重要信息
+            success: result.success,
+            tool_name: result.tool_name,
+            service_name: result.service_name,
+            timestamp: result.timestamp,
+          };
+          
           formattedData = await formatterFactory.formatToolResult(
-            result.data,
+            fullData,
             result.tool_name,
-            { parameters: result.parameters }
+            { 
+              parameters: result.parameters,
+              fullResult: result // 傳遞完整結果供進階處理
+            }
           );
         } catch (formatterError) {
           console.error("格式化器處理失敗:", formatterError.message);
@@ -503,44 +530,42 @@ class McpToolParser {
         if (formattedData && onSectionReady) {
           allSections.push(formattedData);
           await onSectionReady({
-            type: 'data',
+            type: "main",
             content: formattedData,
             index: currentSectionIndex++,
-            total: results.length * 3,
+            total: totalSections,
+            isLast: currentSectionIndex === totalSections
           });
-          
-          // 模擬處理延遲
-          await new Promise(resolve => setTimeout(resolve, 400));
-        }
 
-        // 🎯 步驟3：發送附加信息（如果有的話）
-        const additionalInfo = await this.generateAdditionalInfo(result);
-        if (additionalInfo && onSectionReady) {
-          allSections.push(additionalInfo);
-          await onSectionReady({
-            type: 'additional',
-            content: additionalInfo,
-            index: currentSectionIndex++,
-            total: results.length * 3,
-          });
-          
-          // 模擬處理延遲
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // 短暫延遲讓用戶看到進度
+          await new Promise((resolve) => setTimeout(resolve, 200));
         }
       } else {
         // 處理失敗的工具調用
         const errorSection = `❌ **工具調用失敗**\n- 工具：${result.tool_name}\n- 錯誤：${result.error}\n\n`;
         allSections.push(errorSection);
-        
+
         if (onSectionReady) {
           await onSectionReady({
-            type: 'error',
+            type: "error",
             content: errorSection,
             index: currentSectionIndex++,
-            total: results.length * 3,
+            total: totalSections,
+            isLast: currentSectionIndex === totalSections
           });
         }
       }
+    }
+
+    // 🔧 發送完成信號
+    if (onSectionReady) {
+      await onSectionReady({
+        type: "completed",
+        content: "",
+        index: totalSections,
+        total: totalSections,
+        isLast: true
+      });
     }
 
     return allSections.join("");
@@ -551,8 +576,10 @@ class McpToolParser {
    */
   async generateSummarySection(result) {
     if (!result.data || !result.data.data) return null;
-    
-    const dataCount = Array.isArray(result.data.data) ? result.data.data.length : 1;
+
+    const dataCount = Array.isArray(result.data.data)
+      ? result.data.data.length
+      : 1;
     return `## 📊 資料摘要\n\n✅ 成功查詢到 **${dataCount}** 筆資料\n\n---\n\n`;
   }
 
@@ -560,22 +587,25 @@ class McpToolParser {
    * 🎯 生成附加信息區段
    */
   async generateAdditionalInfo(result) {
-    if (!result.data || !result.data.data || !Array.isArray(result.data.data)) return null;
-    
+    if (!result.data || !result.data.data || !Array.isArray(result.data.data))
+      return null;
+
     const data = result.data.data;
     if (data.length === 0) return null;
-    
+
     // 生成數據統計信息
     const stats = [];
-    
+
     // 分析常見欄位
     const sampleItem = data[0];
     const availableFields = Object.keys(sampleItem);
-    
-    return `## 📋 資料統計\n\n` +
-           `- **總記錄數**: ${data.length}\n` +
-           `- **可用欄位**: ${availableFields.length} 個\n` +
-           `- **主要欄位**: ${availableFields.slice(0, 5).join(', ')}\n\n`;
+
+    return (
+      `## 📋 資料統計\n\n` +
+      `- **總記錄數**: ${data.length}\n` +
+      `- **可用欄位**: ${availableFields.length} 個\n` +
+      `- **主要欄位**: ${availableFields.slice(0, 5).join(", ")}\n\n`
+    );
   }
 
   /**
@@ -638,12 +668,28 @@ class McpToolParser {
         // 🚀 使用新的格式化器工廠進行智能格式化
         if (!formattedData) {
           try {
+            // 🔧 修復：傳遞完整的數據對象
+            const fullData = {
+              ...result.data,
+              // 確保圖片相關信息被包含
+              has_image: result.has_image || result.data?.has_image,
+              image_data: result.image_data || result.data?.image_data,
+              image_format: result.image_format || result.data?.image_format,
+              chart_type: result.chart_type || result.data?.chart_type,
+              // 保留其他重要信息
+              success: result.success,
+              tool_name: result.tool_name,
+              service_name: result.service_name,
+              timestamp: result.timestamp,
+            };
+            
             formattedData = await formatterFactory.formatToolResult(
-              result.data,
+              fullData,
               result.tool_name,
               {
                 serviceName: result.service_name,
-                executionTime: result.execution_time || result.executionTime
+                executionTime: result.execution_time || result.executionTime,
+                fullResult: result, // 傳遞完整結果供進階處理
               }
             );
           } catch (error) {
@@ -656,7 +702,7 @@ class McpToolParser {
         sections.push(
           `✅ **${result.tool_name}** 執行成功\n` +
             `📋 **服務**: ${result.service_name}\n` +
-            `⏱️ **執行時間**: ${result.execution_time || result.executionTime || 'N/A'}ms\n\n` +
+            `⏱️ **執行時間**: ${result.execution_time || result.executionTime || "N/A"}ms\n\n` +
             formattedData
         );
       } else {

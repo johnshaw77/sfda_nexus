@@ -110,7 +110,6 @@
       <MessageContent
         :message="message"
         :is-error-message="isErrorMessage"
-        :should-use-content-animation="shouldUseContentAnimation"
         :is-chart-message="isChartMessage"
         :is-user-message-collapsed="isUserMessageCollapsed"
         :should-show-expand-button="shouldShowExpandButton"
@@ -132,7 +131,6 @@
         v-if="message.role === 'assistant'"
         v-show="!message.isStreaming && message.status !== 'sending'"
         :message="message"
-        :enable-content-animation="enableContentAnimation"
         @copy-content="handleCopyMessage"
         @regenerate-response="handleRegenerateResponse"
         @quote-message="handleQuoteMessage"
@@ -371,8 +369,6 @@ const thinkingCollapsed = ref(true);
  */
 /** @type {Ref<boolean>} 是否啟用內容動畫效果 */
 const enableContentAnimation = ref(true);
-/** @type {Ref<HTMLElement|null>} 動畫內容容器 DOM 引用 */
-const animatedContentRef = ref(null);
 
 /**
  * 思考內容動畫狀態
@@ -399,6 +395,13 @@ const chartDetectionError = ref(null);
 const showChartSuggestion = ref(false);
 /** @type {Ref<boolean>} 是否正在生成圖表 */
 const isGeneratingChart = ref(false);
+
+/**
+ * 圖片 blob URL 管理
+ * @description 用於管理組件中創建的圖片 blob URLs，在組件卸載時清理以避免內存洩漏
+ */
+/** @type {Ref<Set<string>>} 存儲創建的圖片 blob URLs */
+const imageBlobUrls = ref(new Set());
 
 /**
  * ====== 計算屬性 ======
@@ -503,45 +506,6 @@ const hasBackendDetectedChart = computed(() => {
   return hasChart;
 });
 
-// 🎬 計算屬性：判斷是否應該使用內容動畫效果
-// 追蹤消息是否曾經串流過
-// 只有當消息明確標記為曾經串流過時才設為true
-const hasBeenStreamed = ref(false);
-
-// 檢查消息是否曾經串流過（通過檢查消息的來源）
-const wasEverStreaming = computed(() => {
-  // 如果消息有 isStreaming 字段且曾經為 true，或者有特定的串流標記
-  return props.message.hasOwnProperty("isStreaming") && hasBeenStreamed.value;
-});
-
-// 監聽串流狀態變化
-watch(
-  () => props.message.isStreaming,
-  (isStreaming, wasStreaming) => {
-    if (wasStreaming && !isStreaming) {
-      // 串流剛結束
-      hasBeenStreamed.value = true;
-      console.log("串流結束，標記為已串流過");
-    }
-  },
-  { immediate: true }
-);
-
-// 組件掛載時檢查初始狀態
-onMounted(() => {
-  // 如果消息初始時就在串流，標記它
-  if (props.message.isStreaming) {
-    console.log("消息初始時正在串流");
-  } else if (props.message.hasOwnProperty("isStreaming")) {
-    // 如果有 isStreaming 屬性但為 false，且有內容，可能是串流剛結束的消息
-    // 但我們不設置 hasBeenStreamed，因為可能是工具回應
-    console.log("消息有 isStreaming 屬性但不在串流中");
-  } else {
-    // 沒有 isStreaming 屬性，可能是工具回應或靜態內容
-    console.log("消息沒有 isStreaming 屬性，可能是工具回應");
-  }
-});
-
 // 監聽動畫開關變化，當用戶手動開啟動畫時重置狀態
 watch(enableContentAnimation, (newValue) => {
   if (newValue && hasBeenStreamed.value) {
@@ -549,35 +513,6 @@ watch(enableContentAnimation, (newValue) => {
     hasBeenStreamed.value = false;
     console.log("用戶手動開啟動畫，重置串流狀態");
   }
-});
-
-const shouldUseContentAnimation = computed(() => {
-  // 只對AI助手回應且非錯誤訊息啟用動畫
-  const isCompleted =
-    !props.message.isStreaming && props.message.status !== "streaming";
-
-  const shouldAnimate =
-    enableContentAnimation.value &&
-    props.message.role === "assistant" &&
-    !isErrorMessage.value &&
-    !isChartMessage.value &&
-    props.message.content &&
-    props.message.content.length > 100 &&
-    isCompleted && // 確保消息完全完成
-    !hasBeenStreamed.value; // 重要：沒有串流過的消息才動畫
-
-  console.log("動畫條件檢查:", {
-    enableContentAnimation: enableContentAnimation.value,
-    role: props.message.role,
-    messageId: props.message.id,
-    hasBeenStreamed: hasBeenStreamed.value,
-    isStreaming: props.message.isStreaming,
-    hasStreamingProperty: props.message.hasOwnProperty("isStreaming"),
-    isCompleted,
-    shouldAnimate,
-  });
-
-  return shouldAnimate;
 });
 
 // 🎯 前端智能圖表檢測開關 - 配合後端設置

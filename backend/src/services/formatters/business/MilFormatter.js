@@ -9,14 +9,14 @@ import fieldMapper from "../base/FieldMapper.js";
 export default class MilFormatter extends BaseFormatter {
   constructor() {
     super();
-    this.category = 'mil_management';
+    this.category = "mil_management";
     this.supportedTools = [
-      'get-mil-list',
-      'get_mil_list',
-      'get-mil-details',
-      'get_mil_details',
-      'get-mil-status-report',
-      'get_mil_status_report'
+      "get-mil-list",
+      "get_mil_list",
+      "get-mil-details",
+      "get_mil_details",
+      "get-mil-status-report",
+      "get_mil_status_report",
     ];
   }
 
@@ -28,22 +28,22 @@ export default class MilFormatter extends BaseFormatter {
    */
   canHandle(toolName, toolType = null) {
     const toolNameLower = toolName.toLowerCase();
-    
+
     // 檢查是否在支援的工具列表中
     if (this.supportedTools.includes(toolName)) {
       return true;
     }
-    
+
     // 檢查工具名稱是否包含 MIL 關鍵字
-    if (toolNameLower.includes('mil')) {
+    if (toolNameLower.includes("mil")) {
       return true;
     }
-    
+
     // 檢查工具類型
     if (toolType === this.category) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -157,7 +157,7 @@ export default class MilFormatter extends BaseFormatter {
     if (stats.riskAnalysis) {
       formatted += "### ⚠️ 風險分析\n";
       const risk = stats.riskAnalysis;
-      
+
       if (risk.highRisk !== undefined) {
         formatted += `- **高風險專案**: ${this.formatNumber(risk.highRisk)} 筆（延遲 > 10天）\n`;
       }
@@ -174,7 +174,7 @@ export default class MilFormatter extends BaseFormatter {
     if (stats.responsibility) {
       formatted += "### 👥 責任分布\n";
       const resp = stats.responsibility;
-      
+
       if (resp.uniqueDRICount !== undefined) {
         formatted += `- **涉及負責人**: ${this.formatNumber(resp.uniqueDRICount)} 位\n`;
       }
@@ -197,13 +197,13 @@ export default class MilFormatter extends BaseFormatter {
 
     let formatted = "### 📈 查詢資訊\n";
     formatted += `- **查詢筆數**: ${this.formatNumber(data.count || 0)} / ${this.formatNumber(data.totalRecords)} 筆\n`;
-    
+
     if (data.currentPage && data.totalPages) {
       formatted += `- **分頁資訊**: 第 ${data.currentPage} 頁，共 ${data.totalPages} 頁\n`;
     }
-    
+
     formatted += `- **查詢時間**: ${this.formatTimestamp(data.timestamp) || "未知"}\n\n`;
-    
+
     return formatted;
   }
 
@@ -216,14 +216,14 @@ export default class MilFormatter extends BaseFormatter {
     if (!filters || Object.keys(filters).length === 0) return "";
 
     let formatted = "### 🔧 篩選條件\n";
-    
+
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         const label = fieldMapper.getFieldLabel(key, this.category);
         formatted += `- **${label}**: ${value}\n`;
       }
     });
-    
+
     formatted += "\n";
     return formatted;
   }
@@ -236,7 +236,7 @@ export default class MilFormatter extends BaseFormatter {
   formatRawDataSection(rawData) {
     // 🔇 暫時隱藏原始工具數據區段
     return "";
-    
+
     /* 
     // 原始實現 - 如需要可以重新啟用
     if (!Array.isArray(rawData) || rawData.length === 0) {
@@ -287,60 +287,76 @@ export default class MilFormatter extends BaseFormatter {
     // 檢查重要欄位缺失
     const sampleItem = projects[0];
     const availableFields = Object.keys(sampleItem);
-    const missingImportantFields = this.checkMissingImportantFields(availableFields);
-    
+    const missingImportantFields =
+      this.checkMissingImportantFields(availableFields);
+
     if (missingImportantFields.length > 0) {
-      formatted += `⚠️ **注意**: 以下重要欄位在數據中缺失: ${missingImportantFields.join(', ')}\n\n`;
+      formatted += `⚠️ **注意**: 以下重要欄位在數據中缺失: ${missingImportantFields.join(", ")}\n\n`;
     }
 
-    const sortedFields = fieldMapper.sortFieldsByPriority(availableFields, this.category);
-    
+    const sortedFields = fieldMapper.sortFieldsByPriority(
+      availableFields,
+      this.category
+    );
+
     // 智能選擇顯示欄位：優先顯示核心欄位，確保重要文本內容能顯示
-    const coreFields = sortedFields.filter(field => {
+    const coreFields = sortedFields.filter((field) => {
       const mapping = fieldMapper.getFieldMapping(field, this.category);
       return mapping.priority <= 2; // 優先級1和2
     });
-    
-    const detailFields = sortedFields.filter(field => {
+
+    const detailFields = sortedFields.filter((field) => {
       const mapping = fieldMapper.getFieldMapping(field, this.category);
       return mapping.priority > 2; // 優先級3（詳細資訊）
     });
 
     // 表格顯示核心欄位（限制8個避免過寬）
     const displayFields = coreFields.slice(0, 8);
-    const headers = displayFields.map(field => fieldMapper.getFieldLabel(field, this.category));
-    
+    const headers = displayFields.map((field) =>
+      fieldMapper.getFieldLabel(field, this.category)
+    );
+
     formatted += this.generateTableHeader(headers) + "\n";
 
     // 檢查是否包含文本欄位，決定顯示格式
-    const hasTextFields = displayFields.some(field => {
+    const hasTextFields = displayFields.some((field) => {
       const mapping = fieldMapper.getFieldMapping(field, this.category);
-      return mapping.type === 'text';
+      return mapping.type === "text";
     });
 
     if (hasTextFields && projects.length <= 3) {
       // 如果有文本欄位且專案數量不多，使用列表格式以完整顯示內容
       projects.forEach((project, index) => {
-        formatted += `**${index + 1}. ${project.SerialNumber || '專案'}**\n`;
-        displayFields.forEach(field => {
-          const value = this.safeGet(project, field, '');
-          if (value && value !== '' && value !== 'undefined') {
+        formatted += `**${index + 1}. ${project.SerialNumber || "專案"}**\n`;
+        displayFields.forEach((field) => {
+          const value = this.safeGet(project, field, "");
+          if (value && value !== "" && value !== "undefined") {
             const label = fieldMapper.getFieldLabel(field, this.category);
-            
+
             // 對於列表格式，不截斷文本內容
             const mapping = fieldMapper.getFieldMapping(field, this.category);
             let formattedValue;
-            if (mapping.type === 'text') {
+            if (mapping.type === "text") {
               // 文本類型直接返回完整內容，不截斷
               formattedValue = value.toString();
             } else {
-              formattedValue = fieldMapper.formatFieldValue(value, field, this.category);
+              formattedValue = fieldMapper.formatFieldValue(
+                value,
+                field,
+                this.category
+              );
             }
-            
+
             // 檢查是否需要高亮
-            const highlightRule = fieldMapper.checkHighlightRule(field, value, this.category);
-            const displayValue = highlightRule ? `⚠️ ${formattedValue}` : formattedValue;
-            
+            const highlightRule = fieldMapper.checkHighlightRule(
+              field,
+              value,
+              this.category
+            );
+            const displayValue = highlightRule
+              ? `⚠️ ${formattedValue}`
+              : formattedValue;
+
             formatted += `- **${label}**: ${displayValue}\n`;
           }
         });
@@ -349,23 +365,31 @@ export default class MilFormatter extends BaseFormatter {
     } else {
       // 使用傳統表格格式
       projects.forEach((project, index) => {
-        const cells = displayFields.map(field => {
-          const value = this.safeGet(project, field, '');
-          const formattedValue = fieldMapper.formatFieldValue(value, field, this.category);
-          
+        const cells = displayFields.map((field) => {
+          const value = this.safeGet(project, field, "");
+          const formattedValue = fieldMapper.formatFieldValue(
+            value,
+            field,
+            this.category
+          );
+
           // 檢查欄位類型，文本欄位允許更長的顯示
           const mapping = fieldMapper.getFieldMapping(field, this.category);
-          const maxLength = mapping.type === 'text' ? 50 : 20;
-          
+          const maxLength = mapping.type === "text" ? 50 : 20;
+
           // 檢查是否需要高亮
-          const highlightRule = fieldMapper.checkHighlightRule(field, value, this.category);
+          const highlightRule = fieldMapper.checkHighlightRule(
+            field,
+            value,
+            this.category
+          );
           if (highlightRule) {
             return `⚠️ ${this.truncateString(formattedValue, maxLength)}`;
           }
-          
+
           return this.truncateString(formattedValue, maxLength);
         });
-        
+
         formatted += this.generateTableRow(cells) + "\n";
       });
     }
@@ -375,45 +399,49 @@ export default class MilFormatter extends BaseFormatter {
     // 顯示詳細文本資訊（不截斷重要內容）
     if (detailFields.length > 0) {
       formatted += "### 📋 詳細資訊\n\n";
-      
+
       projects.forEach((project, index) => {
         if (projects.length > 1) {
-          formatted += `**${index + 1}. ${project.SerialNumber || '未知編號'}**\n`;
+          formatted += `**${index + 1}. ${project.SerialNumber || "未知編號"}**\n`;
         }
-        
-        detailFields.forEach(field => {
-          const value = this.safeGet(project, field, '');
-          if (value && value !== '' && value !== 'undefined') {
+
+        detailFields.forEach((field) => {
+          const value = this.safeGet(project, field, "");
+          if (value && value !== "" && value !== "undefined") {
             const label = fieldMapper.getFieldLabel(field, this.category);
-            
+
             // 對於詳細資訊區段，文本類型不截斷
             const mapping = fieldMapper.getFieldMapping(field, this.category);
             let formattedValue;
-            if (mapping.type === 'text') {
+            if (mapping.type === "text") {
               // 文本類型直接返回完整內容，不截斷
               formattedValue = value.toString();
             } else {
-              formattedValue = fieldMapper.formatFieldValue(value, field, this.category);
+              formattedValue = fieldMapper.formatFieldValue(
+                value,
+                field,
+                this.category
+              );
             }
-            
+
             formatted += `- **${label}**: ${formattedValue}\n`;
           }
         });
-        
+
         if (projects.length > 1) {
           formatted += "\n";
         }
       });
-      
+
       formatted += "\n";
     }
 
     // 顯示隱藏的核心欄位
     if (coreFields.length > displayFields.length) {
-      const hiddenCoreFields = coreFields.slice(8).map(field => 
-        fieldMapper.getFieldLabel(field, this.category)
-      );
-      formatted += `🔍 **其他核心欄位**: ${hiddenCoreFields.join(', ')}\n\n`;
+      const hiddenCoreFields = coreFields
+        .slice(8)
+        .map((field) => fieldMapper.getFieldLabel(field, this.category));
+      formatted += `🔍 **其他核心欄位**: ${hiddenCoreFields.join(", ")}\n\n`;
     }
 
     return formatted;
@@ -427,13 +455,23 @@ export default class MilFormatter extends BaseFormatter {
   checkMissingImportantFields(availableFields) {
     // 定義重要欄位（優先級1和2）
     const importantFields = [
-      'TypeName', 'Status', 'is_APPLY', 'MidTypeName', 'RecordDate',
-      'ActualFinishDate', 'ChangeFinishDate', 'Solution'
+      "TypeName",
+      "Status",
+      "is_APPLY",
+      "MidTypeName",
+      "RecordDate",
+      "ActualFinishDate",
+      "ChangeFinishDate",
+      "Solution",
     ];
 
-    const missingFields = importantFields.filter(field => !availableFields.includes(field));
-    
-    return missingFields.map(field => fieldMapper.getFieldLabel(field, this.category));
+    const missingFields = importantFields.filter(
+      (field) => !availableFields.includes(field)
+    );
+
+    return missingFields.map((field) =>
+      fieldMapper.getFieldLabel(field, this.category)
+    );
   }
 
   /**
@@ -447,18 +485,29 @@ export default class MilFormatter extends BaseFormatter {
     if (data.data) {
       const project = data.data;
       const allFields = Object.keys(project);
-      const sortedFields = fieldMapper.sortFieldsByPriority(allFields, this.category);
+      const sortedFields = fieldMapper.sortFieldsByPriority(
+        allFields,
+        this.category
+      );
 
       formatted += "### 📋 專案基本資訊\n\n";
 
       // 按優先級顯示所有欄位
-      sortedFields.forEach(field => {
+      sortedFields.forEach((field) => {
         const label = fieldMapper.getFieldLabel(field, this.category);
         const value = project[field];
-        const formattedValue = fieldMapper.formatFieldValue(value, field, this.category);
-        
+        const formattedValue = fieldMapper.formatFieldValue(
+          value,
+          field,
+          this.category
+        );
+
         // 檢查高亮規則
-        const highlightRule = fieldMapper.checkHighlightRule(field, value, this.category);
+        const highlightRule = fieldMapper.checkHighlightRule(
+          field,
+          value,
+          this.category
+        );
         if (highlightRule) {
           formatted += `- **${label}**: ⚠️ ${formattedValue} (${highlightRule.message})\n`;
         } else {
@@ -467,7 +516,7 @@ export default class MilFormatter extends BaseFormatter {
       });
 
       formatted += "\n";
-      
+
       // 🔍 新增：原始工具數據展示
       formatted += this.formatRawDataSection([project]);
     }
@@ -496,11 +545,15 @@ export default class MilFormatter extends BaseFormatter {
     // 狀態分布
     if (data.statusDistribution) {
       formatted += "### 📊 狀態分布\n\n";
-      formatted += this.generateTableHeader(['狀態', '數量', '百分比']) + "\n";
-      
+      formatted += this.generateTableHeader(["狀態", "數量", "百分比"]) + "\n";
+
       Object.entries(data.statusDistribution).forEach(([status, count]) => {
-        const percentage = data.total ? ((count / data.total) * 100).toFixed(1) : '0';
-        formatted += this.generateTableRow([status, count.toString(), `${percentage}%`]) + "\n";
+        const percentage = data.total
+          ? ((count / data.total) * 100).toFixed(1)
+          : "0";
+        formatted +=
+          this.generateTableRow([status, count.toString(), `${percentage}%`]) +
+          "\n";
       });
       formatted += "\n";
     }
@@ -520,15 +573,19 @@ export default class MilFormatter extends BaseFormatter {
       return this.formatProjectsList(data);
     }
 
-    if (typeof data === 'object' && data !== null) {
+    if (typeof data === "object" && data !== null) {
       formatted += "### 📊 結果數據\n";
-      
+
       Object.entries(data).forEach(([key, value]) => {
-        if (key === 'data' && Array.isArray(value)) {
+        if (key === "data" && Array.isArray(value)) {
           formatted += this.formatProjectsList(value);
         } else {
           const label = fieldMapper.getFieldLabel(key, this.category);
-          const formattedValue = fieldMapper.formatFieldValue(value, key, this.category);
+          const formattedValue = fieldMapper.formatFieldValue(
+            value,
+            key,
+            this.category
+          );
           formatted += `- **${label}**: ${formattedValue}\n`;
         }
       });
@@ -546,14 +603,19 @@ export default class MilFormatter extends BaseFormatter {
     // 檢查常見的錯誤指標
     if (data.success === false) return true;
     if (data.error) return true;
-    if (data.data && Array.isArray(data.data) && data.data.length === 0 && data.count === 0) {
+    if (
+      data.data &&
+      Array.isArray(data.data) &&
+      data.data.length === 0 &&
+      data.count === 0
+    ) {
       // 空結果但有明確的查詢資訊
-      return false; 
+      return false;
     }
-    
+
     // 檢查是否缺少必要的數據結構
     if (!data.data && !data.timestamp && !data.count) return true;
-    
+
     return false;
   }
 
@@ -565,55 +627,59 @@ export default class MilFormatter extends BaseFormatter {
    */
   formatErrorResponse(data, toolName) {
     let formatted = `## ❌ MIL 查詢執行錯誤\n\n`;
-    
+
     if (data.error) {
       formatted += `**錯誤訊息**: ${data.error}\n\n`;
     }
-    
+
     // 🔧 新增：檢查未知參數錯誤
-    if (data.error && data.error.includes('Unknown parameter')) {
+    if (data.error && data.error.includes("Unknown parameter")) {
       const errorMessage = data.error;
-      
+
       // 提取未知參數名稱
-      const unknownParamMatch = errorMessage.match(/Unknown parameter\(s\): ([^.]+)/);
-      const allowedParamsMatch = errorMessage.match(/Allowed parameters: (.+)$/);
-      
+      const unknownParamMatch = errorMessage.match(
+        /Unknown parameter\(s\): ([^.]+)/
+      );
+      const allowedParamsMatch = errorMessage.match(
+        /Allowed parameters: (.+)$/
+      );
+
       if (unknownParamMatch && allowedParamsMatch) {
         const unknownParams = unknownParamMatch[1];
         const allowedParams = allowedParamsMatch[1];
-        
+
         formatted += `⚠️ **參數錯誤**: 查詢條件中包含不存在的參數 \`${unknownParams}\`\n\n`;
         formatted += `**可用的查詢參數**:\n`;
-        
+
         // 格式化允許的參數列表
-        const paramList = allowedParams.split(', ');
-        paramList.forEach(param => {
+        const paramList = allowedParams.split(", ");
+        paramList.forEach((param) => {
           // 提供常用參數的說明
           const paramDescriptions = {
-            'delayDayMin': '最小延遲天數 - 查詢延遲天數 ≥ 此值的專案',
-            'delayDayMax': '最大延遲天數 - 查詢延遲天數 ≤ 此值的專案', 
-            'status': '專案狀態 (OnGoing, Completed, Cancelled)',
-            'isApply': '申請結案狀態 (Y=已申請, N=未申請)',
-            'typeName': 'MIL 類別',
-            'importance': '重要度 (H=高, M=中, L=低)',
-            'driName': '負責人姓名',
-            'driDept': '負責部門',
-            'proposalFactory': '提案廠別 (JK, KH, KS)'
+            delayDayMin: "最小延遲天數 - 查詢延遲天數 ≥ 此值的專案",
+            delayDayMax: "最大延遲天數 - 查詢延遲天數 ≤ 此值的專案",
+            status: "專案狀態 (OnGoing, Completed, Cancelled)",
+            isApply: "申請結案狀態 (Y=已申請, N=未申請)",
+            typeName: "MIL 類別",
+            importance: "重要度 (H=高, M=中, L=低)",
+            driName: "負責人姓名",
+            driDept: "負責部門",
+            proposalFactory: "提案廠別 (JK, KH, KS)",
           };
-          
-          const description = paramDescriptions[param] || '查詢參數';
+
+          const description = paramDescriptions[param] || "查詢參數";
           formatted += `- \`${param}\`: ${description}\n`;
         });
-        
+
         formatted += `\n**建議修正**:\n`;
-        if (unknownParams.includes('naqi_num')) {
+        if (unknownParams.includes("naqi_num")) {
           formatted += `- 將 \`naqi_num > 3\` 改為 \`delayDayMin: 3\`\n`;
         }
         formatted += `- 使用 \`isApply: "N"\` 查詢未申請結案的專案\n\n`;
       }
     }
     // 向後兼容原有的 naqi_num 錯誤檢查
-    else if (data.error && data.error.includes('naqi_num')) {
+    else if (data.error && data.error.includes("naqi_num")) {
       formatted += `⚠️ **可能的問題**: 查詢條件中包含不存在的欄位 \`naqi_num\`\n\n`;
       formatted += `**可用的延遲相關欄位**:\n`;
       formatted += `- \`DelayDay\`: 延遲天數\n`;
@@ -621,10 +687,10 @@ export default class MilFormatter extends BaseFormatter {
       formatted += `- \`is_APPLY\`: 申請結案狀態\n\n`;
       formatted += `**建議查詢條件**: \`DelayDay > 10 AND is_APPLY = '否'\`\n\n`;
     }
-    
+
     formatted += `**工具**: ${toolName}\n`;
     formatted += `**建議**: 請檢查查詢條件是否正確，或聯繫系統管理員確認參數名稱。\n\n`;
-    
+
     return formatted;
   }
 
@@ -637,9 +703,9 @@ export default class MilFormatter extends BaseFormatter {
   formatFallback(data, toolName) {
     let formatted = `## ⚠️ MIL 工具執行結果 (${toolName})\n\n`;
     formatted += "工具執行完成，但格式化時發生錯誤。以下是原始數據：\n\n";
-    
+
     try {
-      if (typeof data === 'string') {
+      if (typeof data === "string") {
         formatted += data;
       } else {
         formatted += "```json\n" + JSON.stringify(data, null, 2) + "\n```";
@@ -647,7 +713,7 @@ export default class MilFormatter extends BaseFormatter {
     } catch (error) {
       formatted += "無法顯示數據內容。";
     }
-    
+
     return formatted;
   }
 }

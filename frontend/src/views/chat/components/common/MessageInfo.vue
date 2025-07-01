@@ -10,17 +10,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useAuthStore } from '@/stores/auth';
-import { useAgentsStore } from '@/stores/agents';
-import { formatMessageTime } from '@/utils/datetimeFormat';
+import { computed } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import { useAgentsStore } from "@/stores/agents";
+import { formatMessageTime } from "@/utils/datetimeFormat";
 
 // Props
 const props = defineProps({
   message: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 });
 
 // Stores
@@ -30,35 +30,35 @@ const agentsStore = useAgentsStore();
 // 計算發送者名稱
 const senderName = computed(() => {
   switch (props.message.role) {
-    case 'user':
+    case "user":
       return (
         authStore.user?.display_name ||
         authStore.user?.username ||
         authStore.user?.email ||
-        '用戶'
+        "用戶"
       );
-    case 'assistant':
+    case "assistant":
       // 優先從消息中獲取智能體名稱，然後從當前智能體獲取
       if (props.message.agent_name) {
         return props.message.agent_name;
       }
-      
+
       // 從當前智能體獲取
       const currentAgent = agentsStore.getCurrentAgent;
       if (currentAgent?.name) {
         return currentAgent.name;
       }
-      
+
       // 使用模型信息作為後備
       if (props.message.model_info?.model_id) {
         return `AI (${props.message.model_info.model_id})`;
       }
-      
-      return 'AI助手';
-    case 'system':
-      return '系統';
+
+      return "AI助手";
+    case "system":
+      return "系統";
     default:
-      return '未知';
+      return "未知";
   }
 });
 </script>
@@ -74,7 +74,7 @@ const senderName = computed(() => {
 .message-sender {
   font-weight: 600;
   font-size: 14px;
-  color: var(--text-color-primary, #262626);
+  color: var(--text-color, #262626);
 }
 
 .message-time {

@@ -14,7 +14,14 @@
     "highlightDelayed": true,
     "groupByStatus": false,
     "maxDisplayItems": 20,
-    "priorityFields": ["SerialNumber", "TypeName", "DelayDay", "DRI_EmpName", "Status"],
+    "priorityFields": [
+      "SerialNumber",
+      "TypeName",
+      "DelayDay",
+      "DRI_EmpName",
+      "Status",
+      "Proposal_Name"
+    ],
     "highlightRules": {
       "DelayDay": {
         "condition": "> 0",
@@ -30,7 +37,12 @@
     "grouping": {
       "enabled": false,
       "field": "Status",
-      "order": ["進行中", "已完成", "暫停", "取消"]
+      "order": [
+        "進行中",
+        "已完成",
+        "暫停",
+        "取消"
+      ]
     }
   },
   "statistical": {
@@ -55,9 +67,20 @@
     "showContactInfo": true,
     "groupByDepartment": false,
     "maxEmployeesPerPage": 15,
-    "priorityFields": ["EmpName", "DeptName", "Position", "Email"],
-    "contactFields": ["Email", "Phone"],
-    "sensitiveFields": ["Phone", "Email"],
+    "priorityFields": [
+      "EmpName",
+      "DeptName",
+      "Position",
+      "Email"
+    ],
+    "contactFields": [
+      "Email",
+      "Phone"
+    ],
+    "sensitiveFields": [
+      "Phone",
+      "Email"
+    ],
     "statusColors": {
       "active": "success",
       "inactive": "secondary",

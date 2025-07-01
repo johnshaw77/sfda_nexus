@@ -75,7 +75,7 @@
     },
     "DRI_EmpName": {
       "label": "負責人",
-      "priority": 1,
+      "priority": 3,
       "type": "string"
     },
     "DRI_Dept": {
@@ -90,7 +90,7 @@
     },
     "Importance": {
       "label": "重要度",
-      "priority": 2,
+      "priority": 3,
       "type": "string"
     },
     "RecordDate": {
@@ -100,17 +100,17 @@
     },
     "Proposer_Name": {
       "label": "提案人",
-      "priority": 2,
+      "priority": 3,
       "type": "string"
     },
     "Proposer_EmpNo": {
-      "label": "提案人員編",
+      "label": "提案人員工號",
       "priority": 3,
       "type": "string"
     },
     "Proposer_Dept": {
       "label": "提案部門",
-      "priority": 2,
+      "priority": 3,
       "type": "string"
     },
     "Proposer_Superior_Dept": {
@@ -124,7 +124,7 @@
       "type": "string"
     },
     "DRI_EmpNo": {
-      "label": "負責人員編",
+      "label": "負責人員工號 ",
       "priority": 3,
       "type": "string"
     },

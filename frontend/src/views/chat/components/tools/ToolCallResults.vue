@@ -123,10 +123,11 @@ defineEmits([
 
 <style scoped>
 .tool-calls-section {
-  background: linear-gradient(135deg, #f6f8fa 0%, #fff 100%);
-  border: 1px solid #e1e5e9;
+  background: var(--custom-bg-secondary);
+  border: 1px solid var(--custom-border-primary);
   border-radius: 8px;
   margin: 8px 0;
+  padding: 8px;
   overflow: hidden;
 }
 
@@ -135,13 +136,13 @@ defineEmits([
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: linear-gradient(90deg, #f0f2f5 0%, #fafbfc 100%);
-  border-bottom: 1px solid #e1e5e9;
+  background: var(--custom-bg-secondary);
+  border-bottom: 1px solid var(--custom-border-primary);
   transition: background-color 0.3s ease;
 }
 
 .tool-calls-header:hover {
-  background: linear-gradient(90deg, #e6f7ff 0%, #f0f9ff 100%);
+  background: var(--custom-bg-tertiary);
 }
 
 .tool-calls-header-left {

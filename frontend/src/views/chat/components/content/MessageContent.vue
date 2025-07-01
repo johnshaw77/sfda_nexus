@@ -14,7 +14,6 @@
  * <MessageContent 
  *   :message="messageObject"
  *   :is-error-message="false"
- *   :should-use-content-animation="true"
  *   :is-chart-message="false"
  *   :is-user-message-collapsed="true"
  *   :should-show-expand-button="false"
@@ -85,22 +84,7 @@
       {{ message.content }}
     </div>
 
-    <!-- AI 消息 - 使用動畫內容組件 -->
-    <AnimatedContent
-      v-else-if="
-        shouldUseContentAnimation &&
-        message.role === 'assistant' &&
-        !isChartMessage
-      "
-      :content="message.content"
-      :enable-animation="true"
-      :animation-speed="'normal'"
-      :chunk-size-range="[15, 25]"
-      :enable-gradient-effect="true"
-      ref="animatedContentRef"
-      @animation-complete="() => {}" />
-
-    <!-- AI 消息 - 使用 CodeHighlight 組件 (fallback) -->
+    <!-- AI 消息 - 使用 CodeHighlight 組件 -->
     <CodeHighlight
       v-else-if="message.role === 'assistant' && !isChartMessage"
       :content="message.content"
@@ -182,7 +166,7 @@ import CodeHighlight from "@/components/common/CodeHighlight.vue";
  * @typedef {Object} Props
  * @property {MessageObject} message - 要渲染的消息對象
  * @property {boolean} [isErrorMessage=false] - 是否為錯誤消息
- * @property {boolean} [shouldUseContentAnimation=true] - 是否使用內容動畫
+
  * @property {boolean} [isChartMessage=false] - 是否為圖表消息
  * @property {boolean} [isUserMessageCollapsed=false] - 用戶消息是否折疊
  * @property {boolean} [shouldShowExpandButton=false] - 是否顯示展開按鈕

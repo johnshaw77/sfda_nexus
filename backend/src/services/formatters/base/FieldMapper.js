@@ -391,8 +391,13 @@ class FieldMapper {
     }
     
     if (toolNameLower.includes('stat') || toolNameLower.includes('test') || 
-        toolNameLower.includes('analysis') || toolNameLower.includes('anova')) {
-      return 'statistical';
+        toolNameLower.includes('analysis') || toolNameLower.includes('anova') ||
+        toolNameLower.includes('boxplot') || toolNameLower.includes('histogram') ||
+        toolNameLower.includes('scatter') || toolNameLower.includes('plot') ||
+        toolNameLower.includes('chart') || toolNameLower.includes('ttest') ||
+        toolNameLower.includes('chisquare') || toolNameLower.includes('kruskal') ||
+        toolNameLower.includes('wilcoxon') || toolNameLower.includes('mann')) {
+      return 'statistical_analysis';
     }
     
     if (toolNameLower.includes('emp') || toolNameLower.includes('employee') || 
