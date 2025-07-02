@@ -1,0 +1,16 @@
+/* 🧪 測試方案：AI總結容器樣式 */
+.blinking-cursor {
+  color: #007bff;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}

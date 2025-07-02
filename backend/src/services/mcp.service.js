@@ -233,9 +233,19 @@ class McpClient {
       // 嘗試連接工具列表端點（實際存在的端點）
       const response = await axios.get(testUrl, {
         timeout: this.connectionTimeout,
+        // 🔧 新增：改善錯誤處理
+        validateStatus: function (status) {
+          return status >= 200 && status < 300; // 只接受 2xx 狀態碼
+        }
       });
 
       const responseTime = Date.now() - startTime;
+
+      logger.debug("MCP 服務連接測試成功", {
+        endpoint: endpointUrl,
+        response_time: responseTime,
+        status_code: response.status,
+      });
 
       return {
         success: response.status === 200,
@@ -244,14 +254,29 @@ class McpClient {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      logger.error("MCP 服務連接測試失敗", {
+      // 🔧 修復：改善錯誤日誌，提供更詳細的錯誤信息
+      const errorDetails = {
         endpoint: endpointUrl,
-        error: error.message,
-      });
+        error_type: error.code || 'UNKNOWN',
+        error_message: error.message,
+        status_code: error.response?.status || null,
+        response_data: error.response?.data || null,
+      };
+
+      // 根據錯誤類型決定日誌級別
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        logger.warn("MCP 服務連接被拒絕或無法找到", errorDetails);
+      } else if (error.code === 'ETIMEDOUT') {
+        logger.warn("MCP 服務連接超時", errorDetails);
+      } else {
+        logger.error("MCP 服務連接測試失敗", errorDetails);
+      }
 
       return {
         success: false,
         error: error.message,
+        error_code: error.code,
+        status_code: error.response?.status || null,
         timestamp: new Date().toISOString(),
       };
     }
@@ -567,9 +592,21 @@ class McpClient {
       );
 
       // 發送工具調用請求 - 使用模組特定的端點
+      logger.info("🔧 發送工具調用請求", {
+        tool_id: toolId,
+        tool_name: tool.name,
+        service_name: tool.service_name,
+        endpoint: endpoint,
+        full_url: clientInfo.service.endpoint_url + endpoint,
+        parameters: parameters,
+        user_id: context.user_id,
+      });
+
       const response = await clientInfo.client.post(endpoint, parameters);
+      
       logger.info("🔧 工具調用成功！回應狀態:", response.status);
-      logger.info("🔧 回應資料:", response.data);
+      logger.info("🔧 回應資料類型:", typeof response.data);
+      logger.info("🔧 回應資料預覽:", JSON.stringify(response.data).substring(0, 500) + "...");
 
       // 更新工具使用次數
       await McpToolModel.incrementToolUsage(toolId);

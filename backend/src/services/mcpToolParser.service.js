@@ -370,12 +370,10 @@ class McpToolParser {
           normalizedToolName = normalizedToolName.replace(/-/g, "_");
         }
 
-        const tool = tools.find(
-          (t) => {
-            const normalizedDbToolName = t.name.toLowerCase().replace(/-/g, "_");
-            return normalizedDbToolName === normalizedToolName;
-          }
-        );
+        const tool = tools.find((t) => {
+          const normalizedDbToolName = t.name.toLowerCase().replace(/-/g, "_");
+          return normalizedDbToolName === normalizedToolName;
+        });
 
         logger.info("🔧 工具查找", {
           originalName: toolCall.name,
@@ -402,31 +400,144 @@ class McpToolParser {
           continue;
         }
 
-        // 執行工具
-        const result = await mcpClient.invokeTool(
-          tool.id,
-          toolCall.parameters,
-          context
-        );
+        // 🚀 暫時禁用流式調用，專注於基本的格式化輸出
+        const supportsStreaming = false; // 暫時禁用流式調用
 
-        results.push({
-          tool_call: toolCall,
-          tool_id: tool.id,
-          tool_name: tool.name,
-          service_name: tool.service_name,
-          ...result,
-        });
+        // 🔧 修復：將 result 宣告提到更外層作用域
+        let result = null;
 
-        // 🚀 新增：工具完成回調
-        if (context.onToolCallComplete) {
-          context.onToolCallComplete(tool.name, result);
+        if (supportsStreaming) {
+          // 使用流式調用
+          logger.info(`🚀 使用 MCP 流式調用: ${tool.name}`);
+
+          // 發送開始事件
+          if (context.onMcpToolStart) {
+            context.onMcpToolStart(tool.name);
+          }
+
+          let streamedContent = "";
+
+          try {
+            await mcpClient.invokeToolStream(
+              tool.id,
+              toolCall.parameters,
+              context,
+              // onChunk 回調
+              (chunkData) => {
+                streamedContent += chunkData.content;
+                if (context.onMcpToolChunk) {
+                  context.onMcpToolChunk(chunkData);
+                }
+              },
+              // onError 回調
+              (errorData) => {
+                logger.error(`🚀 MCP 流式調用錯誤: ${tool.name}`, errorData);
+                result = {
+                  success: false,
+                  error: errorData.error,
+                  error_type: errorData.error_type,
+                  suggestion: errorData.suggestion,
+                  timestamp: new Date().toISOString(),
+                };
+                results.push({
+                  tool_call: toolCall,
+                  tool_id: tool.id,
+                  tool_name: tool.name,
+                  service_name: tool.service_name,
+                  ...result,
+                });
+              },
+              // onComplete 回調
+              () => {
+                logger.info(`🚀 MCP 流式調用完成: ${tool.name}`);
+
+                // 創建成功結果
+                const streamResult = {
+                  success: true,
+                  tool_name: tool.name,
+                  service_name: tool.service_name,
+                  data: streamedContent,
+                  timestamp: new Date().toISOString(),
+                  isStreamed: true,
+                };
+
+                result = streamResult; // 🔧 修復：賦值給外層變數
+
+                results.push({
+                  tool_call: toolCall,
+                  tool_id: tool.id,
+                  tool_name: tool.name,
+                  service_name: tool.service_name,
+                  ...streamResult,
+                });
+
+                // 發送完成事件
+                if (context.onMcpToolComplete) {
+                  context.onMcpToolComplete(tool.name, streamedContent);
+                }
+
+                // 🚀 工具完成回調
+                if (context.onToolCallComplete) {
+                  context.onToolCallComplete(tool.name, streamResult);
+                }
+              }
+            );
+          } catch (streamError) {
+            logger.error(`🚀 MCP 流式調用異常: ${tool.name}`, streamError);
+            // 如果流式調用失敗，回退到普通調用
+            result = await mcpClient.invokeTool(
+              tool.id,
+              toolCall.parameters,
+              context
+            );
+
+            results.push({
+              tool_call: toolCall,
+              tool_id: tool.id,
+              tool_name: tool.name,
+              service_name: tool.service_name,
+              ...result,
+            });
+
+            if (context.onToolCallComplete) {
+              context.onToolCallComplete(tool.name, result);
+            }
+          }
+        } else {
+          // 使用普通調用
+          result = await mcpClient.invokeTool(
+            tool.id,
+            toolCall.parameters,
+            context
+          );
+
+          results.push({
+            tool_call: toolCall,
+            tool_id: tool.id,
+            tool_name: tool.name,
+            service_name: tool.service_name,
+            ...result,
+          });
+
+          // 🚀 新增：工具完成回調
+          if (context.onToolCallComplete) {
+            context.onToolCallComplete(tool.name, result);
+          }
         }
 
-        logger.info("工具執行完成", {
-          toolName: tool.name,
-          success: result.success,
-          userId: context.user_id,
-        });
+        // 🔧 修復：增加安全檢查
+        if (result) {
+          logger.info("工具執行完成", {
+            toolName: tool.name,
+            success: result.success,
+            userId: context.user_id,
+          });
+        } else {
+          logger.warn("工具執行完成，但結果為空", {
+            toolName: tool.name,
+            userId: context.user_id,
+          });
+        }
       } catch (error) {
         logger.error("工具執行失敗", {
           toolName: toolCall.name,
@@ -471,7 +582,7 @@ class McpToolParser {
 
     const allSections = [];
     let currentSectionIndex = 0;
-    
+
     // 🔧 修復：準確計算實際的段數
     let totalSections = 0;
     for (const result of results) {
@@ -493,7 +604,6 @@ class McpToolParser {
       });
 
       if (result.success) {
-
         // 🎯 發送主要格式化內容
         let formattedData = "";
 
@@ -513,13 +623,13 @@ class McpToolParser {
             service_name: result.service_name,
             timestamp: result.timestamp,
           };
-          
+
           formattedData = await formatterFactory.formatToolResult(
             fullData,
             result.tool_name,
-            { 
+            {
               parameters: result.parameters,
-              fullResult: result // 傳遞完整結果供進階處理
+              fullResult: result, // 傳遞完整結果供進階處理
             }
           );
         } catch (formatterError) {
@@ -534,7 +644,7 @@ class McpToolParser {
             content: formattedData,
             index: currentSectionIndex++,
             total: totalSections,
-            isLast: currentSectionIndex === totalSections
+            isLast: currentSectionIndex === totalSections,
           });
 
           // 短暫延遲讓用戶看到進度
@@ -551,7 +661,7 @@ class McpToolParser {
             content: errorSection,
             index: currentSectionIndex++,
             total: totalSections,
-            isLast: currentSectionIndex === totalSections
+            isLast: currentSectionIndex === totalSections,
           });
         }
       }
@@ -564,7 +674,7 @@ class McpToolParser {
         content: "",
         index: totalSections,
         total: totalSections,
-        isLast: true
+        isLast: true,
       });
     }
 
@@ -628,9 +738,42 @@ class McpToolParser {
 
     for (const result of results) {
       if (result.success) {
-        // 格式化員工資訊等結構化數據
+        // 🔧 關鍵修復：優先使用 FormatterFactory 進行智能格式化
         let formattedData = "";
-        if (result.data && typeof result.data === "object") {
+
+        // 🚀 優先使用新的格式化器工廠進行智能格式化
+        try {
+          // 🔧 修復：傳遞完整的數據對象
+          const fullData = {
+            ...result.data,
+            // 確保圖片相關信息被包含
+            has_image: result.has_image || result.data?.has_image,
+            image_data: result.image_data || result.data?.image_data,
+            image_format: result.image_format || result.data?.image_format,
+            chart_type: result.chart_type || result.data?.chart_type,
+            // 保留其他重要信息
+            success: result.success,
+            tool_name: result.tool_name,
+            service_name: result.service_name,
+            timestamp: result.timestamp,
+          };
+
+          formattedData = await formatterFactory.formatToolResult(
+            fullData,
+            result.tool_name,
+            {
+              serviceName: result.service_name,
+              executionTime: result.execution_time || result.executionTime,
+              fullResult: result, // 傳遞完整結果供進階處理
+            }
+          );
+        } catch (error) {
+          logger.error(`格式化器工廠處理失敗 (${result.tool_name})`, error);
+          formattedData = null; // 重置以便後備處理
+        }
+
+        // 🔄 後備：如果 FormatterFactory 處理失敗，使用員工資訊格式化
+        if (!formattedData && result.data && typeof result.data === "object") {
           if (result.data.basic) {
             formattedData += `**基本資訊：**\n`;
             formattedData += `- 姓名：${result.data.basic.name || "未知"}\n`;
@@ -665,38 +808,9 @@ class McpToolParser {
           }
         }
 
-        // 🚀 使用新的格式化器工廠進行智能格式化
+        // 🆘 最終後備：如果所有格式化都失敗，使用通用格式化
         if (!formattedData) {
-          try {
-            // 🔧 修復：傳遞完整的數據對象
-            const fullData = {
-              ...result.data,
-              // 確保圖片相關信息被包含
-              has_image: result.has_image || result.data?.has_image,
-              image_data: result.image_data || result.data?.image_data,
-              image_format: result.image_format || result.data?.image_format,
-              chart_type: result.chart_type || result.data?.chart_type,
-              // 保留其他重要信息
-              success: result.success,
-              tool_name: result.tool_name,
-              service_name: result.service_name,
-              timestamp: result.timestamp,
-            };
-            
-            formattedData = await formatterFactory.formatToolResult(
-              fullData,
-              result.tool_name,
-              {
-                serviceName: result.service_name,
-                executionTime: result.execution_time || result.executionTime,
-                fullResult: result, // 傳遞完整結果供進階處理
-              }
-            );
-          } catch (error) {
-            logger.error(`格式化器工廠處理失敗 (${result.tool_name})`, error);
-            // 後備處理
-            formattedData = this.formatGeneralData(result.data);
-          }
+          formattedData = this.formatGeneralData(result.data);
         }
 
         sections.push(

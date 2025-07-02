@@ -772,7 +772,7 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               user_question: content,
               original_question: content,
               stream: true, // 🔧 啟用流式二次 AI 調用
-              enableSecondaryStream: true, // 🔧 明確啟用二次流式調用
+              enableSecondaryStream: true, // 🚀 重新啟用二次流式調用，測試完整流程
               onSecondaryAIStart: () => {
                 if (isClientConnected) {
                   sendSSE("secondary_ai_start", {
@@ -844,6 +844,37 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                       conversation_id: conversationId,
                     });
                   }
+                }
+              },
+              // 🚀 新增：MCP 工具流式調用回調
+              onMcpToolStart: (toolName) => {
+                if (isClientConnected) {
+                  sendSSE("mcp_tool_start", {
+                    assistant_message_id: assistantMessageId,
+                    toolName: toolName,
+                    conversation_id: conversationId,
+                  });
+                }
+              },
+              onMcpToolChunk: (chunkData) => {
+                if (isClientConnected) {
+                  sendSSE("mcp_tool_chunk", {
+                    assistant_message_id: assistantMessageId,
+                    content: chunkData.content,
+                    index: chunkData.index,
+                    total: chunkData.total,
+                    timestamp: chunkData.timestamp,
+                    conversation_id: conversationId,
+                  });
+                }
+              },
+              onMcpToolComplete: (toolName, streamedContent) => {
+                if (isClientConnected) {
+                  sendSSE("mcp_tool_complete", {
+                    assistant_message_id: assistantMessageId,
+                    toolName: toolName,
+                    conversation_id: conversationId,
+                  });
                 }
               },
             }
@@ -1019,6 +1050,9 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 is_streaming_secondary: toolCallMetadata.is_streaming_secondary, // 🔧 傳遞流式標記
                 debug_info: chatResult.debug_info, // 🔧 新增：傳遞調試信息
                 used_summary: chatResult.used_summary, // 🔧 傳遞 Summary 使用標記
+                // 🎯 關鍵修復：添加格式化結果，供前端直接顯示
+                formatted_results: chatResult.formatted_results,
+                final_response: chatResult.final_response,
                 conversation_id: conversationId,
               });
             }
@@ -1045,8 +1079,60 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
           toolCallMetadata.thinking_content = finalThinkingContent;
         }
 
-        // 🎬 新增：AI總結流處理
+        // 🎬 AI總結流處理 - 智能控制
+        const enableAISummaryStream = true; // 🚀 重新啟用AI總結，測試修復效果
+
+        // 🛡️ 預先檢查數據量，決定是否啟用總結
+        let shouldEnableSummary = enableAISummaryStream;
+        let totalDataComplexity = 0;
+
+        // 🎛️ 可配置的數據量閾值（可透過環境變數調整）
+        const MAX_DATA_FOR_SUMMARY = parseInt(
+          process.env.MAX_DATA_FOR_SUMMARY || "200"
+        );
+        const LARGE_DATA_THRESHOLD = parseInt(
+          process.env.LARGE_DATA_THRESHOLD || "50"
+        );
+        const MEDIUM_DATA_THRESHOLD = parseInt(
+          process.env.MEDIUM_DATA_THRESHOLD || "20"
+        );
+
+        if (toolCallMetadata.tool_results) {
+          toolCallMetadata.tool_results.forEach((result) => {
+            if (result.success && result.data) {
+              if (Array.isArray(result.data)) {
+                totalDataComplexity += result.data.length;
+              } else if (
+                result.result?.data &&
+                Array.isArray(result.result.data)
+              ) {
+                totalDataComplexity += result.result.data.length;
+              }
+            }
+          });
+        }
+
+        // 🚨 安全閥：超大數據集跳過AI總結
+        if (totalDataComplexity > MAX_DATA_FOR_SUMMARY) {
+          shouldEnableSummary = false;
+          console.log("🚨 [安全閥] 數據量過大，跳過AI總結", {
+            totalDataComplexity: totalDataComplexity,
+            conversationId: conversationId,
+          });
+
+          if (isClientConnected) {
+            sendSSE("ai_summary_skipped", {
+              assistant_message_id: assistantMessageId,
+              reason: "數據量過大，已自動跳過AI總結以確保響應速度",
+              data_complexity: totalDataComplexity,
+              conversation_id: conversationId,
+              timestamp: Date.now(),
+            });
+          }
+        }
+
         if (
+          shouldEnableSummary && // 🛡️ 智能控制
           toolCallMetadata.has_tool_calls &&
           toolCallMetadata.tool_results &&
           toolCallMetadata.tool_results.some((r) => r.success) &&
@@ -1118,10 +1204,76 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                   });
                 }
 
+                // 🎯 智能數據截斷 - 針對大數據集優化
+                let optimizedData = data;
+                let dataStats = null;
+
+                if (Array.isArray(data)) {
+                  const totalRecords = data.length;
+
+                  // 🔧 大數據集處理邏輯（使用環境變數控制閾值）
+                  // 環境變數從外層作用域獲取
+                  const LARGE_THRESHOLD = parseInt(
+                    process.env.LARGE_DATA_THRESHOLD || "50"
+                  );
+                  const MEDIUM_THRESHOLD = parseInt(
+                    process.env.MEDIUM_DATA_THRESHOLD || "20"
+                  );
+
+                  if (totalRecords > LARGE_THRESHOLD) {
+                    // 保留前10筆 + 後5筆，中間用統計信息代替
+                    const firstPart = data.slice(0, 10);
+                    const lastPart = data.slice(-5);
+
+                    optimizedData = {
+                      sample_data: [...firstPart, ...lastPart],
+                      total_records: totalRecords,
+                      display_note: `顯示前10筆和後5筆記錄，共${totalRecords}筆數據`,
+                      is_truncated: true,
+                    };
+
+                    dataStats = {
+                      total_records: totalRecords,
+                      sample_size: 15,
+                      truncated: true,
+                    };
+
+                    console.log("🎯 [大數據優化] 數據已截斷", {
+                      toolName: toolName,
+                      originalSize: totalRecords,
+                      optimizedSize: 15,
+                      savings: `${((1 - 15 / totalRecords) * 100).toFixed(1)}%`,
+                      threshold: LARGE_THRESHOLD,
+                    });
+                  } else if (totalRecords > MEDIUM_THRESHOLD) {
+                    // 中等數據集：保留前15筆
+                    optimizedData = {
+                      sample_data: data.slice(0, 15),
+                      total_records: totalRecords,
+                      display_note: `顯示前15筆記錄，共${totalRecords}筆數據`,
+                      is_truncated: true,
+                    };
+
+                    dataStats = {
+                      total_records: totalRecords,
+                      sample_size: 15,
+                      truncated: true,
+                    };
+                  } else {
+                    // 小數據集：保持原樣
+                    dataStats = {
+                      total_records: totalRecords,
+                      sample_size: totalRecords,
+                      truncated: false,
+                    };
+                  }
+                }
+
                 // 返回結構化的核心數據
                 return {
                   tool: toolName,
-                  data: data,
+                  data: optimizedData,
+                  data_stats: dataStats,
                   // 只包含基本統計信息
                   summary: r.result?.summary || r.result?.result?.summary,
                   // 🤖 新增：提取 AI 指導提示詞
@@ -1148,15 +1300,35 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
               })),
             });
 
+            // 🎯 計算數據複雜度，調整總結策略
+            const totalDataSize = coreData.reduce((total, item) => {
+              if (item.data_stats) {
+                return total + item.data_stats.total_records;
+              }
+              return total + (Array.isArray(item.data) ? item.data.length : 1);
+            }, 0);
+
+            const summaryOptions = {
+              user_id: user.id,
+              conversation_id: conversationId,
+              model_config: model,
+              // 🚀 根據數據量調整總結參數
+              max_tokens: totalDataSize > 100 ? 300 : 500, // 大數據集用更短總結
+              temperature: 0.3, // 降低溫度確保穩定性
+              is_large_dataset: totalDataSize > LARGE_DATA_THRESHOLD,
+            };
+
+            console.log("🎯 [AI總結策略] 根據數據量調整參數", {
+              totalDataSize: totalDataSize,
+              maxTokens: summaryOptions.max_tokens,
+              isLargeDataset: summaryOptions.is_large_dataset,
+            });
+
             // 生成AI總結流
             const summaryGenerator = chatService.generateAISummaryStream(
               coreData, // 只傳遞核心數據
               content, // 用戶問題
-              {
-                user_id: user.id,
-                conversation_id: conversationId,
-                model_config: model,
-              }
+              summaryOptions
             );
 
             let summaryContent = "";
@@ -1297,13 +1469,15 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
             toolCallMetadata.tool_results &&
             toolCallMetadata.tool_results.some((r) => r.success)
           ) {
-            // 有成功的工具調用時，保持現有內容不變
-            // 因為前端已經通過SSE事件處理了內容組裝
-            console.log(
-              "🎯 有工具調用，跳過final content更新，避免覆蓋已組裝的內容"
-            );
+            // 🛡️ 有成功的工具調用時，採用保護模式
+            console.log("🎯 [保護模式] 有工具調用，保護現有內容不被覆蓋", {
+              conversationId: conversationId,
+              toolResultsCount: toolCallMetadata.tool_results.length,
+              hasAISummary: shouldEnableSummary,
+              totalDataComplexity: totalDataComplexity,
+            });
 
-            // 只更新metadata和其他信息，不更新content
+            // 🔧 只更新metadata和其他信息，不更新content
             await MessageModel.update(assistantMessageId, {
               tokens_used: chunk.tokens_used,
               cost: chunk.cost,
@@ -1322,8 +1496,25 @@ export const handleSendMessageStream = catchAsync(async (req, res) => {
                 cost: chunk.cost,
               },
             });
+
+            // 🎯 發送保護模式確認事件
+            if (isClientConnected) {
+              sendSSE("content_protection_applied", {
+                assistant_message_id: assistantMessageId,
+                message: "內容保護模式已啟用，工具結果已保護",
+                tool_results_count: toolCallMetadata.tool_results.length,
+                data_complexity: totalDataComplexity,
+                conversation_id: conversationId,
+                timestamp: Date.now(),
+              });
+            }
           } else {
             // 沒有工具調用時，正常更新內容
+            console.log("🔄 [正常模式] 無工具調用，正常更新內容", {
+              conversationId: conversationId,
+              contentLength: finalContent.length,
+            });
+
             await MessageModel.update(assistantMessageId, {
               content: finalContent,
               tokens_used: chunk.tokens_used,

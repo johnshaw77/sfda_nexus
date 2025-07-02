@@ -10,17 +10,17 @@
         </div>
         <!-- 進度條 -->
         <div
-          v-if="message.progress !== undefined"
+          v-if="getProgressValue() !== undefined"
           class="tool-progress">
           <a-progress
-            :percent="message.progress"
+            :percent="getProgressValue()"
             :show-info="false"
             size="small"
             :stroke-color="{
               '0%': '#108ee9',
               '100%': '#87d068',
             }" />
-          <span class="progress-text">{{ message.progress }}%</span>
+          <span class="progress-text">{{ getProgressValue() }}%</span>
         </div>
       </div>
       <LoadingOutlined
@@ -34,12 +34,29 @@
 import { ToolOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 
 // Props
-defineProps({
+const props = defineProps({
   message: {
     type: Object,
     required: true
   }
 });
+
+// 🔧 修復：統一進度值處理，避免超過100%
+const getProgressValue = () => {
+  const message = props.message;
+  
+  // 優先使用 toolResultProgress（工具結果進度）
+  if (message.toolResultProgress !== undefined) {
+    return Math.min(100, Math.max(0, message.toolResultProgress));
+  }
+  
+  // 其次使用 progress（工具調用進度）
+  if (message.progress !== undefined) {
+    return Math.min(100, Math.max(0, message.progress));
+  }
+  
+  return undefined;
+};
 </script>
 
 <style scoped>

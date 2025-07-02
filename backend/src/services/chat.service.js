@@ -200,6 +200,20 @@ class ChatService {
       sections.push("");
     }
 
+    // 強化規則
+    sections.push("---");
+    sections.push("## 🚨 重要規則：");
+    sections.push("1. **禁止在工具調用前分析、推測、回答任何數據相關問題。**");
+    sections.push(
+      "2. **如問題涉及數據分析、統計、圖表、計算等，必須先調用對應 MCP 工具，嚴禁直接分析或給出結論。**"
+    );
+    sections.push("3. **所有具體數據、分析、結論必須來自工具調用結果。**");
+    sections.push(
+      "4. **如未調用工具，僅能回應「需要調用工具」或直接生成工具調用指令。**"
+    );
+    sections.push("5. **嚴禁基於訓練數據或常識推測任何數值、統計、趨勢。**");
+    sections.push("");
+
     return sections.join("\n");
   }
 
@@ -460,26 +474,8 @@ ${formattedResults}`;
         console.log("格式化結果完整性:", hasCompleteData);
         console.log("格式化結果長度:", formattedResults.length);
 
-        if (hasCompleteData) {
-          console.log(
-            "=== 格式化結果完整，但跳過舊的AI總結（使用新的流式總結） ==="
-          );
-          // 🎬 新策略：禁用舊的二次AI調用，只使用新的流式總結
-          console.log("🎬 已禁用舊的AI總結機制，將使用新的流式總結");
-
-          // 直接返回格式化結果，不進行二次AI調用
-          return {
-            original_response: aiResponse,
-            has_tool_calls: true,
-            tool_calls: toolCalls,
-            tool_results: toolResults,
-            final_response: formattedResults,
-            used_secondary_ai: false, // 標記為未使用舊的二次AI
-            used_summary: false,
-            thinking_content: thinkingContent,
-            debug_info: null,
-          };
-        }
+        // 🚀 啟用智能總結：繼續檢查是否需要二次 AI 調用
+        console.log("=== 檢查是否需要智能總結 ===");
 
         // 🔧 新增：檢查是否有 Summary，如果有就直接使用，跳過二次 AI 調用
         console.log("=== 開始檢查 Summary ===");
@@ -729,39 +725,50 @@ ${formattedResults}`;
                 timestamp: r.timestamp,
                 summary: null,
                 statistics: null,
-                data_count: 0
+                data_count: 0,
               };
-              
+
               // 安全提取統計數據和摘要
-              if (r.data && typeof r.data === 'object') {
+              if (r.data && typeof r.data === "object") {
                 // 提取統計結果
-                if (r.data.statistics && typeof r.data.statistics === 'object') {
+                if (
+                  r.data.statistics &&
+                  typeof r.data.statistics === "object"
+                ) {
                   cleaned.statistics = {
                     test_statistic: r.data.statistics.test_statistic,
                     p_value: r.data.statistics.p_value,
                     critical_value: r.data.statistics.critical_value,
                     degrees_of_freedom: r.data.statistics.degrees_of_freedom,
                     effect_size: r.data.statistics.effect_size,
-                    conclusion: r.data.statistics.conclusion
+                    conclusion: r.data.statistics.conclusion,
                   };
                 }
-                
+
                 // 提取安全的摘要信息
-                if (r.data.summary && typeof r.data.summary === 'string' && r.data.summary.length < 2000) {
+                if (
+                  r.data.summary &&
+                  typeof r.data.summary === "string" &&
+                  r.data.summary.length < 2000
+                ) {
                   cleaned.summary = r.data.summary;
                 }
-                
+
                 // 提取數據計數
                 if (r.data.data && Array.isArray(r.data.data)) {
                   cleaned.data_count = r.data.data.length;
                 }
-                
+
                 // 提取基本數據描述（不包含原始數據）
-                if (r.data.description && typeof r.data.description === 'string' && r.data.description.length < 1000) {
+                if (
+                  r.data.description &&
+                  typeof r.data.description === "string" &&
+                  r.data.description.length < 1000
+                ) {
                   cleaned.description = r.data.description;
                 }
               }
-              
+
               return cleaned;
             })
             .slice(0, 2); // 進一步限制數據量
@@ -777,9 +784,13 @@ ${formattedResults}`;
 - 必須圍繞用戶問題提供專業建議
 
 **統計結果摘要：**
-${cleanedToolData.map(d => `工具: ${d.tool_name}
-統計值: ${d.statistics ? JSON.stringify(d.statistics, null, 2) : '無'}
-摘要: ${d.summary || '無'}`).join('\n\n')}
+${cleanedToolData
+  .map(
+    (d) => `工具: ${d.tool_name}
+統計值: ${d.statistics ? JSON.stringify(d.statistics, null, 2) : "無"}
+摘要: ${d.summary || "無"}`
+  )
+  .join("\n\n")}
 
 要求：基於統計結果提供3-4句專業分析。`,
             },
@@ -814,10 +825,10 @@ ${cleanedToolData.map(d => `工具: ${d.tool_name}
           console.log("User Prompt:", followUpMessages[1].content);
           console.log("Model Config:", secondaryModelConfig);
 
-          // 🚀 使用快速非流式二次調用
-          const useStreamingSecondaryAI = false; // 使用非流式以確保結果組合正確
+          // 🚀 禁用後端二次 AI 調用，使用前端流式總結
+          const useSecondaryAI = false; // 禁用二次調用，避免重複總結
 
-          if (useStreamingSecondaryAI) {
+          if (useSecondaryAI) {
             console.log("=== 啟用流式二次 AI 調用 ===");
 
             // 🔧 使用流式模式進行二次 AI 調用
@@ -999,8 +1010,8 @@ ${JSON.stringify(secondaryModelConfig, null, 2)}
         tool_calls: toolCalls,
         tool_results: toolResults,
         formatted_results: formattedResults,
-        final_response: finalResponse,
-        used_secondary_ai: hasSuccessfulTools,
+        final_response: formattedResults, // 🔧 只返回格式化結果，等待前端流式總結
+        used_secondary_ai: false, // 🔧 禁用後端二次總結
         used_summary: hasCompleteData, // 🔧 使用完整數據檢測結果
         thinking_content: thinkingContent, // 添加思考內容
         secondary_ai_generator: secondaryAIGenerator, // 🔧 添加流式生成器（如果有）
@@ -1420,6 +1431,49 @@ ${allAIInstructions}
         api_key_encrypted: null,
       };
     }
+  }
+
+  /**
+   * 根據用戶問題判斷是否必須強制工具調用
+   * @param {string} userQuestion
+   * @param {Object} context
+   * @returns {boolean}
+   */
+  detectToolNeed(userQuestion, context = {}) {
+    if (!userQuestion) return false;
+    // 關鍵詞判斷
+    const keywords = [
+      "分析",
+      "統計",
+      "計算",
+      "評估",
+      "平均",
+      "標準差",
+      "回歸",
+      "t檢驗",
+      "anova",
+      "數據",
+      "資料",
+      "dataset",
+      "data",
+      "chart",
+      "圖表",
+      "分布",
+      "相關",
+      "相關性",
+      "describe",
+      "summary",
+      "variance",
+      "mean",
+      "median",
+      "mode",
+      "分群",
+      "聚類",
+    ];
+    const hasKeyword = keywords.some((k) => userQuestion.includes(k));
+    // 數據結構判斷
+    const hasDataPattern = /\[.*\]|\{.*\}|[\d,]+/.test(userQuestion);
+    return hasKeyword || hasDataPattern;
   }
 }
 
