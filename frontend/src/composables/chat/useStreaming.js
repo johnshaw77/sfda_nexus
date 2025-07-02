@@ -674,6 +674,13 @@ export function useStreaming(
           hasFormattedResults: !!data.formatted_results,
           hasFinalResponse: !!data.final_response,
           dataKeys: Object.keys(data),
+          formattedResultsLength: data.formatted_results?.length || 0,
+          finalResponseLength: data.final_response?.length || 0,
+          formattedResultsPreview:
+            data.formatted_results?.substring(0, 200) || "null",
+          finalResponsePreview:
+            data.final_response?.substring(0, 200) || "null",
+          fullData: JSON.stringify(data, null, 2).substring(0, 1000),
         });
 
         const toolMessageIndex = messageState.messages.value.findIndex(
@@ -756,6 +763,18 @@ export function useStreaming(
               toolContentLocked: true,
               hasContainer: true,
             });
+          } else {
+            // 🚨 警告：有工具調用但沒有結果數據
+            console.warn(
+              "🚨 警告：tool_calls_processed 事件沒有 final_response 或 formatted_results!",
+              {
+                messageId: data.assistant_message_id,
+                hasToolCalls: data.has_tool_calls,
+                toolCallsCount: data.tool_calls?.length || 0,
+                toolResultsCount: data.tool_results?.length || 0,
+                availableKeys: Object.keys(data),
+              }
+            );
           }
 
           // 保存調試信息
@@ -1069,7 +1088,7 @@ export function useStreaming(
           }
 
           // 🧪 測試方案：使用專用函數更新AI總結，避免覆蓋工具結果
-          console.log("🧠 智能總結增量更新（測試方案）:", {
+          console.log("🧠 智能總結增量更新（增強調試）:", {
             messageId: data.assistant_message_id,
             hasToolResult: !!(
               messageObj.final_response && messageObj.toolContentSet
@@ -1078,6 +1097,19 @@ export function useStreaming(
             deltaLength: data.content?.length || 0,
             toolContentLocked: messageObj.toolContentLocked,
             hasContainer: !!messageObj.toolResultWithContainer,
+            // 🔍 詳細狀態檢查
+            finalResponseExists: !!messageObj.final_response,
+            finalResponseLength: messageObj.final_response?.length || 0,
+            toolContentSetFlag: messageObj.toolContentSet,
+            toolResultWithContainerExists: !!messageObj.toolResultWithContainer,
+            containerLength: messageObj.toolResultWithContainer?.length || 0,
+            // 🧠 messageObj 的所有相關屬性
+            messageObjKeys: Object.keys(messageObj).filter(
+              (key) =>
+                key.includes("tool") ||
+                key.includes("final") ||
+                key.includes("content")
+            ),
           });
 
           // 🧪 關鍵測試：使用專用容器更新總結內容

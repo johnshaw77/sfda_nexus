@@ -1742,8 +1742,9 @@ class McpToolParser {
       return false;
     }
 
-    console.log("🔧 檢測到可能的數據查詢意圖");
-    return false; // 🔧 保守策略：除非有明確的工具調用語法，否則不調用工具
+    // 🚀 修復：檢測到數據查詢意圖時，應該觸發工具調用
+    console.log("🔧 檢測到明確的數據查詢意圖，允許工具調用");
+    return true;
   }
 }
 
